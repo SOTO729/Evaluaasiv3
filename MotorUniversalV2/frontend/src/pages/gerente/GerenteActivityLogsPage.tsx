@@ -1,8 +1,6 @@
 /**
- * Página de Logs de Actividad del Personal
- * 
- * El gerente puede ver todas las acciones realizadas
- * por usuarios de tipo "personal" (admin, gerente, financiero, coordinador)
+ * Página de Logs de Actividad del Gerente
+ * Visor de actividad filtrable con paginación
  */
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -33,54 +31,43 @@ export default function GerenteActivityLogsPage() {
   const [totalLogs, setTotalLogs] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [personalUsers, setPersonalUsers] = useState<PersonalUser[]>([]);
-  
-  // Filters
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  const [selectedAction, setSelectedAction] = useState<string>('');
-  const [selectedEntity, setSelectedEntity] = useState<string>('');
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
-  const [successOnly, setSuccessOnly] = useState<boolean | undefined>(undefined);
-  
+
+  // Filtros
+  const [selectedUser, setSelectedUser] = useState('');
+  const [selectedAction, setSelectedAction] = useState('');
+  const [selectedEntity, setSelectedEntity] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [successOnly, setSuccessOnly] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   const perPage = 20;
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
-
-  useEffect(() => {
-    loadLogs();
-  }, [currentPage, selectedUser, selectedAction, selectedEntity, dateFrom, dateTo, successOnly]);
+  useEffect(() => { loadInitialData(); }, []);
+  useEffect(() => { loadLogs(); }, [currentPage, selectedUser, selectedAction, selectedEntity, dateFrom, dateTo, successOnly]);
 
   const loadInitialData = async () => {
     try {
-      const users = await getPersonalUsers();
-      setPersonalUsers(users.users);
-    } catch (err) {
-      console.error('Error loading users:', err);
-    }
+      const data = await getPersonalUsers();
+      setPersonalUsers(data.users);
+    } catch {} // silently fail for users list
   };
 
   const loadLogs = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const data = await getActivityLogs({
-        page: currentPage,
-        per_page: perPage,
-        user_id: selectedUser || undefined,
-        action_type: selectedAction || undefined,
-        entity_type: selectedEntity || undefined,
-        date_from: dateFrom || undefined,
-        date_to: dateTo || undefined,
-        success: successOnly,
-      });
-
-      setLogs(data.logs);
-      setTotalLogs(data.total);
+      const params: any = { page: currentPage, per_page: perPage };
+      if (selectedUser) params.user_id = selectedUser;
+      if (selectedAction) params.action_type = selectedAction;
+      if (selectedEntity) params.entity_type = selectedEntity;
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
+      if (successOnly === 'true') params.success = true;
+      else if (successOnly === 'false') params.success = false;
+      const data = await getActivityLogs(params);
+      setLogs(data.logs || []);
+      setTotalLogs(data.total || 0);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar logs');
     } finally {
@@ -100,118 +87,86 @@ export default function GerenteActivityLogsPage() {
     setSelectedEntity('');
     setDateFrom('');
     setDateTo('');
-    setSuccessOnly(undefined);
+    setSuccessOnly('');
     setCurrentPage(1);
   };
 
   const totalPages = Math.ceil(totalLogs / perPage);
 
-  const getActionIcon = (actionType: string, success: boolean) => {
-    if (!success) {
-      return <XCircle className="w-4 h-4 text-red-500" />;
-    }
-    switch (actionType) {
-      case 'login':
-      case 'logout':
-        return <User className="w-4 h-4 text-blue-500" />;
-      case 'create':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case 'delete':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'balance_approve':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case 'balance_reject':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Activity className="w-4 h-4 text-gray-500" />;
-    }
+  const getActionBadgeColor = (actionType: string) => {
+    if (actionType.includes('create') || actionType.includes('add')) return 'bg-green-100 text-green-700 border-green-200/60';
+    if (actionType.includes('delete') || actionType.includes('remove')) return 'bg-red-100 text-red-700 border-red-200/60';
+    if (actionType.includes('update') || actionType.includes('edit')) return 'bg-blue-100 text-blue-700 border-blue-200/60';
+    if (actionType.includes('login')) return 'bg-purple-100 text-purple-700 border-purple-200/60';
+    return 'bg-gray-100 text-gray-700 border-gray-200/60';
   };
 
-  const getActionBadgeColor = (actionType: string) => {
-    if (actionType.includes('login') || actionType.includes('logout')) {
-      return 'bg-blue-100 text-blue-700';
-    }
-    if (actionType.includes('create')) {
-      return 'bg-green-100 text-green-700';
-    }
-    if (actionType.includes('delete') || actionType.includes('reject')) {
-      return 'bg-red-100 text-red-700';
-    }
-    if (actionType.includes('approve')) {
-      return 'bg-emerald-100 text-emerald-700';
-    }
-    if (actionType.includes('update') || actionType.includes('review')) {
-      return 'bg-yellow-100 text-yellow-700';
-    }
-    return 'bg-gray-100 text-gray-700';
-  };
+  const hasFilters = selectedUser || selectedAction || selectedEntity || dateFrom || dateTo || successOnly;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Link
-            to="/gerente"
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-              <Activity className="w-8 h-8 text-blue-600" />
-              Logs de Actividad
-            </h1>
-            <p className="text-gray-600 mt-1">
-              Historial de acciones del personal
-            </p>
+    <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* ===== HEADER ===== */}
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden shadow-lg">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
+
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center fluid-gap-4">
+            <Link to="/gerente" className="fluid-p-2 bg-white/15 rounded-fluid-lg hover:bg-white/25 transition-colors">
+              <ArrowLeft className="fluid-icon-sm text-white" />
+            </Link>
+            <div className="fluid-p-3 bg-white/15 rounded-fluid-xl backdrop-blur-sm">
+              <Activity className="fluid-icon-xl text-white" />
+            </div>
+            <div>
+              <h1 className="fluid-text-3xl font-bold">Logs de Actividad</h1>
+              <p className="fluid-text-base text-white/80">{totalLogs} registros</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/gerente/seguridad"
-            className="flex items-center gap-2 px-4 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <Shield className="w-5 h-5" />
-            Seguridad
-          </Link>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
+
+          <div className="flex items-center fluid-gap-3">
+            <Link
+              to="/gerente/seguridad"
+              className="hidden md:flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-white/15 hover:bg-white/25 rounded-fluid-xl fluid-text-xs font-medium text-white transition-all"
+            >
+              <Shield className="fluid-icon-xs" /> Seguridad
+            </Link>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="fluid-p-2.5 bg-white/15 hover:bg-white/25 rounded-fluid-xl transition-all hover:scale-105 backdrop-blur-sm"
+            >
+              <RefreshCw className={`fluid-icon-lg text-white ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl border shadow-sm p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          {/* User Filter */}
+      {/* ===== FILTROS ===== */}
+      <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 fluid-p-5 fluid-mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 fluid-gap-3">
+          {/* Usuario */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Usuario</label>
+            <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1">Usuario</label>
             <select
               value={selectedUser}
               onChange={(e) => { setSelectedUser(e.target.value); setCurrentPage(1); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-py-2 fluid-px-3 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-xs focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none"
             >
               <option value="">Todos</option>
-              {personalUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.full_name} ({user.role})
-                </option>
+              {personalUsers.map((u) => (
+                <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
               ))}
             </select>
           </div>
 
-          {/* Action Filter */}
+          {/* Acción */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Acción</label>
+            <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1">Acción</label>
             <select
               value={selectedAction}
               onChange={(e) => { setSelectedAction(e.target.value); setCurrentPage(1); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-py-2 fluid-px-3 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-xs focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none"
             >
               <option value="">Todas</option>
               {Object.entries(ACTION_TYPES).map(([key, label]) => (
@@ -220,13 +175,13 @@ export default function GerenteActivityLogsPage() {
             </select>
           </div>
 
-          {/* Entity Filter */}
+          {/* Entidad */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Entidad</label>
+            <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1">Entidad</label>
             <select
               value={selectedEntity}
               onChange={(e) => { setSelectedEntity(e.target.value); setCurrentPage(1); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-py-2 fluid-px-3 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-xs focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none"
             >
               <option value="">Todas</option>
               {Object.entries(ENTITY_TYPES).map(([key, label]) => (
@@ -235,39 +190,35 @@ export default function GerenteActivityLogsPage() {
             </select>
           </div>
 
-          {/* Date From */}
+          {/* Desde */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Desde</label>
+            <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1">Desde</label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-py-2 fluid-px-3 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-xs focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none"
             />
           </div>
 
-          {/* Date To */}
+          {/* Hasta */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Hasta</label>
+            <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1">Hasta</label>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              className="w-full fluid-py-2 fluid-px-3 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-xs focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none"
             />
           </div>
 
-          {/* Success Filter */}
+          {/* Estado */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+            <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1">Estado</label>
             <select
-              value={successOnly === undefined ? '' : successOnly.toString()}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSuccessOnly(val === '' ? undefined : val === 'true');
-                setCurrentPage(1);
-              }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+              value={successOnly}
+              onChange={(e) => { setSuccessOnly(e.target.value); setCurrentPage(1); }}
+              className="w-full fluid-py-2 fluid-px-3 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-xs focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none"
             >
               <option value="">Todos</option>
               <option value="true">Exitosos</option>
@@ -276,198 +227,127 @@ export default function GerenteActivityLogsPage() {
           </div>
         </div>
 
-        {/* Clear Filters */}
-        <div className="mt-3 flex justify-end">
-          <button
-            onClick={clearFilters}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Limpiar filtros
-          </button>
-        </div>
+        {hasFilters && (
+          <div className="fluid-mt-3 flex justify-end">
+            <button
+              onClick={clearFilters}
+              className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-fluid-xl transition-colors"
+            >
+              Limpiar filtros
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Results */}
+      {/* ===== TABLA ===== */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6 flex items-center fluid-gap-2">
+          <AlertCircle className="fluid-icon-sm text-red-500" />
+          <p className="text-red-700 fluid-text-sm">{error}</p>
+        </div>
+      )}
+
       {loading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex justify-center fluid-py-6">
           <LoadingSpinner size="lg" />
         </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600">{error}</p>
-          <button
-            onClick={loadLogs}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Reintentar
-          </button>
-        </div>
       ) : logs.length === 0 ? (
-        <div className="bg-white rounded-xl border p-12 text-center">
-          <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">
-            No hay registros de actividad
-          </h3>
-          <p className="text-gray-500">
-            No se encontraron logs con los filtros seleccionados
-          </p>
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 fluid-p-6 text-center">
+          <Activity className="fluid-icon-xl text-gray-300 mx-auto fluid-mb-3" />
+          <p className="fluid-text-lg text-gray-500">No hay registros</p>
+          <p className="fluid-text-sm text-gray-400 fluid-mt-1">Ajusta los filtros o revisa más tarde</p>
         </div>
       ) : (
-        <>
-          {/* Stats */}
-          <div className="mb-4 text-sm text-gray-500">
-            {totalLogs} registros encontrados
-          </div>
-
-          {/* Logs Table */}
-          <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Fecha/Hora
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Usuario
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Acción
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Entidad
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Detalles
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Estado
-                    </th>
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gradient-to-r from-gray-50 to-gray-100/80">
+                  <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha</th>
+                  <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">Usuario</th>
+                  <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">Acción</th>
+                  <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">Entidad</th>
+                  <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">Detalles</th>
+                  <th className="text-center fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-indigo-50/30 transition-colors">
+                    <td className="fluid-px-4 fluid-py-3 fluid-text-xs text-gray-500 whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString('es-MX')}
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3">
+                      <div className="flex items-center fluid-gap-2">
+                        <div className="fluid-w-6 fluid-h-6 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0">
+                          <User className="w-3 h-3 text-white" />
+                        </div>
+                        <span className="fluid-text-sm text-gray-700 truncate">{log.user_email || 'Sistema'}</span>
+                      </div>
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3">
+                      <span className={`inline-flex fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-medium border ${getActionBadgeColor(log.action_type)}`}>
+                        {log.action_type.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 capitalize">
+                      {(log.entity_type || '-').replace(/_/g, ' ')}
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3 fluid-text-xs text-gray-500 max-w-xs truncate">
+                      {typeof log.details === 'string' ? log.details : (log.details ? JSON.stringify(log.details) : '-')}
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3 text-center">
+                      {log.success ? (
+                        <CheckCircle2 className="fluid-icon-xs text-emerald-500 mx-auto" />
+                      ) : (
+                        <XCircle className="fluid-icon-xs text-red-500 mx-auto" />
+                      )}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {new Date(log.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(log.created_at).toLocaleTimeString()}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">
-                              {log.user?.full_name || log.user_email || 'Sistema'}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {log.user_role || 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getActionBadgeColor(log.action_type)}`}>
-                          {getActionIcon(log.action_type, log.success)}
-                          {log.action_type_label || log.action_type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div>
-                          <p className="text-sm text-gray-900">
-                            {log.entity_type_label || log.entity_type || '-'}
-                          </p>
-                          {log.entity_name && (
-                            <p className="text-xs text-gray-500">{log.entity_name}</p>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="max-w-xs">
-                          {log.details && Object.keys(log.details).length > 0 ? (
-                            <details className="text-xs">
-                              <summary className="cursor-pointer text-blue-600 hover:text-blue-800">
-                                Ver detalles
-                              </summary>
-                              <pre className="mt-2 p-2 bg-gray-50 rounded text-gray-600 overflow-auto max-h-32">
-                                {JSON.stringify(log.details, null, 2)}
-                              </pre>
-                            </details>
-                          ) : (
-                            <span className="text-gray-400 text-xs">-</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {log.success ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Exitoso
-                          </span>
-                        ) : (
-                          <div>
-                            <span className="inline-flex items-center gap-1 text-xs text-red-600">
-                              <XCircle className="w-3 h-3" />
-                              Fallido
-                            </span>
-                            {log.error_message && (
-                              <p className="text-xs text-red-500 mt-1 max-w-32 truncate" title={log.error_message}>
-                                {log.error_message}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          {/* Pagination */}
+          {/* Paginación */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-gray-500">
-                Página {currentPage} de {totalPages}
-              </p>
-              <div className="flex gap-2">
+            <div className="fluid-px-4 fluid-py-3 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between">
+              <span className="fluid-text-xs text-gray-500">
+                Página {currentPage} de {totalPages} ({totalLogs} registros)
+              </span>
+              <div className="flex fluid-gap-2">
                 <button
                   onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                  disabled={currentPage <= 1}
+                  className="fluid-px-2.5 fluid-py-1 rounded-fluid-lg fluid-text-xs font-medium bg-white border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 >
                   Primera
                 </button>
                 <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="fluid-px-2.5 fluid-py-1 rounded-fluid-lg fluid-text-xs font-medium bg-white border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 >
                   Anterior
                 </button>
                 <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="fluid-px-2.5 fluid-py-1 rounded-fluid-lg fluid-text-xs font-medium bg-white border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 >
                   Siguiente
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                  disabled={currentPage >= totalPages}
+                  className="fluid-px-2.5 fluid-py-1 rounded-fluid-lg fluid-text-xs font-medium bg-white border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
                 >
                   Última
                 </button>
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

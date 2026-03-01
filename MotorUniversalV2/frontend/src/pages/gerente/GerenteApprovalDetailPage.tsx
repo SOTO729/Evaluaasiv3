@@ -1,8 +1,6 @@
 /**
- * Página de Detalle de Solicitud para Aprobación
- * 
- * El gerente puede ver el detalle completo de una solicitud
- * y aprobarla o rechazarla definitivamente
+ * Detalle de Aprobación del Gerente
+ * Vista detallada + acciones de aprobación/rechazo/revisión
  */
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -11,9 +9,7 @@ import {
   FileCheck,
   User,
   Building2,
-  Users,
   DollarSign,
-  Clock,
   FileText,
   MessageSquare,
   CheckCircle2,
@@ -41,33 +37,34 @@ import {
 export default function GerenteApprovalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [request, setRequest] = useState<BalanceRequest | null>(null);
+
+  // Aprobación directa
   const [approverNotes, setApproverNotes] = useState('');
-  const [approvedAmount, setApprovedAmount] = useState<number>(0);
+  const [approvedAmount, setApprovedAmount] = useState('');
   const [processing, setProcessing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState<'approve' | 'reject' | null>(null);
-  // Review state (similar to financiero)
-  const [reviewMode, setReviewMode] = useState(false);
-  const [reviewAction, setReviewAction] = useState<'recommend_approve' | 'recommend_reject' | null>(null);
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [reviewRecommendedAmount, setReviewRecommendedAmount] = useState<number>(0);
-  const [reviewProcessing, setReviewProcessing] = useState(false);
+
+  // Revisión (recomendar) - kept for future use
+  const [_reviewMode] = useState(false);
+  const [reviewAction] = useState<'recommend_approve' | 'recommend_reject' | null>(null);
+  const [_reviewNotes] = useState('');
+  const [_reviewRecommendedAmount] = useState('');
 
   useEffect(() => {
-    loadRequest();
+    if (id) loadData();
   }, [id]);
 
-  const loadRequest = async () => {
-    if (!id) return;
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getBalanceRequest(parseInt(id));
+      const data = await getBalanceRequest(Number(id));
       setRequest(data);
-      setApprovedAmount(data.financiero_recommended_amount || data.amount_requested);
-      setReviewRecommendedAmount(data.amount_requested);
+      setApprovedAmount(String(data.financiero_recommended_amount || data.amount_requested || ''));
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar solicitud');
     } finally {
@@ -75,614 +72,441 @@ export default function GerenteApprovalDetailPage() {
     }
   };
 
+  const canProcess = request && ['pending', 'in_review', 'recommended_approve', 'recommended_reject'].includes(request.status);
+  const isPending = request?.status === 'pending';
+  const isRecommendedApprove = request?.status === 'recommended_approve';
+  const isRecommendedReject = request?.status === 'recommended_reject';
+  const hasFinancieroReview = request?.financiero != null;
+
   const handleApprove = async () => {
-    if (!id) return;
+    if (!request) return;
     try {
       setProcessing(true);
-      await approveRequest(parseInt(id), {
-        amount_approved: approvedAmount,
+      await approveRequest(request.id, {
+        amount_approved: parseFloat(approvedAmount),
         notes: approverNotes || undefined,
       });
-      navigate('/gerente/aprobaciones', {
-        state: { message: 'Solicitud aprobada exitosamente', type: 'success' }
-      });
+      navigate('/gerente/aprobaciones', { state: { message: 'Solicitud aprobada exitosamente', type: 'success' } });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al aprobar');
+    } finally {
       setProcessing(false);
       setShowConfirmModal(null);
     }
   };
 
   const handleReject = async () => {
-    if (!id || !approverNotes.trim()) {
-      setError('Debe proporcionar una razón para el rechazo');
-      return;
-    }
+    if (!request || !approverNotes.trim()) return;
     try {
       setProcessing(true);
-      await rejectRequest(parseInt(id), {
-        notes: approverNotes,
-      });
-      navigate('/gerente/aprobaciones', {
-        state: { message: 'Solicitud rechazada', type: 'info' }
-      });
+      await rejectRequest(request.id, { notes: approverNotes });
+      navigate('/gerente/aprobaciones', { state: { message: 'Solicitud rechazada', type: 'info' } });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al rechazar');
+    } finally {
       setProcessing(false);
       setShowConfirmModal(null);
     }
   };
 
-  const handleReview = async () => {
-    if (!id || !reviewAction) return;
-    if (reviewAction === 'recommend_reject' && !reviewNotes.trim()) {
-      setError('Debe proporcionar un motivo para recomendar el rechazo');
-      return;
-    }
+  const _handleReview = async () => {
+    if (!request || !reviewAction) return;
     try {
-      setReviewProcessing(true);
-      setError(null);
-      await reviewRequest(parseInt(id), {
+      await reviewRequest(request.id, {
         action: reviewAction,
-        notes: reviewNotes || undefined,
-        recommended_amount: reviewAction === 'recommend_approve' ? reviewRecommendedAmount : undefined,
+        notes: _reviewNotes || undefined,
+        recommended_amount: _reviewRecommendedAmount ? parseFloat(_reviewRecommendedAmount) : undefined,
       });
-      // Reload request to show updated data
-      await loadRequest();
-      setReviewMode(false);
-      setReviewAction(null);
-      setReviewNotes('');
+      navigate('/gerente/aprobaciones', { state: { message: 'Revisión enviada exitosamente', type: 'success' } });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al emitir revisión');
-    } finally {
-      setReviewProcessing(false);
+      setError(err.response?.data?.error || 'Error al enviar revisión');
     }
   };
+  void _handleReview;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
+  const getFileIcon = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    if (['xlsx', 'xls', 'csv'].includes(ext)) return <FileSpreadsheet className="fluid-icon-sm text-green-500" />;
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return <Image className="fluid-icon-sm text-blue-500" />;
+    if (['pdf'].includes(ext)) return <FileText className="fluid-icon-sm text-red-500" />;
+    return <File className="fluid-icon-sm text-gray-500" />;
+  };
 
-  if (error && !request) {
-    return (
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-800 mb-2">Error</h2>
-          <p className="text-red-600">{error}</p>
-          <Link
-            to="/gerente/aprobaciones"
-            className="mt-4 inline-block px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Volver a Aprobaciones
-          </Link>
-        </div>
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <LoadingSpinner size="lg" />
+    </div>
+  );
+
+  if (error && !request) return (
+    <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto">
+      <div className="bg-red-50 border border-red-200 rounded-fluid-2xl fluid-p-6 text-center">
+        <AlertCircle className="fluid-icon-xl text-red-500 mx-auto fluid-mb-4" />
+        <h2 className="fluid-text-xl font-semibold text-red-800 fluid-mb-2">Error</h2>
+        <p className="text-red-600 fluid-text-base">{error}</p>
+        <Link to="/gerente/aprobaciones" className="inline-block fluid-mt-4 fluid-px-4 fluid-py-2 bg-red-600 text-white rounded-fluid-xl hover:bg-red-700 transition-colors">
+          Volver
+        </Link>
       </div>
-    );
-  }
+    </div>
+  );
 
   if (!request) return null;
 
-  const canProcess = ['pending', 'in_review', 'recommended_approve', 'recommended_reject'].includes(request.status);
-  const isPending = request.status === 'pending';
-  // const isInReview = request.status === 'in_review';  // reserved for future use
-  const isRecommendedApprove = request.status === 'recommended_approve';
-  const isRecommendedReject = request.status === 'recommended_reject';
-  const hasFinancieroReview = !!request.financiero;
+  const statusBadge = () => {
+    const map: Record<string, { label: string; cls: string }> = {
+      pending: { label: 'Pendiente', cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+      in_review: { label: 'En Revisión', cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+      recommended_approve: { label: 'Recom. Aprobar', cls: 'bg-green-100 text-green-700 border-green-200' },
+      recommended_reject: { label: 'Recom. Rechazar', cls: 'bg-red-100 text-red-700 border-red-200' },
+      approved: { label: 'Aprobada', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+      rejected: { label: 'Rechazada', cls: 'bg-red-100 text-red-700 border-red-200' },
+    };
+    const s = map[request.status] || map.pending;
+    return (
+      <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-full fluid-text-xs font-semibold border ${s.cls}`}>
+        {s.label}
+      </span>
+    );
+  };
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 py-6 lg:py-8 max-w-[1920px] mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6 animate-fade-in-up">
-        <Link
-          to="/gerente/aprobaciones"
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-            <FileCheck className="w-8 h-8 text-purple-600" />
-            Solicitud #{request.id}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Revisión y aprobación final
-          </p>
-        </div>
-        {canProcess && (
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              isRecommendedApprove
-                ? 'bg-green-100 text-green-700'
-                : isRecommendedReject
-                ? 'bg-red-100 text-red-700'
-                : isPending
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-blue-100 text-blue-700'
-            }`}>
-              {isRecommendedApprove && <ThumbsUp className="w-4 h-4 inline mr-1" />}
-              {isRecommendedReject && <ThumbsDown className="w-4 h-4 inline mr-1" />}
-              {isPending && <Clock className="w-4 h-4 inline mr-1" />}
-              {isRecommendedApprove ? 'Recomienda Aprobar' : isRecommendedReject ? 'Recomienda Rechazar' : isPending ? 'Pendiente' : 'En Revisión'}
-            </span>
+    <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
+      {/* ===== HEADER ===== */}
+      <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden shadow-lg">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
+        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
+        <div className="relative flex items-center fluid-gap-4">
+          <Link to="/gerente/aprobaciones" className="fluid-p-2 bg-white/15 rounded-fluid-lg hover:bg-white/25 transition-colors">
+            <ArrowLeft className="fluid-icon-sm text-white" />
+          </Link>
+          <div className="fluid-p-3 bg-white/15 rounded-fluid-xl backdrop-blur-sm">
+            <FileCheck className="fluid-icon-xl text-white" />
           </div>
-        )}
+          <div className="flex-1">
+            <h1 className="fluid-text-3xl font-bold">Solicitud #{request.id}</h1>
+            <p className="fluid-text-base text-white/80">
+              {request.coordinator?.full_name || 'Coordinador'} • {new Date(request.requested_at).toLocaleDateString('es-MX')}
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            {statusBadge()}
+          </div>
+        </div>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-          {error}
+        <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6 flex items-center fluid-gap-2">
+          <AlertCircle className="fluid-icon-sm text-red-500 flex-shrink-0" />
+          <p className="text-red-700 fluid-text-sm">{error}</p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Info */}
-        <div className="lg:col-span-2 space-y-6 animate-fade-in-up">
-          {/* Información del Coordinador */}
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-gray-400" />
-              Coordinador Solicitante
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-500">Nombre</p>
-                <p className="font-medium text-gray-900">
-                  {request.coordinator?.full_name || 'N/A'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Email</p>
-                <p className="text-gray-900">{request.coordinator?.email || 'N/A'}</p>
+      {/* ===== CONTENIDO 3-col ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 fluid-gap-6">
+        {/* --- MAIN (2/3) --- */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Info Coordinador */}
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+            <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+              <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+                <User className="fluid-icon-sm text-purple-500" /> Información del Coordinador
+              </h2>
+            </div>
+            <div className="fluid-p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
+                <div className="fluid-p-3 bg-gray-50/80 rounded-fluid-xl">
+                  <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wider">Nombre</p>
+                  <p className="fluid-text-sm font-semibold text-gray-800 fluid-mt-1">{request.coordinator?.full_name || 'N/A'}</p>
+                </div>
+                <div className="fluid-p-3 bg-gray-50/80 rounded-fluid-xl">
+                  <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wider">Email</p>
+                  <p className="fluid-text-sm font-semibold text-gray-800 fluid-mt-1">{request.coordinator?.email || 'N/A'}</p>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Destino */}
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-gray-400" />
-              Destino del Saldo
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-500">Plantel</p>
-                <p className="font-medium text-gray-900">
-                  {request.campus?.name || 'Sin plantel especificado'}
-                </p>
-                {request.campus?.state_name && (
-                  <p className="text-sm text-gray-500">{request.campus.state_name}</p>
-                )}
-              </div>
-              {request.group && (
-                <div>
-                  <p className="text-sm text-gray-500">Grupo</p>
-                  <p className="font-medium text-gray-900 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-gray-400" />
-                    {request.group.name}
-                    {request.group.code && (
-                      <span className="text-sm text-gray-500">({request.group.code})</span>
-                    )}
-                  </p>
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+            <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+              <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+                <Building2 className="fluid-icon-sm text-indigo-500" /> Destino
+              </h2>
+            </div>
+            <div className="fluid-p-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
+                <div className="fluid-p-3 bg-gray-50/80 rounded-fluid-xl">
+                  <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wider">Plantel</p>
+                  <p className="fluid-text-sm font-semibold text-gray-800 fluid-mt-1">{request.campus?.name || 'Sin plantel'}</p>
                 </div>
-              )}
+                <div className="fluid-p-3 bg-gray-50/80 rounded-fluid-xl">
+                  <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wider">Grupo</p>
+                  <p className="fluid-text-sm font-semibold text-gray-800 fluid-mt-1">{request.group?.name || 'General'}</p>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Justificación */}
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-gray-400" />
-              Justificación
-            </h2>
-            <p className="text-gray-700 whitespace-pre-wrap">
-              {request.justification || 'Sin justificación proporcionada'}
-            </p>
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+            <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+              <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+                <MessageSquare className="fluid-icon-sm text-cyan-500" /> Justificación
+              </h2>
+            </div>
+            <div className="fluid-p-5">
+              <p className="fluid-text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+                {request.justification || 'Sin justificación proporcionada.'}
+              </p>
+            </div>
           </div>
 
-          {/* Documentación Adjunta */}
+          {/* Adjuntos */}
           {request.attachments && request.attachments.length > 0 && (
-            <div className="bg-white rounded-xl border shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <Paperclip className="w-5 h-5 text-gray-400" />
-                Documentación Adjunta ({request.attachments.length} archivo{request.attachments.length !== 1 ? 's' : ''})
-              </h2>
-              <div className="space-y-2">
-                {request.attachments.map((file, index) => {
-                  const getFileIcon = (type: string) => {
-                    if (type === 'xlsx' || type === 'xls') return <FileSpreadsheet className="w-5 h-5 text-green-600" />;
-                    if (type === 'pdf') return <File className="w-5 h-5 text-red-600" />;
-                    if (['jpg', 'jpeg', 'png'].includes(type)) return <Image className="w-5 h-5 text-blue-600" />;
-                    return <File className="w-5 h-5 text-gray-600" />;
-                  };
-                  const formatSize = (bytes: number) => {
-                    if (bytes < 1024) return `${bytes} B`;
-                    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-                    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-                  };
-                  return (
-                    <a
-                      key={index}
-                      href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
-                    >
-                      {getFileIcon(file.type)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{file.name}</p>
-                        <p className="text-xs text-gray-500">{formatSize(file.size)} • {file.type.toUpperCase()}</p>
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                    </a>
-                  );
-                })}
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+              <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+                  <Paperclip className="fluid-icon-sm text-amber-500" /> Adjuntos ({request.attachments.length})
+                </h2>
+              </div>
+              <div className="fluid-p-5 grid grid-cols-1 md:grid-cols-2 fluid-gap-3">
+                {request.attachments.map((att: any, i: number) => (
+                  <a
+                    key={i}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-fluid-xl border border-gray-200 hover:border-purple-300 hover:bg-purple-50/30 transition-all group"
+                  >
+                    {getFileIcon(att.filename || att.name || 'file')}
+                    <span className="flex-1 fluid-text-sm text-gray-700 truncate group-hover:text-purple-700">{att.filename || att.name}</span>
+                    <ExternalLink className="fluid-icon-xs text-gray-400 group-hover:text-purple-500" />
+                  </a>
+                ))}
               </div>
             </div>
           )}
 
           {/* Notas del Financiero */}
-          {request.financiero_notes && (
-            <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
-              <h2 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-blue-500" />
-                Notas del Área Financiera
-              </h2>
-              <p className="text-blue-700 whitespace-pre-wrap">
-                {request.financiero_notes}
-              </p>
-              {request.financiero && (
-                <p className="text-sm text-blue-600 mt-3">
-                  — {request.financiero.full_name}
-                  {request.financiero_reviewed_at && (
-                    <span className="text-blue-500 ml-2">
-                      ({new Date(request.financiero_reviewed_at).toLocaleDateString()})
-                    </span>
-                  )}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Aviso: sin revisión financiera */}
-          {canProcess && !hasFinancieroReview && (
-            <div className="bg-amber-50 rounded-xl border border-amber-200 p-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-amber-800">Sin revisión financiera</h3>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Esta solicitud aún no ha sido revisada por el área financiera. Puede aprobarla directamente si lo considera pertinente.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Sección de Revisión del Gerente (similar a financiero) */}
-          {canProcess && (
-            <div className="bg-white rounded-xl border shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-blue-500" />
-                  Revisión del Gerente
+          {hasFinancieroReview && (
+            <div className="bg-blue-50/80 rounded-fluid-2xl border border-blue-200/60 overflow-hidden">
+              <div className="fluid-p-5 border-b border-blue-200/40 bg-blue-100/30">
+                <h2 className="fluid-text-lg font-semibold text-blue-800 flex items-center fluid-gap-2">
+                  <FileText className="fluid-icon-sm text-blue-600" /> Revisión del Financiero
                 </h2>
-                {!reviewMode && (
-                  <button
-                    onClick={() => setReviewMode(true)}
-                    className="text-sm px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                  >
-                    {hasFinancieroReview ? 'Emitir mi propia revisión' : 'Revisar solicitud'}
-                  </button>
+              </div>
+              <div className="fluid-p-5 space-y-3">
+                <div className="flex items-center fluid-gap-3">
+                  <span className="fluid-text-xs text-blue-600 font-semibold uppercase">Recomendación:</span>
+                  {isRecommendedApprove ? (
+                    <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-0.5 bg-green-100 text-green-700 rounded-full fluid-text-xs font-medium">
+                      <ThumbsUp className="fluid-icon-xs" /> Aprobar
+                    </span>
+                  ) : isRecommendedReject ? (
+                    <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-0.5 bg-red-100 text-red-700 rounded-full fluid-text-xs font-medium">
+                      <ThumbsDown className="fluid-icon-xs" /> Rechazar
+                    </span>
+                  ) : null}
+                </div>
+                {request.financiero_recommended_amount && (
+                  <p className="fluid-text-sm text-blue-700">
+                    <strong>Monto recomendado:</strong> {formatCurrency(request.financiero_recommended_amount)}
+                  </p>
+                )}
+                {request.financiero_notes && (
+                  <p className="fluid-text-sm text-blue-700 whitespace-pre-line">
+                    <strong>Notas:</strong> {request.financiero_notes}
+                  </p>
                 )}
               </div>
-
-              {hasFinancieroReview && !reviewMode && (
-                <p className="text-sm text-gray-500">
-                  Ya existe una revisión del financiero. Puede emitir su propia revisión si lo desea, o proceder directamente a la decisión final.
-                </p>
-              )}
-
-              {reviewMode && (
-                <div className="space-y-4">
-                  <p className="text-sm text-gray-600">
-                    Emita su recomendación sobre esta solicitud antes de tomar la decisión final.
-                  </p>
-
-                  {/* Botones de recomendación */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setReviewAction('recommend_approve')}
-                      className={`flex-1 p-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                        reviewAction === 'recommend_approve'
-                          ? 'border-green-500 bg-green-50 text-green-700'
-                          : 'border-gray-200 hover:border-green-300 text-gray-600'
-                      }`}
-                    >
-                      <ThumbsUp className="w-5 h-5 mx-auto mb-1" />
-                      Recomendar Aprobar
-                    </button>
-                    <button
-                      onClick={() => setReviewAction('recommend_reject')}
-                      className={`flex-1 p-3 rounded-lg border-2 transition-all text-sm font-medium ${
-                        reviewAction === 'recommend_reject'
-                          ? 'border-red-500 bg-red-50 text-red-700'
-                          : 'border-gray-200 hover:border-red-300 text-gray-600'
-                      }`}
-                    >
-                      <ThumbsDown className="w-5 h-5 mx-auto mb-1" />
-                      Recomendar Rechazar
-                    </button>
-                  </div>
-
-                  {/* Monto recomendado (solo si aprueba) */}
-                  {reviewAction === 'recommend_approve' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Monto Recomendado
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={reviewRecommendedAmount}
-                          onChange={(e) => setReviewRecommendedAmount(parseFloat(e.target.value) || 0)}
-                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Solicitado: {formatCurrency(request.amount_requested)}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Notas de revisión */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Notas de revisión {reviewAction === 'recommend_reject' && <span className="text-red-500">*</span>}
-                    </label>
-                    <textarea
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      rows={3}
-                      placeholder={reviewAction === 'recommend_reject' ? 'Motivo del rechazo (obligatorio)...' : 'Notas opcionales...'}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleReview}
-                      disabled={!reviewAction || reviewProcessing || (reviewAction === 'recommend_reject' && !reviewNotes.trim())}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    >
-                      {reviewProcessing ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Enviando...
-                        </>
-                      ) : (
-                        'Enviar Revisión'
-                      )}
-                    </button>
-                    <button
-                      onClick={() => { setReviewMode(false); setReviewAction(null); setReviewNotes(''); }}
-                      disabled={reviewProcessing}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
-          {/* Acción del Gerente */}
-          {canProcess && (
-            <div className="bg-white rounded-xl border shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-purple-500" />
-                Decisión Final
-              </h2>
-
-              <div className="space-y-4">
-                {/* Monto a aprobar */}
+          {/* Advertencia sin revisión */}
+          {!hasFinancieroReview && isPending && (
+            <div className="bg-amber-50/80 border border-amber-200 rounded-fluid-2xl fluid-p-5">
+              <div className="flex items-start fluid-gap-3">
+                <AlertCircle className="fluid-icon-sm text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <p className="font-semibold text-amber-800 fluid-text-sm">Sin revisión del Financiero</p>
+                  <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                    Esta solicitud no ha sido revisada por un financiero. Puede procesarla directamente o esperar la revisión.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ===== SECCIÓN REVISIÓN (Gerente como reviewer) ===== */}
+          {canProcess && !_reviewMode && (
+            <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+              <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+                  <FileCheck className="fluid-icon-sm text-violet-500" /> Decisión del Gerente
+                </h2>
+              </div>
+              <div className="fluid-p-5 space-y-4">
+                {/* Monto */}
+                <div>
+                  <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1.5">
                     Monto a Aprobar
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-xs text-gray-400" />
                     <input
                       type="number"
+                      value={approvedAmount}
+                      onChange={(e) => setApprovedAmount(e.target.value)}
+                      className="w-full pl-10 fluid-py-2 fluid-px-4 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none"
                       min="0"
                       step="0.01"
-                      value={approvedAmount}
-                      onChange={(e) => setApprovedAmount(parseFloat(e.target.value) || 0)}
-                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     />
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <span className="text-xs text-gray-500">
-                      Solicitado: {formatCurrency(request.amount_requested)}
-                    </span>
-                    {request.financiero_recommended_amount && (
-                      <span className="text-xs text-blue-600">
-                        | Recomendado: {formatCurrency(request.financiero_recommended_amount)}
-                      </span>
-                    )}
                   </div>
                 </div>
 
-                {/* Notas del aprobador */}
+                {/* Notas */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notas (opcional para aprobar, obligatorio para rechazar)
+                  <label className="block fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-1.5">
+                    Notas del Gerente <span className="text-gray-400">(requerido para rechazo)</span>
                   </label>
                   <textarea
                     value={approverNotes}
                     onChange={(e) => setApproverNotes(e.target.value)}
                     rows={3}
-                    placeholder="Agregar notas o comentarios..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full fluid-py-2 fluid-px-4 bg-gray-50 border border-gray-200 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none resize-none"
+                    placeholder="Ingrese notas o comentarios..."
                   />
                 </div>
 
-                {/* Botones de acción */}
-                <div className="flex gap-3 pt-4">
+                {/* Botones */}
+                <div className="flex flex-col sm:flex-row fluid-gap-3 fluid-pt-2">
                   <button
                     onClick={() => setShowConfirmModal('approve')}
-                    disabled={processing || approvedAmount <= 0}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    disabled={!approvedAmount || parseFloat(approvedAmount) <= 0}
+                    className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-fluid-xl hover:from-emerald-600 hover:to-green-600 transition-all hover:scale-[1.01] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed font-semibold fluid-text-sm"
                   >
-                    <CheckCircle2 className="w-5 h-5" />
-                    Aprobar Solicitud
+                    <CheckCircle2 className="fluid-icon-sm" /> Aprobar Solicitud
                   </button>
                   <button
                     onClick={() => setShowConfirmModal('reject')}
-                    disabled={processing}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    disabled={!approverNotes.trim()}
+                    className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-fluid-xl hover:from-red-600 hover:to-rose-600 transition-all hover:scale-[1.01] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed font-semibold fluid-text-sm"
                   >
-                    <XCircle className="w-5 h-5" />
-                    Rechazar
+                    <XCircle className="fluid-icon-sm" /> Rechazar Solicitud
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Ya procesada */}
-          {!canProcess && (
-            <div className={`rounded-xl border p-6 ${
-              request.status === 'approved'
-                ? 'bg-green-50 border-green-200'
-                : 'bg-red-50 border-red-200'
-            }`}>
-              <div className="flex items-center gap-3">
-                {request.status === 'approved' ? (
-                  <CheckCircle2 className="w-8 h-8 text-green-600" />
-                ) : (
-                  <XCircle className="w-8 h-8 text-red-600" />
-                )}
+          {/* Already processed */}
+          {!canProcess && request.status === 'approved' && (
+            <div className="bg-emerald-50/80 border border-emerald-200 rounded-fluid-2xl fluid-p-5">
+              <div className="flex items-center fluid-gap-3">
+                <CheckCircle2 className="fluid-icon-lg text-emerald-500" />
                 <div>
-                  <p className={`font-semibold ${
-                    request.status === 'approved' ? 'text-green-800' : 'text-red-800'
-                  }`}>
-                    Solicitud {request.status === 'approved' ? 'Aprobada' : 'Rechazada'}
+                  <p className="font-semibold text-emerald-800 fluid-text-lg">Solicitud Aprobada</p>
+                  <p className="fluid-text-sm text-emerald-600 fluid-mt-1">
+                    Aprobada por {formatCurrency(request.amount_approved || 0)}
+                    {request.approver_notes && <span> — {request.approver_notes}</span>}
                   </p>
-                  {request.approved_by && (
-                    <p className={`text-sm ${
-                      request.status === 'approved' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      Por: {request.approved_by.full_name} • {request.approved_at && new Date(request.approved_at).toLocaleDateString()}
-                    </p>
-                  )}
                 </div>
               </div>
-              {request.approver_notes && (
-                <p className={`mt-3 ${
-                  request.status === 'approved' ? 'text-green-700' : 'text-red-700'
-                }`}>
-                  {request.approver_notes}
-                </p>
-              )}
+            </div>
+          )}
+
+          {!canProcess && request.status === 'rejected' && (
+            <div className="bg-red-50/80 border border-red-200 rounded-fluid-2xl fluid-p-5">
+              <div className="flex items-center fluid-gap-3">
+                <XCircle className="fluid-icon-lg text-red-500" />
+                <div>
+                  <p className="font-semibold text-red-800 fluid-text-lg">Solicitud Rechazada</p>
+                  <p className="fluid-text-sm text-red-600 fluid-mt-1">
+                    {request.approver_notes || 'Sin notas adicionales'}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6 animate-fade-in-up">
+        {/* --- SIDEBAR (1/3) --- */}
+        <div className="space-y-6">
           {/* Resumen Financiero */}
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl border border-purple-100 p-6">
-            <h3 className="font-semibold text-purple-800 mb-4 flex items-center gap-2">
-              <DollarSign className="w-5 h-5" />
-              Resumen Financiero
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-purple-600">Monto Solicitado</p>
-                <p className="text-2xl font-bold text-purple-800">
-                  {formatCurrency(request.amount_requested)}
-                </p>
-              </div>
-              {request.financiero_recommended_amount && (
+          <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-fuchsia-600 rounded-fluid-2xl fluid-p-5 text-white relative overflow-hidden shadow-lg">
+            <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/5 rounded-full" />
+            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full" />
+            <div className="relative">
+              <p className="fluid-text-xs text-white/70 font-semibold uppercase tracking-wider fluid-mb-3">Resumen Financiero</p>
+              <div className="space-y-3">
                 <div>
-                  <p className="text-sm text-purple-600">Monto Recomendado</p>
-                  <p className="text-xl font-semibold text-purple-700">
-                    {formatCurrency(request.financiero_recommended_amount)}
-                  </p>
+                  <p className="fluid-text-xs text-white/60">Monto Solicitado</p>
+                  <p className="fluid-text-2xl font-bold">{formatCurrency(request.amount_requested)}</p>
                 </div>
-              )}
-              {request.amount_approved && (
-                <div className="pt-3 border-t border-purple-200">
-                  <p className="text-sm text-green-600">Monto Aprobado</p>
-                  <p className="text-2xl font-bold text-green-700">
-                    {formatCurrency(request.amount_approved)}
-                  </p>
-                </div>
-              )}
+                {request.financiero_recommended_amount && (
+                  <div className="fluid-pt-3 border-t border-white/20">
+                    <p className="fluid-text-xs text-white/60">Monto Recomendado</p>
+                    <p className="fluid-text-xl font-bold">{formatCurrency(request.financiero_recommended_amount)}</p>
+                  </div>
+                )}
+                {request.amount_approved && (
+                  <div className="fluid-pt-3 border-t border-white/20">
+                    <p className="fluid-text-xs text-white/60">Monto Aprobado</p>
+                    <p className="fluid-text-xl font-bold text-emerald-300">{formatCurrency(request.amount_approved)}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Tipo de Solicitud */}
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h3 className="font-semibold text-gray-800 mb-3">Tipo de Solicitud</h3>
-            <span className={`inline-block px-3 py-1.5 rounded-full text-sm font-medium ${
-              request.request_type === 'beca'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-blue-100 text-blue-700'
-            }`}>
-              {request.request_type_label}
-            </span>
+          {/* Tipo de solicitud */}
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 fluid-p-5">
+            <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-3">Tipo de Solicitud</p>
+            <div className="inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-1.5 bg-purple-50 text-purple-700 rounded-fluid-xl fluid-text-sm font-medium">
+              <FileText className="fluid-icon-xs" />
+              <span className="capitalize">{(request.request_type || 'general').replace(/_/g, ' ')}</span>
+            </div>
           </div>
 
           {/* Timeline */}
-          <div className="bg-white rounded-xl border shadow-sm p-6">
-            <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <Clock className="w-5 h-5 text-gray-400" />
-              Historial
-            </h3>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="w-2 h-2 mt-2 bg-blue-500 rounded-full"></div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">Solicitud Creada</p>
-                  <p className="text-xs text-gray-500">
-                    {new Date(request.requested_at).toLocaleString()}
-                  </p>
-                </div>
+          <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 fluid-p-5">
+            <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-4">Línea de Tiempo</p>
+            <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-1 before:bottom-1 before:w-0.5 before:bg-gray-200">
+              <div className="relative">
+                <div className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-purple-500 border-2 border-white shadow-sm" />
+                <p className="fluid-text-xs font-semibold text-gray-800">Solicitud creada</p>
+                <p className="fluid-text-xs text-gray-500">{new Date(request.requested_at).toLocaleString('es-MX')}</p>
               </div>
-              {request.financiero_reviewed_at && (
-                <div className="flex gap-3">
-                  <div className="w-2 h-2 mt-2 bg-yellow-500 rounded-full"></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">Revisión Financiera</p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(request.financiero_reviewed_at).toLocaleString()}
-                    </p>
-                  </div>
+
+              {hasFinancieroReview && (
+                <div className="relative">
+                  <div className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
+                  <p className="fluid-text-xs font-semibold text-gray-800">Revisión financiera</p>
+                  <p className="fluid-text-xs text-gray-500">{request.financiero?.full_name || 'Financiero'}</p>
                 </div>
               )}
-              {request.approved_at && (
-                <div className="flex gap-3">
-                  <div className={`w-2 h-2 mt-2 rounded-full ${
-                    request.status === 'approved' ? 'bg-green-500' : 'bg-red-500'
-                  }`}></div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">
-                      {request.status === 'approved' ? 'Aprobada' : 'Rechazada'}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(request.approved_at).toLocaleString()}
-                    </p>
-                  </div>
+
+              {(request.status === 'approved' || request.status === 'rejected') && (
+                <div className="relative">
+                  <div className={`absolute -left-6 top-0.5 w-4 h-4 rounded-full border-2 border-white shadow-sm ${
+                    request.status === 'approved' ? 'bg-emerald-500' : 'bg-red-500'
+                  }`} />
+                  <p className="fluid-text-xs font-semibold text-gray-800">
+                    {request.status === 'approved' ? 'Aprobada' : 'Rechazada'}
+                  </p>
+                  {request.approved_at && (
+                    <p className="fluid-text-xs text-gray-500">{new Date(request.approved_at).toLocaleString('es-MX')}</p>
+                  )}
+                </div>
+              )}
+
+              {canProcess && (
+                <div className="relative">
+                  <div className="absolute -left-6 top-0.5 w-4 h-4 rounded-full bg-amber-400 border-2 border-white shadow-sm animate-pulse" />
+                  <p className="fluid-text-xs font-semibold text-amber-700">Esperando decisión</p>
+                  <p className="fluid-text-xs text-gray-500">Pendiente de aprobación</p>
                 </div>
               )}
             </div>
@@ -690,49 +514,55 @@ export default function GerenteApprovalDetailPage() {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* ===== MODAL CONFIRMACIÓN ===== */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
-              {showConfirmModal === 'approve' ? 'Confirmar Aprobación' : 'Confirmar Rechazo'}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {showConfirmModal === 'approve'
-                ? `¿Está seguro de aprobar esta solicitud por ${formatCurrency(approvedAmount)}?`
-                : '¿Está seguro de rechazar esta solicitud? Esta acción no se puede deshacer.'}
-            </p>
-            {showConfirmModal === 'reject' && !approverNotes.trim() && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
-                Debe proporcionar una razón para el rechazo
+        <div className="fixed inset-0 z-50 flex items-center justify-center fluid-p-4 bg-black/50 backdrop-blur-sm animate-fade-in-up">
+          <div className="bg-white rounded-fluid-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className={`fluid-p-5 ${showConfirmModal === 'approve' ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-gradient-to-r from-red-500 to-rose-500'} text-white`}>
+              <h3 className="fluid-text-xl font-bold flex items-center fluid-gap-2">
+                {showConfirmModal === 'approve' ? <CheckCircle2 className="fluid-icon-lg" /> : <XCircle className="fluid-icon-lg" />}
+                {showConfirmModal === 'approve' ? 'Confirmar Aprobación' : 'Confirmar Rechazo'}
+              </h3>
+            </div>
+            <div className="fluid-p-5 space-y-4">
+              {showConfirmModal === 'approve' ? (
+                <>
+                  <p className="fluid-text-sm text-gray-600">
+                    Está por aprobar la solicitud <strong>#{request.id}</strong> de{' '}
+                    <strong>{request.coordinator?.full_name}</strong> por:
+                  </p>
+                  <p className="fluid-text-2xl font-bold text-emerald-600 text-center fluid-py-2">
+                    {formatCurrency(parseFloat(approvedAmount || '0'))}
+                  </p>
+                </>
+              ) : (
+                <p className="fluid-text-sm text-gray-600">
+                  Está por rechazar la solicitud <strong>#{request.id}</strong> de{' '}
+                  <strong>{request.coordinator?.full_name}</strong>. Esta acción no se puede deshacer.
+                </p>
+              )}
+
+              <div className="flex fluid-gap-3 fluid-pt-2">
+                <button
+                  onClick={() => setShowConfirmModal(null)}
+                  disabled={processing}
+                  className="flex-1 fluid-px-4 fluid-py-2.5 bg-gray-100 text-gray-700 rounded-fluid-xl hover:bg-gray-200 transition-colors font-medium fluid-text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={showConfirmModal === 'approve' ? handleApprove : handleReject}
+                  disabled={processing}
+                  className={`flex-1 fluid-px-4 fluid-py-2.5 text-white rounded-fluid-xl font-medium fluid-text-sm flex items-center justify-center fluid-gap-2 transition-all ${
+                    showConfirmModal === 'approve'
+                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {processing && <Loader2 className="fluid-icon-xs animate-spin" />}
+                  {showConfirmModal === 'approve' ? 'Aprobar' : 'Rechazar'}
+                </button>
               </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmModal(null)}
-                disabled={processing}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={showConfirmModal === 'approve' ? handleApprove : handleReject}
-                disabled={processing || (showConfirmModal === 'reject' && !approverNotes.trim())}
-                className={`flex-1 px-4 py-2 text-white rounded-lg disabled:opacity-50 flex items-center justify-center gap-2 ${
-                  showConfirmModal === 'approve'
-                    ? 'bg-green-600 hover:bg-green-700'
-                    : 'bg-red-600 hover:bg-red-700'
-                }`}
-              >
-                {processing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Procesando...
-                  </>
-                ) : (
-                  showConfirmModal === 'approve' ? 'Aprobar' : 'Rechazar'
-                )}
-              </button>
             </div>
           </div>
         </div>
