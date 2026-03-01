@@ -68,6 +68,9 @@ export default function GroupBulkUploadPage() {
   const [previewSortCol, setPreviewSortCol] = useState<string>('row');
   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('asc');
 
+  // Ambiguity resolutions: identifier -> selected user_id
+  const [ambiguityResolutions, setAmbiguityResolutions] = useState<Record<string, string>>({});
+
   // Cargar grupo
   useEffect(() => {
     const loadGroup = async () => {
@@ -202,7 +205,10 @@ export default function GroupBulkUploadPage() {
       setProcessingUpload(true);
       setError(null);
 
-      const result = await uploadGroupMembersExcel(Number(groupId), uploadFile, 'add');
+      const result = await uploadGroupMembersExcel(
+        Number(groupId), uploadFile, 'add',
+        Object.entries(ambiguityResolutions).map(([identifier, user_id]) => ({ identifier, user_id }))
+      );
 
       const addedCount = result.added?.length || 0;
       const errorsCount = result.errors?.length || 0;
@@ -252,6 +258,7 @@ export default function GroupBulkUploadPage() {
   const handleResetUpload = () => {
     setUploadFile(null);
     setPreviewData(null);
+    setAmbiguityResolutions({});
   };
 
   if (loading) {
@@ -419,18 +426,22 @@ export default function GroupBulkUploadPage() {
             </div>
 
             {/* Resumen */}
-            <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-4 fluid-mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 fluid-gap-4 fluid-mb-6">
               <div className="bg-gray-50 rounded-fluid-lg fluid-p-4 text-center">
                 <p className="fluid-text-2xl font-bold text-gray-900">{previewData.summary.total}</p>
                 <p className="fluid-text-xs text-gray-500">Total filas</p>
               </div>
               <div className="bg-green-50 rounded-fluid-lg fluid-p-4 text-center">
-                <p className="fluid-text-2xl font-bold text-green-600">{previewData.summary.ready}</p>
+                <p className="fluid-text-2xl font-bold text-green-600">{previewData.summary.ready + Object.keys(ambiguityResolutions).length}</p>
                 <p className="fluid-text-xs text-green-600">Listos</p>
               </div>
               <div className="bg-yellow-50 rounded-fluid-lg fluid-p-4 text-center">
                 <p className="fluid-text-2xl font-bold text-yellow-600">{previewData.summary.already_member}</p>
                 <p className="fluid-text-xs text-yellow-600">Ya miembros</p>
+              </div>
+              <div className="bg-orange-50 rounded-fluid-lg fluid-p-4 text-center">
+                <p className="fluid-text-2xl font-bold text-orange-600">{(previewData.summary.ambiguous || 0) - Object.keys(ambiguityResolutions).length}</p>
+                <p className="fluid-text-xs text-orange-600">Ambiguos</p>
               </div>
               <div className="bg-red-50 rounded-fluid-lg fluid-p-4 text-center">
                 <p className="fluid-text-2xl font-bold text-red-600">{previewData.summary.not_found}</p>
@@ -495,13 +506,19 @@ export default function GroupBulkUploadPage() {
                     {filteredPreview.map((row) => (
                       <tr key={row.row} className={
                         row.status === 'ready' ? 'bg-green-50' :
-                        row.status === 'already_member' ? 'bg-yellow-50' : 'bg-red-50'
+                        row.status === 'already_member' ? 'bg-yellow-50' :
+                        row.status === 'ambiguous' ? (ambiguityResolutions[row.identifier] ? 'bg-blue-50' : 'bg-orange-50') : 'bg-red-50'
                       }>
                         <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-500 font-mono">{row.row}</td>
                         <td className="fluid-px-3 fluid-py-2">
                           {row.status === 'ready' && <span className="inline-flex items-center gap-1 text-green-600 fluid-text-xs font-medium"><Check className="h-3.5 w-3.5" /> Listo</span>}
                           {row.status === 'already_member' && <span className="inline-flex items-center gap-1 text-yellow-600 fluid-text-xs font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Ya</span>}
                           {row.status === 'not_found' && <span className="inline-flex items-center gap-1 text-red-600 fluid-text-xs font-medium"><XCircle className="h-3.5 w-3.5" /> No</span>}
+                          {row.status === 'ambiguous' && (
+                            ambiguityResolutions[row.identifier]
+                              ? <span className="inline-flex items-center gap-1 text-blue-600 fluid-text-xs font-medium"><Check className="h-3.5 w-3.5" /> Resuelto</span>
+                              : <span className="inline-flex items-center gap-1 text-orange-600 fluid-text-xs font-medium"><AlertTriangle className="h-3.5 w-3.5" /> Ambiguo</span>
+                          )}
                         </td>
                         <td className="fluid-px-3 fluid-py-2 fluid-text-xs font-mono text-gray-700 whitespace-nowrap">{row.identifier}</td>
                         <td className="fluid-px-3 fluid-py-2 fluid-text-sm text-gray-900 whitespace-nowrap">{row.user?.name || '-'}</td>
@@ -521,8 +538,35 @@ export default function GroupBulkUploadPage() {
                         <td className="fluid-px-3 fluid-py-2">
                           {row.user ? renderEligibilityBadges(row.user.email, row.user.curp) : '-'}
                         </td>
-                        <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-500 max-w-[200px] truncate" title={row.status === 'ready' ? 'Listo para asignar' : row.error}>
-                          {row.status === 'ready' ? 'Listo para asignar' : row.error}
+                        <td className="fluid-px-3 fluid-py-2 fluid-text-xs text-gray-500 max-w-[200px]">
+                          {row.status === 'ambiguous' && row.ambiguous_matches ? (
+                            <select
+                              value={ambiguityResolutions[row.identifier] || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setAmbiguityResolutions(prev => {
+                                  if (!val) {
+                                    const next = {...prev};
+                                    delete next[row.identifier];
+                                    return next;
+                                  }
+                                  return {...prev, [row.identifier]: val};
+                                });
+                              }}
+                              className="w-full text-xs border border-orange-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-orange-400 bg-white"
+                            >
+                              <option value="">-- Seleccionar candidato --</option>
+                              {row.ambiguous_matches.map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {m.full_name} ({m.email || m.curp || m.username || m.id.slice(0,8)})
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="truncate" title={row.status === 'ready' ? 'Listo para asignar' : row.error}>
+                              {row.status === 'ready' ? 'Listo para asignar' : row.error}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -549,7 +593,7 @@ export default function GroupBulkUploadPage() {
 
               <button
                 onClick={handleProcessExcel}
-                disabled={!previewData.can_proceed || processingUpload}
+                disabled={!(previewData.can_proceed || Object.keys(ambiguityResolutions).length > 0) || processingUpload}
                 className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white rounded-fluid-lg font-medium transition-colors"
               >
                 {processingUpload ? (
@@ -557,7 +601,7 @@ export default function GroupBulkUploadPage() {
                 ) : (
                   <UserPlus className="fluid-icon-sm" />
                 )}
-                Asignar {previewData.summary.ready} candidato(s)
+                Asignar {previewData.summary.ready + Object.keys(ambiguityResolutions).length} candidato(s)
               </button>
             </div>
           </div>

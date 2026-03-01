@@ -1221,411 +1221,632 @@ def get_available_partners():
         return jsonify({'error': str(e)}), 500
 
 
-# ============== CARGA MASIVA DE CANDIDATOS ==============
+# ============== HELPERS: CARGA MASIVA DE CANDIDATOS ==============
+
+MAX_BULK_ROWS = 50000
+MAX_BULK_FILE_MB = 20
+BATCH_COMMIT_SIZE = 500
+
+_COLUMN_MAPPING = {
+    'email': ['email', 'correo', 'correo electronico', 'correo electrónico', 'e-mail'],
+    'nombre': ['nombre', 'name', 'nombres'],
+    'primer_apellido': ['primer_apellido', 'primer apellido', 'apellido paterno', 'apellido_paterno', 'first_surname', 'apellido1'],
+    'segundo_apellido': ['segundo_apellido', 'segundo apellido', 'apellido materno', 'apellido_materno', 'second_surname', 'apellido2'],
+    'genero': ['genero', 'género', 'sexo', 'gender'],
+    'curp': ['curp']
+}
+
+
+def _parse_bulk_candidates_excel(file_storage):
+    """
+    Parse Excel de candidatos. Retorna (parsed_rows, error_string).
+    Valida tamaño, formato, columnas requeridas y límite de filas.
+    """
+    import io
+    from openpyxl import load_workbook
+
+    # Validar tamaño
+    file_storage.seek(0, 2)
+    file_size = file_storage.tell()
+    file_storage.seek(0)
+    if file_size > MAX_BULK_FILE_MB * 1024 * 1024:
+        return None, f'Archivo excede {MAX_BULK_FILE_MB}MB (tiene {file_size / 1024 / 1024:.1f}MB)'
+
+    try:
+        workbook = load_workbook(filename=io.BytesIO(file_storage.read()), data_only=True)
+        sheet = workbook.active
+    except Exception as e:
+        return None, f'Error al leer el archivo Excel: {str(e)}'
+
+    # Encabezados
+    headers = []
+    for cell in sheet[1]:
+        value = cell.value
+        headers.append(str(value).strip().lower() if value else '')
+
+    column_indices = {}
+    for field, aliases in _COLUMN_MAPPING.items():
+        for i, header in enumerate(headers):
+            if header in aliases:
+                column_indices[field] = i
+                break
+
+    required_columns = ['nombre', 'primer_apellido', 'segundo_apellido', 'genero']
+    missing = [c for c in required_columns if c not in column_indices]
+    if missing:
+        return None, f'Faltan columnas requeridas: {", ".join(missing)}. Requeridas: nombre, primer_apellido, segundo_apellido, genero'
+
+    # Parsear filas (fila 1=headers, fila 2=descripciones, datos desde fila 3)
+    parsed_rows = []
+    for row_idx, row in enumerate(sheet.iter_rows(min_row=3), start=3):
+        if len(parsed_rows) >= MAX_BULK_ROWS:
+            return None, f'Límite excedido: máximo {MAX_BULK_ROWS:,} filas permitidas'
+
+        def _val(field):
+            if field not in column_indices:
+                return None
+            idx = column_indices[field]
+            if idx < len(row):
+                v = row[idx].value
+                return str(v).strip() if v is not None else None
+            return None
+
+        nombre = _val('nombre')
+        primer_ap = _val('primer_apellido')
+        email_raw = _val('email')
+        # Saltar filas completamente vacías
+        if not any([email_raw, nombre, primer_ap]):
+            continue
+
+        parsed_rows.append({
+            'row': row_idx,
+            'email': email_raw.lower().strip() if email_raw else None,
+            'nombre': nombre,
+            'primer_apellido': primer_ap,
+            'segundo_apellido': _val('segundo_apellido'),
+            'genero_raw': _val('genero'),
+            'curp': _val('curp').upper().strip() if _val('curp') else None,
+        })
+
+    return parsed_rows, None
+
+
+def _validate_rows(parsed_rows):
+    """Validar campos requeridos y formatos. Retorna (valid, errors)."""
+    valid = []
+    errors = []
+    for r in parsed_rows:
+        errs = []
+        if not r['nombre']:
+            errs.append('nombre vacío')
+        if not r['primer_apellido']:
+            errs.append('primer_apellido vacío')
+        if not r['segundo_apellido']:
+            errs.append('segundo_apellido vacío')
+        if not r['genero_raw']:
+            errs.append('genero vacío')
+        if r['email'] and not validate_email(r['email']):
+            errs.append('formato de email inválido')
+        if r['curp'] and len(r['curp']) != 18:
+            errs.append(f'CURP debe tener 18 caracteres (tiene {len(r["curp"])})')
+        genero = None
+        if r['genero_raw']:
+            g = r['genero_raw'].upper()[0]
+            if g in ('M', 'F', 'O'):
+                genero = g
+            else:
+                errs.append('género inválido (usar M, F u O)')
+        r['genero'] = genero
+        if errs:
+            errors.append({'row': r['row'], 'email': r['email'] or '(vacío)', 'nombre': r.get('nombre', ''), 'error': '; '.join(errs)})
+        else:
+            valid.append(r)
+    return valid, errors
+
+
+def _batch_fetch_existing(valid_rows):
+    """
+    Batch-fetch usuarios existentes por email y CURP.
+    Retorna (existing_by_email, existing_by_curp) como dicts {key: User}.
+    """
+    from sqlalchemy import func as sf
+    CHUNK = 500
+
+    all_emails = list({r['email'] for r in valid_rows if r['email']})
+    all_curps = list({r['curp'] for r in valid_rows if r['curp']})
+
+    existing_by_email = {}
+    for i in range(0, len(all_emails), CHUNK):
+        chunk = all_emails[i:i + CHUNK]
+        users = User.query.filter(sf.lower(User.email).in_(chunk)).all()
+        for u in users:
+            if u.email:
+                existing_by_email[u.email.lower()] = u
+
+    existing_by_curp = {}
+    for i in range(0, len(all_curps), CHUNK):
+        chunk = all_curps[i:i + CHUNK]
+        users = User.query.filter(sf.upper(User.curp).in_(chunk)).all()
+        for u in users:
+            if u.curp:
+                existing_by_curp[u.curp.upper()] = u
+
+    return existing_by_email, existing_by_curp
+
+
+def _batch_generate_usernames(rows_to_create):
+    """
+    Pre-generar usernames únicos sin N+1 queries.
+    Retorna dict {row_index: username}.
+    """
+    from sqlalchemy import func as sf, or_
+    CHUNK = 500
+
+    # Calcular base usernames
+    bases = {}
+    for r in rows_to_create:
+        if r['email']:
+            base = r['email'].split('@')[0].upper()
+        else:
+            base = f"{(r['nombre'] or 'X')[:3]}{(r['primer_apellido'] or 'X')[:3]}".upper()
+        # Limpiar caracteres no alfanuméricos
+        base = re.sub(r'[^A-Z0-9]', '', base) or 'USER'
+        bases[r['row']] = base
+
+    # Batch-fetch usernames existentes con esos prefijos
+    unique_bases = list(set(bases.values()))
+    existing_usernames = set()
+    for i in range(0, len(unique_bases), CHUNK):
+        chunk = unique_bases[i:i + CHUNK]
+        conditions = [sf.upper(User.username).like(f"{b}%") for b in chunk]
+        if conditions:
+            users = User.query.filter(or_(*conditions)).with_entities(User.username).all()
+            existing_usernames.update(u.username.upper() for u in users if u.username)
+
+    # Asignar usernames (tracking localmente los ya usados)
+    used = set(existing_usernames)
+    result = {}
+    for r in rows_to_create:
+        base = bases[r['row']]
+        username = base
+        counter = 1
+        while username in used:
+            username = f"{base}{counter}"
+            counter += 1
+        used.add(username)
+        result[r['row']] = username
+    return result
+
+
+def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target_group_id=None):
+    """
+    Clasificar filas válidas en: to_create, duplicates (existing_assigned), skipped.
+    Batch-fetch membresías de grupo si aplica.
+    """
+    from app.models.partner import GroupMember
+    CHUNK = 500
+    to_create = []
+    duplicates = []  # Usuarios que ya existen (por email o CURP)
+    skipped = []
+    seen_emails = set()
+    seen_curps = set()
+
+    # Pre-fetch membresías si hay grupo destino
+    group_member_ids = set()
+    if target_group_id:
+        all_existing_ids = list({u.id for u in list(existing_by_email.values()) + list(existing_by_curp.values())})
+        for i in range(0, len(all_existing_ids), CHUNK):
+            chunk = all_existing_ids[i:i + CHUNK]
+            members = GroupMember.query.filter(
+                GroupMember.group_id == target_group_id,
+                GroupMember.user_id.in_(chunk)
+            ).with_entities(GroupMember.user_id).all()
+            group_member_ids.update(m.user_id for m in members)
+
+    for r in valid_rows:
+        email = r['email']
+        curp = r['curp']
+
+        # Duplicado por email
+        if email and email in existing_by_email:
+            user = existing_by_email[email]
+            if target_group_id:
+                if user.id in group_member_ids:
+                    skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado y ya es miembro del grupo'})
+                else:
+                    duplicates.append({'row': r['row'], 'email': email, 'name': user.full_name, 'username': user.username, 'user_id': user.id})
+            else:
+                skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado'})
+            continue
+
+        # Duplicado por CURP
+        if curp and curp in existing_by_curp:
+            user = existing_by_curp[curp]
+            already_dup = any(d.get('user_id') == user.id for d in duplicates)
+            if target_group_id:
+                if user.id in group_member_ids or already_dup:
+                    if not already_dup:
+                        skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado y ya es miembro del grupo'})
+                else:
+                    duplicates.append({'row': r['row'], 'email': user.email or email or '(sin email)', 'name': user.full_name, 'username': user.username, 'user_id': user.id})
+            else:
+                skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado'})
+            continue
+
+        # Duplicado interno (mismo email/curp repetido en el mismo archivo)
+        if email and email in seen_emails:
+            skipped.append({'row': r['row'], 'email': email, 'reason': 'Email duplicado en el mismo archivo'})
+            continue
+        if curp and curp in seen_curps:
+            skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': 'CURP duplicado en el mismo archivo'})
+            continue
+
+        if email:
+            seen_emails.add(email)
+        if curp:
+            seen_curps.add(curp)
+        to_create.append(r)
+
+    return to_create, duplicates, skipped
+
+
+def _validate_target_group(group_id, current_user):
+    """Validar grupo destino. Retorna (group, error_tuple_or_None)."""
+    if not group_id:
+        return None, None
+    from app.models.partner import CandidateGroup, Campus, Partner
+    group = CandidateGroup.query.get(group_id)
+    if not group:
+        return None, (jsonify({'error': f'Grupo con ID {group_id} no encontrado'}), 404)
+    if not group.is_active:
+        return None, (jsonify({'error': 'El grupo seleccionado no está activo'}), 400)
+    if current_user.role == 'coordinator':
+        campus = Campus.query.get(group.campus_id)
+        if campus:
+            partner = Partner.query.get(campus.partner_id)
+            if partner and partner.coordinator_id != current_user.id:
+                return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
+    return group, None
+
+
+# ============== PREVIEW CARGA MASIVA ==============
+
+@bp.route('/candidates/bulk-upload/preview', methods=['POST'])
+@jwt_required()
+@management_required
+def preview_bulk_upload_candidates():
+    """
+    Preview de carga masiva de candidatos — valida SIN crear usuarios.
+    Retorna status por fila: ready, duplicate, error, skipped.
+    """
+    try:
+        current_user = g.current_user
+        group_id = request.form.get('group_id', type=int)
+
+        # Validar grupo si se especificó
+        target_group, group_err = _validate_target_group(group_id, current_user)
+        if group_err:
+            return group_err
+
+        # Validar archivo
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        file = request.files['file']
+        if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
+            return jsonify({'error': 'El archivo debe ser formato Excel (.xlsx o .xls)'}), 400
+
+        # Parsear
+        parsed_rows, parse_error = _parse_bulk_candidates_excel(file)
+        if parse_error:
+            return jsonify({'error': parse_error}), 400
+        if not parsed_rows:
+            return jsonify({'error': 'El archivo no contiene datos (filas vacías)'}), 400
+
+        # Validar campos
+        valid_rows, validation_errors = _validate_rows(parsed_rows)
+
+        # Batch-fetch existentes
+        existing_by_email, existing_by_curp = _batch_fetch_existing(valid_rows)
+
+        # Clasificar
+        to_create, duplicates, skipped = _classify_valid_rows(
+            valid_rows, existing_by_email, existing_by_curp,
+            target_group.id if target_group else None
+        )
+
+        # Pre-generar usernames para los que se van a crear
+        username_map = _batch_generate_usernames(to_create) if to_create else {}
+
+        # Construir preview
+        preview = []
+        for r in to_create:
+            preview.append({
+                'row': r['row'],
+                'status': 'ready',
+                'email': r['email'],
+                'nombre': r['nombre'],
+                'primer_apellido': r['primer_apellido'],
+                'segundo_apellido': r['segundo_apellido'],
+                'genero': r['genero'],
+                'curp': r['curp'],
+                'username_preview': username_map.get(r['row'], ''),
+                'eligibility': {
+                    'reporte': True, 'eduit': True,
+                    'conocer': bool(r['curp']),
+                    'insignia': bool(r['email']),
+                },
+                'error': None,
+            })
+        for d in duplicates:
+            preview.append({
+                'row': d['row'],
+                'status': 'duplicate',
+                'email': d.get('email'),
+                'nombre': d.get('name', ''),
+                'existing_user': {'id': d['user_id'], 'name': d['name'], 'username': d['username']},
+                'error': 'Usuario ya existe — se asignará al grupo' if target_group else 'Usuario ya existe',
+            })
+        for s in skipped:
+            preview.append({
+                'row': s['row'],
+                'status': 'skipped',
+                'email': s.get('email'),
+                'error': s['reason'],
+            })
+        for e in validation_errors:
+            preview.append({
+                'row': e['row'],
+                'status': 'error',
+                'email': e.get('email'),
+                'nombre': e.get('nombre', ''),
+                'error': e['error'],
+            })
+
+        # Ordenar por número de fila
+        preview.sort(key=lambda x: x['row'])
+
+        return jsonify({
+            'preview': preview,
+            'summary': {
+                'total_rows': len(parsed_rows),
+                'ready': len(to_create),
+                'duplicates': len(duplicates),
+                'errors': len(validation_errors),
+                'skipped': len(skipped),
+            },
+            'can_proceed': len(to_create) > 0 or len(duplicates) > 0,
+            'group_info': {'id': target_group.id, 'name': target_group.name} if target_group else None,
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== CARGA MASIVA DE CANDIDATOS (OPTIMIZADO) ==============
 
 @bp.route('/candidates/bulk-upload', methods=['POST'])
 @jwt_required()
 @management_required
 def bulk_upload_candidates():
     """
-    Carga masiva de candidatos desde archivo Excel
-    
-    Formato esperado del Excel (columnas):
-    - nombre (requerido)
-    - primer_apellido (requerido)
-    - segundo_apellido (requerido)
-    - genero (requerido: M, F, O)
-    - email (opcional - sin email no puede recibir insignia digital)
-    - curp (opcional - sin CURP no puede recibir certificado CONOCER)
-    
-    Parámetros opcionales (form fields):
-    - group_id: ID del grupo al que se asignarán los candidatos creados
-    
-    Nota: Las contraseñas se generan automáticamente
+    Carga masiva de candidatos desde archivo Excel — versión batch-optimizada.
+    Soporta hasta 50,000 filas. Commits en lotes de 500.
+
+    Columnas: nombre, primer_apellido, segundo_apellido, genero (requeridas)
+              email, curp (opcionales)
+    Form fields: group_id (opcional)
     """
     try:
-        import io
         import secrets
         import string
-        from openpyxl import load_workbook
-        
+
         current_user = g.current_user
         group_id = request.form.get('group_id', type=int)
-        
-        # Si se envió group_id, validar que el grupo existe y es accesible
-        target_group = None
-        if group_id:
-            from app.models.partner import CandidateGroup, Campus, Partner, GroupMember
-            target_group = CandidateGroup.query.get(group_id)
-            if not target_group:
-                return jsonify({'error': f'Grupo con ID {group_id} no encontrado'}), 404
-            if not target_group.is_active:
-                return jsonify({'error': 'El grupo seleccionado no está activo'}), 400
-            # Verificar acceso multi-tenant para coordinadores
-            if current_user.role == 'coordinator':
-                campus = Campus.query.get(target_group.campus_id)
-                if campus:
-                    partner = Partner.query.get(campus.partner_id)
-                    if partner and partner.coordinator_id != current_user.id:
-                        return jsonify({'error': 'No tienes acceso a este grupo'}), 403
-        
-        # Verificar que se envió un archivo
+
+        # Validar grupo
+        target_group, group_err = _validate_target_group(group_id, current_user)
+        if group_err:
+            return group_err
+
+        # Validar archivo
         if 'file' not in request.files:
             return jsonify({'error': 'No se envió ningún archivo'}), 400
-        
         file = request.files['file']
-        
-        if not file.filename:
-            return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
-        
-        # Verificar extensión
-        if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        if not file.filename or not file.filename.lower().endswith(('.xlsx', '.xls')):
             return jsonify({'error': 'El archivo debe ser formato Excel (.xlsx o .xls)'}), 400
-        
-        # Leer el archivo Excel
-        try:
-            workbook = load_workbook(filename=io.BytesIO(file.read()), data_only=True)
-            sheet = workbook.active
-        except Exception as e:
-            return jsonify({'error': f'Error al leer el archivo Excel: {str(e)}'}), 400
-        
-        # Obtener encabezados (primera fila)
-        headers = []
-        for cell in sheet[1]:
-            value = cell.value
-            if value:
-                headers.append(str(value).strip().lower())
-            else:
-                headers.append('')
-        
-        # Mapeo de nombres de columna esperados
-        column_mapping = {
-            'email': ['email', 'correo', 'correo electronico', 'correo electrónico', 'e-mail'],
-            'nombre': ['nombre', 'name', 'nombres'],
-            'primer_apellido': ['primer_apellido', 'primer apellido', 'apellido paterno', 'apellido_paterno', 'first_surname', 'apellido1'],
-            'segundo_apellido': ['segundo_apellido', 'segundo apellido', 'apellido materno', 'apellido_materno', 'second_surname', 'apellido2'],
-            'genero': ['genero', 'género', 'sexo', 'gender'],
-            'curp': ['curp']
-        }
-        
-        # Encontrar índices de columnas
-        column_indices = {}
-        for field, aliases in column_mapping.items():
-            for i, header in enumerate(headers):
-                if header in aliases:
-                    column_indices[field] = i
-                    break
-        
-        # Verificar columnas requeridas (email y curp son opcionales)
-        required_columns = ['nombre', 'primer_apellido']
-        missing_columns = [col for col in required_columns if col not in column_indices]
-        if missing_columns:
-            return jsonify({
-                'error': f'Faltan columnas requeridas: {", ".join(missing_columns)}',
-                'hint': 'Las columnas requeridas son: nombre, primer_apellido, segundo_apellido, genero'
-            }), 400
-        
-        # Función para generar contraseña aleatoria
-        def generate_password(length=10):
-            alphabet = string.ascii_letters + string.digits
-            # Asegurar al menos una mayúscula, una minúscula y un número
-            password = [
-                secrets.choice(string.ascii_uppercase),
-                secrets.choice(string.ascii_lowercase),
-                secrets.choice(string.digits)
-            ]
-            password += [secrets.choice(alphabet) for _ in range(length - 3)]
-            secrets.SystemRandom().shuffle(password)
-            return ''.join(password)
-        
-        # Procesar filas (empezar en fila 3: fila 1=encabezados, fila 2=descripciones)
-        results = {
-            'created': [],
-            'errors': [],
-            'skipped': [],
-            'existing_assigned': [],  # Usuarios que ya existían y se asignaron al grupo
-            'total_processed': 0
-        }
-        
-        for row_idx, row in enumerate(sheet.iter_rows(min_row=3), start=3):
-            results['total_processed'] += 1
-            
-            # Obtener valores de la fila
-            def get_cell_value(field):
-                if field not in column_indices:
-                    return None
-                idx = column_indices[field]
-                if idx < len(row):
-                    value = row[idx].value
-                    return str(value).strip() if value is not None else None
-                return None
-            
-            email = get_cell_value('email')
-            nombre = get_cell_value('nombre')
-            primer_apellido = get_cell_value('primer_apellido')
-            segundo_apellido = get_cell_value('segundo_apellido')
-            genero = get_cell_value('genero')
-            curp = get_cell_value('curp')
-            
-            # Validar campos requeridos (email y curp son opcionales)
-            missing_fields = []
-            if not nombre:
-                missing_fields.append('nombre')
-            if not primer_apellido:
-                missing_fields.append('primer_apellido')
-            if not segundo_apellido:
-                missing_fields.append('segundo_apellido')
-            if not genero:
-                missing_fields.append('genero')
-            
-            if missing_fields:
-                missing_str = ', '.join(missing_fields)
-                results['errors'].append({
-                    'row': row_idx,
-                    'email': email or '(vacío)',
-                    'error': f'Campos requeridos vacíos: {missing_str}'
-                })
-                continue
-            
-            # Si hay email, validar formato y unicidad
-            if email:
-                email = email.lower().strip()
-                if not validate_email(email):
-                    results['errors'].append({
-                        'row': row_idx,
-                        'email': email,
-                        'error': 'Formato de email inválido'
-                    })
-                    continue
-                # Verificar si el email ya existe
-                existing_user_by_email = User.query.filter_by(email=email).first()
-                if existing_user_by_email:
-                    if target_group:
-                        # Si hay grupo seleccionado, intentar asignar al usuario existente
-                        from app.models.partner import GroupMember as GM_check
-                        already_member = GM_check.query.filter_by(
-                            group_id=target_group.id, user_id=existing_user_by_email.id
-                        ).first()
-                        if already_member:
-                            results['skipped'].append({
-                                'row': row_idx,
-                                'email': email,
-                                'reason': 'Email ya registrado y ya es miembro del grupo'
-                            })
-                        else:
-                            results['existing_assigned'].append({
-                                'row': row_idx,
-                                'email': email,
-                                'name': existing_user_by_email.full_name,
-                                'username': existing_user_by_email.username,
-                                'user_id': existing_user_by_email.id
-                            })
-                    else:
-                        results['skipped'].append({
-                            'row': row_idx,
-                            'email': email,
-                            'reason': 'Email ya registrado'
-                        })
-                    continue
-            
-            # Validar y verificar CURP (opcional - sin CURP no puede recibir certificado CONOCER)
-            if curp:
-                curp = curp.upper().strip()
-                if len(curp) != 18:
-                    results['errors'].append({
-                        'row': row_idx,
-                        'email': email or '(sin email)',
-                        'error': f'CURP inválido: debe tener 18 caracteres (tiene {len(curp)})'
-                    })
-                    continue
-                existing_user_by_curp = User.query.filter_by(curp=curp).first()
-                if existing_user_by_curp:
-                    if target_group:
-                        # Si hay grupo seleccionado, intentar asignar al usuario existente
-                        from app.models.partner import GroupMember as GM_check2
-                        already_member = GM_check2.query.filter_by(
-                            group_id=target_group.id, user_id=existing_user_by_curp.id
-                        ).first()
-                        # Evitar duplicar si ya fue marcado por email
-                        already_in_existing = any(
-                            ea.get('user_id') == existing_user_by_curp.id 
-                            for ea in results['existing_assigned']
-                        )
-                        if already_member or already_in_existing:
-                            if not already_in_existing:
-                                results['skipped'].append({
-                                    'row': row_idx,
-                                    'email': email or '(sin email)',
-                                    'reason': f'CURP {curp} ya registrado y ya es miembro del grupo'
-                                })
-                        else:
-                            results['existing_assigned'].append({
-                                'row': row_idx,
-                                'email': existing_user_by_curp.email or email or '(sin email)',
-                                'name': existing_user_by_curp.full_name,
-                                'username': existing_user_by_curp.username,
-                                'user_id': existing_user_by_curp.id
-                            })
-                    else:
-                        results['skipped'].append({
-                            'row': row_idx,
-                            'email': email or '(sin email)',
-                            'reason': f'CURP {curp} ya registrado'
-                        })
-                    continue
-            
-            # Normalizar género (ya validado que existe)
-            genero = genero.upper()[0]
-            if genero not in ['M', 'F', 'O']:
-                results['errors'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'error': f'Género inválido: debe ser M, F u O'
-                })
-                continue
-            
-            # Generar contraseña automáticamente
-            generated_password = generate_password()
-            
-            # Generar username único EN MAYÚSCULAS
-            # Si hay email, usar parte antes del @; si no, usar nombre+apellido
-            if email:
-                base_username = email.split('@')[0].upper()
-            else:
-                base_username = f"{nombre[:3]}{primer_apellido[:3]}".upper()
-            username = base_username
-            counter = 1
-            while User.query.filter_by(username=username).first():
-                username = f"{base_username}{counter}"
-                counter += 1
-            
-            # Crear usuario
+
+        # Parsear
+        parsed_rows, parse_error = _parse_bulk_candidates_excel(file)
+        if parse_error:
+            return jsonify({'error': parse_error}), 400
+        if not parsed_rows:
+            return jsonify({'error': 'El archivo no contiene datos'}), 400
+
+        # Validar
+        valid_rows, validation_errors = _validate_rows(parsed_rows)
+
+        # Batch-fetch existentes
+        existing_by_email, existing_by_curp = _batch_fetch_existing(valid_rows)
+
+        # Clasificar
+        to_create, existing_assigned, skipped = _classify_valid_rows(
+            valid_rows, existing_by_email, existing_by_curp,
+            target_group.id if target_group else None
+        )
+
+        # Generar usernames
+        username_map = _batch_generate_usernames(to_create) if to_create else {}
+
+        # Función para generar contraseña
+        def _gen_pwd(length=10):
+            alpha = string.ascii_letters + string.digits
+            pwd = [secrets.choice(string.ascii_uppercase), secrets.choice(string.ascii_lowercase), secrets.choice(string.digits)]
+            pwd += [secrets.choice(alpha) for _ in range(length - 3)]
+            secrets.SystemRandom().shuffle(pwd)
+            return ''.join(pwd)
+
+        # Crear usuarios en lotes
+        created = []
+        create_errors = []
+        batch_count = 0
+        for r in to_create:
             try:
+                username = username_map[r['row']]
+                password = _gen_pwd()
                 new_user = User(
                     id=str(uuid.uuid4()),
-                    email=email if email else None,
+                    email=r['email'] if r['email'] else None,
                     username=username,
-                    name=nombre,
-                    first_surname=primer_apellido,
-                    second_surname=segundo_apellido or None,
-                    gender=genero,
-                    curp=curp or None,
+                    name=r['nombre'],
+                    first_surname=r['primer_apellido'],
+                    second_surname=r['segundo_apellido'] or None,
+                    gender=r['genero'],
+                    curp=r['curp'] or None,
                     role='candidato',
                     coordinator_id=current_user.id if current_user.role == 'coordinator' else None,
                     is_active=True,
-                    is_verified=False
+                    is_verified=False,
                 )
-                new_user.set_password(generated_password)
-                new_user.encrypted_password = encrypt_password(generated_password)
+                new_user.set_password(password)
+                new_user.encrypted_password = encrypt_password(password)
                 db.session.add(new_user)
-                
-                results['created'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'name': f"{nombre} {primer_apellido}",
+                created.append({
+                    'row': r['row'],
+                    'email': r['email'],
+                    'name': f"{r['nombre']} {r['primer_apellido']}",
                     'username': username,
-                    'password': generated_password  # Contraseña generada automáticamente
+                    'password': password,
                 })
+                batch_count += 1
+                # Commit en lotes
+                if batch_count >= BATCH_COMMIT_SIZE:
+                    db.session.commit()
+                    batch_count = 0
             except Exception as e:
-                results['errors'].append({
-                    'row': row_idx,
-                    'email': email,
-                    'error': str(e)
-                })
-                continue
-        
-        # Commit de todos los usuarios creados
-        if results['created']:
-            db.session.commit()
-            
-            # Enviar emails de bienvenida a candidatos con email
+                db.session.rollback()
+                create_errors.append({'row': r['row'], 'email': r['email'] or '(vacío)', 'error': str(e)})
+                batch_count = 0
+
+        # Commit remanente
+        if batch_count > 0:
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                import logging
+                logging.getLogger(__name__).error(f'Error en commit final bulk: {e}')
+
+        # Enviar emails de bienvenida (con retry individual)
+        emails_sent = 0
+        emails_failed = 0
+        if created:
             try:
                 from app.services.email_service import send_welcome_email
-                for created_info in results['created']:
-                    if created_info.get('email'):
-                        candidate = User.query.filter_by(username=created_info['username']).first()
-                        if candidate:
-                            send_welcome_email(candidate, created_info['password'])
+                # Batch-fetch los usuarios creados para enviar email
+                created_usernames = [c['username'] for c in created if c.get('email')]
+                CHUNK = 500
+                created_users_map = {}
+                for i in range(0, len(created_usernames), CHUNK):
+                    chunk = created_usernames[i:i + CHUNK]
+                    users = User.query.filter(User.username.in_(chunk)).all()
+                    for u in users:
+                        created_users_map[u.username] = u
+
+                for c in created:
+                    if c.get('email') and c['username'] in created_users_map:
+                        try:
+                            send_welcome_email(created_users_map[c['username']], c['password'])
+                            emails_sent += 1
+                        except Exception:
+                            emails_failed += 1
             except Exception as email_err:
                 import logging
                 logging.getLogger(__name__).error(f'Error enviando welcome emails bulk: {email_err}')
-        
-        # Si se especificó un grupo, agregar candidatos creados + existentes como miembros
+
+        # Asignar a grupo si aplica
         group_assignment = None
-        if target_group and (results['created'] or results['existing_assigned']):
+        if target_group and (created or existing_assigned):
             from app.models.partner import GroupMember
-            assigned_new_count = 0
-            assigned_existing_count = 0
+            assigned_new = 0
+            assigned_existing = 0
             assignment_errors = []
-            
-            # 1. Asignar usuarios recién creados
-            if results['created']:
-                created_usernames = [c['username'] for c in results['created']]
-                created_users = User.query.filter(User.username.in_(created_usernames)).all()
-                
-                for user in created_users:
+
+            # Batch-fetch membresías del grupo destino
+            all_assign_ids = []
+            if created:
+                cnames = [c['username'] for c in created]
+                for i in range(0, len(cnames), CHUNK):
+                    chunk = cnames[i:i + CHUNK]
+                    users = User.query.filter(User.username.in_(chunk)).with_entities(User.id, User.username).all()
+                    all_assign_ids.extend([(u.id, u.username) for u in users])
+            for ea in existing_assigned:
+                all_assign_ids.append((ea['user_id'], ea.get('username', '?')))
+
+            uid_list = [x[0] for x in all_assign_ids]
+            existing_members = set()
+            for i in range(0, len(uid_list), CHUNK):
+                chunk = uid_list[i:i + CHUNK]
+                members = GroupMember.query.filter(
+                    GroupMember.group_id == target_group.id,
+                    GroupMember.user_id.in_(chunk)
+                ).with_entities(GroupMember.user_id).all()
+                existing_members.update(m.user_id for m in members)
+
+            batch_count = 0
+            for uid, uname in all_assign_ids:
+                if uid not in existing_members:
                     try:
-                        existing = GroupMember.query.filter_by(
-                            group_id=target_group.id, user_id=user.id
-                        ).first()
-                        if not existing:
-                            member = GroupMember(
-                                group_id=target_group.id,
-                                user_id=user.id,
-                                status='active'
-                            )
-                            db.session.add(member)
-                            assigned_new_count += 1
+                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status='active'))
+                        if uid in {ea['user_id'] for ea in existing_assigned}:
+                            assigned_existing += 1
+                        else:
+                            assigned_new += 1
+                        batch_count += 1
+                        if batch_count >= BATCH_COMMIT_SIZE:
+                            db.session.commit()
+                            batch_count = 0
                     except Exception as e:
-                        assignment_errors.append({'username': user.username, 'error': str(e)})
-            
-            # 2. Asignar usuarios que ya existían
-            for existing_info in results['existing_assigned']:
-                try:
-                    user_id = existing_info['user_id']
-                    existing = GroupMember.query.filter_by(
-                        group_id=target_group.id, user_id=user_id
-                    ).first()
-                    if not existing:
-                        member = GroupMember(
-                            group_id=target_group.id,
-                            user_id=user_id,
-                            status='active'
-                        )
-                        db.session.add(member)
-                        assigned_existing_count += 1
-                except Exception as e:
-                    assignment_errors.append({'username': existing_info.get('username', '?'), 'error': str(e)})
-            
-            total_assigned = assigned_new_count + assigned_existing_count
-            if total_assigned > 0:
+                        assignment_errors.append({'username': uname, 'error': str(e)})
+
+            if batch_count > 0:
                 db.session.commit()
-            
+
             group_assignment = {
                 'group_id': target_group.id,
                 'group_name': target_group.name,
-                'assigned': total_assigned,
-                'assigned_new': assigned_new_count,
-                'assigned_existing': assigned_existing_count,
+                'assigned': assigned_new + assigned_existing,
+                'assigned_new': assigned_new,
+                'assigned_existing': assigned_existing,
                 'errors': assignment_errors,
             }
-        
+
+        # Combinar errores
+        all_errors = validation_errors + create_errors
+
         response_data = {
-            'message': f'Proceso completado: {len(results["created"])} usuarios creados, {len(results["existing_assigned"])} existentes asignados al grupo',
+            'message': f'Proceso completado: {len(created)} creados, {len(existing_assigned)} existentes asignados',
             'summary': {
-                'total_processed': results['total_processed'],
-                'created': len(results['created']),
-                'existing_assigned': len(results['existing_assigned']),
-                'errors': len(results['errors']),
-                'skipped': len(results['skipped'])
+                'total_processed': len(parsed_rows),
+                'created': len(created),
+                'existing_assigned': len(existing_assigned),
+                'errors': len(all_errors),
+                'skipped': len(skipped),
+                'emails_sent': emails_sent,
+                'emails_failed': emails_failed,
             },
-            'details': results
+            'details': {
+                'created': created,
+                'existing_assigned': existing_assigned,
+                'errors': all_errors,
+                'skipped': skipped,
+                'total_processed': len(parsed_rows),
+            },
         }
         if group_assignment:
             response_data['group_assignment'] = group_assignment
-        
+
         return jsonify(response_data), 200
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

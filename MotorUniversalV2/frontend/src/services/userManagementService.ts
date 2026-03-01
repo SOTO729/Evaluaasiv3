@@ -289,6 +289,56 @@ export const ROLE_COLORS: Record<string, string> = {
 
 // ============== CARGA MASIVA ==============
 
+// Preview de carga masiva
+export interface BulkUploadPreviewRow {
+  row: number;
+  status: 'ready' | 'duplicate' | 'error' | 'skipped';
+  email?: string | null;
+  nombre?: string;
+  primer_apellido?: string;
+  segundo_apellido?: string;
+  genero?: string;
+  curp?: string | null;
+  username_preview?: string;
+  eligibility?: {
+    reporte: boolean;
+    eduit: boolean;
+    conocer: boolean;
+    insignia: boolean;
+  };
+  existing_user?: {
+    id: string;
+    name: string;
+    username: string;
+  };
+  error?: string | null;
+}
+
+export interface BulkUploadPreviewResult {
+  preview: BulkUploadPreviewRow[];
+  summary: {
+    total_rows: number;
+    ready: number;
+    duplicates: number;
+    errors: number;
+    skipped: number;
+  };
+  can_proceed: boolean;
+  group_info?: { id: number; name: string } | null;
+}
+
+export async function previewBulkUpload(file: File, groupId?: number): Promise<BulkUploadPreviewResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (groupId) {
+    formData.append('group_id', String(groupId));
+  }
+  const response = await api.post('/user-management/candidates/bulk-upload/preview', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+}
+
 export interface BulkUploadResult {
   message: string;
   summary: {

@@ -3944,39 +3944,53 @@ def _resolve_identifiers_to_users(all_identifiers):
                     user_by_identifier[c] = uname_map[key]
                     resolved.add(c)
     
-    # --- 4. Match por Nombre Completo (case-insensitive) ---
-    # Para cada identificador no resuelto, buscar por nombre completo
-    # full_name = "nombre primer_apellido [segundo_apellido]"
+    # --- 4. Match por Nombre Completo (case-insensitive) — BATCH ---
     remaining = [c for c in all_identifiers if c not in resolved]
     if remaining:
-        for identifier in remaining:
-            clean = identifier.strip()
-            if not clean or len(clean) < 3:
-                continue
-            
-            # Buscar donde el nombre completo concatenado coincide
-            # MSSQL: RTRIM(LTRIM(name)) + ' ' + RTRIM(LTRIM(first_surname)) + COALESCE(' ' + NULLIF(RTRIM(LTRIM(second_surname)),''), '')
-            full_name_expr = (
-                sa_func.rtrim(sa_func.ltrim(User.name)) + ' ' +
-                sa_func.rtrim(sa_func.ltrim(User.first_surname)) +
-                sa_func.coalesce(
-                    ' ' + sa_func.nullif(sa_func.rtrim(sa_func.ltrim(User.second_surname)), ''),
-                    ''
-                )
+        full_name_expr = (
+            sa_func.rtrim(sa_func.ltrim(User.name)) + ' ' +
+            sa_func.rtrim(sa_func.ltrim(User.first_surname)) +
+            sa_func.coalesce(
+                ' ' + sa_func.nullif(sa_func.rtrim(sa_func.ltrim(User.second_surname)), ''),
+                ''
             )
-            
+        )
+        # Chunks más pequeños para expresiones complejas
+        NAME_CHUNK = 200
+        for i in range(0, len(remaining), NAME_CHUNK):
+            chunk = remaining[i:i + NAME_CHUNK]
+            clean_to_originals = {}
+            for c in chunk:
+                clean = c.strip()
+                if clean and len(clean) >= 3:
+                    key = clean.lower()
+                    clean_to_originals.setdefault(key, []).append(c)
+
+            clean_values = list(clean_to_originals.keys())
+            if not clean_values:
+                continue
+
             users = User.query.filter(
                 User.role == 'candidato',
                 User.is_active == True,
-                sa_func.lower(full_name_expr) == clean.lower()
+                sa_func.lower(full_name_expr).in_(clean_values)
             ).all()
-            
-            if len(users) == 1:
-                user_by_identifier[identifier] = users[0]
-                resolved.add(identifier)
-            elif len(users) > 1:
-                # Múltiples candidatos con el mismo nombre
-                ambiguous[identifier] = users
+
+            name_to_users = {}
+            for u in users:
+                fname = f"{u.name} {u.first_surname} {u.second_surname or ''}".strip().lower()
+                name_to_users.setdefault(fname, []).append(u)
+
+            for key, originals in clean_to_originals.items():
+                matches = name_to_users.get(key, [])
+                for orig in originals:
+                    if orig in resolved:
+                        continue
+                    if len(matches) == 1:
+                        user_by_identifier[orig] = matches[0]
+                        resolved.add(orig)
+                    elif len(matches) > 1:
+                        ambiguous[orig] = matches
     
     return user_by_identifier, ambiguous
 
@@ -4091,8 +4105,15 @@ def upload_group_members(group_id):
     Parámetros de form-data:
     - file: Archivo Excel con candidatos
     - mode: 'move' (mover de grupo anterior) o 'add' (agregar, puede estar en múltiples grupos)
+    - resolutions: JSON string con resoluciones de ambigüedades
+      Formato: [{"identifier": "...", "user_id": "..."}, ...]
     """
     from openpyxl import load_workbook
+    import io
+    import json
+
+    MAX_ROWS = 50000
+    MAX_FILE_MB = 20
     
     try:
         group = CandidateGroup.query.get_or_404(group_id)
@@ -4103,12 +4124,31 @@ def upload_group_members(group_id):
         file = request.files['file']
         if not file.filename.endswith(('.xlsx', '.xls')):
             return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
+
+        # File size limit
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > MAX_FILE_MB * 1024 * 1024:
+            return jsonify({'error': f'Archivo excede {MAX_FILE_MB}MB'}), 400
         
         # Modo de asignación: 'move' o 'add'
-        mode = request.form.get('mode', 'add')  # Por defecto 'add' para mantener compatibilidad
+        mode = request.form.get('mode', 'add')
+
+        # Parse ambiguity resolutions
+        resolutions_map = {}  # identifier -> user_id
+        resolutions_raw = request.form.get('resolutions', '')
+        if resolutions_raw:
+            try:
+                resolutions_list = json.loads(resolutions_raw)
+                for r in resolutions_list:
+                    if r.get('identifier') and r.get('user_id'):
+                        resolutions_map[r['identifier']] = r['user_id']
+            except (json.JSONDecodeError, TypeError):
+                pass
         
         # Cargar el archivo Excel
-        wb = load_workbook(file)
+        wb = load_workbook(io.BytesIO(file.read()))
         ws = wb.active
         
         added = []
@@ -4120,6 +4160,8 @@ def upload_group_members(group_id):
         all_identifiers = []
         row_data = []
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            if len(row_data) >= MAX_ROWS:
+                return jsonify({'error': f'Límite excedido: máximo {MAX_ROWS:,} filas'}), 400
             identifier = row[0] if len(row) > 0 else None
             notes = row[1] if len(row) > 1 else None
             if not identifier:
@@ -4130,6 +4172,21 @@ def upload_group_members(group_id):
         
         # Resolver identificadores: email → CURP → username → nombre completo
         user_by_identifier, ambiguous = _resolve_identifiers_to_users(all_identifiers)
+
+        # Apply ambiguity resolutions from frontend
+        for identifier, user_id in resolutions_map.items():
+            if identifier in ambiguous:
+                # Find the user in the ambiguous matches
+                resolved_user = None
+                for u in ambiguous[identifier]:
+                    if u.id == user_id:
+                        resolved_user = u
+                        break
+                if not resolved_user:
+                    resolved_user = User.query.get(user_id)
+                if resolved_user:
+                    user_by_identifier[identifier] = resolved_user
+                    del ambiguous[identifier]
         
         # Batch: obtener membresías existentes en ESTE grupo
         CHUNK_SIZE = 500
@@ -4160,13 +4217,15 @@ def upload_group_members(group_id):
                         existing_other_map[m.user_id] = m
         
         # Procesar cada fila con los datos pre-cargados
+        batch_count = 0
         for row_num, identifier, notes in row_data:
             # Verificar si es ambiguo (múltiples matches por nombre)
             if identifier in ambiguous:
-                names = [f"{u.name} {u.first_surname} ({u.email or u.curp or u.username})" for u in ambiguous[identifier][:3]]
+                matches = ambiguous[identifier]
+                names = [f"{u.name} {u.first_surname} ({u.email or u.curp or u.username})" for u in matches[:3]]
                 errors.append({
                     'identifier': identifier,
-                    'error': f'Nombre ambiguo: {len(ambiguous[identifier])} candidatos coinciden. Use email, CURP o usuario. Ej: {", ".join(names)}'
+                    'error': f'Nombre ambiguo: {len(matches)} candidatos coinciden. Ej: {", ".join(names)}'
                 })
                 continue
             
@@ -4194,6 +4253,10 @@ def upload_group_members(group_id):
                     existing_in_target.notes = str(notes) if notes else existing_in_target.notes
                     added.append(identifier)
                     current_count += 1
+                    batch_count += 1
+                    if batch_count >= CHUNK_SIZE:
+                        db.session.commit()
+                        batch_count = 0
                     continue
             
             # Verificar si está en otro grupo
@@ -4219,8 +4282,13 @@ def upload_group_members(group_id):
             if not (existing_other and mode == 'move'):
                 added.append(identifier)
             current_count += 1
+            batch_count += 1
+            if batch_count >= CHUNK_SIZE:
+                db.session.commit()
+                batch_count = 0
         
-        db.session.commit()
+        if batch_count > 0:
+            db.session.commit()
         
         result_message = f'{len(added)} candidato(s) agregado(s)'
         if moved:
@@ -8237,6 +8305,10 @@ def move_members_to_group(source_group_id):
 def preview_group_members_upload(group_id):
     """Preview del archivo Excel antes de procesar la asignación"""
     from openpyxl import load_workbook
+    import io
+
+    MAX_ROWS = 50000
+    MAX_FILE_MB = 20
     
     try:
         group = CandidateGroup.query.get_or_404(group_id)
@@ -8247,9 +8319,16 @@ def preview_group_members_upload(group_id):
         file = request.files['file']
         if not file.filename.endswith(('.xlsx', '.xls')):
             return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
+
+        # File size limit
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > MAX_FILE_MB * 1024 * 1024:
+            return jsonify({'error': f'Archivo excede {MAX_FILE_MB}MB'}), 400
         
         # Cargar el archivo Excel
-        wb = load_workbook(file)
+        wb = load_workbook(io.BytesIO(file.read()))
         ws = wb.active
         
         preview = []
@@ -8259,6 +8338,8 @@ def preview_group_members_upload(group_id):
         all_identifiers = []
         row_data = []
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            if len(row_data) >= MAX_ROWS:
+                return jsonify({'error': f'Límite excedido: máximo {MAX_ROWS:,} filas'}), 400
             identifier = row[0] if len(row) > 0 else None
             notes = row[1] if len(row) > 1 else None
             if not identifier:
@@ -8288,12 +8369,20 @@ def preview_group_members_upload(group_id):
             status = 'ready'
             user_info = None
             error_message = None
+            ambiguous_matches = None
             
             # Verificar si es ambiguo
             if identifier in ambiguous:
-                status = 'not_found'
-                names = [f"{u.name} {u.first_surname} ({u.email or u.curp or u.username})" for u in ambiguous[identifier][:3]]
-                error_message = f'Nombre ambiguo: {len(ambiguous[identifier])} candidatos coinciden. Use email, CURP o usuario. Ej: {", ".join(names)}'
+                status = 'ambiguous'
+                matches = ambiguous[identifier]
+                ambiguous_matches = [{
+                    'id': u.id,
+                    'email': u.email,
+                    'username': u.username,
+                    'full_name': f"{u.name} {u.first_surname} {u.second_surname or ''}".strip(),
+                    'curp': u.curp,
+                } for u in matches[:10]]
+                error_message = f'{len(matches)} candidatos coinciden con "{identifier}"'
             else:
                 user = user_by_identifier.get(identifier)
                 
@@ -8318,19 +8407,23 @@ def preview_group_members_upload(group_id):
                         'created_at': user.created_at.isoformat() if user.created_at else None,
                     }
             
-            preview.append({
+            entry = {
                 'row': row_num,
                 'identifier': identifier,
                 'notes': str(notes) if notes else None,
                 'status': status,
                 'error': error_message,
                 'user': user_info
-            })
+            }
+            if ambiguous_matches:
+                entry['ambiguous_matches'] = ambiguous_matches
+            preview.append(entry)
         
         # Contar por status
         ready_count = len([p for p in preview if p['status'] == 'ready'])
         already_member_count = len([p for p in preview if p['status'] == 'already_member'])
         not_found_count = len([p for p in preview if p['status'] == 'not_found'])
+        ambiguous_count = len([p for p in preview if p['status'] == 'ambiguous'])
         
         return jsonify({
             'group_name': group.name,
@@ -8340,7 +8433,8 @@ def preview_group_members_upload(group_id):
                 'total': len(preview),
                 'ready': ready_count,
                 'already_member': already_member_count,
-                'not_found': not_found_count
+                'not_found': not_found_count,
+                'ambiguous': ambiguous_count,
             },
             'can_proceed': ready_count > 0
         }), 200

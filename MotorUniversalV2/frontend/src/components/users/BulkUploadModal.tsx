@@ -19,12 +19,16 @@ import {
   Building2,
   Layers,
   MapPin,
+  Eye,
+  ArrowLeft,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
   bulkUploadCandidates,
   downloadBulkUploadTemplate,
-  BulkUploadResult
+  previewBulkUpload,
+  BulkUploadResult,
+  BulkUploadPreviewResult
 } from '../../services/userManagementService';
 import {
   getPartners,
@@ -46,6 +50,11 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [result, setResult] = useState<BulkUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Preview state
+  const [preview, setPreview] = useState<BulkUploadPreviewResult | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [previewFilter, setPreviewFilter] = useState<'all' | 'ready' | 'duplicate' | 'error' | 'skipped'>('all');
   
   // Notificaciones globales
   const { addNotification, updateNotification } = useNotificationStore();
@@ -147,9 +156,23 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   };
 
+  const handlePreview = async () => {
+    if (!file) return;
+    setPreviewing(true);
+    setError(null);
+    try {
+      const data = await previewBulkUpload(file, selectedGroupId ? Number(selectedGroupId) : undefined);
+      setPreview(data);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al generar la previsualización');
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
   const handleUpload = async (runInBackground: boolean = false) => {
     if (!file) return;
-    
+
     if (runInBackground) {
       // Proceso en segundo plano - cerrar modal y mostrar notificación
       const notificationId = addNotification({
@@ -271,6 +294,8 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const handleReset = () => {
     setFile(null);
     setResult(null);
+    setPreview(null);
+    setPreviewFilter('all');
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -302,7 +327,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50  p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col transition-all ${preview ? 'max-w-5xl' : 'max-w-3xl'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
           <div className="flex items-center gap-3">
@@ -592,35 +617,185 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
               </div>
             )}
 
-            {/* Upload button */}
-            {file && !result && (
+            {/* Upload button / Preview button */}
+            {file && !result && !preview && (
               <div className="mt-4 flex flex-col gap-3">
-                {uploading ? (
+                {previewing ? (
                   <div className="flex items-center justify-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-200">
                     <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                     <div>
-                      <p className="font-medium text-blue-800">Procesando archivo...</p>
-                      <p className="text-sm text-blue-600">Esto puede tomar unos segundos</p>
+                      <p className="font-medium text-blue-800">Analizando archivo...</p>
+                      <p className="text-sm text-blue-600">Validando datos y buscando duplicados</p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex gap-3 justify-end">
                     <button
-                      onClick={() => handleUpload(true)}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-medium transition-colors"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Procesar en segundo plano
-                    </button>
-                    <button
-                      onClick={() => handleUpload(false)}
+                      onClick={handlePreview}
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-colors"
                     >
-                      <Upload className="h-5 w-5" />
-                      Procesar y ver resultados
+                      <Eye className="h-5 w-5" />
+                      Previsualizar
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Preview table */}
+            {preview && !result && (
+              <div className="mt-6 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-sm flex items-center justify-center">3</span>
+                    Previsualización
+                  </h3>
+                  {preview.group_info && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                      Grupo: {preview.group_info.name}
+                    </span>
+                  )}
+                </div>
+
+                {/* Summary badges */}
+                <div className="grid grid-cols-5 gap-2">
+                  <button onClick={() => setPreviewFilter('all')}
+                    className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'all' ? 'ring-2 ring-gray-400 bg-gray-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                    <p className="text-lg font-bold text-gray-800">{preview.summary.total_rows}</p>
+                    <p className="text-[10px] text-gray-500">Total</p>
+                  </button>
+                  <button onClick={() => setPreviewFilter('ready')}
+                    className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'ready' ? 'ring-2 ring-green-400 bg-green-100' : 'bg-green-50 hover:bg-green-100'}`}>
+                    <p className="text-lg font-bold text-green-600">{preview.summary.ready}</p>
+                    <p className="text-[10px] text-green-700">Listos</p>
+                  </button>
+                  <button onClick={() => setPreviewFilter('duplicate')}
+                    className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'duplicate' ? 'ring-2 ring-blue-400 bg-blue-100' : 'bg-blue-50 hover:bg-blue-100'}`}>
+                    <p className="text-lg font-bold text-blue-600">{preview.summary.duplicates}</p>
+                    <p className="text-[10px] text-blue-700">Existentes</p>
+                  </button>
+                  <button onClick={() => setPreviewFilter('error')}
+                    className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'error' ? 'ring-2 ring-red-400 bg-red-100' : 'bg-red-50 hover:bg-red-100'}`}>
+                    <p className="text-lg font-bold text-red-600">{preview.summary.errors}</p>
+                    <p className="text-[10px] text-red-700">Errores</p>
+                  </button>
+                  <button onClick={() => setPreviewFilter('skipped')}
+                    className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'skipped' ? 'ring-2 ring-yellow-400 bg-yellow-100' : 'bg-yellow-50 hover:bg-yellow-100'}`}>
+                    <p className="text-lg font-bold text-yellow-600">{preview.summary.skipped}</p>
+                    <p className="text-[10px] text-yellow-700">Omitidos</p>
+                  </button>
+                </div>
+
+                {/* Preview rows table */}
+                <div className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="max-h-64 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-gray-600">Fila</th>
+                          <th className="px-3 py-2 text-left text-gray-600">Estado</th>
+                          <th className="px-3 py-2 text-left text-gray-600">Email</th>
+                          <th className="px-3 py-2 text-left text-gray-600">Nombre</th>
+                          <th className="px-3 py-2 text-left text-gray-600">Usuario</th>
+                          <th className="px-3 py-2 text-left text-gray-600">Detalle</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {preview.preview
+                          .filter(r => previewFilter === 'all' || r.status === previewFilter)
+                          .map((r) => (
+                          <tr key={r.row} className="hover:bg-gray-50/50">
+                            <td className="px-3 py-1.5 text-gray-500">{r.row}</td>
+                            <td className="px-3 py-1.5">
+                              {r.status === 'ready' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-medium">
+                                  <CheckCircle2 className="h-3 w-3" /> Listo
+                                </span>
+                              )}
+                              {r.status === 'duplicate' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium">
+                                  <Users className="h-3 w-3" /> Existente
+                                </span>
+                              )}
+                              {r.status === 'error' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-medium">
+                                  <XCircle className="h-3 w-3" /> Error
+                                </span>
+                              )}
+                              {r.status === 'skipped' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium">
+                                  <AlertCircle className="h-3 w-3" /> Omitido
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">{r.email || '-'}</td>
+                            <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">
+                              {r.status === 'duplicate' && r.existing_user
+                                ? r.existing_user.name
+                                : r.nombre
+                                  ? `${r.nombre} ${r.primer_apellido || ''}`
+                                  : '-'
+                              }
+                            </td>
+                            <td className="px-3 py-1.5 text-gray-500 font-mono">
+                              {r.username_preview || (r.status === 'duplicate' && r.existing_user ? r.existing_user.username : '-')}
+                            </td>
+                            <td className="px-3 py-1.5 text-gray-500 truncate max-w-[180px]" title={r.error || ''}>
+                              {r.error || (r.status === 'ready' && r.eligibility ? (
+                                <span className="flex gap-1">
+                                  {r.eligibility.conocer && <span className="px-1 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px]">CC</span>}
+                                  {r.eligibility.insignia && <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px]">ID</span>}
+                                </span>
+                              ) : '')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => { setPreview(null); setPreviewFilter('all'); }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Cambiar archivo
+                  </button>
+                  <div className="flex gap-3">
+                    {preview.can_proceed && (
+                      <>
+                        {uploading ? (
+                          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                            <span className="text-sm text-blue-700">Procesando...</span>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleUpload(true)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                            >
+                              Procesar en segundo plano
+                            </button>
+                            <button
+                              onClick={() => handleUpload(false)}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                            >
+                              <Upload className="h-4 w-4" />
+                              Confirmar Carga ({preview.summary.ready} nuevos{preview.summary.duplicates > 0 ? ` + ${preview.summary.duplicates} existentes` : ''})
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                    {!preview.can_proceed && (
+                      <p className="text-sm text-red-600 font-medium">No hay registros válidos para procesar</p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

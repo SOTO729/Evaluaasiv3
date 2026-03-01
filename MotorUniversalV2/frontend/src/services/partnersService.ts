@@ -1057,7 +1057,8 @@ export async function downloadGroupMembersTemplate(): Promise<void> {
 export async function uploadGroupMembersExcel(
   groupId: number, 
   file: File, 
-  mode: 'move' | 'add' = 'add'
+  mode: 'move' | 'add' = 'add',
+  resolutions?: Array<{ identifier: string; user_id: string }>
 ): Promise<{
   message: string;
   added: string[];
@@ -1069,6 +1070,9 @@ export async function uploadGroupMembersExcel(
   const formData = new FormData();
   formData.append('file', file);
   formData.append('mode', mode);
+  if (resolutions && resolutions.length > 0) {
+    formData.append('resolutions', JSON.stringify(resolutions));
+  }
   
   const response = await api.post(`/partners/groups/${groupId}/members/upload`, formData, {
     headers: {
@@ -1084,7 +1088,7 @@ export interface ExcelPreviewRow {
   row: number;
   identifier: string;
   notes?: string;
-  status: 'ready' | 'already_member' | 'not_found' | 'capacity_exceeded';
+  status: 'ready' | 'already_member' | 'not_found' | 'capacity_exceeded' | 'ambiguous';
   error?: string;
   user?: {
     id: string;
@@ -1098,6 +1102,13 @@ export interface ExcelPreviewRow {
     gender?: string;
     created_at?: string;
   };
+  ambiguous_matches?: Array<{
+    id: string;
+    email?: string;
+    username?: string;
+    full_name: string;
+    curp?: string;
+  }>;
 }
 
 export interface ExcelPreviewResult {
@@ -1109,6 +1120,7 @@ export interface ExcelPreviewResult {
     ready: number;
     already_member: number;
     not_found: number;
+    ambiguous?: number;
   };
   can_proceed: boolean;
 }
