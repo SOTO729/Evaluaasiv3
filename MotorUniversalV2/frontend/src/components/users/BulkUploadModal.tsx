@@ -167,6 +167,15 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     try {
       const data = await previewBulkUpload(file, selectedGroupId ? Number(selectedGroupId) : undefined);
       setPreview(data);
+      // Pre-seleccionar usuarios existentes para agregar al grupo cuando hay grupo seleccionado
+      if (selectedGroupId && data.preview) {
+        const existingIds = data.preview
+          .filter((r: any) => r.status === 'skipped' && r.existing_user)
+          .map((r: any) => r.existing_user.id);
+        if (existingIds.length > 0) {
+          setIncludedSkippedIds(new Set(existingIds));
+        }
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al generar la previsualización');
     } finally {
