@@ -70,12 +70,12 @@ def warn(name, detail=""):
 
 def get_token(username="admin", password="Admin123!"):
     """Login y devolver token."""
-    r = requests.post(f"{API}/auth/login", json={"username": username, "password": password})
+    r = post_with_retry(f"{API}/auth/login", json={"username": username, "password": password})
     if r.status_code == 429:
         wait = int(r.json().get("retry_after", 30))
         print(f"  ⏳ Rate limit, esperando {min(wait, 60)}s...")
         time.sleep(min(wait, 60))
-        r = requests.post(f"{API}/auth/login", json={"username": username, "password": password})
+        r = post_with_retry(f"{API}/auth/login", json={"username": username, "password": password})
     if r.status_code == 200:
         return r.json().get("access_token")
     print(f"  ⚠️ Login fallido ({username}): {r.status_code} {r.text[:200]}")
@@ -84,6 +84,48 @@ def get_token(username="admin", password="Admin123!"):
 
 def auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
+
+
+# Timeout para requests (evita colgarse en cold starts)
+REQ_TIMEOUT = 120  # 2 min
+
+
+def post_with_retry(url, max_retries=2, **kwargs):
+    """POST con timeout y retry automático en 504/timeout."""
+    kwargs.setdefault('timeout', REQ_TIMEOUT)
+    for attempt in range(max_retries + 1):
+        try:
+            r = requests.post(url, **kwargs)
+            if r.status_code == 504 and attempt < max_retries:
+                print(f"  ⏳ 504 timeout, reintentando ({attempt + 1}/{max_retries})...")
+                time.sleep(5)
+                continue
+            return r
+        except requests.exceptions.Timeout:
+            if attempt < max_retries:
+                print(f"  ⏳ Request timeout, reintentando ({attempt + 1}/{max_retries})...")
+                time.sleep(5)
+                continue
+            raise
+    return r
+
+
+def get_with_retry(url, max_retries=1, **kwargs):
+    """GET con timeout y retry."""
+    kwargs.setdefault('timeout', REQ_TIMEOUT)
+    for attempt in range(max_retries + 1):
+        try:
+            r = requests.get(url, **kwargs)
+            if r.status_code == 504 and attempt < max_retries:
+                time.sleep(5)
+                continue
+            return r
+        except requests.exceptions.Timeout:
+            if attempt < max_retries:
+                time.sleep(5)
+                continue
+            raise
+    return r
 
 
 def db_query(sql, params=None):
@@ -206,23 +248,23 @@ def main():
 
     # ── 1. Endpoints protegidos ──
     print("\n── 1. Endpoints protegidos (sin token → 401) ──")
-    r1 = requests.post(f"{API}/user-management/candidates/bulk-upload/preview")
+    r1 = post_with_retry(f"{API}/user-management/candidates/bulk-upload/preview")
     test("Preview sin auth → 401/422", r1.status_code in (401, 422))
 
-    r2 = requests.post(f"{API}/user-management/candidates/bulk-upload")
+    r2 = post_with_retry(f"{API}/user-management/candidates/bulk-upload")
     test("Upload sin auth → 401/422", r2.status_code in (401, 422))
 
     # ── 2. Validación de archivo ──
     print("\n── 2. Validaciones de archivo ──")
 
     # Sin archivo
-    r = requests.post(f"{API}/user-management/candidates/bulk-upload/preview", headers=h)
+    r = post_with_retry(f"{API}/user-management/candidates/bulk-upload/preview", headers=h)
     test("Preview sin archivo → 400", r.status_code == 400)
     test("  Mensaje indica 'no se envió'", "no se envi" in r.json().get("error", "").lower(),
          r.json().get("error", ""))
 
     # Archivo no-Excel
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("datos.csv", b"col1,col2\na,b", "text/csv")}
@@ -236,7 +278,7 @@ def main():
         [{"columna_rara": "dato"}],
         ["columna_rara"]
     )
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("datos.xlsx", bad_excel, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -253,7 +295,7 @@ def main():
         [{"nombre": "Juan", "primer_apellido": "López", "genero": "M"}],
         ["nombre", "primer_apellido", "genero"]
     )
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("datos.xlsx", no_segundo, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -267,7 +309,7 @@ def main():
         [{"nombre": "Juan", "primer_apellido": "López", "segundo_apellido": "García"}],
         ["nombre", "primer_apellido", "segundo_apellido"]
     )
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("datos.xlsx", no_genero, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -279,20 +321,21 @@ def main():
     # ── 4. Preview exitoso (datos válidos) ──
     print("\n── 4. Preview exitoso con datos válidos ──")
 
+    test_uid = TEST_PREFIX[9:]  # parte random del prefijo (6 chars hex)
     test_email_1 = f"{TEST_PREFIX.lower()}_user1@testbulk.com"
     test_email_2 = f"{TEST_PREFIX.lower()}_user2@testbulk.com"
-    test_curp_1 = f"TEST{TEST_PREFIX[:4]}000001"  # 18 chars total
+    test_curp_1 = f"CURP{test_uid}000001"  # único por ejecución
     test_curp_1 = test_curp_1.ljust(18, "X")[:18]
 
-    # Usar nombres con prefijo único para evitar name_match con usuarios existentes
+    # Usar nombres con sufijo unique para evitar name_match con usuarios existentes
     candidates = [
-        {"email": test_email_1, "nombre": f"Ana{TEST_PREFIX[:4]}", "primer_apellido": "García", "segundo_apellido": "López", "genero": "F", "curp": test_curp_1},
-        {"email": test_email_2, "nombre": f"Carlos{TEST_PREFIX[:4]}", "primer_apellido": "Martínez", "segundo_apellido": "Ruiz", "genero": "M", "curp": None},
-        {"email": None, "nombre": f"María{TEST_PREFIX[:4]}", "primer_apellido": "Sánchez", "segundo_apellido": "Torres", "genero": "F", "curp": None},
+        {"email": test_email_1, "nombre": f"Ana{test_uid}", "primer_apellido": "García", "segundo_apellido": "López", "genero": "F", "curp": test_curp_1},
+        {"email": test_email_2, "nombre": f"Carlos{test_uid}", "primer_apellido": "Martínez", "segundo_apellido": "Ruiz", "genero": "M", "curp": None},
+        {"email": None, "nombre": f"María{test_uid}", "primer_apellido": "Sánchez", "segundo_apellido": "Torres", "genero": "F", "curp": None},
     ]
 
     excel_data = make_candidates_excel(candidates)
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("candidatos.xlsx", excel_data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -340,7 +383,7 @@ def main():
         {"email": "b2@test.com", "nombre": "Bien", "primer_apellido": "Curp", "segundo_apellido": "Corto", "genero": "M", "curp": "ABC"},
     ]
     excel_mix = make_candidates_excel(mixed_candidates)
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("mixto.xlsx", excel_mix, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -362,7 +405,7 @@ def main():
     print("\n── 6. Upload real — crear candidatos ──")
 
     excel_upload = make_candidates_excel(candidates)
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload",
         headers=h,
         files={"file": ("candidatos.xlsx", excel_upload, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -402,7 +445,7 @@ def main():
 
     # Subir el mismo archivo de nuevo
     excel_dup = make_candidates_excel(candidates)
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("duplicados.xlsx", excel_dup, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -417,12 +460,14 @@ def main():
              f"skipped={summary.get('skipped')}")
         test(f"  ready < 3 (algunos ya existen)", summary.get("ready", 3) < 3,
              f"ready={summary.get('ready')}")
+        test("  can_proceed == True (existentes pueden asignarse a grupo)",
+             data.get("can_proceed") == True, f"can_proceed={data.get('can_proceed')}")
 
     # ── 8. Upload idempotente (no duplica) ──
     print("\n── 8. Upload idempotente (no crea duplicados) ──")
 
     excel_dup2 = make_candidates_excel(candidates)
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload",
         headers=h,
         files={"file": ("dup2.xlsx", excel_dup2, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -455,7 +500,7 @@ def main():
             {"email": grp_email, "nombre": "GrpTest", "primer_apellido": "Uno", "segundo_apellido": "Prueba", "genero": "M", "curp": None},
         ]
         excel_grp = make_candidates_excel(grp_candidates)
-        r = requests.post(
+        r = post_with_retry(
             f"{API}/user-management/candidates/bulk-upload",
             headers=h,
             files={"file": ("grupo.xlsx", excel_grp, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
@@ -483,7 +528,7 @@ def main():
 
     # ── 10. Descarga de plantilla ──
     print("\n── 10. Descarga de plantilla ──")
-    r = requests.get(f"{API}/user-management/candidates/bulk-upload/template", headers=h)
+    r = get_with_retry(f"{API}/user-management/candidates/bulk-upload/template", headers=h)
     test("GET template → 200", r.status_code == 200, f"Status: {r.status_code}")
     if r.status_code == 200:
         test("  Content-Type xlsx",
@@ -491,19 +536,75 @@ def main():
              r.headers.get("Content-Type", ""))
         test(f"  Tamaño > 0 bytes", len(r.content) > 100, f"Size: {len(r.content)}")
 
+    # ── 10a2. Asignación directa de solo existentes a grupo (botón verde confirmar) ──
+    print("\n── 10a2. Asignación directa de solo existentes a grupo ──")
+
+    if group_id:
+        # Limpiar membresías del grupo para que la asignación encuentre usuarios nuevos
+        for uid in created_user_ids:
+            db_exec("DELETE FROM group_members WHERE group_id=%s AND user_id=%s", (group_id, uid))
+
+        # Preview con solo existentes + grupo seleccionado
+        excel_exist_only = make_candidates_excel(candidates)
+        r = post_with_retry(
+            f"{API}/user-management/candidates/bulk-upload/preview",
+            headers=h,
+            files={"file": ("exist_only.xlsx", excel_exist_only, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"group_id": str(group_id)}
+        )
+        test("Preview existentes+grupo → 200", r.status_code == 200, f"Status: {r.status_code}")
+
+        if r.status_code == 200:
+            prev_data = r.json()
+            test("  can_proceed == True (solo existentes con grupo)",
+                 prev_data.get("can_proceed") == True, f"can_proceed={prev_data.get('can_proceed')}")
+
+            # Obtener IDs de existentes (skipped o duplicate con existing_user)
+            exist_ids = [row["existing_user"]["id"] for row in prev_data.get("preview", [])
+                         if row.get("status") in ("skipped", "duplicate") and row.get("existing_user")]
+
+            if exist_ids:
+                # Upload solo para asignar existentes al grupo (simula clic en botón verde)
+                excel_assign = make_candidates_excel(candidates)
+                r = post_with_retry(
+                    f"{API}/user-management/candidates/bulk-upload",
+                    headers=h,
+                    files={"file": ("assign.xlsx", excel_assign, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+                    data={
+                        "group_id": str(group_id),
+                        "include_existing_ids": json.dumps(exist_ids),
+                    }
+                )
+                test("Upload asignar existentes → 200", r.status_code == 200,
+                     f"Status: {r.status_code} | {r.text[:300]}")
+
+                if r.status_code == 200:
+                    data = r.json()
+                    summary = data.get("summary", {})
+                    test(f"  existing_assigned >= 1", summary.get("existing_assigned", 0) >= 1,
+                         f"existing_assigned={summary.get('existing_assigned')}")
+                    test("  group_assignment presente", "group_assignment" in data)
+                    ga = data.get("group_assignment", {})
+                    test(f"  assigned_existing >= 1", ga.get("assigned_existing", 0) >= 1,
+                         f"assigned_existing={ga.get('assigned_existing')}")
+            else:
+                warn("No se encontraron IDs de existentes, saltando asignación directa")
+    else:
+        warn("No hay grupo, saltando test 10a2")
+
     # ── 10b. Preview detecta coincidencias por nombre+género (name_match) ──
     print("\n── 10b. Preview detecta coincidencias por nombre+género ──")
 
-    # candidates[0] fue creada en test 6 con nombre Ana{PREFIX} García.
+    # candidates[0] fue creada en test 6 con nombre Ana{test_uid} García.
     # Crear un Excel con un candidato que tenga mismo nombre+primer_apellido+género pero email diferente
-    nm_nombre = f"Ana{TEST_PREFIX[:4]}"
+    nm_nombre = f"Ana{test_uid}"
     nm_email = f"{TEST_PREFIX.lower()}_nm1@testbulk.com"
     name_match_candidates = [
         {"email": nm_email, "nombre": nm_nombre, "primer_apellido": "García", "segundo_apellido": "Pérez", "genero": "F", "curp": None},
         {"email": f"{TEST_PREFIX.lower()}_nm2@testbulk.com", "nombre": "Único", "primer_apellido": "Irrepetible", "segundo_apellido": "Test", "genero": "M", "curp": None},
     ]
     excel_nm = make_candidates_excel(name_match_candidates)
-    r = requests.post(
+    r = post_with_retry(
         f"{API}/user-management/candidates/bulk-upload/preview",
         headers=h,
         files={"file": ("namematch.xlsx", excel_nm, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -543,7 +644,7 @@ def main():
 
     if nm_row_number:
         excel_skip = make_candidates_excel(name_match_candidates)
-        r = requests.post(
+        r = post_with_retry(
             f"{API}/user-management/candidates/bulk-upload",
             headers=h,
             files={"file": ("skip.xlsx", excel_skip, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
@@ -571,12 +672,16 @@ def main():
     print("\n── 10d. Upload con include_existing_ids ──")
 
     if group_id:
+        # Limpiar membresías previas para que la asignación funcione
+        for uid in created_user_ids:
+            db_exec("DELETE FROM group_members WHERE group_id=%s AND user_id=%s", (group_id, uid))
+
         # Reusar candidates (ya creados) — sin grupo deberían ser skipped.
         # Pero con include_existing_ids y group_id, deberían agregarse al grupo.
         existing_ids_for_include = []
         # Primero hacer preview para obtener IDs de los skipped
         excel_incl_prev = make_candidates_excel(candidates)
-        r = requests.post(
+        r = post_with_retry(
             f"{API}/user-management/candidates/bulk-upload/preview",
             headers=h,
             files={"file": ("incl_preview.xlsx", excel_incl_prev, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
@@ -591,7 +696,7 @@ def main():
 
         if existing_ids_for_include:
             excel_incl = make_candidates_excel(candidates)
-            r = requests.post(
+            r = post_with_retry(
                 f"{API}/user-management/candidates/bulk-upload",
                 headers=h,
                 files={"file": ("include.xlsx", excel_incl, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
@@ -627,7 +732,7 @@ def main():
 
         # Usar candidatos ya existentes (de test 6), que NO están en el grupo tras limpieza
         excel_only_existing = make_candidates_excel(candidates)
-        r = requests.post(
+        r = post_with_retry(
             f"{API}/user-management/candidates/bulk-upload",
             headers=h,
             files={"file": ("onlyexisting.xlsx", excel_only_existing, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
@@ -672,9 +777,9 @@ def main():
 
         # ── 11. Endpoints protegidos ──
         print("\n── 11. Flujo 2 — Endpoints protegidos ──")
-        r = requests.post(f"{API}/partners/groups/{group_id}/members/upload/preview")
+        r = post_with_retry(f"{API}/partners/groups/{group_id}/members/upload/preview")
         test("F2 Preview sin auth → 401/422", r.status_code in (401, 422))
-        r = requests.post(f"{API}/partners/groups/{group_id}/members/upload")
+        r = post_with_retry(f"{API}/partners/groups/{group_id}/members/upload")
         test("F2 Upload sin auth → 401/422", r.status_code in (401, 422))
 
         # ── 12. Preview con identificadores ──
@@ -694,7 +799,7 @@ def main():
             ]
             excel_f2 = make_identifiers_excel(idents)
 
-            r = requests.post(
+            r = post_with_retry(
                 f"{API}/partners/groups/{group_id}/members/upload/preview",
                 headers=h,
                 files={"file": ("asignar.xlsx", excel_f2, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -735,13 +840,13 @@ def main():
         # ── 13. Flujo 2 — Validación de archivo ──
         print("\n── 13. Flujo 2 — Validación de archivo ──")
 
-        r = requests.post(
+        r = post_with_retry(
             f"{API}/partners/groups/{group_id}/members/upload/preview",
             headers=h
         )
         test("F2 Preview sin archivo → 400", r.status_code == 400)
 
-        r = requests.post(
+        r = post_with_retry(
             f"{API}/partners/groups/{group_id}/members/upload/preview",
             headers=h,
             files={"file": ("datos.txt", b"hola", "text/plain")}
@@ -772,7 +877,7 @@ def main():
             print(f"  📌 Nombre ambiguo encontrado: '{ambiguous_name}' ({dup_names[0]['cnt']} coincidencias)")
 
             excel_amb = make_identifiers_excel([ambiguous_name])
-            r = requests.post(
+            r = post_with_retry(
                 f"{API}/partners/groups/{group_id}/members/upload/preview",
                 headers=h,
                 files={"file": ("ambiguo.xlsx", excel_amb, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
@@ -801,7 +906,7 @@ def main():
                         chosen_id = matches[0]["id"]
                         resolutions = json.dumps([{"identifier": ambiguous_name, "user_id": chosen_id}])
 
-                        r2 = requests.post(
+                        r2 = post_with_retry(
                             f"{API}/partners/groups/{group_id}/members/upload",
                             headers=h,
                             files={"file": ("amb2.xlsx", make_identifiers_excel([ambiguous_name]),
@@ -840,7 +945,7 @@ def main():
             test_ident = known_candidates[0]["email"]
             excel_up = make_identifiers_excel([test_ident])
 
-            r = requests.post(
+            r = post_with_retry(
                 f"{API}/partners/groups/{group_id}/members/upload",
                 headers=h,
                 files={"file": ("asignar.xlsx", excel_up, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
@@ -868,7 +973,7 @@ def main():
 
         # ── 17. Plantilla de Flujo 2 ──
         print("\n── 17. Flujo 2 — Descarga de plantilla ──")
-        r = requests.get(f"{API}/partners/groups/members/template", headers=h)
+        r = get_with_retry(f"{API}/partners/groups/members/template", headers=h)
         test("GET F2 template → 200", r.status_code == 200, f"Status: {r.status_code}")
         if r.status_code == 200:
             test(f"  Content > 100 bytes", len(r.content) > 100)

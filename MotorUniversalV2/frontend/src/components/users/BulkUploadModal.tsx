@@ -170,7 +170,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       // Pre-seleccionar usuarios existentes para agregar al grupo cuando hay grupo seleccionado
       if (selectedGroupId && data.preview) {
         const existingIds = data.preview
-          .filter((r: any) => r.status === 'skipped' && r.existing_user)
+          .filter((r: any) => (r.status === 'skipped' || r.status === 'duplicate') && r.existing_user)
           .map((r: any) => r.existing_user.id);
         if (existingIds.length > 0) {
           setIncludedSkippedIds(new Set(existingIds));
@@ -711,37 +711,48 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
                 {/* Banner: add skipped existing users to group */}
                 {(() => {
-                  const skippedWithUser = preview.preview.filter(r => r.status === 'skipped' && r.existing_user);
+                  const skippedWithUser = preview.preview.filter(r => (r.status === 'skipped' || r.status === 'duplicate') && r.existing_user);
                   if (!selectedGroupId || skippedWithUser.length === 0) return null;
                   const allSelected = skippedWithUser.every(r => includedSkippedIds.has(r.existing_user!.id));
                   const groupName = groups.find(g => g.id === selectedGroupId)?.name || 'el grupo';
                   return (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <UserPlus className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                        <span className="text-amber-800">
-                          <strong>{skippedWithUser.length}</strong> usuario(s) omitido(s) ya existen.
-                          {includedSkippedIds.size > 0 && (
-                            <span className="text-green-700 font-medium"> ({includedSkippedIds.size} se agregarán a {groupName})</span>
-                          )}
-                        </span>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <UserPlus className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                          <span className="text-amber-800">
+                            <strong>{skippedWithUser.length}</strong> usuario(s) ya existen.
+                            {includedSkippedIds.size > 0 && (
+                              <span className="text-green-700 font-medium"> ({includedSkippedIds.size} seleccionado(s) para {groupName})</span>
+                            )}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (allSelected) {
+                              setIncludedSkippedIds(new Set());
+                            } else {
+                              setIncludedSkippedIds(new Set(skippedWithUser.map(r => r.existing_user!.id)));
+                            }
+                          }}
+                          className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                            allSelected
+                              ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                          }`}
+                        >
+                          {allSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (allSelected) {
-                            setIncludedSkippedIds(new Set());
-                          } else {
-                            setIncludedSkippedIds(new Set(skippedWithUser.map(r => r.existing_user!.id)));
-                          }
-                        }}
-                        className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                          allSelected
-                            ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
-                            : 'bg-green-600 text-white hover:bg-green-700'
-                        }`}
-                      >
-                        {allSelected ? 'Deseleccionar todos' : 'Agregar todos al grupo'}
-                      </button>
+                      {includedSkippedIds.size > 0 && !uploading && (
+                        <button
+                          onClick={() => handleUpload(false)}
+                          className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          Confirmar asignación al grupo ({includedSkippedIds.size} usuario{includedSkippedIds.size !== 1 ? 's' : ''})
+                        </button>
+                      )}
                     </div>
                   );
                 })()}
@@ -904,7 +915,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                                     </div>
                                   )}
                                 </div>
-                              ) : r.status === 'skipped' && r.existing_user && selectedGroupId ? (
+                              ) : (r.status === 'skipped' || r.status === 'duplicate') && r.existing_user && selectedGroupId ? (
                                 <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                                   <input
                                     type="checkbox"
@@ -970,7 +981,15 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                               className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                             >
                               <Upload className="h-4 w-4" />
-                              Confirmar Carga ({preview.summary.ready + preview.summary.name_matches - skipNameMatchRows.size} nuevos{preview.summary.duplicates > 0 ? ` + ${preview.summary.duplicates} existentes` : ''}{includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} omitidos` : ''})
+                              {(() => {
+                                const newCount = preview.summary.ready + preview.summary.name_matches - skipNameMatchRows.size;
+                                if (newCount > 0) {
+                                  return `Confirmar Carga (${newCount} nuevos${includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} al grupo` : ''})`;
+                                }
+                                return includedSkippedIds.size > 0
+                                  ? `Asignar ${includedSkippedIds.size} usuario${includedSkippedIds.size !== 1 ? 's' : ''} al grupo`
+                                  : 'Confirmar Carga';
+                              })()}
                             </button>
                           </>
                         )}

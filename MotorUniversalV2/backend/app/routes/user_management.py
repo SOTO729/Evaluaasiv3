@@ -1791,7 +1791,7 @@ def preview_bulk_upload_candidates():
                 'errors': len(validation_errors),
                 'skipped': len(skipped),
             },
-            'can_proceed': len(to_create) > 0 or len(duplicates) > 0,
+            'can_proceed': len(to_create) > 0 or len(duplicates) > 0 or len(skipped) > 0,
             'group_info': {'id': target_group.id, 'name': target_group.name} if target_group else None,
         }), 200
 
