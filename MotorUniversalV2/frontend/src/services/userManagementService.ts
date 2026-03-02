@@ -414,11 +414,14 @@ export interface BulkUploadResult {
   };
 }
 
-export async function bulkUploadCandidates(file: File, groupId?: number): Promise<BulkUploadResult> {
+export async function bulkUploadCandidates(file: File, groupId?: number, includeExistingIds?: string[]): Promise<BulkUploadResult> {
   const formData = new FormData();
   formData.append('file', file);
   if (groupId) {
     formData.append('group_id', String(groupId));
+  }
+  if (includeExistingIds && includeExistingIds.length > 0) {
+    formData.append('include_existing_ids', JSON.stringify(includeExistingIds));
   }
   
   const response = await api.post('/user-management/candidates/bulk-upload', formData, {

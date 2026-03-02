@@ -21,6 +21,7 @@ import {
   MapPin,
   Eye,
   ArrowLeft,
+  UserPlus,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -55,6 +56,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [preview, setPreview] = useState<BulkUploadPreviewResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewFilter, setPreviewFilter] = useState<'all' | 'ready' | 'duplicate' | 'error' | 'skipped'>('all');
+  const [includedSkippedIds, setIncludedSkippedIds] = useState<Set<string>>(new Set());
   
   // Notificaciones globales
   const { addNotification, updateNotification } = useNotificationStore();
@@ -186,7 +188,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       handleClose();
       
       try {
-        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined);
+        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined);
         
         // Actualizar notificación con resultado
         if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
@@ -237,7 +239,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       setResult(null);
       
       try {
-        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined);
+        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined);
         setResult(uploadResult);
         
         if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
@@ -296,6 +298,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     setResult(null);
     setPreview(null);
     setPreviewFilter('all');
+    setIncludedSkippedIds(new Set());
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -686,6 +689,43 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   </button>
                 </div>
 
+                {/* Banner: add skipped existing users to group */}
+                {(() => {
+                  const skippedWithUser = preview.preview.filter(r => r.status === 'skipped' && r.existing_user);
+                  if (!selectedGroupId || skippedWithUser.length === 0) return null;
+                  const allSelected = skippedWithUser.every(r => includedSkippedIds.has(r.existing_user!.id));
+                  const groupName = groups.find(g => g.id === selectedGroupId)?.name || 'el grupo';
+                  return (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <UserPlus className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                        <span className="text-amber-800">
+                          <strong>{skippedWithUser.length}</strong> usuario(s) omitido(s) ya existen.
+                          {includedSkippedIds.size > 0 && (
+                            <span className="text-green-700 font-medium"> ({includedSkippedIds.size} se agregarán a {groupName})</span>
+                          )}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (allSelected) {
+                            setIncludedSkippedIds(new Set());
+                          } else {
+                            setIncludedSkippedIds(new Set(skippedWithUser.map(r => r.existing_user!.id)));
+                          }
+                        }}
+                        className={`flex-shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                          allSelected
+                            ? 'bg-amber-200 text-amber-800 hover:bg-amber-300'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
+                      >
+                        {allSelected ? 'Deseleccionar todos' : 'Agregar todos al grupo'}
+                      </button>
+                    </div>
+                  );
+                })()}
+
                 {/* Preview rows table */}
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="max-h-64 overflow-y-auto">
@@ -730,7 +770,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                             </td>
                             <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">{r.email || '-'}</td>
                             <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">
-                              {r.status === 'duplicate' && r.existing_user
+                              {(r.status === 'duplicate' || r.status === 'skipped') && r.existing_user
                                 ? r.existing_user.name
                                 : r.nombre
                                   ? `${r.nombre} ${r.primer_apellido || ''}`
@@ -738,10 +778,32 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                               }
                             </td>
                             <td className="px-3 py-1.5 text-gray-500 font-mono">
-                              {r.username_preview || (r.status === 'duplicate' && r.existing_user ? r.existing_user.username : '-')}
+                              {r.username_preview || ((r.status === 'duplicate' || r.status === 'skipped') && r.existing_user ? r.existing_user.username : '-')}
                             </td>
                             <td className="px-3 py-1.5 text-gray-500 truncate max-w-[180px]" title={r.error || ''}>
-                              {r.error || (r.status === 'ready' && r.eligibility ? (
+                              {r.status === 'skipped' && r.existing_user && selectedGroupId ? (
+                                <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={includedSkippedIds.has(r.existing_user.id)}
+                                    onChange={() => {
+                                      setIncludedSkippedIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(r.existing_user!.id)) {
+                                          next.delete(r.existing_user!.id);
+                                        } else {
+                                          next.add(r.existing_user!.id);
+                                        }
+                                        return next;
+                                      });
+                                    }}
+                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500 h-3.5 w-3.5"
+                                  />
+                                  <span className={`text-[10px] font-medium ${includedSkippedIds.has(r.existing_user.id) ? 'text-green-700' : 'text-gray-400'}`}>
+                                    {includedSkippedIds.has(r.existing_user.id) ? 'Se agregará al grupo' : 'Agregar al grupo'}
+                                  </span>
+                                </label>
+                              ) : r.error || (r.status === 'ready' && r.eligibility ? (
                                 <span className="flex gap-1">
                                   {r.eligibility.conocer && <span className="px-1 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px]">CC</span>}
                                   {r.eligibility.insignia && <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px]">ID</span>}
@@ -758,7 +820,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                 {/* Action buttons */}
                 <div className="flex items-center justify-between pt-2">
                   <button
-                    onClick={() => { setPreview(null); setPreviewFilter('all'); }}
+                    onClick={() => { setPreview(null); setPreviewFilter('all'); setIncludedSkippedIds(new Set()); }}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -785,7 +847,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                               className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                             >
                               <Upload className="h-4 w-4" />
-                              Confirmar Carga ({preview.summary.ready} nuevos{preview.summary.duplicates > 0 ? ` + ${preview.summary.duplicates} existentes` : ''})
+                              Confirmar Carga ({preview.summary.ready} nuevos{preview.summary.duplicates > 0 ? ` + ${preview.summary.duplicates} existentes` : ''}{includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} omitidos` : ''})
                             </button>
                           </>
                         )}

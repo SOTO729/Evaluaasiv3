@@ -1563,11 +1563,13 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
             user = existing_by_email[email]
             if target_group_id:
                 if user.id in group_member_ids:
-                    skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado y ya es miembro del grupo'})
+                    skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado y ya es miembro del grupo',
+                                    'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
                 else:
                     duplicates.append({'row': r['row'], 'email': email, 'name': user.full_name, 'username': user.username, 'user_id': user.id})
             else:
-                skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado'})
+                skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado',
+                                'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
             continue
 
         # Duplicado por CURP
@@ -1577,11 +1579,13 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
             if target_group_id:
                 if user.id in group_member_ids or already_dup:
                     if not already_dup:
-                        skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado y ya es miembro del grupo'})
+                        skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado y ya es miembro del grupo',
+                                        'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
                 else:
                     duplicates.append({'row': r['row'], 'email': user.email or email or '(sin email)', 'name': user.full_name, 'username': user.username, 'user_id': user.id})
             else:
-                skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado'})
+                skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado',
+                                'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
             continue
 
         # Duplicado interno (mismo email/curp repetido en el mismo archivo)
@@ -1698,12 +1702,19 @@ def preview_bulk_upload_candidates():
                 'error': 'Usuario ya existe — se asignará al grupo' if target_group else 'Usuario ya existe',
             })
         for s in skipped:
-            preview.append({
+            entry = {
                 'row': s['row'],
                 'status': 'skipped',
                 'email': s.get('email'),
                 'error': s['reason'],
-            })
+            }
+            if s.get('is_existing_user'):
+                entry['existing_user'] = {
+                    'id': s['user_id'],
+                    'name': s['name'],
+                    'username': s['username'],
+                }
+            preview.append(entry)
         for e in validation_errors:
             preview.append({
                 'row': e['row'],
@@ -1784,6 +1795,30 @@ def bulk_upload_candidates():
             valid_rows, existing_by_email, existing_by_curp,
             target_group.id if target_group else None
         )
+
+        # Handle include_existing_ids — skipped users the admin opted to add to group
+        include_existing_ids_raw = request.form.get('include_existing_ids', '')
+        if include_existing_ids_raw and target_group:
+            import json as _json
+            try:
+                include_ids = _json.loads(include_existing_ids_raw)
+                if isinstance(include_ids, list):
+                    include_set = set(str(i) for i in include_ids)
+                    new_skipped = []
+                    for s in skipped:
+                        if s.get('is_existing_user') and str(s.get('user_id', '')) in include_set:
+                            existing_assigned.append({
+                                'row': s['row'],
+                                'email': s.get('email', ''),
+                                'name': s.get('name', ''),
+                                'username': s.get('username', ''),
+                                'user_id': s['user_id'],
+                            })
+                        else:
+                            new_skipped.append(s)
+                    skipped = new_skipped
+            except (ValueError, TypeError):
+                pass
 
         # Generar usernames
         username_map = _batch_generate_usernames(to_create) if to_create else {}
