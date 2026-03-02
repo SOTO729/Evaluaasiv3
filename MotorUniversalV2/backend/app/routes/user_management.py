@@ -1698,8 +1698,8 @@ def preview_bulk_upload_candidates():
             for u in matching_users:
                 n = (u.name or '').strip().lower()
                 fs = (u.first_surname or '').strip().lower()
-                g = (u.gender or '').strip().upper()
-                key = (n, fs, g)
+                gen = (u.gender or '').strip().upper()
+                key = (n, fs, gen)
                 name_lookup.setdefault(key, []).append(u)
 
             # Mapear filas a coincidencias
@@ -1817,6 +1817,7 @@ def bulk_upload_candidates():
         import secrets
         import string
 
+        CHUNK = 500
         current_user = g.current_user
         group_id = request.form.get('group_id', type=int)
 
@@ -1967,7 +1968,6 @@ def bulk_upload_candidates():
                 from app.services.email_service import send_welcome_email
                 # Batch-fetch los usuarios creados para enviar email
                 created_usernames = [c['username'] for c in created if c.get('email')]
-                CHUNK = 500
                 created_users_map = {}
                 for i in range(0, len(created_usernames), CHUNK):
                     chunk = created_usernames[i:i + CHUNK]

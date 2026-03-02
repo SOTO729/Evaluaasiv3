@@ -284,10 +284,11 @@ def main():
     test_curp_1 = f"TEST{TEST_PREFIX[:4]}000001"  # 18 chars total
     test_curp_1 = test_curp_1.ljust(18, "X")[:18]
 
+    # Usar nombres con prefijo único para evitar name_match con usuarios existentes
     candidates = [
-        {"email": test_email_1, "nombre": "Ana", "primer_apellido": "García", "segundo_apellido": "López", "genero": "F", "curp": test_curp_1},
-        {"email": test_email_2, "nombre": "Carlos", "primer_apellido": "Martínez", "segundo_apellido": "Ruiz", "genero": "M", "curp": None},
-        {"email": None, "nombre": "María", "primer_apellido": "Sánchez", "segundo_apellido": "Torres", "genero": "F", "curp": None},
+        {"email": test_email_1, "nombre": f"Ana{TEST_PREFIX[:4]}", "primer_apellido": "García", "segundo_apellido": "López", "genero": "F", "curp": test_curp_1},
+        {"email": test_email_2, "nombre": f"Carlos{TEST_PREFIX[:4]}", "primer_apellido": "Martínez", "segundo_apellido": "Ruiz", "genero": "M", "curp": None},
+        {"email": None, "nombre": f"María{TEST_PREFIX[:4]}", "primer_apellido": "Sánchez", "segundo_apellido": "Torres", "genero": "F", "curp": None},
     ]
 
     excel_data = make_candidates_excel(candidates)
@@ -305,15 +306,18 @@ def main():
         test("  Tiene 'can_proceed'", "can_proceed" in data)
 
         summary = data.get("summary", {})
+        ready_count = summary.get("ready", 0)
+        nm_count = summary.get("name_matches", 0)
         test(f"  total_rows == 3", summary.get("total_rows") == 3, f"Got: {summary.get('total_rows')}")
-        test(f"  ready == 3 (todos nuevos)", summary.get("ready") == 3, f"Got: {summary.get('ready')}")
+        test(f"  ready + name_matches == 3 (todos procesables)", ready_count + nm_count == 3,
+             f"ready={ready_count}, name_matches={nm_count}")
         test(f"  errors == 0", summary.get("errors") == 0, f"Got: {summary.get('errors')}")
         test("  can_proceed == True", data.get("can_proceed") == True)
 
-        # Verificar estructura de filas preview
+        # Verificar estructura de filas preview (ready o name_match)
         preview_rows = data.get("preview", [])
-        ready_rows = [p for p in preview_rows if p.get("status") == "ready"]
-        test(f"  {len(ready_rows)} filas 'ready'", len(ready_rows) == 3)
+        ready_rows = [p for p in preview_rows if p.get("status") in ("ready", "name_match")]
+        test(f"  {len(ready_rows)} filas procesables (ready/name_match)", len(ready_rows) == 3)
 
         if ready_rows:
             first = ready_rows[0]
@@ -486,6 +490,166 @@ def main():
              "spreadsheet" in r.headers.get("Content-Type", "") or "octet-stream" in r.headers.get("Content-Type", ""),
              r.headers.get("Content-Type", ""))
         test(f"  Tamaño > 0 bytes", len(r.content) > 100, f"Size: {len(r.content)}")
+
+    # ── 10b. Preview detecta coincidencias por nombre+género (name_match) ──
+    print("\n── 10b. Preview detecta coincidencias por nombre+género ──")
+
+    # candidates[0] fue creada en test 6 con nombre Ana{PREFIX} García.
+    # Crear un Excel con un candidato que tenga mismo nombre+primer_apellido+género pero email diferente
+    nm_nombre = f"Ana{TEST_PREFIX[:4]}"
+    nm_email = f"{TEST_PREFIX.lower()}_nm1@testbulk.com"
+    name_match_candidates = [
+        {"email": nm_email, "nombre": nm_nombre, "primer_apellido": "García", "segundo_apellido": "Pérez", "genero": "F", "curp": None},
+        {"email": f"{TEST_PREFIX.lower()}_nm2@testbulk.com", "nombre": "Único", "primer_apellido": "Irrepetible", "segundo_apellido": "Test", "genero": "M", "curp": None},
+    ]
+    excel_nm = make_candidates_excel(name_match_candidates)
+    r = requests.post(
+        f"{API}/user-management/candidates/bulk-upload/preview",
+        headers=h,
+        files={"file": ("namematch.xlsx", excel_nm, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+    )
+    test("Preview name_match → 200", r.status_code == 200, f"Status: {r.status_code} | {r.text[:300]}")
+
+    nm_row_number = None
+    if r.status_code == 200:
+        data = r.json()
+        summary = data.get("summary", {})
+        test("  summary tiene 'name_matches'", "name_matches" in summary, f"Keys: {list(summary.keys())}")
+
+        nm_count = summary.get("name_matches", 0)
+        ready_count = summary.get("ready", 0)
+        test(f"  name_matches >= 1 ({nm_nombre} García F existe)", nm_count >= 1, f"name_matches={nm_count}")
+        test(f"  ready >= 1 (Único Irrepetible es nuevo)", ready_count >= 1, f"ready={ready_count}")
+
+        # Verificar estructura de fila name_match
+        preview_rows = data.get("preview", [])
+        nm_rows = [p for p in preview_rows if p.get("status") == "name_match"]
+        test(f"  Hay filas con status 'name_match'", len(nm_rows) >= 1, f"Found: {len(nm_rows)}")
+
+        if nm_rows:
+            nm_first = nm_rows[0]
+            nm_row_number = nm_first.get("row")
+            test("  Fila name_match tiene 'name_matches' array", isinstance(nm_first.get("name_matches"), list))
+            matches = nm_first.get("name_matches", [])
+            if matches:
+                test("  Match tiene 'full_name'", "full_name" in matches[0])
+                test("  Match tiene 'username'", "username" in matches[0])
+                test("  Match tiene 'id'", "id" in matches[0])
+    else:
+        warn("Preview name_match falló, saltando validaciones")
+
+    # ── 10c. Upload con skip_row_numbers (omitir name_match) ──
+    print("\n── 10c. Upload con skip_row_numbers ──")
+
+    if nm_row_number:
+        excel_skip = make_candidates_excel(name_match_candidates)
+        r = requests.post(
+            f"{API}/user-management/candidates/bulk-upload",
+            headers=h,
+            files={"file": ("skip.xlsx", excel_skip, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"skip_row_numbers": json.dumps([nm_row_number])}
+        )
+        test("Upload con skip_row_numbers → 200", r.status_code == 200, f"Status: {r.status_code} | {r.text[:300]}")
+
+        if r.status_code == 200:
+            data = r.json()
+            summary = data.get("summary", {})
+            test(f"  created == 1 (solo Único Irrepetible)", summary.get("created") == 1, f"created={summary.get('created')}")
+            test(f"  skipped >= 1 (Ana García omitido por usuario)", summary.get("skipped", 0) >= 1, f"skipped={summary.get('skipped')}")
+
+            # Guardar para limpieza
+            for c in data.get("details", {}).get("created", []):
+                uname = c.get("username")
+                if uname:
+                    rows = db_query("SELECT id FROM users WHERE username=%s", (uname,))
+                    if rows:
+                        created_user_ids.append(rows[0]["id"])
+    else:
+        warn("No se obtuvo row number de name_match, saltando test skip_row_numbers")
+
+    # ── 10d. Upload con include_existing_ids (agregar omitidos a grupo) ──
+    print("\n── 10d. Upload con include_existing_ids ──")
+
+    if group_id:
+        # Reusar candidates (ya creados) — sin grupo deberían ser skipped.
+        # Pero con include_existing_ids y group_id, deberían agregarse al grupo.
+        existing_ids_for_include = []
+        # Primero hacer preview para obtener IDs de los skipped
+        excel_incl_prev = make_candidates_excel(candidates)
+        r = requests.post(
+            f"{API}/user-management/candidates/bulk-upload/preview",
+            headers=h,
+            files={"file": ("incl_preview.xlsx", excel_incl_prev, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={"group_id": str(group_id)}
+        )
+        if r.status_code == 200:
+            prev_data = r.json()
+            for row in prev_data.get("preview", []):
+                eu = row.get("existing_user")
+                if eu and row.get("status") in ("skipped", "duplicate"):
+                    existing_ids_for_include.append(eu["id"])
+
+        if existing_ids_for_include:
+            excel_incl = make_candidates_excel(candidates)
+            r = requests.post(
+                f"{API}/user-management/candidates/bulk-upload",
+                headers=h,
+                files={"file": ("include.xlsx", excel_incl, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+                data={
+                    "group_id": str(group_id),
+                    "include_existing_ids": json.dumps(existing_ids_for_include),
+                }
+            )
+            test("Upload con include_existing_ids → 200", r.status_code == 200,
+                 f"Status: {r.status_code} | {r.text[:300]}")
+
+            if r.status_code == 200:
+                data = r.json()
+                summary = data.get("summary", {})
+                test(f"  existing_assigned >= 1", summary.get("existing_assigned", 0) >= 1,
+                     f"existing_assigned={summary.get('existing_assigned')}")
+                test("  group_assignment presente", "group_assignment" in data)
+                ga = data.get("group_assignment", {})
+                test(f"  assigned_existing >= 1", ga.get("assigned_existing", 0) >= 1,
+                     f"assigned_existing={ga.get('assigned_existing')}")
+        else:
+            warn("No se encontraron IDs de existentes para include_existing_ids")
+    else:
+        warn("Sin grupo activo, saltando test include_existing_ids")
+
+    # ── 10e. Upload solo existentes a grupo (sin nuevos — regresión CHUNK) ──
+    print("\n── 10e. Upload solo existentes a grupo (CHUNK scope fix) ──")
+
+    if group_id:
+        # Limpiar membresías del grupo para los candidatos de test
+        for uid in created_user_ids:
+            db_exec("DELETE FROM group_members WHERE group_id=%s AND user_id=%s", (group_id, uid))
+
+        # Usar candidatos ya existentes (de test 6), que NO están en el grupo tras limpieza
+        excel_only_existing = make_candidates_excel(candidates)
+        r = requests.post(
+            f"{API}/user-management/candidates/bulk-upload",
+            headers=h,
+            files={"file": ("onlyexisting.xlsx", excel_only_existing, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            data={
+                "group_id": str(group_id),
+                "include_existing_ids": json.dumps(created_user_ids[:2]) if len(created_user_ids) >= 2 else "[]",
+            }
+        )
+        test("Upload solo existentes+grupo → 200 (no CHUNK error)", r.status_code == 200,
+             f"Status: {r.status_code} | {r.text[:300]}")
+
+        if r.status_code == 200:
+            data = r.json()
+            test("  No hay error 500 (CHUNK scope)", True)
+            summary = data.get("summary", {})
+            test(f"  created == 0 o mínimo (todos ya existen)", summary.get("created", 99) <= 1,
+                 f"created={summary.get('created')}")
+        elif r.status_code == 500:
+            err = r.json().get("error", "")
+            test("  ERROR 500 CHUNK scope fix", False, err)
+    else:
+        warn("Sin grupo activo, saltando test CHUNK scope")
 
     # ════════════════════════════════════════════════════════════
     # FLUJO 2: ASIGNACIÓN MASIVA A GRUPO
