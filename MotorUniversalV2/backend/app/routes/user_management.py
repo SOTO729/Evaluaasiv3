@@ -345,6 +345,117 @@ def get_user_detail(user_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============== VERIFICACIÓN DE SIMILITUD DE NOMBRE ==============
+
+@bp.route('/users/check-name-similarity', methods=['POST'])
+@jwt_required()
+@management_required
+def check_name_similarity():
+    """
+    Busca usuarios existentes con nombre similar (exacto o parcial).
+    Se usa antes de crear un usuario para advertir sobre posibles duplicados.
+    Retorna lista de coincidencias con su nivel de similitud.
+    """
+    try:
+        data = request.get_json()
+        name = (data.get('name') or '').strip()
+        first_surname = (data.get('first_surname') or '').strip()
+        second_surname = (data.get('second_surname') or '').strip()
+
+        if not name or not first_surname:
+            return jsonify({'similar_users': [], 'has_exact_match': False}), 200
+
+        similar = []
+        seen_ids = set()
+
+        # 1. Coincidencia EXACTA: nombre + primer_apellido + segundo_apellido
+        exact_filters = [
+            func.lower(func.ltrim(func.rtrim(User.name))) == name.lower(),
+            func.lower(func.ltrim(func.rtrim(User.first_surname))) == first_surname.lower(),
+            User.is_active == True,
+        ]
+        if second_surname:
+            exact_filters.append(
+                func.lower(func.ltrim(func.rtrim(User.second_surname))) == second_surname.lower()
+            )
+
+        exact_matches = User.query.filter(and_(*exact_filters)).limit(10).all()
+        for u in exact_matches:
+            if u.id not in seen_ids:
+                seen_ids.add(u.id)
+                similar.append({
+                    'id': u.id,
+                    'full_name': u.full_name,
+                    'email': u.email,
+                    'curp': u.curp,
+                    'username': u.username,
+                    'role': u.role,
+                    'is_active': u.is_active,
+                    'match_level': 'exact',
+                    'match_description': 'Nombre completo idéntico',
+                })
+
+        # 2. Coincidencia PARCIAL: nombre + primer_apellido (sin segundo apellido)
+        if second_surname:
+            partial_matches = User.query.filter(
+                func.lower(func.ltrim(func.rtrim(User.name))) == name.lower(),
+                func.lower(func.ltrim(func.rtrim(User.first_surname))) == first_surname.lower(),
+                User.is_active == True,
+                or_(
+                    User.second_surname == None,
+                    func.lower(func.ltrim(func.rtrim(User.second_surname))) != second_surname.lower()
+                )
+            ).limit(10).all()
+            for u in partial_matches:
+                if u.id not in seen_ids:
+                    seen_ids.add(u.id)
+                    similar.append({
+                        'id': u.id,
+                        'full_name': u.full_name,
+                        'email': u.email,
+                        'curp': u.curp,
+                        'username': u.username,
+                        'role': u.role,
+                        'is_active': u.is_active,
+                        'match_level': 'partial',
+                        'match_description': f'Mismo nombre y primer apellido (segundo apellido diferente: {u.second_surname or "sin dato"})',
+                    })
+
+        # 3. Coincidencia por primer_apellido + segundo_apellido (mismos apellidos, nombre diferente)
+        if second_surname:
+            surname_matches = User.query.filter(
+                func.lower(func.ltrim(func.rtrim(User.first_surname))) == first_surname.lower(),
+                func.lower(func.ltrim(func.rtrim(User.second_surname))) == second_surname.lower(),
+                func.lower(func.ltrim(func.rtrim(User.name))) != name.lower(),
+                User.is_active == True,
+            ).limit(5).all()
+            for u in surname_matches:
+                if u.id not in seen_ids:
+                    seen_ids.add(u.id)
+                    similar.append({
+                        'id': u.id,
+                        'full_name': u.full_name,
+                        'email': u.email,
+                        'curp': u.curp,
+                        'username': u.username,
+                        'role': u.role,
+                        'is_active': u.is_active,
+                        'match_level': 'surname',
+                        'match_description': f'Mismos apellidos, nombre diferente ({u.name})',
+                    })
+
+        has_exact = any(s['match_level'] == 'exact' for s in similar)
+
+        return jsonify({
+            'similar_users': similar[:20],
+            'has_exact_match': has_exact,
+            'total_found': len(similar),
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== CREAR USUARIOS ==============
 
 @bp.route('/users', methods=['POST'])

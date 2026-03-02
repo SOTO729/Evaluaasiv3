@@ -16,6 +16,8 @@ import {
   EyeOff,
   Shield,
   User,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import StyledSelect from '../../components/StyledSelect';
@@ -27,11 +29,13 @@ import {
   getAvailableRoles,
   getAvailableCampuses,
   getAvailablePartners,
+  checkNameSimilarity,
   CreateUserData,
   UpdateUserData,
   RoleOption,
   AvailableCampus,
   AvailablePartner,
+  SimilarUser,
 } from '../../services/userManagementService';
 import { useAuthStore } from '../../store/authStore';
 
@@ -57,6 +61,11 @@ export default function UserFormPage() {
   const [createdCredentials, setCreatedCredentials] = useState<{ username: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  // Similitud de nombre
+  const [similarUsers, setSimilarUsers] = useState<SimilarUser[]>([]);
+  const [showSimilarityWarning, setShowSimilarityWarning] = useState(false);
+  const [checkingSimilarity, setCheckingSimilarity] = useState(false);
+  const [similarityBypass, setSimilarityBypass] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -252,6 +261,27 @@ export default function UserFormPage() {
       }
     }
 
+    // Verificación de similitud de nombre (solo al crear, no al editar)
+    if (!isEditing && !similarityBypass) {
+      try {
+        setCheckingSimilarity(true);
+        const result = await checkNameSimilarity({
+          name: formData.name.trim(),
+          first_surname: formData.first_surname.trim(),
+          second_surname: formData.second_surname.trim() || undefined,
+        });
+        if (result.similar_users.length > 0) {
+          setSimilarUsers(result.similar_users);
+          setShowSimilarityWarning(true);
+          return; // No continuar hasta que el usuario confirme
+        }
+      } catch {
+        // Si falla la verificación, continuar con la creación
+      } finally {
+        setCheckingSimilarity(false);
+      }
+    }
+
     try {
       setSaving(true);
 
@@ -316,7 +346,18 @@ export default function UserFormPage() {
       setError(err.response?.data?.error || 'Error al guardar usuario');
     } finally {
       setSaving(false);
+      setSimilarityBypass(false);
     }
+  };
+
+  const handleConfirmCreateDespiteSimilarity = () => {
+    setShowSimilarityWarning(false);
+    setSimilarityBypass(true);
+    // Re-submit programáticamente
+    setTimeout(() => {
+      const form = document.querySelector('form');
+      if (form) form.requestSubmit();
+    }, 50);
   };
 
   if (loading) {
@@ -448,6 +489,99 @@ export default function UserFormPage() {
               <CheckCircle className="fluid-icon-sm" />
               Entendido, volver a usuarios
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de advertencia de similitud */}
+      {showSimilarityWarning && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-amber-50 border-b border-amber-200 fluid-p-5 flex items-start justify-between">
+              <div className="flex items-start fluid-gap-3">
+                <AlertTriangle className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-amber-800 fluid-text-lg">Usuarios con nombre similar</h3>
+                  <p className="fluid-text-sm text-amber-700 fluid-mt-1">
+                    Se encontraron {similarUsers.length} usuario(s) con nombre similar al que intentas crear.
+                    Verifica que no sea un duplicado.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSimilarityWarning(false)}
+                className="fluid-p-1 hover:bg-amber-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-amber-600" />
+              </button>
+            </div>
+
+            {/* Lista de usuarios similares */}
+            <div className="fluid-p-5 overflow-y-auto max-h-[50vh]">
+              <div className="fluid-space-y-3">
+                {similarUsers.map((u) => (
+                  <div
+                    key={u.id}
+                    className={`border rounded-fluid-lg fluid-p-4 ${
+                      u.match_level === 'exact'
+                        ? 'border-red-300 bg-red-50'
+                        : u.match_level === 'partial'
+                        ? 'border-amber-300 bg-amber-50'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-semibold text-gray-900">{u.full_name}</p>
+                        <div className="fluid-text-sm text-gray-600 fluid-mt-1 fluid-space-y-0.5">
+                          {u.email && <p>Email: {u.email}</p>}
+                          {u.curp && <p>CURP: {u.curp}</p>}
+                          <p>Usuario: {u.username}</p>
+                          <p>Rol: {u.role}</p>
+                        </div>
+                      </div>
+                      <span
+                        className={`fluid-text-xs font-medium fluid-px-2 py-1 rounded-full ${
+                          u.match_level === 'exact'
+                            ? 'bg-red-100 text-red-700'
+                            : u.match_level === 'partial'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}
+                      >
+                        {u.match_level === 'exact'
+                          ? 'Coincidencia exacta'
+                          : u.match_level === 'partial'
+                          ? 'Coincidencia parcial'
+                          : 'Mismos apellidos'}
+                      </span>
+                    </div>
+                    <p className="fluid-text-xs text-gray-500 fluid-mt-2">{u.match_description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 fluid-p-5 flex items-center justify-end fluid-gap-3 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setShowSimilarityWarning(false)}
+                className="fluid-px-5 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-lg hover:bg-white font-medium transition-colors"
+              >
+                Cancelar y revisar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCreateDespiteSimilarity}
+                className="inline-flex items-center fluid-gap-2 fluid-px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                <AlertTriangle className="fluid-icon-sm" />
+                Crear de todas formas
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -752,13 +886,13 @@ export default function UserFormPage() {
           </Link>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || checkingSimilarity}
             className="inline-flex items-center fluid-gap-2 fluid-px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? (
+            {saving || checkingSimilarity ? (
               <>
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Guardando...
+                {checkingSimilarity ? 'Verificando...' : 'Guardando...'}
               </>
             ) : (
               <>

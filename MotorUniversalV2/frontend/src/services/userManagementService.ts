@@ -119,6 +119,35 @@ export async function getUser(userId: string): Promise<ManagedUser> {
   return response.data.user;
 }
 
+// ============== VERIFICACIÓN DE SIMILITUD DE NOMBRE ==============
+
+export interface SimilarUser {
+  id: string;
+  full_name: string;
+  email: string | null;
+  curp: string | null;
+  username: string;
+  role: string;
+  is_active: boolean;
+  match_level: 'exact' | 'partial' | 'surname';
+  match_description: string;
+}
+
+export interface NameSimilarityResult {
+  similar_users: SimilarUser[];
+  has_exact_match: boolean;
+  total_found: number;
+}
+
+export async function checkNameSimilarity(data: {
+  name: string;
+  first_surname: string;
+  second_surname?: string;
+}): Promise<NameSimilarityResult> {
+  const response = await api.post('/user-management/users/check-name-similarity', data);
+  return response.data;
+}
+
 // ============== CREAR USUARIOS ==============
 
 export async function createUser(data: CreateUserData): Promise<{
