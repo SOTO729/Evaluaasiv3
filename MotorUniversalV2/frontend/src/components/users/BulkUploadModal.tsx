@@ -55,8 +55,10 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   // Preview state
   const [preview, setPreview] = useState<BulkUploadPreviewResult | null>(null);
   const [previewing, setPreviewing] = useState(false);
-  const [previewFilter, setPreviewFilter] = useState<'all' | 'ready' | 'duplicate' | 'error' | 'skipped'>('all');
+  const [previewFilter, setPreviewFilter] = useState<'all' | 'ready' | 'name_match' | 'duplicate' | 'error' | 'skipped'>('all');
   const [includedSkippedIds, setIncludedSkippedIds] = useState<Set<string>>(new Set());
+  const [skipNameMatchRows, setSkipNameMatchRows] = useState<Set<number>>(new Set());
+  const [expandedNameMatch, setExpandedNameMatch] = useState<number | null>(null);
   
   // Notificaciones globales
   const { addNotification, updateNotification } = useNotificationStore();
@@ -188,7 +190,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       handleClose();
       
       try {
-        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined);
+        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined, skipNameMatchRows.size > 0 ? Array.from(skipNameMatchRows) : undefined);
         
         // Actualizar notificación con resultado
         if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
@@ -239,7 +241,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
       setResult(null);
       
       try {
-        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined);
+        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined, skipNameMatchRows.size > 0 ? Array.from(skipNameMatchRows) : undefined);
         setResult(uploadResult);
         
         if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
@@ -299,6 +301,8 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     setPreview(null);
     setPreviewFilter('all');
     setIncludedSkippedIds(new Set());
+    setSkipNameMatchRows(new Set());
+    setExpandedNameMatch(null);
     setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -661,7 +665,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                 </div>
 
                 {/* Summary badges */}
-                <div className="grid grid-cols-5 gap-2">
+                <div className={`grid gap-2 ${preview.summary.name_matches > 0 ? 'grid-cols-6' : 'grid-cols-5'}`}>
                   <button onClick={() => setPreviewFilter('all')}
                     className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'all' ? 'ring-2 ring-gray-400 bg-gray-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
                     <p className="text-lg font-bold text-gray-800">{preview.summary.total_rows}</p>
@@ -672,6 +676,13 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     <p className="text-lg font-bold text-green-600">{preview.summary.ready}</p>
                     <p className="text-[10px] text-green-700">Listos</p>
                   </button>
+                  {preview.summary.name_matches > 0 && (
+                    <button onClick={() => setPreviewFilter('name_match')}
+                      className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'name_match' ? 'ring-2 ring-orange-400 bg-orange-100' : 'bg-orange-50 hover:bg-orange-100'}`}>
+                      <p className="text-lg font-bold text-orange-600">{preview.summary.name_matches}</p>
+                      <p className="text-[10px] text-orange-700">Coincidencias</p>
+                    </button>
+                  )}
                   <button onClick={() => setPreviewFilter('duplicate')}
                     className={`p-2 rounded-lg text-center transition-colors ${previewFilter === 'duplicate' ? 'ring-2 ring-blue-400 bg-blue-100' : 'bg-blue-50 hover:bg-blue-100'}`}>
                     <p className="text-lg font-bold text-blue-600">{preview.summary.duplicates}</p>
@@ -726,6 +737,58 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   );
                 })()}
 
+                {/* Banner: name+gender matches */}
+                {(() => {
+                  const nameMatchRows = preview.preview.filter(r => r.status === 'name_match');
+                  if (nameMatchRows.length === 0) return null;
+                  const allSkipped = nameMatchRows.every(r => skipNameMatchRows.has(r.row));
+                  const noneSkipped = skipNameMatchRows.size === 0;
+                  return (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                          <span className="text-orange-800">
+                            <strong>{nameMatchRows.length}</strong> fila(s) coinciden en nombre y género con usuarios existentes.
+                            {skipNameMatchRows.size > 0 && (
+                              <span className="text-red-600 font-medium"> ({skipNameMatchRows.size} se omitirán)</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          <button
+                            onClick={() => {
+                              if (allSkipped) {
+                                setSkipNameMatchRows(new Set());
+                              } else {
+                                setSkipNameMatchRows(new Set(nameMatchRows.map(r => r.row)));
+                              }
+                            }}
+                            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                              allSkipped
+                                ? 'bg-orange-200 text-orange-800 hover:bg-orange-300'
+                                : 'bg-red-600 text-white hover:bg-red-700'
+                            }`}
+                          >
+                            {allSkipped ? 'Crear todos' : 'Omitir todos'}
+                          </button>
+                          {!noneSkipped && !allSkipped && (
+                            <button
+                              onClick={() => setSkipNameMatchRows(new Set())}
+                              className="text-xs px-3 py-1.5 rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+                            >
+                              Crear todos
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-orange-600">
+                        Revisa cada fila para decidir si deseas crear un nuevo usuario o si es un duplicado. Por defecto se crearán.
+                      </p>
+                    </div>
+                  );
+                })()}
+
                 {/* Preview rows table */}
                 <div className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="max-h-64 overflow-y-auto">
@@ -744,12 +807,22 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                         {preview.preview
                           .filter(r => previewFilter === 'all' || r.status === previewFilter)
                           .map((r) => (
-                          <tr key={r.row} className="hover:bg-gray-50/50">
+                          <tr key={r.row} className={`hover:bg-gray-50/50 ${r.status === 'name_match' && skipNameMatchRows.has(r.row) ? 'opacity-40' : ''}`}>
                             <td className="px-3 py-1.5 text-gray-500">{r.row}</td>
                             <td className="px-3 py-1.5">
                               {r.status === 'ready' && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-medium">
                                   <CheckCircle2 className="h-3 w-3" /> Listo
+                                </span>
+                              )}
+                              {r.status === 'name_match' && (
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                  skipNameMatchRows.has(r.row)
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-orange-100 text-orange-700'
+                                }`}>
+                                  <AlertCircle className="h-3 w-3" />
+                                  {skipNameMatchRows.has(r.row) ? 'Omitido' : 'Coincide'}
                                 </span>
                               )}
                               {r.status === 'duplicate' && (
@@ -780,8 +853,49 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                             <td className="px-3 py-1.5 text-gray-500 font-mono">
                               {r.username_preview || ((r.status === 'duplicate' || r.status === 'skipped') && r.existing_user ? r.existing_user.username : '-')}
                             </td>
-                            <td className="px-3 py-1.5 text-gray-500 truncate max-w-[180px]" title={r.error || ''}>
-                              {r.status === 'skipped' && r.existing_user && selectedGroupId ? (
+                            <td className="px-3 py-1.5 text-gray-500 max-w-[220px]">
+                              {r.status === 'name_match' && r.name_matches ? (
+                                <div className="space-y-1">
+                                  <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={skipNameMatchRows.has(r.row)}
+                                      onChange={() => {
+                                        setSkipNameMatchRows(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(r.row)) {
+                                            next.delete(r.row);
+                                          } else {
+                                            next.add(r.row);
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      className="rounded border-gray-300 text-red-600 focus:ring-red-500 h-3.5 w-3.5"
+                                    />
+                                    <span className={`text-[10px] font-medium ${skipNameMatchRows.has(r.row) ? 'text-red-600' : 'text-orange-600'}`}>
+                                      {skipNameMatchRows.has(r.row) ? 'No se creará' : 'Omitir (no crear)'}
+                                    </span>
+                                  </label>
+                                  <button
+                                    onClick={() => setExpandedNameMatch(expandedNameMatch === r.row ? null : r.row)}
+                                    className="text-[10px] text-orange-600 hover:text-orange-800 underline"
+                                  >
+                                    {expandedNameMatch === r.row ? 'Ocultar coincidencias' : `Ver ${r.name_matches.length} coincidencia(s)`}
+                                  </button>
+                                  {expandedNameMatch === r.row && (
+                                    <div className="mt-1 p-1.5 bg-orange-50 rounded border border-orange-200 space-y-1">
+                                      {r.name_matches.map(m => (
+                                        <div key={m.id} className="text-[9px] text-orange-800 flex gap-2">
+                                          <span className="font-medium">{m.full_name}</span>
+                                          <span className="text-orange-500">@{m.username}</span>
+                                          {m.email && <span className="text-orange-400">{m.email}</span>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : r.status === 'skipped' && r.existing_user && selectedGroupId ? (
                                 <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                                   <input
                                     type="checkbox"
@@ -820,7 +934,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                 {/* Action buttons */}
                 <div className="flex items-center justify-between pt-2">
                   <button
-                    onClick={() => { setPreview(null); setPreviewFilter('all'); setIncludedSkippedIds(new Set()); }}
+                    onClick={() => { setPreview(null); setPreviewFilter('all'); setIncludedSkippedIds(new Set()); setSkipNameMatchRows(new Set()); setExpandedNameMatch(null); }}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -847,7 +961,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                               className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                             >
                               <Upload className="h-4 w-4" />
-                              Confirmar Carga ({preview.summary.ready} nuevos{preview.summary.duplicates > 0 ? ` + ${preview.summary.duplicates} existentes` : ''}{includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} omitidos` : ''})
+                              Confirmar Carga ({preview.summary.ready + preview.summary.name_matches - skipNameMatchRows.size} nuevos{preview.summary.duplicates > 0 ? ` + ${preview.summary.duplicates} existentes` : ''}{includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} omitidos` : ''})
                             </button>
                           </>
                         )}

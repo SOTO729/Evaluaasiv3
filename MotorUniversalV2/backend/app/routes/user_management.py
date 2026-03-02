@@ -1672,12 +1672,63 @@ def preview_bulk_upload_candidates():
         # Pre-generar usernames para los que se van a crear
         username_map = _batch_generate_usernames(to_create) if to_create else {}
 
+        # Detectar coincidencias por nombre+género en to_create
+        name_match_map = {}  # row_number -> [matching_users]
+        if to_create:
+            # Recopilar combinaciones únicas (nombre, primer_apellido, genero)
+            name_keys = set()
+            for r in to_create:
+                key = (r['nombre'].strip().lower(), r['primer_apellido'].strip().lower(), (r['genero'] or '').strip().upper())
+                name_keys.add(key)
+
+            # Batch-fetch por primer_apellido (reducir queries)
+            surnames = list({k[1] for k in name_keys})
+            CHUNK = 500
+            matching_users = []
+            for i in range(0, len(surnames), CHUNK):
+                chunk = surnames[i:i + CHUNK]
+                users = User.query.filter(
+                    func.lower(func.ltrim(func.rtrim(User.first_surname))).in_(chunk),
+                    User.is_active == True,
+                ).all()
+                matching_users.extend(users)
+
+            # Construir lookup: (nombre_lower, primer_apellido_lower, genero_upper) -> [users]
+            name_lookup = {}
+            for u in matching_users:
+                n = (u.name or '').strip().lower()
+                fs = (u.first_surname or '').strip().lower()
+                g = (u.gender or '').strip().upper()
+                key = (n, fs, g)
+                name_lookup.setdefault(key, []).append(u)
+
+            # Mapear filas a coincidencias
+            for r in to_create:
+                key = (r['nombre'].strip().lower(), r['primer_apellido'].strip().lower(), (r['genero'] or '').strip().upper())
+                matches = name_lookup.get(key, [])
+                if matches:
+                    name_match_map[r['row']] = [
+                        {
+                            'id': u.id,
+                            'full_name': u.full_name,
+                            'username': u.username,
+                            'email': u.email or '',
+                            'curp': u.curp or '',
+                        }
+                        for u in matches[:5]  # Máximo 5 coincidencias
+                    ]
+
         # Construir preview
         preview = []
+        name_match_count = 0
         for r in to_create:
-            preview.append({
+            matches = name_match_map.get(r['row'])
+            row_status = 'name_match' if matches else 'ready'
+            if matches:
+                name_match_count += 1
+            entry = {
                 'row': r['row'],
-                'status': 'ready',
+                'status': row_status,
                 'email': r['email'],
                 'nombre': r['nombre'],
                 'primer_apellido': r['primer_apellido'],
@@ -1691,7 +1742,10 @@ def preview_bulk_upload_candidates():
                     'insignia': bool(r['email']),
                 },
                 'error': None,
-            })
+            }
+            if matches:
+                entry['name_matches'] = matches
+            preview.append(entry)
         for d in duplicates:
             preview.append({
                 'row': d['row'],
@@ -1731,7 +1785,8 @@ def preview_bulk_upload_candidates():
             'preview': preview,
             'summary': {
                 'total_rows': len(parsed_rows),
-                'ready': len(to_create),
+                'ready': len(to_create) - name_match_count,
+                'name_matches': name_match_count,
                 'duplicates': len(duplicates),
                 'errors': len(validation_errors),
                 'skipped': len(skipped),
@@ -1817,6 +1872,28 @@ def bulk_upload_candidates():
                         else:
                             new_skipped.append(s)
                     skipped = new_skipped
+            except (ValueError, TypeError):
+                pass
+
+        # Handle skip_row_numbers — name_match rows the admin chose NOT to create
+        skip_rows_raw = request.form.get('skip_row_numbers', '')
+        if skip_rows_raw:
+            import json as _json2
+            try:
+                skip_rows = _json2.loads(skip_rows_raw)
+                if isinstance(skip_rows, list):
+                    skip_set = set(int(r) for r in skip_rows)
+                    new_to_create = []
+                    for r in to_create:
+                        if r['row'] in skip_set:
+                            skipped.append({
+                                'row': r['row'],
+                                'email': r.get('email', ''),
+                                'reason': 'Omitido por coincidencia de nombre (decisión del usuario)',
+                            })
+                        else:
+                            new_to_create.append(r)
+                    to_create = new_to_create
             except (ValueError, TypeError):
                 pass
 

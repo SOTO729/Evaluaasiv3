@@ -321,7 +321,7 @@ export const ROLE_COLORS: Record<string, string> = {
 // Preview de carga masiva
 export interface BulkUploadPreviewRow {
   row: number;
-  status: 'ready' | 'duplicate' | 'error' | 'skipped';
+  status: 'ready' | 'duplicate' | 'error' | 'skipped' | 'name_match';
   email?: string | null;
   nombre?: string;
   primer_apellido?: string;
@@ -340,6 +340,13 @@ export interface BulkUploadPreviewRow {
     name: string;
     username: string;
   };
+  name_matches?: Array<{
+    id: string;
+    full_name: string;
+    username: string;
+    email: string;
+    curp: string;
+  }>;
   error?: string | null;
 }
 
@@ -348,6 +355,7 @@ export interface BulkUploadPreviewResult {
   summary: {
     total_rows: number;
     ready: number;
+    name_matches: number;
     duplicates: number;
     errors: number;
     skipped: number;
@@ -414,7 +422,7 @@ export interface BulkUploadResult {
   };
 }
 
-export async function bulkUploadCandidates(file: File, groupId?: number, includeExistingIds?: string[]): Promise<BulkUploadResult> {
+export async function bulkUploadCandidates(file: File, groupId?: number, includeExistingIds?: string[], skipRowNumbers?: number[]): Promise<BulkUploadResult> {
   const formData = new FormData();
   formData.append('file', file);
   if (groupId) {
@@ -422,6 +430,9 @@ export async function bulkUploadCandidates(file: File, groupId?: number, include
   }
   if (includeExistingIds && includeExistingIds.length > 0) {
     formData.append('include_existing_ids', JSON.stringify(includeExistingIds));
+  }
+  if (skipRowNumbers && skipRowNumbers.length > 0) {
+    formData.append('skip_row_numbers', JSON.stringify(skipRowNumbers));
   }
   
   const response = await api.post('/user-management/candidates/bulk-upload', formData, {
