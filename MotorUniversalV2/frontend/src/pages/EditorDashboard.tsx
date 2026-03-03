@@ -748,7 +748,7 @@ const EditorDashboard = () => {
               {recentExams.map((exam) => (
                 <div 
                   key={exam.id}
-                  onClick={() => navigate(`/exams/${exam.id}`)}
+                  onClick={() => navigate(`/exams/${exam.id}/edit`)}
                   className="fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-blue-50 cursor-pointer transition-colors group border border-transparent hover:border-blue-200"
                 >
                   <div className="flex items-center justify-between fluid-gap-2">
