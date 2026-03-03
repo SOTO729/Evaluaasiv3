@@ -246,7 +246,6 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/badges/templates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/badges') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Insignias</Link>
                     <Link to="/standards" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/standards') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>ECM</Link>
                     <Link to="/tramites-conocer" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/tramites-conocer') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>CONOCER</Link>
-                    <Link to="/locked-accounts" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/locked-accounts') ? 'text-red-600 font-semibold bg-red-50' : 'text-gray-700 hover:text-red-600 hover:bg-red-50'}`}>🔒 Bloqueos</Link>
                   </>
                 )}
                 {/* ── Bloque soporte: nav directo al módulo de soporte ── */}
@@ -472,6 +471,18 @@ const Layout = ({ children }: LayoutProps) => {
                     }`}
                   >
                     Usuarios
+                  </Link>
+                )}
+                {(user?.role === 'admin' || user?.role === 'developer') && (
+                  <Link 
+                    to="/locked-accounts" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/locked-accounts') 
+                        ? 'text-red-600 font-semibold bg-red-50' 
+                        : 'text-gray-700 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                  >
+                    🔒 Bloqueos
                   </Link>
                 )}
               </nav>
