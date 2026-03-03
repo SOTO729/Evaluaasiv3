@@ -142,7 +142,7 @@ const EditorDashboard = () => {
       description: 'Crea un examen vinculado a un ECM. Agrega categorías, preguntas de distintos tipos, configura puntaje y tiempo límite.',
       icon: FileText,
       color: COLORS.blue,
-      action: () => navigate('/exams/new'),
+      action: () => navigate('/exams/create'),
       actionLabel: 'Nuevo Examen',
       link: '/exams',
       required: true,
@@ -154,7 +154,7 @@ const EditorDashboard = () => {
       description: 'Diseña materiales de estudio con sesiones y temas. Incluye texto enriquecido, imágenes y videos. No requiere examen previo.',
       icon: BookOpen,
       color: COLORS.emerald,
-      action: () => navigate('/study-contents/new'),
+      action: () => navigate('/study-contents/create'),
       actionLabel: 'Nuevo Material',
       link: '/study-contents',
       required: false,
@@ -603,7 +603,7 @@ const EditorDashboard = () => {
               <FileText className="w-5 h-5 text-white" />
             </div>
             <button
-              onClick={() => navigate('/exams/new')}
+              onClick={() => navigate('/exams/create')}
               className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-blue-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm hover-pulse"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -639,7 +639,7 @@ const EditorDashboard = () => {
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <button
-              onClick={() => navigate('/study-contents/new')}
+              onClick={() => navigate('/study-contents/create')}
               className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-emerald-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm hover-pulse"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -737,7 +737,7 @@ const EditorDashboard = () => {
               <FileText className="w-10 h-10 mx-auto fluid-mb-2 opacity-30" />
               <p className="fluid-text-sm">Sin exámenes aún</p>
               <button
-                onClick={() => navigate('/exams/new')}
+                onClick={() => navigate('/exams/create')}
                 className="fluid-mt-3 fluid-text-sm text-blue-600 font-medium hover:underline"
               >
                 Crear primero →
@@ -794,7 +794,7 @@ const EditorDashboard = () => {
               <BookOpen className="w-10 h-10 mx-auto fluid-mb-2 opacity-30" />
               <p className="fluid-text-sm">Sin materiales aún</p>
               <button
-                onClick={() => navigate('/study-contents/new')}
+                onClick={() => navigate('/study-contents/create')}
                 className="fluid-mt-3 fluid-text-sm text-emerald-600 font-medium hover:underline"
               >
                 Crear primero →

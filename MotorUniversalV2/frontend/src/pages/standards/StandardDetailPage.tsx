@@ -231,7 +231,7 @@ export default function StandardDetailPage() {
           <h2 className="fluid-text-lg font-medium text-gray-900">Exámenes basados en este estándar</h2>
           {(isAdmin || isEditor) && (
             <Link
-              to={`/exams/new?standard=${standard.id}`}
+              to={`/exams/create?standard=${standard.id}`}
               className="inline-flex items-center fluid-px-4 fluid-py-2 border border-transparent rounded-fluid-md shadow-sm fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
             >
               <svg className="-ml-1 fluid-mr-2 fluid-icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
