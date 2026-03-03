@@ -43,11 +43,47 @@ deploy_backend() {
     docker push "$ACR/$BACKEND_IMAGE:$REV"
     
     log "Updating Container App: $BACKEND_APP"
+    # Use --set-env-vars to ADD/UPDATE env vars without overwriting existing ones
+    # The YAML only handles image, resources, probes, and scale
+    cat > /tmp/deploy-dev-patch.yaml <<YAML
+properties:
+  template:
+    containers:
+      - name: $BACKEND_APP
+        image: $ACR/$BACKEND_IMAGE:$REV
+        resources:
+          cpu: 0.25
+          memory: 0.5Gi
+        probes:
+          - type: Liveness
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 10
+          - type: Startup
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 10
+            timeoutSeconds: 5
+    scale:
+      minReplicas: 1
+      maxReplicas: 1
+YAML
     az containerapp update \
         --name "$BACKEND_APP" \
         --resource-group "$RG" \
-        --image "$ACR/$BACKEND_IMAGE:$REV" \
+        --yaml /tmp/deploy-dev-patch.yaml \
+        --set-env-vars \
+            "GUNICORN_WORKERS=1" \
+            "GUNICORN_TIMEOUT=120" \
         --output none
+    rm -f /tmp/deploy-dev-patch.yaml
     
     ok "Backend deployed ($REV)"
 }

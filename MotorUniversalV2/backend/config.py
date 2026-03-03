@@ -36,9 +36,9 @@ class Config:
     JWT_HEADER_NAME = 'Authorization'
     JWT_HEADER_TYPE = 'Bearer'
     
-    # CORS - Incluir orígenes de producción
+    # CORS - Incluir orígenes de producción y desarrollo
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 
-        'http://localhost:5173,http://localhost:5174,https://app.evaluaasi.com,https://thankful-stone-07fbe5410.6.azurestaticapps.net'
+        'http://localhost:5173,http://localhost:5174,https://app.evaluaasi.com,https://thankful-stone-07fbe5410.6.azurestaticapps.net,https://orange-sky-01755e210.1.azurestaticapps.net'
     ).split(',')
     CORS_SUPPORTS_CREDENTIALS = True
     
@@ -86,8 +86,8 @@ class Config:
 
 class DevelopmentConfig(Config):
     """Configuración de desarrollo"""
-    DEBUG = True
-    SQLALCHEMY_ECHO = True
+    DEBUG = os.getenv('FLASK_DEBUG', 'false').lower() in ('true', '1')
+    SQLALCHEMY_ECHO = os.getenv('SQLALCHEMY_ECHO', 'false').lower() in ('true', '1')
     TESTING = False
 
 

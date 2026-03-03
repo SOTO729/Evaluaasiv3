@@ -19,6 +19,54 @@ from app.models.result import Result
 from app.models.partner import Campus, Partner, PartnerStatePresence
 
 
+_identity_cache = {}
+
+def _table_has_identity(table_name):
+    """Detecta si una tabla MSSQL tiene columna IDENTITY en id."""
+    if table_name not in _identity_cache:
+        try:
+            result = db.session.execute(
+                db.text(f"SELECT COLUMNPROPERTY(OBJECT_ID('{table_name}'), 'id', 'IsIdentity')")
+            ).scalar()
+            _identity_cache[table_name] = (result == 1)
+        except Exception:
+            _identity_cache[table_name] = False
+    return _identity_cache[table_name]
+
+def _get_next_id(model_class):
+    """Calcula el siguiente ID para tablas sin IDENTITY.
+    Retorna None si la tabla tiene IDENTITY."""
+    table_name = model_class.__tablename__
+    if _table_has_identity(table_name):
+        return None
+    result = db.session.execute(
+        db.text(f"SELECT COALESCE(MAX(id), 0) + 1 FROM {table_name}")
+    ).scalar()
+    return result
+
+def _make_record(model_class, **kwargs):
+    """Crea un registro manejando tanto tablas con IDENTITY como sin IDENTITY."""
+    table_name = model_class.__tablename__
+    if _table_has_identity(table_name):
+        obj = model_class(**kwargs)
+        db.session.add(obj)
+        db.session.flush()
+        return obj
+    else:
+        next_id = db.session.execute(
+            db.text(f"SELECT COALESCE(MAX(id), 0) + 1 FROM {table_name}")
+        ).scalar()
+        kwargs['id'] = next_id
+        cols = ', '.join(kwargs.keys())
+        params = ', '.join(f':{k}' for k in kwargs.keys())
+        db.session.execute(
+            db.text(f"INSERT INTO {table_name} ({cols}) VALUES ({params})"),
+            kwargs
+        )
+        db.session.flush()
+        return db.session.get(model_class, next_id)
+
+
 def _to_iso(value: Any) -> str | None:
     if value is None:
         return None
@@ -244,15 +292,13 @@ def create_support_campus(payload: dict[str, Any]) -> dict[str, Any]:
             state_name=state_name,
         ).first()
         if not presence:
-            db.session.add(
-                PartnerStatePresence(
-                    partner_id=partner_id,
-                    state_name=state_name,
-                    is_active=True,
-                )
+            _make_record(PartnerStatePresence,
+                partner_id=partner_id,
+                state_name=state_name,
+                is_active=True,
             )
 
-    campus = Campus(
+    campus = _make_record(Campus,
         partner_id=partner_id,
         name=name,
         code=_generate_campus_code(),
@@ -268,7 +314,6 @@ def create_support_campus(payload: dict[str, Any]) -> dict[str, Any]:
         is_active=False,
     )
 
-    db.session.add(campus)
     db.session.commit()
 
     return {

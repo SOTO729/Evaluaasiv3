@@ -4,7 +4,12 @@ Rate Limiting utilities para proteger endpoints sensibles
 from functools import wraps
 from flask import request, jsonify
 from app import cache
+import os
 import time
+
+# Variable global para deshabilitar rate limiting temporalmente
+# Configurar RATE_LIMIT_ENABLED=false en variables de entorno para desactivar
+RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', 'true').lower() in ('true', '1')
 
 
 def get_client_ip():
@@ -105,6 +110,10 @@ def rate_limit(limit=10, window=60, key_prefix='rl'):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # Bypass global: si rate limiting está deshabilitado, pasar directo
+            if not RATE_LIMIT_ENABLED:
+                return f(*args, **kwargs)
+            
             client_ip = get_client_ip()
             endpoint = request.endpoint or 'unknown'
             
@@ -231,6 +240,10 @@ def rate_limit_by_user(limit=200, window=60):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            # Bypass global: si rate limiting está deshabilitado, pasar directo
+            if not RATE_LIMIT_ENABLED:
+                return f(*args, **kwargs)
+            
             from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
             
             try:

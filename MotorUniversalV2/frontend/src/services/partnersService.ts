@@ -3052,6 +3052,9 @@ export interface EcmAssignmentSummary {
   certifying_body: string | null;
   is_active: boolean;
   logo_url: string | null;
+  brand_id: number | null;
+  brand: string | null;
+  brand_logo_url: string | null;
   total_assignments: number;
   total_candidates: number;
   total_cost: number;
@@ -3060,9 +3063,16 @@ export interface EcmAssignmentSummary {
   exams_count: number;
 }
 
+export interface EcmBrand {
+  id: number;
+  name: string;
+  logo_url: string | null;
+}
+
 export interface EcmAssignmentsListResponse {
   ecms: EcmAssignmentSummary[];
   total: number;
+  brands: EcmBrand[];
 }
 
 export interface EcmAssignmentDetail {
@@ -3147,6 +3157,7 @@ export interface EcmAssignmentDetailResponse {
 export async function getEcmAssignments(params?: {
   search?: string;
   active_only?: boolean;
+  brand_id?: number;
 }): Promise<EcmAssignmentsListResponse> {
   const response = await api.get('/partners/ecm-assignments', { params });
   return response.data;

@@ -34,20 +34,18 @@ def _require_roles(*allowed):
 
 def _verify_badge_group_access(group_id, user):
     """Verifica que el coordinador tenga acceso al grupo para operaciones de badges.
-    Admin/editor/developer ven todo. Coordinador solo sus grupos."""
+    Admin/editor/developer ven todo. Coordinador solo sus propios grupos (aislados por coordinator_id)."""
     if user.role in ('admin', 'editor', 'developer'):
         return None  # sin restricción
-    if user.role == 'coordinator':
-        from app.models.partner import CandidateGroup, Campus
-        from app.models.partner import Partner
+    if user.role in ('coordinator', 'auxiliar'):
+        from app.models.partner import CandidateGroup
         group = CandidateGroup.query.get(group_id)
         if not group:
             return jsonify({'error': 'Grupo no encontrado'}), 404
-        campus = Campus.query.get(group.campus_id)
-        if campus:
-            partner = Partner.query.get(campus.partner_id)
-            if partner and partner.coordinator_id == user.id:
-                return None  # tiene acceso
+        # Obtener coordinator_id efectivo (auxiliar hereda de su coordinador)
+        coord_id = user.id if user.role == 'coordinator' else user.coordinator_id
+        if group.coordinator_id == coord_id:
+            return None  # tiene acceso
         return jsonify({'error': 'No tienes acceso a este grupo'}), 403
     return jsonify({'error': 'No tienes permisos'}), 403
 

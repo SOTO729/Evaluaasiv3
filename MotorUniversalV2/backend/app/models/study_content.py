@@ -100,7 +100,7 @@ class StudyMaterial(db.Model):
             'is_published': self.is_published,
             'order': self.order,
             'exam_id': self.exam_id,
-            'exam_title': self.exam.title if self.exam else None,
+            'exam_title': self.exam.name if self.exam else None,
             'exam_ids': exam_ids,
             'linked_exams': linked_exams,
             'sessions_count': sessions_count,

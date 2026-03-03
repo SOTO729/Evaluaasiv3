@@ -20,11 +20,13 @@ import {
   BarChart3,
   GraduationCap,
   FileSpreadsheet,
+  Tag,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getEcmAssignments,
   EcmAssignmentSummary,
+  EcmBrand,
 } from '../../services/partnersService';
 import { formatCurrency } from '../../services/balanceService';
 
@@ -32,19 +34,27 @@ export default function EcmAssignmentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ecms, setEcms] = useState<EcmAssignmentSummary[]>([]);
+  const [brands, setBrands] = useState<EcmBrand[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedBrandId]);
 
   const loadData = async () => {
     try {
       if (!refreshing) setLoading(true);
       setError(null);
-      const data = await getEcmAssignments({ search: search || undefined });
+      const data = await getEcmAssignments({
+        search: search || undefined,
+        brand_id: selectedBrandId ?? undefined,
+      });
       setEcms(data.ecms);
+      if (data.brands && data.brands.length > 0) {
+        setBrands(data.brands);
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar los datos');
     } finally {
@@ -186,6 +196,44 @@ export default function EcmAssignmentsPage() {
         </div>
       </div>
 
+      {/* Filtro por Marca */}
+      {brands.length > 0 && (
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-4 fluid-mb-6">
+          <div className="flex items-center fluid-gap-2 flex-wrap">
+            <span className="fluid-text-sm font-medium text-gray-500 fluid-mr-2 flex items-center fluid-gap-1">
+              <Tag className="fluid-icon-xs" />
+              Marca:
+            </span>
+            <button
+              onClick={() => setSelectedBrandId(null)}
+              className={`fluid-px-4 fluid-py-2 rounded-fluid-xl fluid-text-sm font-medium transition-all ${
+                selectedBrandId === null
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Todas
+            </button>
+            {brands.map((brand) => (
+              <button
+                key={brand.id}
+                onClick={() => setSelectedBrandId(brand.id)}
+                className={`fluid-px-4 fluid-py-2 rounded-fluid-xl fluid-text-sm font-medium transition-all flex items-center fluid-gap-2 ${
+                  selectedBrandId === brand.id
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {brand.logo_url && (
+                  <img src={brand.logo_url} alt={brand.name} className="w-5 h-5 object-contain rounded" />
+                )}
+                {brand.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Lista de ECMs */}
       {ecms.length === 0 ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 text-center">
@@ -221,6 +269,14 @@ export default function EcmAssignmentsPage() {
                         <span className="fluid-px-2 fluid-py-1 bg-blue-100 text-blue-700 rounded-fluid-lg fluid-text-xs font-bold">
                           {ecm.code}
                         </span>
+                        {ecm.brand && (
+                          <span className="fluid-px-2 fluid-py-1 bg-indigo-100 text-indigo-700 rounded-fluid-lg fluid-text-xs font-medium flex items-center fluid-gap-1">
+                            {ecm.brand_logo_url && (
+                              <img src={ecm.brand_logo_url} alt={ecm.brand} className="w-3.5 h-3.5 object-contain" />
+                            )}
+                            {ecm.brand}
+                          </span>
+                        )}
                         {ecm.sector && (
                           <span className="fluid-px-2 fluid-py-1 bg-gray-100 text-gray-600 rounded-fluid-lg fluid-text-xs">
                             {ecm.sector}

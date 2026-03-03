@@ -493,6 +493,9 @@ class CandidateGroup(db.Model):
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
     school_cycle_id = db.Column(db.Integer, db.ForeignKey('school_cycles.id', ondelete='SET NULL'), nullable=True)
     
+    # Multi-tenant: coordinador dueño del grupo (aislamiento por coordinador)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    
     name = db.Column(db.String(100), nullable=False)  # Ej: "Grupo A", "Turno Matutino", etc.
     code = db.Column(db.String(50))  # Código identificador
     description = db.Column(db.Text)
@@ -560,6 +563,7 @@ class CandidateGroup(db.Model):
         data = {
             'id': self.id,
             'campus_id': self.campus_id,
+            'coordinator_id': self.coordinator_id,
             'school_cycle_id': self.school_cycle_id,
             'name': self.name,
             'code': self.code,

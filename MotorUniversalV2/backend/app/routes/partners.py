@@ -28,14 +28,14 @@ bp = Blueprint('partners', __name__)
 
 
 def coordinator_required(f):
-    """Decorador que requiere rol de coordinador, developer o admin"""
+    """Decorador que requiere rol de coordinador, auxiliar, developer o admin"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'developer', 'coordinator']:
+        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de coordinador'}), 403
         g.current_user = user
         return f(*args, **kwargs)
@@ -48,6 +48,59 @@ def coordinator_required(f):
 FOREIGN_CURP_MALE = 'XEXX010101HNEXXXA4'
 FOREIGN_CURP_FEMALE = 'XEXX010101MNEXXXA8'
 GENERIC_FOREIGN_CURPS = {FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE}
+
+
+_identity_cache = {}
+
+def _table_has_identity(table_name):
+    """Detecta si una tabla MSSQL tiene columna IDENTITY en id."""
+    if table_name not in _identity_cache:
+        try:
+            result = db.session.execute(
+                db.text(f"SELECT COLUMNPROPERTY(OBJECT_ID('{table_name}'), 'id', 'IsIdentity')")
+            ).scalar()
+            _identity_cache[table_name] = (result == 1)
+        except Exception:
+            _identity_cache[table_name] = False
+    return _identity_cache[table_name]
+
+def _get_next_id(model_class):
+    """Calcula el siguiente ID para tablas sin IDENTITY.
+    Retorna None si la tabla tiene IDENTITY (el DB auto-genera el id)."""
+    table_name = model_class.__tablename__
+    if _table_has_identity(table_name):
+        return None
+    result = db.session.execute(
+        db.text(f"SELECT COALESCE(MAX(id), 0) + 1 FROM {table_name}")
+    ).scalar()
+    return result
+
+def _make_record(model_class, **kwargs):
+    """Crea un registro manejando tanto tablas con IDENTITY como sin IDENTITY.
+    - Con IDENTITY (PROD): usa ORM normal, el DB auto-genera el id.
+    - Sin IDENTITY (DEV): calcula id explícito via raw SQL INSERT.
+    """
+    table_name = model_class.__tablename__
+    if _table_has_identity(table_name):
+        # IDENTITY: ORM normal, sin id explícito
+        obj = model_class(**kwargs)
+        db.session.add(obj)
+        db.session.flush()
+        return obj
+    else:
+        # Sin IDENTITY: INSERT raw con id explícito
+        next_id = db.session.execute(
+            db.text(f"SELECT COALESCE(MAX(id), 0) + 1 FROM {table_name}")
+        ).scalar()
+        kwargs['id'] = next_id
+        cols = ', '.join(kwargs.keys())
+        params = ', '.join(f':{k}' for k in kwargs.keys())
+        db.session.execute(
+            db.text(f"INSERT INTO {table_name} ({cols}) VALUES ({params})"),
+            kwargs
+        )
+        db.session.flush()
+        return db.session.get(model_class, next_id)
 
 
 def _get_foreign_curp(gender: str) -> str:
@@ -84,47 +137,52 @@ def get_countries():
 
 def _get_coordinator_filter(user):
     """
-    Retorna el coordinator_id para filtrar datos, o None si el usuario es admin/developer (ve todo).
+    Retorna el coordinator_id para filtrar GRUPOS (aislados por coordinador).
+    Partners, campuses y usuarios son compartidos (sin filtro).
+    Auxiliar hereda el scope de su coordinador vinculado.
     """
     if user.role == 'coordinator':
         return user.id
+    if user.role == 'auxiliar':
+        return user.coordinator_id  # ve lo mismo que su coordinador
     return None
 
 
-def _verify_partner_access(partner_id, user):
-    """Verifica que el coordinador tenga acceso al partner. 
-    Retorna (partner, None) si ok, o (None, error_response) si no tiene acceso."""
+def _is_admin_role(user):
+    """Retorna True si el usuario es admin o developer."""
+    return user.role in ('admin', 'developer')
+
+
+def _verify_partner_access(partner_id, user, require_admin_for_delete=False):
+    """Verifica acceso al partner.
+    Partners son compartidos: todos los coordinadores pueden VER, CREAR y EDITAR.
+    Solo admin puede ELIMINAR (require_admin_for_delete=True)."""
     partner = Partner.query.get_or_404(partner_id)
-    coord_id = _get_coordinator_filter(user)
-    if coord_id and partner.coordinator_id != coord_id:
-        return None, (jsonify({'error': 'No tienes acceso a este partner'}), 403)
+    if require_admin_for_delete and not _is_admin_role(user):
+        return None, (jsonify({'error': 'Solo administradores pueden eliminar partners'}), 403)
     return partner, None
 
 
-def _verify_campus_access(campus_id, user):
-    """Verifica que el coordinador tenga acceso al campus (a través de su partner)."""
+def _verify_campus_access(campus_id, user, require_admin_for_delete=False):
+    """Verifica acceso al campus.
+    Campuses son compartidos: todos los coordinadores pueden VER, CREAR y EDITAR.
+    Solo admin puede ELIMINAR (require_admin_for_delete=True)."""
     from app.models.partner import Campus
     campus = Campus.query.get_or_404(campus_id)
-    coord_id = _get_coordinator_filter(user)
-    if coord_id:
-        partner = Partner.query.get(campus.partner_id)
-        if not partner or partner.coordinator_id != coord_id:
-            return None, (jsonify({'error': 'No tienes acceso a este plantel'}), 403)
+    if require_admin_for_delete and not _is_admin_role(user):
+        return None, (jsonify({'error': 'Solo administradores pueden eliminar planteles'}), 403)
     return campus, None
 
 
 def _verify_group_access(group_id, user):
-    """Verifica que el coordinador tenga acceso al grupo (a través de campus → partner)."""
+    """Verifica acceso al grupo.
+    Grupos están aislados por coordinator_id directo en el grupo.
+    Cada coordinador solo ve/gestiona sus propios grupos."""
     from app.models.partner import Campus
     group = CandidateGroup.query.get_or_404(group_id)
     coord_id = _get_coordinator_filter(user)
     if coord_id:
-        campus = Campus.query.get(group.campus_id)
-        if campus:
-            partner = Partner.query.get(campus.partner_id)
-            if not partner or partner.coordinator_id != coord_id:
-                return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
-        else:
+        if group.coordinator_id != coord_id:
             return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
     return group, None
 
@@ -144,10 +202,7 @@ def get_partners():
         
         query = Partner.query
         
-        # Multi-tenant: coordinadores solo ven sus partners
-        coord_id = _get_coordinator_filter(g.current_user)
-        if coord_id:
-            query = query.filter(Partner.coordinator_id == coord_id)
+        # Partners son compartidos: todos los coordinadores ven todos los partners
         
         if active_only:
             query = query.filter(Partner.is_active == True)
@@ -210,7 +265,7 @@ def create_partner():
             if existing:
                 return jsonify({'error': 'Ya existe un partner con ese RFC'}), 400
         
-        partner = Partner(
+        partner = _make_record(Partner,
             name=data['name'],
             legal_name=data.get('legal_name'),
             rfc=data.get('rfc'),
@@ -224,7 +279,6 @@ def create_partner():
             is_active=data.get('is_active', True)
         )
         
-        db.session.add(partner)
         db.session.commit()
         
         return jsonify({
@@ -275,9 +329,9 @@ def update_partner(partner_id):
 @jwt_required()
 @coordinator_required
 def delete_partner(partner_id):
-    """Eliminar un partner (soft delete)"""
+    """Eliminar un partner (soft delete, solo admin)"""
     try:
-        partner, error = _verify_partner_access(partner_id, g.current_user)
+        partner, error = _verify_partner_access(partner_id, g.current_user, require_admin_for_delete=True)
         if error:
             return error
         partner.is_active = False
@@ -340,7 +394,7 @@ def add_partner_state(partner_id):
         if existing:
             return jsonify({'error': 'El partner ya tiene presencia en ese estado'}), 400
         
-        presence = PartnerStatePresence(
+        presence = _make_record(PartnerStatePresence,
             partner_id=partner_id,
             state_name=state_name,
             regional_contact_name=data.get('regional_contact_name'),
@@ -348,7 +402,6 @@ def add_partner_state(partner_id):
             regional_contact_phone=data.get('regional_contact_phone')
         )
         
-        db.session.add(presence)
         db.session.commit()
         
         return jsonify({
@@ -365,9 +418,9 @@ def add_partner_state(partner_id):
 @jwt_required()
 @coordinator_required
 def remove_partner_state(partner_id, presence_id):
-    """Eliminar presencia en un estado"""
+    """Eliminar presencia en un estado (solo admin)"""
     try:
-        partner, error = _verify_partner_access(partner_id, g.current_user)
+        partner, error = _verify_partner_access(partner_id, g.current_user, require_admin_for_delete=True)
         if error:
             return error
         presence = PartnerStatePresence.query.filter_by(
@@ -525,12 +578,11 @@ def create_campus(partner_id):
         
         if not existing_presence:
             # Crear automáticamente la presencia en el estado
-            new_presence = PartnerStatePresence(
+            _make_record(PartnerStatePresence,
                 partner_id=partner_id,
                 state_name=state_name,
                 is_active=True
             )
-            db.session.add(new_presence)
             state_auto_created = True
         
         # Generar código único para el plantel
@@ -538,7 +590,7 @@ def create_campus(partner_id):
         
         # Los planteles nuevos se crean inactivos por defecto
         # Se activarán al completar el proceso de activación (asignar responsable, etc.)
-        campus = Campus(
+        campus = _make_record(Campus,
             partner_id=partner_id,
             name=data['name'],
             code=campus_code,
@@ -563,7 +615,6 @@ def create_campus(partner_id):
             activation_status='pending'  # Estado inicial de activación
         )
         
-        db.session.add(campus)
         db.session.flush()  # Para obtener el ID del campus
         
         # Crear usuario del director del plantel como responsable disponible
@@ -578,7 +629,8 @@ def create_campus(partner_id):
                     return username
         
         director_username = generate_unique_username()
-        director_password = secrets.token_urlsafe(12)
+        from app.routes.user_management import generate_secure_password
+        director_password = generate_secure_password(12)
         
         # Crear el usuario del director con rol responsable
         # El usuario del director se identifica porque su CURP coincide con director_curp del campus
@@ -732,9 +784,9 @@ def update_campus(campus_id):
 @jwt_required()
 @coordinator_required
 def delete_campus(campus_id):
-    """Eliminar un plantel (soft delete)"""
+    """Eliminar un plantel (soft delete, solo admin)"""
     try:
-        campus, error = _verify_campus_access(campus_id, g.current_user)
+        campus, error = _verify_campus_access(campus_id, g.current_user, require_admin_for_delete=True)
         if error:
             return error
         campus.is_active = False
@@ -1017,7 +1069,8 @@ def create_campus_responsable(campus_id):
         username = generate_unique_username()
         
         # Generar contraseña segura
-        password = secrets.token_urlsafe(12)
+        from app.routes.user_management import generate_secure_password
+        password = generate_secure_password(12)
         
         # Obtener permisos configurables (defaults a False, excepto can_view_reports)
         can_bulk_create = data.get('can_bulk_create_candidates', False)
@@ -1474,7 +1527,8 @@ def add_campus_responsable(campus_id):
             username = ''.join(random.choices(chars, k=10))
             if not User.query.filter_by(username=username).first():
                 break
-        password = secrets.token_urlsafe(12)
+        from app.routes.user_management import generate_secure_password
+        password = generate_secure_password(12)
 
         new_user = User(
             id=str(uuid.uuid4()),
@@ -2367,6 +2421,7 @@ def create_group(campus_id):
         
         group = CandidateGroup(
             campus_id=campus_id,
+            coordinator_id=_get_coordinator_filter(g.current_user),
             school_cycle_id=school_cycle_id,
             name=data['name'],
             code=data.get('code'),
@@ -2425,10 +2480,10 @@ def list_all_groups():
             CandidateGroup.is_active == True
         )
         
-        # Multi-tenant: coordinadores solo ven grupos de sus partners
+        # Multi-tenant: coordinadores solo ven sus propios grupos (aislados por coordinator_id)
         coord_id = _get_coordinator_filter(g.current_user)
         if coord_id:
-            groups = groups.filter(Partner.coordinator_id == coord_id)
+            groups = groups.filter(CandidateGroup.coordinator_id == coord_id)
         
         groups = groups.order_by(CandidateGroup.name).all()
         
@@ -2513,10 +2568,10 @@ def search_groups_paginated():
             member_count_sub, CandidateGroup.id == member_count_sub.c.group_id
         )
 
-        # Multi-tenant: coordinadores solo ven sus propios grupos
+        # Multi-tenant: coordinadores solo ven sus propios grupos (aislados por coordinator_id)
         coord_id = _get_coordinator_filter(g.current_user)
         if coord_id:
-            query = query.filter(Partner.coordinator_id == coord_id)
+            query = query.filter(CandidateGroup.coordinator_id == coord_id)
 
         # Filtro por partner
         if partner_id:
@@ -2583,7 +2638,7 @@ def search_groups_paginated():
             Partner, Campus.partner_id == Partner.id
         )
         if coord_id:
-            cycle_names_q = cycle_names_q.filter(Partner.coordinator_id == coord_id)
+            cycle_names_q = cycle_names_q.filter(CandidateGroup.coordinator_id == coord_id)
         cycle_names = sorted(set(r[0] for r in cycle_names_q.distinct().all() if r[0]))
 
         groups = [{
@@ -2609,7 +2664,7 @@ def search_groups_paginated():
             CandidateGroup, CandidateGroup.campus_id == Campus.id
         )
         if coord_id:
-            partners_q = partners_q.filter(Partner.coordinator_id == coord_id)
+            partners_q = partners_q.filter(CandidateGroup.coordinator_id == coord_id)
         available_partners = sorted(
             [{'id': r[0], 'name': r[1]} for r in partners_q.distinct().all()],
             key=lambda x: x['name']
@@ -3005,7 +3060,9 @@ def get_group_members(group_id):
     try:
         from sqlalchemy import text, func
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
 
         # ── Parámetros de paginación ──
         page = request.args.get('page', 1, type=int)
@@ -3524,10 +3581,7 @@ def bulk_assign_by_criteria(group_id):
             User.is_active == True
         )
         
-        # Multi-tenant
-        coord_id = _get_coordinator_filter(g.current_user)
-        if coord_id:
-            query = query.filter(User.coordinator_id == coord_id)
+        # Usuarios son compartidos: sin filtro por coordinator_id
         
         # Filtro de búsqueda textual
         if search:
@@ -3769,10 +3823,7 @@ def search_candidates():
             User.is_active == True
         )
         
-        # Multi-tenant: coordinadores solo ven candidatos que les pertenecen
-        coord_id = _get_coordinator_filter(g.current_user)
-        if coord_id:
-            query = query.filter(User.coordinator_id == coord_id)
+        # Usuarios son compartidos: todos los coordinadores ven todos los candidatos
         
         if search:
             search_term = f'%{search}%'
@@ -4318,28 +4369,25 @@ def get_dashboard():
     try:
         coord_id = _get_coordinator_filter(g.current_user)
         
-        # Base queries con scoping por coordinador
-        partner_query = Partner.query.filter_by(is_active=True)
-        if coord_id:
-            partner_query = partner_query.filter(Partner.coordinator_id == coord_id)
+        # Dashboard: partners, campuses y usuarios son compartidos; grupos son aislados
+        # Partners: todos ven todos (compartido)
+        total_partners = Partner.query.filter_by(is_active=True).count()
         
-        total_partners = partner_query.count()
+        # Campuses: todos ven todos (compartido)
+        total_campuses = Campus.query.filter_by(is_active=True).count()
         
-        # Obtener IDs de partners del coordinador para filtrar campuses/grupos
+        # Grupos: aislados por coordinator_id
         if coord_id:
-            partner_ids = [p.id for p in partner_query.with_entities(Partner.id).all()]
-            campus_query = Campus.query.filter(Campus.partner_id.in_(partner_ids), Campus.is_active == True) if partner_ids else Campus.query.filter(db.false())
-            campus_ids = [c.id for c in campus_query.with_entities(Campus.id).all()]
-            group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids), CandidateGroup.is_active == True) if campus_ids else CandidateGroup.query.filter(db.false())
+            group_query = CandidateGroup.query.filter(
+                CandidateGroup.coordinator_id == coord_id,
+                CandidateGroup.is_active == True
+            )
             group_ids = [gr.id for gr in group_query.with_entities(CandidateGroup.id).all()]
         else:
-            campus_query = Campus.query.filter_by(is_active=True)
             group_query = CandidateGroup.query.filter_by(is_active=True)
-            campus_ids = None
             group_ids = None
         
-        total_campuses = campus_query.count() if coord_id else Campus.query.filter_by(is_active=True).count()
-        total_groups = group_query.count() if coord_id else CandidateGroup.query.filter_by(is_active=True).count()
+        total_groups = group_query.count()
         
         if coord_id and group_ids:
             total_members = GroupMember.query.filter(GroupMember.group_id.in_(group_ids), GroupMember.status == 'active').count()
@@ -4348,34 +4396,20 @@ def get_dashboard():
         else:
             total_members = GroupMember.query.filter_by(status='active').count()
         
-        # Partners por estado (via campus states)
-        if coord_id and partner_ids:
-            partners_by_state = db.session.query(
-                Campus.state_name,
-                db.func.count(db.func.distinct(Campus.partner_id))
-            ).filter(
-                Campus.partner_id.in_(partner_ids),
-                Campus.is_active == True,
-                Campus.state_name.isnot(None)
-            ).group_by(Campus.state_name).all()
-        elif coord_id:
-            partners_by_state = []
-        else:
-            partners_by_state = db.session.query(
-                PartnerStatePresence.state_name,
-                db.func.count(PartnerStatePresence.id)
-            ).filter(
-                PartnerStatePresence.is_active == True
-            ).group_by(PartnerStatePresence.state_name).all()
+        # Partners por estado: compartido (todos ven todos)
+        partners_by_state = db.session.query(
+            PartnerStatePresence.state_name,
+            db.func.count(PartnerStatePresence.id)
+        ).filter(
+            PartnerStatePresence.is_active == True
+        ).group_by(PartnerStatePresence.state_name).all()
         
-        # Últimos grupos creados
-        if coord_id and campus_ids:
+        # Últimos grupos creados: aislados por coordinator_id
+        if coord_id:
             recent_groups = CandidateGroup.query.filter(
-                CandidateGroup.campus_id.in_(campus_ids),
+                CandidateGroup.coordinator_id == coord_id,
                 CandidateGroup.is_active == True
             ).order_by(CandidateGroup.created_at.desc()).limit(5).all()
-        elif coord_id:
-            recent_groups = []
         else:
             recent_groups = CandidateGroup.query.filter_by(is_active=True).order_by(
                 CandidateGroup.created_at.desc()
@@ -4748,7 +4782,9 @@ def get_group_exams(group_id):
         from app.models import GroupExam, Exam
         from app.models.study_content import StudyMaterial
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
         
@@ -7114,7 +7150,9 @@ def get_group_study_materials(group_id):
     try:
         from app.models import GroupStudyMaterial
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         assignments = GroupStudyMaterial.query.filter_by(
             group_id=group_id,
@@ -8472,10 +8510,7 @@ def search_candidates_advanced():
             User.is_active == True
         )
         
-        # Multi-tenant: coordinadores solo ven candidatos que les pertenecen
-        coord_id = _get_coordinator_filter(g.current_user)
-        if coord_id:
-            query = query.filter(User.coordinator_id == coord_id)
+        # Usuarios son compartidos: todos los coordinadores ven todos los candidatos
         
         # Filtro de búsqueda textual
         if search:
@@ -8695,7 +8730,9 @@ def export_group_members(group_id):
         from sqlalchemy import text
         from app.models.result import Result
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         # Obtener miembros con sus usuarios
         members = GroupMember.query.filter_by(group_id=group_id).all()
@@ -12656,29 +12693,8 @@ def extend_assignment_validity(assignment_id):
             group = CandidateGroup.query.get(group_exam.group_id)
             if not group:
                 return jsonify({'error': 'Grupo no encontrado'}), 404
-            # Verificar acceso: coordinador debe tener relación con el partner del campus
-            has_access = False
-            if group.campus_id:
-                campus = Campus.query.get(group.campus_id)
-                if campus and campus.partner_id:
-                    from app.models.partner import user_partners
-                    up = db.session.query(user_partners).filter_by(
-                        user_id=user_id, partner_id=campus.partner_id
-                    ).first()
-                    if up:
-                        has_access = True
-            # Fallback: verificar si el coordinador gestiona candidatos de este grupo
-            if not has_access:
-                from app.models.partner import GroupMember
-                coordinator_members = db.session.query(GroupMember).join(
-                    User, User.id == GroupMember.user_id
-                ).filter(
-                    GroupMember.group_id == group_exam.group_id,
-                    User.coordinator_id == user_id
-                ).first()
-                if coordinator_members:
-                    has_access = True
-            if not has_access:
+            # Verificar acceso: coordinador solo puede extender vigencia de sus propios grupos
+            if group.coordinator_id != user_id:
                 return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
         
         # Extender GroupExam
@@ -12748,24 +12764,13 @@ def extend_ecm_assignment_validity(ecm_assignment_id):
         # Verificar permisos de coordinador
         if user.role == 'coordinator':
             has_access = False
-            # Verificar si el candidato está bajo este coordinador
-            target_user = User.query.get(ecm_assignment.user_id)
-            if target_user and target_user.coordinator_id == user_id:
-                has_access = True
-            # Verificar acceso via user_partners y grupo/campus
-            if not has_access and ecm_assignment.group_exam_id:
+            # Verificar acceso via grupo (aislado por coordinator_id)
+            if ecm_assignment.group_exam_id:
                 ge = GroupExam.query.get(ecm_assignment.group_exam_id)
                 if ge:
                     grp = CandidateGroup.query.get(ge.group_id)
-                    if grp and grp.campus_id:
-                        campus = Campus.query.get(grp.campus_id)
-                        if campus and campus.partner_id:
-                            from app.models.partner import user_partners
-                            up = db.session.query(user_partners).filter_by(
-                                user_id=user_id, partner_id=campus.partner_id
-                            ).first()
-                            if up:
-                                has_access = True
+                    if grp and grp.coordinator_id == user_id:
+                        has_access = True
             if not has_access:
                 return jsonify({'error': 'No tienes permiso para extender esta asignación'}), 403
         
@@ -12806,6 +12811,7 @@ def get_ecm_assignments():
     Query params:
     - search (str): Buscar en código o nombre del ECM
     - active_only (bool): Solo ECMs activos (default true)
+    - brand_id (int): Filtrar por marca (1=Microsoft, 2=Huawei, 3=Abierto)
     """
     try:
         from sqlalchemy import text
@@ -12817,6 +12823,7 @@ def get_ecm_assignments():
 
         search = request.args.get('search', '').strip()
         active_only = request.args.get('active_only', 'true').lower() == 'true'
+        brand_id = request.args.get('brand_id', '').strip()
 
         # Build filters
         params = {}
@@ -12826,6 +12833,9 @@ def get_ecm_assignments():
         if search:
             where_parts.append("AND (LOWER(cs.code) LIKE :search_term OR LOWER(cs.name) LIKE :search_term)")
             params['search_term'] = f'%{search.lower()}%'
+        if brand_id:
+            where_parts.append("AND cs.brand_id = :brand_id")
+            params['brand_id'] = int(brand_id)
 
         where_sql = '\n            '.join(where_parts)
 
@@ -12833,6 +12843,7 @@ def get_ecm_assignments():
             SELECT
                 cs.id, cs.code, cs.name, cs.sector, cs.[level],
                 cs.certifying_body, cs.is_active, cs.logo_url,
+                cs.brand_id, b.name AS brand_name, b.logo_url AS brand_logo_url,
                 COALESCE(ge_stats.total_assignments, 0) AS total_assignments,
                 COALESCE(ge_stats.exams_count, 0) AS exams_count,
                 COALESCE(user_stats.total_candidates, 0) AS total_candidates,
@@ -12840,6 +12851,7 @@ def get_ecm_assignments():
                 result_stats.avg_score,
                 result_stats.pass_rate
             FROM competency_standards cs
+            LEFT JOIN brands b ON b.id = cs.brand_id
             LEFT JOIN (
                 SELECT e.competency_standard_id AS ecm_id,
                        COUNT(DISTINCT ge.id) AS total_assignments,
@@ -12902,6 +12914,9 @@ def get_ecm_assignments():
                 'certifying_body': row.certifying_body,
                 'is_active': bool(row.is_active),
                 'logo_url': row.logo_url,
+                'brand_id': row.brand_id,
+                'brand': row.brand_name,
+                'brand_logo_url': row.brand_logo_url,
                 'total_assignments': row.total_assignments,
                 'total_candidates': row.total_candidates,
                 'total_cost': float(row.total_cost),
@@ -12910,9 +12925,15 @@ def get_ecm_assignments():
                 'exams_count': row.exams_count,
             })
 
+        # Get available brands for filtering
+        brand_sql = text("SELECT id, name, logo_url FROM brands WHERE is_active = 1 ORDER BY display_order")
+        brand_rows = db.session.execute(brand_sql).fetchall()
+        brands = [{'id': b.id, 'name': b.name, 'logo_url': b.logo_url} for b in brand_rows]
+
         return jsonify({
             'ecms': result,
             'total': len(result),
+            'brands': brands,
         })
 
     except Exception as e:

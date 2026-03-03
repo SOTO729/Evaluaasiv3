@@ -21,19 +21,35 @@ AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'edi
 ROLE_CREATE_PERMISSIONS = {
     'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
     'developer': ['gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
-    'coordinator': ['responsable', 'responsable_partner', 'candidato']  # Responsables, Responsables del Partner y candidatos
+    'coordinator': ['responsable', 'responsable_partner', 'candidato', 'auxiliar']  # Responsables, Responsables del Partner, candidatos y auxiliares
 }
 
 
+def _is_coordinator_role(role):
+    """True si el rol es coordinator o auxiliar (auxiliar hereda permisos de coordinador)"""
+    return role in ('coordinator', 'auxiliar')
+
+
+def _get_effective_coordinator_id(user):
+    """Retorna el ID del coordinador efectivo para filtrar datos multi-tenant.
+    Coordinador usa su propio ID. Auxiliar usa el coordinator_id de su creador.
+    Admin/developer retorna None (ve todo)."""
+    if user.role == 'coordinator':
+        return user.id
+    if user.role == 'auxiliar':
+        return user.coordinator_id
+    return None
+
+
 def management_required(f):
-    """Decorador que requiere rol de admin, developer o coordinator"""
+    """Decorador que requiere rol de admin, developer, coordinator o auxiliar"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'developer', 'coordinator']:
+        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador, desarrollador o coordinador'}), 403
         g.current_user = user
         return f(*args, **kwargs)
@@ -72,6 +88,30 @@ def validate_password(password):
     if not re.search(r'[0-9]', password):
         return False, "La contraseña debe tener al menos un número"
     return True, None
+
+
+def generate_secure_password(length=12):
+    """Generar contraseña que siempre cumple los requisitos de validación."""
+    import secrets, string
+    upper = string.ascii_uppercase
+    lower = string.ascii_lowercase
+    digits = string.digits
+    special = '-_'
+    all_chars = upper + lower + digits + special
+    while True:
+        pwd = (
+            secrets.choice(upper)
+            + secrets.choice(lower)
+            + secrets.choice(digits)
+            + ''.join(secrets.choice(all_chars) for _ in range(length - 3))
+        )
+        # Mezclar para que no sea predecible
+        pwd_list = list(pwd)
+        secrets.SystemRandom().shuffle(pwd_list)
+        pwd = ''.join(pwd_list)
+        is_valid, _ = validate_password(pwd)
+        if is_valid:
+            return pwd
 
 
 # ============== LISTAR USUARIOS ==============
@@ -121,11 +161,10 @@ def list_users():
         
         query = db.session.query(*columns)
         
-        # Coordinadores ven candidatos, responsables y responsables del partner
-        if current_user.role == 'coordinator':
-            query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
-            # Multi-tenant: solo ve usuarios que le pertenecen
-            query = query.filter(User.coordinator_id == current_user.id)
+        # Coordinadores y auxiliares ven candidatos, responsables y responsables del partner
+        # Usuarios son compartidos: todos los coordinadores ven todos (sin filtro coordinator_id)
+        if _is_coordinator_role(current_user.role):
+            query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
         
         # Filtros
         if role_filter:
@@ -223,7 +262,7 @@ def list_users():
         # Contar total solo si no usamos cursor (es costoso)
         if use_cursor:
             # Con cursor, estimamos el total o lo cacheamos
-            total = _get_cached_user_count(current_user.role, role_filter, active_filter, coordinator_id=current_user.id if current_user.role == 'coordinator' else None)
+            total = _get_cached_user_count(current_user.role, role_filter, active_filter, coordinator_id=_get_effective_coordinator_id(current_user))
             users_data = query.limit(per_page + 1).all()  # +1 para saber si hay más
             has_more = len(users_data) > per_page
             users_data = users_data[:per_page]
@@ -304,10 +343,9 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
         return cached
     
     query = User.query
-    if user_role == 'coordinator':
-        query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
-        if coordinator_id:
-            query = query.filter(User.coordinator_id == coordinator_id)
+    if _is_coordinator_role(user_role):
+        query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
+        # Usuarios compartidos: sin filtro por coordinator_id
     if role_filter:
         roles = [r.strip() for r in role_filter.split(',') if r.strip()]
         query = query.filter(User.role.in_(roles))
@@ -329,13 +367,11 @@ def get_user_detail(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores pueden ver candidatos, responsables y responsables del partner
-        if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
+        # Coordinadores y auxiliares pueden ver candidatos, responsables y responsables del partner
+        if _is_coordinator_role(current_user.role):
+            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
-            # Multi-tenant: solo puede ver usuarios que le pertenecen
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
+            # Usuarios son compartidos: sin filtro por coordinator_id
         
         return jsonify({
             'user': user.to_dict(include_private=True, include_partners=True)
@@ -545,19 +581,15 @@ def create_user():
                 return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
         
         # Generar contraseña automática para TODOS los usuarios
-        import secrets
-        password = secrets.token_urlsafe(12)  # Contraseña segura de 16 caracteres
-        
-        # Validar contraseña
-        is_valid, error_msg = validate_password(password)
-        if not is_valid:
-            return jsonify({'error': error_msg}), 400
+        password = generate_secure_password(12)
         
         # Verificar permisos de creación según rol
-        allowed_roles = ROLE_CREATE_PERMISSIONS.get(current_user.role, [])
+        # Auxiliar hereda los permisos de creación del coordinator
+        effective_role = 'coordinator' if current_user.role == 'auxiliar' else current_user.role
+        allowed_roles = ROLE_CREATE_PERMISSIONS.get(effective_role, [])
         if role not in allowed_roles:
-            if current_user.role == 'coordinator':
-                return jsonify({'error': 'Los coordinadores solo pueden crear usuarios de tipo candidato'}), 403
+            if _is_coordinator_role(current_user.role):
+                return jsonify({'error': 'Los coordinadores solo pueden crear candidatos, responsables, responsables del partner y auxiliares'}), 403
             else:
                 return jsonify({'error': f'No tienes permiso para crear usuarios con rol {role}'}), 403
         
@@ -714,12 +746,9 @@ def update_user(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores pueden editar candidatos, responsables y responsables del partner
+        # Solo admin/developer puede editar usuarios (recursos compartidos)
         if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
-                return jsonify({'error': 'No tienes permiso para editar este usuario'}), 403
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para editar este usuario'}), 403
+            return jsonify({'error': 'Solo administradores pueden editar usuarios'}), 403
         
         # No se puede editar a uno mismo por esta ruta (usar perfil)
         if user_id == current_user.id:
@@ -774,11 +803,6 @@ def update_user(user_id):
             if 'is_verified' in data:
                 user.is_verified = data['is_verified']
         
-        # Coordinadores solo pueden cambiar is_active de candidatos
-        elif current_user.role == 'coordinator':
-            if 'is_active' in data:
-                user.is_active = data['is_active']
-        
         db.session.commit()
         
         return jsonify({
@@ -803,12 +827,9 @@ def change_user_password(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores pueden cambiar contraseña de candidatos, responsables y responsables del partner
+        # Solo admin/developer puede cambiar contraseñas (recursos compartidos)
         if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
-                return jsonify({'error': 'No tienes permiso para cambiar la contraseña de este usuario'}), 403
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para cambiar la contraseña de este usuario'}), 403
+            return jsonify({'error': 'Solo administradores pueden cambiar contraseñas'}), 403
         
         new_password = data.get('new_password')
         if not new_password:
@@ -843,15 +864,12 @@ def generate_temp_password(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores solo pueden generar contraseñas para candidatos, responsables y responsables_partner
+        # Solo admin/developer puede generar contraseñas (recursos compartidos)
         if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
-                return jsonify({'error': 'No tienes permiso para generar contraseña de este usuario'}), 403
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para generar contraseña de este usuario'}), 403
+            return jsonify({'error': 'Solo administradores pueden generar contraseñas'}), 403
         
         # Generar contraseña segura de 12 caracteres
-        temp_password = secrets.token_urlsafe(9)  # Genera ~12 caracteres
+        temp_password = generate_secure_password(12)
         
         # Establecer la nueva contraseña
         user.set_password(temp_password)
@@ -879,12 +897,9 @@ def get_user_password(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores solo pueden ver contraseñas de candidatos, responsables y responsables_partner
+        # Solo admin/developer puede ver contraseñas (recursos compartidos)
         if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
-                return jsonify({'error': 'No tienes permiso para ver la contraseña de este usuario'}), 403
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para ver la contraseña de este usuario'}), 403
+            return jsonify({'error': 'Solo administradores pueden ver contraseñas'}), 403
         
         # Desencriptar la contraseña
         decrypted_password = user.get_decrypted_password()
@@ -920,16 +935,9 @@ def toggle_user_active(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Developers no pueden desactivar usuarios
-        if current_user.role == 'developer':
-            return jsonify({'error': 'Los desarrolladores no pueden desactivar usuarios'}), 403
-        
-        # Coordinadores pueden manejar candidatos, responsables y responsables del partner
+        # Solo admin puede activar/desactivar usuarios (recursos compartidos)
         if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
-                return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
+            return jsonify({'error': 'Solo administradores pueden activar/desactivar usuarios'}), 403
         
         # No se puede desactivar a uno mismo
         if user_id == current_user.id:
@@ -961,12 +969,9 @@ def update_user_document_options(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores solo pueden modificar opciones de sus propios usuarios
+        # Solo admin/developer puede modificar opciones de documentos (recursos compartidos)
         if current_user.role == 'coordinator':
-            if user.role not in ['candidato', 'responsable', 'responsable_partner']:
-                return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
-            if user.coordinator_id != current_user.id:
-                return jsonify({'error': 'No tienes permiso para modificar este usuario'}), 403
+            return jsonify({'error': 'Solo administradores pueden modificar opciones de documentos'}), 403
         
         data = request.get_json()
         
@@ -1149,8 +1154,7 @@ def get_user_stats():
         
         if current_user.role == 'coordinator':
             stats_query = stats_query.filter(User.role.in_(allowed_roles))
-            # Multi-tenant: solo contar usuarios del coordinador
-            stats_query = stats_query.filter(User.coordinator_id == current_user.id)
+            # Usuarios compartidos: sin filtro por coordinator_id
         
         stats_query = stats_query.group_by(User.role)
         role_stats = stats_query.all()
@@ -1616,11 +1620,9 @@ def _validate_target_group(group_id, current_user):
     if not group.is_active:
         return None, (jsonify({'error': 'El grupo seleccionado no está activo'}), 400)
     if current_user.role == 'coordinator':
-        campus = Campus.query.get(group.campus_id)
-        if campus:
-            partner = Partner.query.get(campus.partner_id)
-            if partner and partner.coordinator_id != current_user.id:
-                return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
+        # Verificar acceso: grupo debe pertenecer al coordinador (aislado)
+        if group.coordinator_id != current_user.id:
+            return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
     return group, None
 
 
@@ -2226,11 +2228,10 @@ def export_user_credentials():
         if not user_ids:
             return jsonify({'error': 'Debes seleccionar al menos un usuario'}), 400
         
-        # Obtener usuarios (coordinador solo puede exportar sus propios usuarios)
+        # Obtener usuarios (compartidos: sin filtro coordinator_id)
         query = User.query.filter(User.id.in_(user_ids))
         if current_user.role == 'coordinator':
             query = query.filter(
-                User.coordinator_id == current_user.id,
                 User.role.in_(['candidato', 'responsable', 'responsable_partner'])
             )
         users = query.all()

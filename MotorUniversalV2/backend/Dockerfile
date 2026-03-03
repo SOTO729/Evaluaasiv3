@@ -24,6 +24,9 @@ USER appuser
 # Exponer puerto
 EXPOSE 8000
 
-# Comando de inicio - timeout de 30 minutos para procesamiento de videos grandes
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "1800", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
-# Force rebuild Sat Jan  4 17:35:00 UTC 2026
+# Comando de inicio
+# --preload: carga la app UNA vez (migraciones no se repiten por worker)
+# --worker-tmp-dir /dev/shm: heartbeat en RAM (evita falsos timeouts en containers)
+# --timeout: tiempo máximo por request (default 120s, override con GUNICORN_TIMEOUT)
+# --graceful-timeout: tiempo para cerrar workers limpiamente
+CMD ["sh", "-c", "exec gunicorn --bind=0.0.0.0:8000 --workers=${GUNICORN_WORKERS:-2} --timeout=${GUNICORN_TIMEOUT:-120} --graceful-timeout=30 --keep-alive=5 --worker-tmp-dir=/dev/shm --preload --access-logfile=- --error-logfile=- --log-level=info run:app"]
