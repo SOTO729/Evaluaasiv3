@@ -192,6 +192,9 @@ const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
 const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
 const UserDetailPage = lazy(() => import('./pages/users/UserDetailPage'))
 
+// Admin - Cuentas Bloqueadas
+const LockedAccountsPage = lazy(() => import('./pages/LockedAccountsPage'))
+
 // Badges (Insignias Digitales)
 const BadgeTemplatesPage = lazy(() => import('./pages/badges/BadgeTemplatesPage'))
 const BadgeTemplateFormPage = lazy(() => import('./pages/badges/BadgeTemplateFormPage'))
@@ -398,6 +401,9 @@ function App() {
               <Route path="/user-management/new" element={<UserFormPage />} />
               <Route path="/user-management/:userId" element={<UserDetailPage />} />
               <Route path="/user-management/:userId/edit" element={<UserFormPage />} />
+              
+              {/* Admin - Cuentas Bloqueadas */}
+              <Route path="/locked-accounts" element={<LockedAccountsPage />} />
             </Route>
           </Route>
 

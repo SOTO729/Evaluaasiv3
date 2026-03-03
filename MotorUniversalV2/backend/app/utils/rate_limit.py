@@ -90,6 +90,196 @@ def lock_account(username: str, duration_seconds: int = 900):
         print(f"Error bloqueando cuenta: {e}")
 
 
+def unlock_account(username: str):
+    """Desbloquear cuenta manualmente y resetear intentos fallidos"""
+    try:
+        lock_key = f"account_locked:{username.lower()}"
+        fail_key = f"failed_login:{username.lower()}"
+        cache.delete(lock_key)
+        cache.delete(fail_key)
+        print(f"🔓 Cuenta desbloqueada manualmente: {username}")
+        return True
+    except Exception as e:
+        print(f"Error desbloqueando cuenta: {e}")
+        return False
+
+
+def _get_redis_client():
+    """Obtener el cliente Redis subyacente de Flask-Caching o crear uno nuevo."""
+    try:
+        # Método 1: Intentar obtener del backend de Flask-Caching
+        backend = getattr(cache, 'cache', None)
+        if backend:
+            for attr in ('_read_client', '_write_client', 'client', '_client'):
+                client = getattr(backend, attr, None)
+                if client is not None:
+                    if isinstance(client, (list, tuple)):
+                        client = client[0] if client else None
+                    if client is not None:
+                        return client
+        
+        # Método 2: Crear directamente desde la URL de configuración
+        import redis as redis_lib
+        redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+        return redis_lib.from_url(redis_url)
+        
+    except Exception as e:
+        print(f"⚠️ Error obteniendo Redis client: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return None
+
+
+def _get_cache_prefix():
+    """Obtener el prefijo de keys de Flask-Caching."""
+    try:
+        backend = getattr(cache, 'cache', cache)
+        prefix = getattr(backend, 'key_prefix', None)
+        if prefix:
+            return prefix
+    except Exception:
+        pass
+    return 'flask_cache_'
+
+
+def _deserialize_cache_value(raw_val):
+    """
+    Deserializar un valor almacenado por Flask-Caching en Redis.
+    Flask-Caching agrega un byte marker (0x21 = '!') antes del pickle.
+    """
+    import pickle
+    if raw_val is None:
+        return None
+    
+    # Intentar pickle directo
+    try:
+        return pickle.loads(raw_val)
+    except Exception:
+        pass
+    
+    # Intentar sin el primer byte (marker de Flask-Caching)
+    if len(raw_val) > 1:
+        try:
+            return pickle.loads(raw_val[1:])
+        except Exception:
+            pass
+    
+    # Intentar como string/float/int
+    try:
+        return float(raw_val)
+    except Exception:
+        pass
+    
+    try:
+        return int(raw_val)
+    except Exception:
+        pass
+    
+    return None
+
+
+def get_all_locked_accounts() -> list:
+    """
+    Obtener todas las cuentas actualmente bloqueadas desde Redis.
+    Usa SCAN para iterar sobre las keys de forma segura.
+    """
+    locked_accounts = []
+    try:
+        redis_client = _get_redis_client()
+        
+        if redis_client is None:
+            print("⚠️ No se pudo obtener cliente Redis para scan")
+            return locked_accounts
+        
+        now = time.time()
+        prefix = _get_cache_prefix()
+        pattern = f"{prefix}account_locked:*"
+        
+        for key in redis_client.scan_iter(match=pattern, count=100):
+            key_str = key.decode() if isinstance(key, bytes) else key
+            raw_val = redis_client.get(key)
+            if raw_val is None:
+                continue
+            
+            # Deserializar valor de Flask-Caching
+            unlock_time = _deserialize_cache_value(raw_val)
+            if unlock_time is None:
+                continue
+            
+            remaining = int(unlock_time - now)
+            if remaining <= 0:
+                continue
+            
+            # Extraer username de la key (quitar prefijo)
+            username = key_str.replace(prefix, '').replace('account_locked:', '')
+            
+            # Buscar intentos fallidos
+            fail_count = 0
+            fail_val = redis_client.get(f"{prefix}failed_login:{username}")
+            if fail_val:
+                deserialized = _deserialize_cache_value(fail_val)
+                if deserialized is not None:
+                    fail_count = int(deserialized)
+            
+            locked_accounts.append({
+                'username': username,
+                'remaining_seconds': remaining,
+                'remaining_minutes': remaining // 60,
+                'failed_attempts': fail_count,
+                'unlock_time': unlock_time,
+            })
+        
+    except Exception as e:
+        print(f"Error obteniendo cuentas bloqueadas: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return locked_accounts
+
+
+def get_all_failed_attempts() -> list:
+    """
+    Obtener todas las cuentas con intentos fallidos (no necesariamente bloqueadas).
+    """
+    failed_accounts = []
+    try:
+        redis_client = _get_redis_client()
+        
+        if redis_client is None:
+            return failed_accounts
+        
+        prefix = _get_cache_prefix()
+        pattern = f"{prefix}failed_login:*"
+        
+        for key in redis_client.scan_iter(match=pattern, count=100):
+            key_str = key.decode() if isinstance(key, bytes) else key
+            raw_val = redis_client.get(key)
+            if raw_val is None:
+                continue
+            
+            count = _deserialize_cache_value(raw_val)
+            if count is None:
+                continue
+            
+            username = key_str.replace(prefix, '').replace('failed_login:', '')
+            
+            # Check if also locked
+            is_locked, remaining = is_account_locked(username)
+            
+            failed_accounts.append({
+                'username': username,
+                'failed_attempts': count,
+                'is_locked': is_locked,
+                'remaining_seconds': remaining,
+            })
+        
+    except Exception as e:
+        print(f"Error obteniendo intentos fallidos: {e}")
+    
+    return failed_accounts
+
+
 # Configuración de bloqueo
 MAX_FAILED_ATTEMPTS = 5  # Bloquear después de 5 intentos fallidos
 LOCKOUT_DURATION = 900   # 15 minutos de bloqueo

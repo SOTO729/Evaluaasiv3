@@ -246,6 +246,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/badges/templates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/badges') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Insignias</Link>
                     <Link to="/standards" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/standards') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>ECM</Link>
                     <Link to="/tramites-conocer" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/tramites-conocer') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>CONOCER</Link>
+                    <Link to="/locked-accounts" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/locked-accounts') ? 'text-red-600 font-semibold bg-red-50' : 'text-gray-700 hover:text-red-600 hover:bg-red-50'}`}>🔒 Bloqueos</Link>
                   </>
                 )}
                 {/* ── Bloque soporte: nav directo al módulo de soporte ── */}
@@ -965,6 +966,23 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                     Usuarios
+                  </div>
+                </Link>
+              )}
+              {(user?.role === 'admin' || user?.role === 'developer') && (
+                <Link 
+                  to="/locked-accounts" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/locked-accounts') 
+                      ? 'bg-red-50 text-red-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Bloqueos
                   </div>
                 </Link>
               )}

@@ -24,6 +24,9 @@ from app.utils.rate_limit import (
     increment_failed_login,
     reset_failed_login,
     lock_account,
+    unlock_account,
+    get_all_locked_accounts,
+    get_all_failed_attempts,
     MAX_FAILED_ATTEMPTS,
     LOCKOUT_DURATION
 )
@@ -1164,3 +1167,156 @@ def get_campus_assignments():
         import traceback
         traceback.print_exc()
         return jsonify({'error': 'Error al obtener las asignaciones del plantel'}), 500
+
+
+# ============= ADMIN: GESTIÓN DE CUENTAS BLOQUEADAS =============
+
+@bp.route('/admin/locked-accounts', methods=['GET'])
+@jwt_required()
+def get_locked_accounts():
+    """
+    Obtener todas las cuentas bloqueadas y con intentos fallidos.
+    Solo para admin y developer.
+    """
+    try:
+        user_id = get_jwt_identity()
+        current_user = User.query.get(user_id)
+        
+        if not current_user or current_user.role not in ['admin', 'developer']:
+            return jsonify({'error': 'Solo administradores pueden ver cuentas bloqueadas'}), 403
+        
+        locked = get_all_locked_accounts()
+        failed = get_all_failed_attempts()
+        
+        # Enriquecer con datos de usuario de la DB
+        all_usernames = set()
+        for item in locked:
+            all_usernames.add(item['username'])
+        for item in failed:
+            all_usernames.add(item['username'])
+        
+        # Buscar en DB por username o email
+        user_map = {}
+        if all_usernames:
+            for uname in all_usernames:
+                user = User.query.filter(
+                    (func.lower(User.username) == uname.lower()) | 
+                    (func.lower(User.email) == uname.lower())
+                ).first()
+                if user:
+                    user_map[uname] = {
+                        'id': user.id,
+                        'name': f"{user.name} {user.first_surname}".strip(),
+                        'email': user.email,
+                        'username': user.username,
+                        'role': user.role,
+                        'is_active': user.is_active,
+                    }
+        
+        # Enriquecer locked accounts
+        for item in locked:
+            item['user'] = user_map.get(item['username'])
+        
+        # Enriquecer failed attempts (solo las no bloqueadas)
+        failed_only = [f for f in failed if not f['is_locked']]
+        for item in failed_only:
+            item['user'] = user_map.get(item['username'])
+        
+        return jsonify({
+            'locked_accounts': locked,
+            'failed_attempts': failed_only,
+            'config': {
+                'max_attempts': MAX_FAILED_ATTEMPTS,
+                'lockout_duration_seconds': LOCKOUT_DURATION,
+                'lockout_duration_minutes': LOCKOUT_DURATION // 60,
+            }
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en get_locked_accounts: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error al obtener cuentas bloqueadas'}), 500
+
+
+@bp.route('/admin/unlock-account', methods=['POST'])
+@jwt_required()
+def admin_unlock_account():
+    """
+    Desbloquear una cuenta manualmente.
+    Solo para admin y developer.
+    Body: { "username": "email_o_username" }
+    """
+    try:
+        user_id = get_jwt_identity()
+        current_user = User.query.get(user_id)
+        
+        if not current_user or current_user.role not in ['admin', 'developer']:
+            return jsonify({'error': 'Solo administradores pueden desbloquear cuentas'}), 403
+        
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({'error': 'Se requiere el username o email'}), 400
+        
+        # Desbloquear
+        success = unlock_account(username)
+        
+        if success:
+            # Buscar usuario en DB para info
+            user = User.query.filter(
+                (func.lower(User.username) == username.lower()) | 
+                (func.lower(User.email) == username.lower())
+            ).first()
+            
+            user_info = None
+            if user:
+                user_info = {
+                    'id': user.id,
+                    'name': f"{user.name} {user.first_surname}".strip(),
+                    'email': user.email,
+                    'username': user.username,
+                }
+            
+            return jsonify({
+                'message': f'Cuenta "{username}" desbloqueada exitosamente',
+                'user': user_info
+            }), 200
+        else:
+            return jsonify({'error': 'Error al desbloquear la cuenta'}), 500
+        
+    except Exception as e:
+        print(f"Error en admin_unlock_account: {e}")
+        return jsonify({'error': 'Error al desbloquear la cuenta'}), 500
+
+
+@bp.route('/admin/unlock-all', methods=['POST'])
+@jwt_required()
+def admin_unlock_all():
+    """
+    Desbloquear todas las cuentas bloqueadas.
+    Solo para admin y developer.
+    """
+    try:
+        user_id = get_jwt_identity()
+        current_user = User.query.get(user_id)
+        
+        if not current_user or current_user.role not in ['admin', 'developer']:
+            return jsonify({'error': 'Solo administradores pueden desbloquear cuentas'}), 403
+        
+        locked = get_all_locked_accounts()
+        unlocked_count = 0
+        
+        for account in locked:
+            if unlock_account(account['username']):
+                unlocked_count += 1
+        
+        return jsonify({
+            'message': f'{unlocked_count} cuenta(s) desbloqueada(s)',
+            'unlocked_count': unlocked_count
+        }), 200
+        
+    except Exception as e:
+        print(f"Error en admin_unlock_all: {e}")
+        return jsonify({'error': 'Error al desbloquear las cuentas'}), 500
