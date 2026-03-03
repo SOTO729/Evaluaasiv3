@@ -196,6 +196,16 @@ const UserDetailPage = lazy(() => import('./pages/users/UserDetailPage'))
 const BadgeTemplatesPage = lazy(() => import('./pages/badges/BadgeTemplatesPage'))
 const BadgeTemplateFormPage = lazy(() => import('./pages/badges/BadgeTemplateFormPage'))
 
+// Soporte
+import SupportGuard from './components/support/SupportGuard'
+import SupportLayout from './components/support/SupportLayout'
+const SupportDashboardPage = lazy(() => import('./pages/support/SupportDashboardPage'))
+const SupportCampusesPage = lazy(() => import('./pages/support/SupportCampusesPage'))
+const SupportUsersPage = lazy(() => import('./pages/support/SupportUsersPage'))
+const SupportCalendarPage = lazy(() => import('./pages/support/SupportCalendarPage'))
+const SupportSessionsPage = lazy(() => import('./pages/support/SupportSessionsPage'))
+const SupportSettingsPage = lazy(() => import('./pages/support/SupportSettingsPage'))
+
 function App() {
   const { isAuthenticated } = useAuthStore()
 
@@ -388,6 +398,21 @@ function App() {
               <Route path="/user-management/new" element={<UserFormPage />} />
               <Route path="/user-management/:userId" element={<UserDetailPage />} />
               <Route path="/user-management/:userId/edit" element={<UserFormPage />} />
+            </Route>
+          </Route>
+
+          {/* Soporte — rutas protegidas con SupportGuard + SupportLayout */}
+          <Route element={<ProtectedRoute allowedRoles={['soporte', 'admin', 'developer']} />}>
+            <Route element={<SupportGuard />}>
+              <Route path="/support" element={<SupportLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<SupportDashboardPage />} />
+                <Route path="campuses" element={<SupportCampusesPage />} />
+                <Route path="users" element={<SupportUsersPage />} />
+                <Route path="calendar" element={<SupportCalendarPage />} />
+                <Route path="sessions" element={<SupportSessionsPage />} />
+                <Route path="settings" element={<SupportSettingsPage />} />
+              </Route>
             </Route>
           </Route>
 

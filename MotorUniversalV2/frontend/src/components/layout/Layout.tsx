@@ -128,6 +128,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'bg-teal-100 text-teal-800'
       case 'gerente':
         return 'bg-indigo-100 text-indigo-800'
+      case 'soporte':
+        return 'bg-cyan-100 text-cyan-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -156,6 +158,8 @@ const Layout = ({ children }: LayoutProps) => {
         return 'Financiero'
       case 'gerente':
         return 'Gerente'
+      case 'soporte':
+        return 'Soporte'
       default:
         return role
     }
@@ -244,7 +248,16 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/tramites-conocer" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/tramites-conocer') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>CONOCER</Link>
                   </>
                 )}
-                {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+                {/* ── Bloque soporte: nav directo al módulo de soporte ── */}
+                {user?.role === 'soporte' && (
+                  <Link
+                    to="/support/dashboard"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/support') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}
+                  >
+                    Centro de Soporte
+                  </Link>
+                )}
+                {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                   <Link 
                     to="/certificates" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -256,7 +269,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Certificados
                   </Link>
                 )}
-                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                   <Link 
                     to="/exams" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -268,7 +281,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Exámenes
                   </Link>
                 )}
-                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+                {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                   <Link 
                     to="/study-contents" 
                   className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -292,7 +305,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
-                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+                {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                   <Link 
                     to="/standards" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -635,7 +648,20 @@ const Layout = ({ children }: LayoutProps) => {
                   </Link>
                 </>
               )}
-              {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+              {/* ── Bloque soporte mobile: enlace al centro de soporte ── */}
+              {user?.role === 'soporte' && (
+                <Link
+                  to="/support/dashboard"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/support') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                    Centro de Soporte
+                  </div>
+                </Link>
+              )}
+              {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                 <Link 
                   to="/certificates" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -652,7 +678,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                 <Link 
                   to="/exams" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -669,7 +695,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+              {user?.role !== 'coordinator' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                 <Link 
                   to="/study-contents" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -704,7 +730,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && (
+              {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                 <Link 
                   to="/standards" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

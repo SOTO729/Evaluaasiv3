@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData } from '../services/dashboardService'
 import EditorDashboard from './EditorDashboard'
@@ -64,6 +64,11 @@ const HomePage = () => {
   // Si es admin o editor, mostrar el dashboard de gestión
   if (isAdminOrEditor) {
     return <EditorDashboard />
+  }
+
+  // Si es soporte, redirigir al centro de soporte
+  if (user?.role === 'soporte') {
+    return <Navigate to="/support/dashboard" replace />
   }
 
   // Si es coordinador, mostrar el dashboard de bienvenida
