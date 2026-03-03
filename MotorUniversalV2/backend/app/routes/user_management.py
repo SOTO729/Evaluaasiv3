@@ -9,6 +9,10 @@ from datetime import datetime
 from app import db, cache
 from app.models import User
 from app.models.user import encrypt_password
+from app.routes.partners import (
+    FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE, GENERIC_FOREIGN_CURPS,
+    _get_foreign_curp, _is_generic_foreign_curp,
+)
 import uuid
 import re
 
@@ -594,9 +598,10 @@ def create_user():
                 return jsonify({'error': f'No tienes permiso para crear usuarios con rol {role}'}), 403
         
         # Verificar CURP único si se proporciona (solo para roles diferentes a editor/editor_invitado/gerente/financiero)
+        # Los CURPs genéricos de extranjero pueden repetirse
         if data.get('curp') and role not in ['editor', 'editor_invitado', 'gerente', 'financiero']:
             curp = data['curp'].upper().strip()
-            if User.query.filter_by(curp=curp).first():
+            if not _is_generic_foreign_curp(curp) and User.query.filter_by(curp=curp).first():
                 return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
         
         # Generar username automáticamente (10 caracteres alfanuméricos únicos EN MAYÚSCULAS)
@@ -764,9 +769,10 @@ def update_user(user_id):
                 setattr(user, field, data[field].strip() if data[field] else None)
         
         # CURP - verificar unicidad (solo si el usuario no es editor/editor_invitado)
+        # Los CURPs genéricos de extranjero pueden repetirse
         if 'curp' in data and user.role not in ['editor', 'editor_invitado']:
             curp = data['curp'].upper().strip() if data['curp'] else None
-            if curp:
+            if curp and not _is_generic_foreign_curp(curp):
                 existing = User.query.filter(User.curp == curp, User.id != user_id).first()
                 if existing:
                     return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
@@ -1442,7 +1448,7 @@ def _validate_rows(parsed_rows):
             errs.append('genero vacío')
         if r['email'] and not validate_email(r['email']):
             errs.append('formato de email inválido')
-        if r['curp'] and len(r['curp']) != 18:
+        if r['curp'] and len(r['curp']) != 18 and not _is_generic_foreign_curp(r['curp']):
             errs.append(f'CURP debe tener 18 caracteres (tiene {len(r["curp"])})')
         genero = None
         if r['genero_raw']:
@@ -1576,8 +1582,8 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
                                 'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
             continue
 
-        # Duplicado por CURP
-        if curp and curp in existing_by_curp:
+        # Duplicado por CURP (excepto CURPs genéricos de extranjero que pueden repetirse)
+        if curp and curp in existing_by_curp and not _is_generic_foreign_curp(curp):
             user = existing_by_curp[curp]
             already_dup = any(d.get('user_id') == user.id for d in duplicates)
             if target_group_id:
@@ -1596,13 +1602,14 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
         if email and email in seen_emails:
             skipped.append({'row': r['row'], 'email': email, 'reason': 'Email duplicado en el mismo archivo'})
             continue
-        if curp and curp in seen_curps:
+        # CURPs genéricos de extranjero pueden repetirse en el mismo archivo
+        if curp and curp in seen_curps and not _is_generic_foreign_curp(curp):
             skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': 'CURP duplicado en el mismo archivo'})
             continue
 
         if email:
             seen_emails.add(email)
-        if curp:
+        if curp and not _is_generic_foreign_curp(curp):
             seen_curps.add(curp)
         to_create.append(r)
 
@@ -1658,6 +1665,22 @@ def preview_bulk_upload_candidates():
             return jsonify({'error': parse_error}), 400
         if not parsed_rows:
             return jsonify({'error': 'El archivo no contiene datos (filas vacías)'}), 400
+
+        # Auto-asignar CURP genérico para planteles extranjeros
+        is_foreign_campus = False
+        if target_group:
+            from app.models.partner import Campus as CampusModel
+            campus = CampusModel.query.get(target_group.campus_id)
+            if campus and campus.country and campus.country != 'México':
+                is_foreign_campus = True
+                for r in parsed_rows:
+                    if not r['curp']:
+                        # Auto-asignar CURP según género
+                        g_raw = (r.get('genero_raw') or '').upper()[:1]
+                        if g_raw == 'M':
+                            r['curp'] = FOREIGN_CURP_MALE
+                        else:
+                            r['curp'] = FOREIGN_CURP_FEMALE
 
         # Validar campos
         valid_rows, validation_errors = _validate_rows(parsed_rows)
@@ -1841,6 +1864,19 @@ def bulk_upload_candidates():
             return jsonify({'error': parse_error}), 400
         if not parsed_rows:
             return jsonify({'error': 'El archivo no contiene datos'}), 400
+
+        # Auto-asignar CURP genérico para planteles extranjeros
+        if target_group:
+            from app.models.partner import Campus as CampusModel
+            campus = CampusModel.query.get(target_group.campus_id)
+            if campus and campus.country and campus.country != 'México':
+                for r in parsed_rows:
+                    if not r['curp']:
+                        g_raw = (r.get('genero_raw') or '').upper()[:1]
+                        if g_raw == 'M':
+                            r['curp'] = FOREIGN_CURP_MALE
+                        else:
+                            r['curp'] = FOREIGN_CURP_FEMALE
 
         # Validar
         valid_rows, validation_errors = _validate_rows(parsed_rows)
