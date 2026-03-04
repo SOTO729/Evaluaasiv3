@@ -1194,6 +1194,75 @@ def get_balance_stats():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/campus/<int:campus_id>/summary', methods=['GET'])
+@jwt_required()
+def get_campus_balance_summary(campus_id):
+    """Obtener resumen de saldo de un plantel (suma de todos los coordinadores).
+    
+    Accesible por admin, developer, gerente, financiero y coordinadores del plantel.
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Verificar permisos
+        allowed_roles = ['admin', 'developer', 'gerente', 'financiero']
+        if user.role not in allowed_roles:
+            # Si es coordinador, verificar que tenga saldo en ese plantel
+            if user.role == 'coordinator':
+                has_balance = CoordinatorBalance.query.filter_by(
+                    coordinator_id=user_id, campus_id=campus_id
+                ).first()
+                if not has_balance:
+                    return jsonify({'error': 'No tienes acceso a este plantel'}), 403
+            else:
+                return jsonify({'error': 'No autorizado'}), 403
+        
+        # Verificar que el plantel existe
+        campus = Campus.query.get(campus_id)
+        if not campus:
+            return jsonify({'error': 'Plantel no encontrado'}), 404
+        
+        # Obtener todos los balances de coordinadores para este plantel
+        balances = CoordinatorBalance.query.filter_by(campus_id=campus_id).all()
+        
+        total_balance = sum(float(b.current_balance or 0) for b in balances)
+        total_received = sum(float(b.total_received or 0) for b in balances)
+        total_spent = sum(float(b.total_spent or 0) for b in balances)
+        total_scholarships = sum(float(b.total_scholarships or 0) for b in balances)
+        
+        # Desglose por coordinador
+        coordinators = []
+        for b in balances:
+            coord = User.query.get(b.coordinator_id)
+            coordinators.append({
+                'coordinator_id': b.coordinator_id,
+                'coordinator_name': coord.full_name if coord else 'N/A',
+                'current_balance': float(b.current_balance or 0),
+                'total_received': float(b.total_received or 0),
+                'total_spent': float(b.total_spent or 0),
+                'total_scholarships': float(b.total_scholarships or 0),
+            })
+        
+        return jsonify({
+            'campus_id': campus_id,
+            'campus_name': campus.name,
+            'totals': {
+                'current_balance': total_balance,
+                'total_received': total_received,
+                'total_spent': total_spent,
+                'total_scholarships': total_scholarships,
+            },
+            'coordinators_count': len(balances),
+            'coordinators': coordinators,
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/transactions', methods=['GET'])
 @jwt_required()
 @financiero_required

@@ -400,6 +400,34 @@ export async function getBalanceStats(): Promise<BalanceStats> {
   return response.data;
 }
 
+/**
+ * Resumen de saldo de un plantel (campus)
+ */
+export interface CampusBalanceSummary {
+  campus_id: number;
+  campus_name: string;
+  totals: {
+    current_balance: number;
+    total_received: number;
+    total_spent: number;
+    total_scholarships: number;
+  };
+  coordinators_count: number;
+  coordinators: Array<{
+    coordinator_id: string;
+    coordinator_name: string;
+    current_balance: number;
+    total_received: number;
+    total_spent: number;
+    total_scholarships: number;
+  }>;
+}
+
+export async function getCampusBalanceSummary(campusId: number): Promise<CampusBalanceSummary> {
+  const response = await api.get(`/balance/campus/${campusId}/summary`);
+  return response.data;
+}
+
 // =====================================================
 // HELPERS
 // =====================================================

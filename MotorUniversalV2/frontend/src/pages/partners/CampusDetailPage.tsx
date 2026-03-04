@@ -57,6 +57,7 @@ import {
   CampusCompetencyStandard,
 } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
+import { getCampusBalanceSummary, CampusBalanceSummary } from '../../services/balanceService';
 
 export default function CampusDetailPage() {
   const { campusId } = useParams();
@@ -102,6 +103,10 @@ export default function CampusDetailPage() {
   
   // Estándares de competencia (ECM)
   const [competencyStandards, setCompetencyStandards] = useState<CampusCompetencyStandard[]>([]);
+  
+  // Saldo del plantel
+  const [balanceSummary, setBalanceSummary] = useState<CampusBalanceSummary | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
   
   // Reporte
   const [exportingReport, setExportingReport] = useState(false);
@@ -237,6 +242,18 @@ export default function CampusDetailPage() {
       } catch {
         console.log('Competency standards endpoint not available');
         setCompetencyStandards([]);
+      }
+
+      // Cargar saldo del plantel
+      try {
+        setLoadingBalance(true);
+        const balanceData = await getCampusBalanceSummary(Number(campusId));
+        setBalanceSummary(balanceData);
+      } catch {
+        console.log('Balance endpoint not available');
+        setBalanceSummary(null);
+      } finally {
+        setLoadingBalance(false);
       }
     } catch (err: any) {
       console.error('Error loading campus:', err);
@@ -805,6 +822,52 @@ export default function CampusDetailPage() {
                 <p className="text-lg font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
                 <p className="text-[11px] text-gray-600 font-semibold mt-0.5">Ciclos Activos</p>
               </div>
+            </div>
+
+            {/* Saldo del Plantel */}
+            <div className="pt-2 border-t border-gray-100">
+              {loadingBalance ? (
+                <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 animate-pulse">
+                  <div className="h-6 w-20 bg-gray-200 rounded mx-auto mb-1"></div>
+                  <div className="h-3 w-16 bg-gray-200 rounded mx-auto"></div>
+                </div>
+              ) : balanceSummary ? (
+                <div className="space-y-2">
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
+                    <div className="flex items-center justify-center gap-1.5 mb-1">
+                      <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                      <p className="text-[11px] text-emerald-700 font-bold uppercase tracking-wide">Saldo del Plantel</p>
+                    </div>
+                    <p className={`text-xl font-black leading-tight ${balanceSummary.totals.current_balance > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
+                      ${balanceSummary.totals.current_balance.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    {balanceSummary.coordinators_count > 0 && (
+                      <p className="text-[10px] text-emerald-600 mt-1">
+                        {balanceSummary.coordinators_count} coordinador{balanceSummary.coordinators_count !== 1 ? 'es' : ''}
+                      </p>
+                    )}
+                  </div>
+                  {(balanceSummary.totals.total_received > 0 || balanceSummary.totals.total_spent > 0) && (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div className="bg-blue-50/60 rounded-lg p-2 text-center border border-blue-100/60">
+                        <p className="text-xs font-bold text-blue-700">${balanceSummary.totals.total_received.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                        <p className="text-[10px] text-blue-600 font-medium">Recibido</p>
+                      </div>
+                      <div className="bg-orange-50/60 rounded-lg p-2 text-center border border-orange-100/60">
+                        <p className="text-xs font-bold text-orange-700">${balanceSummary.totals.total_spent.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                        <p className="text-[10px] text-orange-600 font-medium">Gastado</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-gray-300" />
+                    <p className="text-[11px] text-gray-400 font-medium">Sin saldo registrado</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
