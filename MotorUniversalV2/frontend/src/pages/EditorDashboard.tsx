@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { editorDashboardService, EditorDashboardData } from '../services/editorDashboardService'
 import {
@@ -39,7 +39,6 @@ const PIE_COLORS = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#e11d48', '#089
 
 const EditorDashboard = () => {
   const { user } = useAuthStore()
-  const navigate = useNavigate()
   const [dashboardData, setDashboardData] = useState<EditorDashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -130,7 +129,7 @@ const EditorDashboard = () => {
       description: 'Define el estándar de competencia o certificación. Es la base para organizar exámenes y materiales. Incluye código, sector, nivel y centro evaluador.',
       icon: ClipboardList,
       color: COLORS.purple,
-      action: () => navigate('/standards/new'),
+      actionLink: '/standards/new',
       actionLabel: 'Nuevo ECM',
       link: '/standards',
       required: true,
@@ -142,7 +141,7 @@ const EditorDashboard = () => {
       description: 'Crea un examen vinculado a un ECM. Agrega categorías, preguntas de distintos tipos, configura puntaje y tiempo límite.',
       icon: FileText,
       color: COLORS.blue,
-      action: () => navigate('/exams/create'),
+      actionLink: '/exams/create',
       actionLabel: 'Nuevo Examen',
       link: '/exams',
       required: true,
@@ -154,7 +153,7 @@ const EditorDashboard = () => {
       description: 'Diseña materiales de estudio con sesiones y temas. Incluye texto enriquecido, imágenes y videos. No requiere examen previo.',
       icon: BookOpen,
       color: COLORS.emerald,
-      action: () => navigate('/study-contents/create'),
+      actionLink: '/study-contents/create',
       actionLabel: 'Nuevo Material',
       link: '/study-contents',
       required: false,
@@ -338,21 +337,23 @@ const EditorDashboard = () => {
 
                 {/* Acciones */}
                 <div className="flex items-center fluid-gap-2 fluid-mt-4">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); step.action(); }}
-                    className="flex-1 flex items-center justify-center fluid-gap-2 fluid-py-2.5 rounded-fluid-lg font-semibold fluid-text-sm text-white transition-all hover:shadow-md active:scale-95"
+                  <Link
+                    to={step.actionLink}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex-1 flex items-center justify-center fluid-gap-2 fluid-py-2.5 rounded-fluid-lg font-semibold fluid-text-sm text-white transition-all hover:shadow-md active:scale-95 no-underline"
                     style={{ backgroundColor: step.color.bg }}
                   >
                     <Plus className="w-4 h-4" />
                     {step.actionLabel}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(step.link); }}
-                    className="flex items-center justify-center fluid-py-2.5 fluid-px-3 rounded-fluid-lg font-medium fluid-text-sm border-2 transition-all hover:shadow-sm"
+                  </Link>
+                  <Link
+                    to={step.link}
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center justify-center fluid-py-2.5 fluid-px-3 rounded-fluid-lg font-medium fluid-text-sm border-2 transition-all hover:shadow-sm no-underline"
                     style={{ borderColor: step.color.border, color: step.color.text }}
                   >
                     <ChevronRight className="w-4 h-4" />
-                  </button>
+                  </Link>
                 </div>
               </div>
             )
@@ -569,13 +570,13 @@ const EditorDashboard = () => {
             <div className="w-11 h-11 bg-purple-600 rounded-fluid-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
               <ClipboardList className="w-5 h-5 text-white" />
             </div>
-            <button
-              onClick={() => navigate('/standards/new')}
-              className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-purple-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-purple-700 transition-colors shadow-sm hover-pulse"
+            <Link
+              to="/standards/new"
+              className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-purple-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-purple-700 transition-colors shadow-sm hover-pulse no-underline"
             >
               <Plus className="w-3.5 h-3.5" />
               Crear
-            </button>
+            </Link>
           </div>
           
           <h3 className="font-bold text-gray-900 fluid-mb-1">Estándares ECM</h3>
@@ -588,12 +589,12 @@ const EditorDashboard = () => {
             <span className="text-gray-400 fluid-text-xs">{summary?.standards.total || 0} total</span>
           </div>
           
-          <button
-            onClick={() => navigate('/standards')}
-            className="w-full flex items-center justify-center fluid-gap-2 fluid-py-2 text-purple-700 bg-white/60 hover:bg-white rounded-fluid-lg transition-colors fluid-text-sm font-medium border border-purple-200"
+          <Link
+            to="/standards"
+            className="w-full flex items-center justify-center fluid-gap-2 fluid-py-2 text-purple-700 bg-white/60 hover:bg-white rounded-fluid-lg transition-colors fluid-text-sm font-medium border border-purple-200 no-underline"
           >
             Ver todos <ChevronRight className="w-4 h-4" />
-          </button>
+          </Link>
         </div>
 
         {/* Exámenes */}
@@ -602,13 +603,13 @@ const EditorDashboard = () => {
             <div className="w-11 h-11 bg-blue-600 rounded-fluid-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
               <FileText className="w-5 h-5 text-white" />
             </div>
-            <button
-              onClick={() => navigate('/exams/create')}
-              className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-blue-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm hover-pulse"
+            <Link
+              to="/exams/create"
+              className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-blue-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm hover-pulse no-underline"
             >
               <Plus className="w-3.5 h-3.5" />
               Crear
-            </button>
+            </Link>
           </div>
           
           <h3 className="font-bold text-gray-900 fluid-mb-1">Exámenes</h3>
@@ -624,12 +625,12 @@ const EditorDashboard = () => {
             </div>
           </div>
           
-          <button
-            onClick={() => navigate('/exams')}
-            className="w-full flex items-center justify-center fluid-gap-2 fluid-py-2 text-blue-700 bg-white/60 hover:bg-white rounded-fluid-lg transition-colors fluid-text-sm font-medium border border-blue-200"
+          <Link
+            to="/exams"
+            className="w-full flex items-center justify-center fluid-gap-2 fluid-py-2 text-blue-700 bg-white/60 hover:bg-white rounded-fluid-lg transition-colors fluid-text-sm font-medium border border-blue-200 no-underline"
           >
             Ver todos <ChevronRight className="w-4 h-4" />
-          </button>
+          </Link>
         </div>
 
         {/* Materiales de Estudio */}
@@ -638,13 +639,13 @@ const EditorDashboard = () => {
             <div className="w-11 h-11 bg-emerald-600 rounded-fluid-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <button
-              onClick={() => navigate('/study-contents/create')}
-              className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-emerald-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm hover-pulse"
+            <Link
+              to="/study-contents/create"
+              className="flex items-center fluid-gap-1 fluid-px-3 fluid-py-1.5 bg-emerald-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-emerald-700 transition-colors shadow-sm hover-pulse no-underline"
             >
               <Plus className="w-3.5 h-3.5" />
               Crear
-            </button>
+            </Link>
           </div>
           
           <h3 className="font-bold text-gray-900 fluid-mb-1">Materiales de Estudio</h3>
@@ -660,12 +661,12 @@ const EditorDashboard = () => {
             </div>
           </div>
           
-          <button
-            onClick={() => navigate('/study-contents')}
-            className="w-full flex items-center justify-center fluid-gap-2 fluid-py-2 text-emerald-700 bg-white/60 hover:bg-white rounded-fluid-lg transition-colors fluid-text-sm font-medium border border-emerald-200"
+          <Link
+            to="/study-contents"
+            className="w-full flex items-center justify-center fluid-gap-2 fluid-py-2 text-emerald-700 bg-white/60 hover:bg-white rounded-fluid-lg transition-colors fluid-text-sm font-medium border border-emerald-200 no-underline"
           >
             Ver todos <ChevronRight className="w-4 h-4" />
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -685,12 +686,12 @@ const EditorDashboard = () => {
             <div className="text-center fluid-py-8 text-gray-400">
               <ClipboardList className="w-10 h-10 mx-auto fluid-mb-2 opacity-30" />
               <p className="fluid-text-sm">Sin estándares aún</p>
-              <button
-                onClick={() => navigate('/standards/new')}
-                className="fluid-mt-3 fluid-text-sm text-purple-600 font-medium hover:underline"
+              <Link
+                to="/standards/new"
+                className="fluid-mt-3 fluid-text-sm text-purple-600 font-medium hover:underline inline-block"
               >
                 Crear primero →
-              </button>
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col fluid-gap-2">
@@ -736,12 +737,12 @@ const EditorDashboard = () => {
             <div className="text-center fluid-py-8 text-gray-400">
               <FileText className="w-10 h-10 mx-auto fluid-mb-2 opacity-30" />
               <p className="fluid-text-sm">Sin exámenes aún</p>
-              <button
-                onClick={() => navigate('/exams/create')}
-                className="fluid-mt-3 fluid-text-sm text-blue-600 font-medium hover:underline"
+              <Link
+                to="/exams/create"
+                className="fluid-mt-3 fluid-text-sm text-blue-600 font-medium hover:underline inline-block"
               >
                 Crear primero →
-              </button>
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col fluid-gap-2">
@@ -793,12 +794,12 @@ const EditorDashboard = () => {
             <div className="text-center fluid-py-8 text-gray-400">
               <BookOpen className="w-10 h-10 mx-auto fluid-mb-2 opacity-30" />
               <p className="fluid-text-sm">Sin materiales aún</p>
-              <button
-                onClick={() => navigate('/study-contents/create')}
-                className="fluid-mt-3 fluid-text-sm text-emerald-600 font-medium hover:underline"
+              <Link
+                to="/study-contents/create"
+                className="fluid-mt-3 fluid-text-sm text-emerald-600 font-medium hover:underline inline-block"
               >
                 Crear primero →
-              </button>
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col fluid-gap-2">
@@ -851,25 +852,25 @@ const EditorDashboard = () => {
           
           <div className="flex flex-wrap fluid-gap-3">
             {(summary?.exams.draft || 0) > 0 && (
-              <button
-                onClick={() => navigate('/exams')}
-                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white border border-amber-200 rounded-fluid-lg fluid-text-sm text-amber-700 hover:bg-amber-50 transition-colors shadow-sm"
+              <Link
+                to="/exams"
+                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white border border-amber-200 rounded-fluid-lg fluid-text-sm text-amber-700 hover:bg-amber-50 transition-colors shadow-sm no-underline"
               >
                 <FileText className="w-4 h-4" />
                 {summary?.exams.draft} examen{(summary?.exams.draft || 0) !== 1 ? 'es' : ''} en borrador
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </Link>
             )}
             
             {(summary?.materials.draft || 0) > 0 && (
-              <button
-                onClick={() => navigate('/study-contents')}
-                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white border border-amber-200 rounded-fluid-lg fluid-text-sm text-amber-700 hover:bg-amber-50 transition-colors shadow-sm"
+              <Link
+                to="/study-contents"
+                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white border border-amber-200 rounded-fluid-lg fluid-text-sm text-amber-700 hover:bg-amber-50 transition-colors shadow-sm no-underline"
               >
                 <BookOpen className="w-4 h-4" />
                 {summary?.materials.draft} material{(summary?.materials.draft || 0) !== 1 ? 'es' : ''} en borrador
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </Link>
             )}
           </div>
         </div>
