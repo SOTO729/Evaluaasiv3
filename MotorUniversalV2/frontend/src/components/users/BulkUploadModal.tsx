@@ -36,6 +36,7 @@ import {
   getCampuses,
   getGroups,
 } from '../../services/partnersService';
+import SearchableSelect from '../ui/SearchableSelect';
 import { useNotificationStore } from '../../store/notificationStore';
 
 interface BulkUploadModalProps {
@@ -406,75 +407,43 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
               {showGroupSelector && (
                 <div className="mt-3 p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
                   {/* Partner */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                      <Building2 className="h-4 w-4 text-gray-400" />
-                      Partner
-                    </label>
-                    <select
-                      value={selectedPartnerId}
-                      onChange={e => setSelectedPartnerId(e.target.value ? Number(e.target.value) : '')}
-                      disabled={loadingPartners}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
-                    >
-                      <option value="">
-                        {loadingPartners ? 'Cargando partners...' : '-- Selecciona un partner --'}
-                      </option>
-                      {partners.map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    label="Partner"
+                    icon={<Building2 className="h-4 w-4 text-gray-400" />}
+                    options={partners}
+                    value={selectedPartnerId}
+                    onChange={v => setSelectedPartnerId(v ? Number(v) : '')}
+                    disabled={loadingPartners}
+                    loading={loadingPartners}
+                    loadingText="Cargando partners..."
+                    placeholder="-- Selecciona un partner --"
+                  />
 
                   {/* Campus */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      Campus
-                    </label>
-                    <select
-                      value={selectedCampusId}
-                      onChange={e => setSelectedCampusId(e.target.value ? Number(e.target.value) : '')}
-                      disabled={!selectedPartnerId || loadingCampuses}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
-                    >
-                      <option value="">
-                        {loadingCampuses
-                          ? 'Cargando campus...'
-                          : !selectedPartnerId
-                          ? '-- Selecciona un partner primero --'
-                          : '-- Selecciona un campus --'}
-                      </option>
-                      {campuses.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    label="Campus"
+                    icon={<MapPin className="h-4 w-4 text-gray-400" />}
+                    options={campuses}
+                    value={selectedCampusId}
+                    onChange={v => setSelectedCampusId(v ? Number(v) : '')}
+                    disabled={!selectedPartnerId || loadingCampuses}
+                    loading={loadingCampuses}
+                    loadingText="Cargando campus..."
+                    placeholder={!selectedPartnerId ? '-- Selecciona un partner primero --' : '-- Selecciona un campus --'}
+                  />
 
                   {/* Grupo */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1.5">
-                      <Layers className="h-4 w-4 text-gray-400" />
-                      Grupo
-                    </label>
-                    <select
-                      value={selectedGroupId}
-                      onChange={e => setSelectedGroupId(e.target.value ? Number(e.target.value) : '')}
-                      disabled={!selectedCampusId || loadingGroups}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 disabled:bg-gray-100"
-                    >
-                      <option value="">
-                        {loadingGroups
-                          ? 'Cargando grupos...'
-                          : !selectedCampusId
-                          ? '-- Selecciona un campus primero --'
-                          : '-- Selecciona un grupo --'}
-                      </option>
-                      {groups.map(g => (
-                        <option key={g.id} value={g.id}>{g.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    label="Grupo"
+                    icon={<Layers className="h-4 w-4 text-gray-400" />}
+                    options={groups}
+                    value={selectedGroupId}
+                    onChange={v => setSelectedGroupId(v ? Number(v) : '')}
+                    disabled={!selectedCampusId || loadingGroups}
+                    loading={loadingGroups}
+                    loadingText="Cargando grupos..."
+                    placeholder={!selectedCampusId ? '-- Selecciona un campus primero --' : '-- Selecciona un grupo --'}
+                  />
 
                   {/* Selected group summary */}
                   {selectedGroupId && (
