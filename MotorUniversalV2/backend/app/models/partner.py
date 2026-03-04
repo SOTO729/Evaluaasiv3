@@ -1376,3 +1376,129 @@ class EcmRetake(db.Model):
             'applied_at': self.applied_at.isoformat() if self.applied_at else None,
             'used_at': self.used_at.isoformat() if self.used_at else None,
         }
+
+
+# ============== HISTÓRICO DE ALTAS MASIVAS ==============
+
+class BulkUploadBatch(db.Model):
+    """Registro de cada carga masiva realizada"""
+
+    __tablename__ = 'bulk_upload_batches'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Quién realizó la carga
+    uploaded_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+
+    # Contexto de destino
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='SET NULL'), nullable=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+
+    # Snapshot legible (por si se borra el partner/campus/grupo después)
+    partner_name = db.Column(db.String(200))
+    campus_name = db.Column(db.String(200))
+    group_name = db.Column(db.String(100))
+    country = db.Column(db.String(100))
+    state_name = db.Column(db.String(100))
+
+    # Resumen
+    total_processed = db.Column(db.Integer, default=0, nullable=False)
+    total_created = db.Column(db.Integer, default=0, nullable=False)
+    total_existing_assigned = db.Column(db.Integer, default=0, nullable=False)
+    total_errors = db.Column(db.Integer, default=0, nullable=False)
+    total_skipped = db.Column(db.Integer, default=0, nullable=False)
+    emails_sent = db.Column(db.Integer, default=0, nullable=False)
+    emails_failed = db.Column(db.Integer, default=0, nullable=False)
+
+    # Nombre del archivo original
+    original_filename = db.Column(db.String(300))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relaciones
+    uploaded_by = db.relationship('User', foreign_keys=[uploaded_by_id], backref=db.backref('bulk_uploads', lazy='dynamic'))
+    partner = db.relationship('Partner', foreign_keys=[partner_id])
+    campus = db.relationship('Campus', foreign_keys=[campus_id])
+    group = db.relationship('CandidateGroup', foreign_keys=[group_id])
+    members = db.relationship('BulkUploadMember', backref='batch', lazy='dynamic', cascade='all, delete-orphan')
+
+    __table_args__ = (
+        db.Index('ix_bulk_upload_batches_created', 'created_at'),
+    )
+
+    def to_dict(self, include_members=False):
+        data = {
+            'id': self.id,
+            'uploaded_by_id': self.uploaded_by_id,
+            'uploaded_by_name': self.uploaded_by.full_name if self.uploaded_by else None,
+            'partner_id': self.partner_id,
+            'partner_name': self.partner_name,
+            'campus_id': self.campus_id,
+            'campus_name': self.campus_name,
+            'group_id': self.group_id,
+            'group_name': self.group_name,
+            'country': self.country,
+            'state_name': self.state_name,
+            'total_processed': self.total_processed,
+            'total_created': self.total_created,
+            'total_existing_assigned': self.total_existing_assigned,
+            'total_errors': self.total_errors,
+            'total_skipped': self.total_skipped,
+            'emails_sent': self.emails_sent,
+            'emails_failed': self.emails_failed,
+            'original_filename': self.original_filename,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_members:
+            data['members'] = [m.to_dict() for m in self.members.order_by(BulkUploadMember.row_number).all()]
+        return data
+
+
+class BulkUploadMember(db.Model):
+    """Cada candidato creado/asignado en una carga masiva"""
+
+    __tablename__ = 'bulk_upload_members'
+
+    id = db.Column(db.Integer, primary_key=True)
+    batch_id = db.Column(db.Integer, db.ForeignKey('bulk_upload_batches.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Referencia al usuario (puede ser nuevo o existente)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+
+    # Snapshot de datos al momento de la carga
+    row_number = db.Column(db.Integer)
+    email = db.Column(db.String(255))
+    full_name = db.Column(db.String(300))
+    username = db.Column(db.String(100))
+    curp = db.Column(db.String(18))
+    gender = db.Column(db.String(1))
+
+    # Tipo de entrada: 'created' | 'existing_assigned' | 'error' | 'skipped'
+    status = db.Column(db.String(20), nullable=False, default='created')
+    error_message = db.Column(db.String(500))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relaciones
+    user = db.relationship('User', foreign_keys=[user_id])
+
+    __table_args__ = (
+        db.Index('ix_bulk_upload_members_batch', 'batch_id'),
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'batch_id': self.batch_id,
+            'user_id': self.user_id,
+            'row_number': self.row_number,
+            'email': self.email,
+            'full_name': self.full_name,
+            'username': self.username,
+            'curp': self.curp,
+            'gender': self.gender,
+            'status': self.status,
+            'error_message': self.error_message,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

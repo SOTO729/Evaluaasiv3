@@ -49,6 +49,8 @@ from app.models.partner import (
     EcmRetake,
     ConocerEmailContact,
     ConocerSolicitudLog,
+    BulkUploadBatch,
+    BulkUploadMember,
     MEXICAN_STATES,
     user_partners
 )
@@ -120,6 +122,8 @@ __all__ = [
     'EcmRetake',
     'ConocerEmailContact',
     'ConocerSolicitudLog',
+    'BulkUploadBatch',
+    'BulkUploadMember',
     'MEXICAN_STATES',
     'user_partners',
     # Balance models

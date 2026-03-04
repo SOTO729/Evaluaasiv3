@@ -505,3 +505,97 @@ export async function exportSelectedUsersCredentials(userIds: string[]): Promise
     throw error;
   }
 }
+
+// ============== HISTÓRICO DE ALTAS MASIVAS ==============
+
+export interface BulkUploadBatchSummary {
+  id: number;
+  uploaded_by_id: string;
+  uploaded_by_name: string | null;
+  partner_id: number | null;
+  partner_name: string | null;
+  campus_id: number | null;
+  campus_name: string | null;
+  group_id: number | null;
+  group_name: string | null;
+  country: string | null;
+  state_name: string | null;
+  total_processed: number;
+  total_created: number;
+  total_existing_assigned: number;
+  total_errors: number;
+  total_skipped: number;
+  emails_sent: number;
+  emails_failed: number;
+  original_filename: string | null;
+  created_at: string;
+}
+
+export interface BulkUploadMember {
+  id: number;
+  batch_id: number;
+  user_id: string | null;
+  row_number: number | null;
+  email: string | null;
+  full_name: string | null;
+  username: string | null;
+  curp: string | null;
+  gender: string | null;
+  status: 'created' | 'existing_assigned' | 'error' | 'skipped';
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface BulkUploadBatchDetail extends BulkUploadBatchSummary {
+  members: BulkUploadMember[];
+}
+
+export interface BulkUploadHistoryResponse {
+  batches: BulkUploadBatchSummary[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export async function getBulkUploadHistory(params?: {
+  page?: number;
+  per_page?: number;
+  partner_id?: number;
+  campus_id?: number;
+}): Promise<BulkUploadHistoryResponse> {
+  const response = await api.get('/user-management/bulk-history', { params });
+  return response.data;
+}
+
+export async function getBulkUploadDetail(batchId: number): Promise<BulkUploadBatchDetail> {
+  const response = await api.get(`/user-management/bulk-history/${batchId}`);
+  return response.data;
+}
+
+export async function exportBulkUploadBatch(batchId: number, groupName?: string): Promise<void> {
+  try {
+    const response = await api.get(`/user-management/bulk-history/${batchId}/export`, {
+      responseType: 'blob',
+    });
+
+    if (response.data.type === 'application/json') {
+      const text = await response.data.text();
+      const error = JSON.parse(text);
+      throw new Error(error.error || 'Error al exportar');
+    }
+
+    const url = window.URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (groupName || 'carga').replace(/\s+/g, '_').substring(0, 30);
+    a.download = `altas_masivas_${safeName}_${batchId}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+  } catch (error) {
+    console.error('Error exporting bulk upload batch:', error);
+    throw error;
+  }
+}

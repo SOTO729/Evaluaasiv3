@@ -2096,6 +2096,127 @@ def bulk_upload_candidates():
         # Combinar errores
         all_errors = validation_errors + create_errors
 
+        # ======= GUARDAR REGISTRO DE CARGA MASIVA EN HISTORIAL =======
+        batch_record_id = None
+        try:
+            from app.models.partner import BulkUploadBatch, BulkUploadMember, Campus as CampusModel
+
+            # Obtener info del campus/partner/grupo para snapshot
+            _partner_name = None
+            _campus_name = None
+            _country = None
+            _state_name = None
+            _partner_id = None
+            _campus_id = None
+
+            if target_group:
+                campus_obj = CampusModel.query.get(target_group.campus_id)
+                if campus_obj:
+                    _campus_id = campus_obj.id
+                    _campus_name = campus_obj.name
+                    _country = campus_obj.country
+                    _state_name = campus_obj.state_name
+                    if campus_obj.partner_id:
+                        _partner_id = campus_obj.partner_id
+                        from app.models.partner import Partner as PartnerModel
+                        partner_obj = PartnerModel.query.get(campus_obj.partner_id)
+                        if partner_obj:
+                            _partner_name = partner_obj.name
+
+            original_filename = file.filename if hasattr(file, 'filename') else None
+
+            batch_rec = BulkUploadBatch(
+                uploaded_by_id=current_user.id,
+                partner_id=_partner_id,
+                campus_id=_campus_id,
+                group_id=target_group.id if target_group else None,
+                partner_name=_partner_name,
+                campus_name=_campus_name,
+                group_name=target_group.name if target_group else None,
+                country=_country,
+                state_name=_state_name,
+                total_processed=len(parsed_rows),
+                total_created=len(created),
+                total_existing_assigned=len(existing_assigned),
+                total_errors=len(all_errors),
+                total_skipped=len(skipped),
+                emails_sent=emails_sent,
+                emails_failed=emails_failed,
+                original_filename=original_filename,
+            )
+            db.session.add(batch_rec)
+            db.session.flush()  # get batch_rec.id
+
+            # Build username->user_id map from created users
+            created_user_ids = {}
+            if created:
+                cnames = [c['username'] for c in created]
+                for i in range(0, len(cnames), CHUNK):
+                    chunk = cnames[i:i + CHUNK]
+                    users = User.query.filter(User.username.in_(chunk)).with_entities(User.id, User.username).all()
+                    for u in users:
+                        created_user_ids[u.username] = u.id
+
+            # Save created members
+            for c in created:
+                db.session.add(BulkUploadMember(
+                    batch_id=batch_rec.id,
+                    user_id=created_user_ids.get(c['username']),
+                    row_number=c.get('row'),
+                    email=c.get('email'),
+                    full_name=c.get('name', ''),
+                    username=c.get('username'),
+                    curp=None,
+                    gender=None,
+                    status='created',
+                ))
+
+            # Save existing_assigned members
+            for ea in existing_assigned:
+                db.session.add(BulkUploadMember(
+                    batch_id=batch_rec.id,
+                    user_id=ea.get('user_id'),
+                    row_number=ea.get('row'),
+                    email=ea.get('email'),
+                    full_name=ea.get('name', ''),
+                    username=ea.get('username'),
+                    status='existing_assigned',
+                ))
+
+            # Save errors
+            for err in all_errors:
+                db.session.add(BulkUploadMember(
+                    batch_id=batch_rec.id,
+                    row_number=err.get('row'),
+                    email=err.get('email'),
+                    full_name=err.get('nombre', ''),
+                    status='error',
+                    error_message=(err.get('error') or '')[:500],
+                ))
+
+            # Save skipped
+            for s in skipped:
+                db.session.add(BulkUploadMember(
+                    batch_id=batch_rec.id,
+                    user_id=s.get('user_id'),
+                    row_number=s.get('row'),
+                    email=s.get('email'),
+                    full_name=s.get('name', ''),
+                    username=s.get('username'),
+                    status='skipped',
+                    error_message=(s.get('reason') or '')[:500],
+                ))
+
+            db.session.commit()
+            batch_record_id = batch_rec.id
+        except Exception as batch_err:
+            import logging
+            logging.getLogger(__name__).error(f'Error saving bulk upload history: {batch_err}')
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
         response_data = {
             'message': f'Proceso completado: {len(created)} creados, {len(existing_assigned)} existentes asignados',
             'summary': {
@@ -2117,6 +2238,8 @@ def bulk_upload_candidates():
         }
         if group_assignment:
             response_data['group_assignment'] = group_assignment
+        if batch_record_id:
+            response_data['batch_id'] = batch_record_id
 
         return jsonify(response_data), 200
 
@@ -2362,6 +2485,188 @@ def export_user_credentials():
             download_name=f'credenciales_usuarios_{len(users)}.xlsx'
         )
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== HISTÓRICO DE ALTAS MASIVAS ==============
+
+@bp.route('/bulk-history', methods=['GET'])
+@jwt_required()
+@management_required
+def list_bulk_upload_history():
+    """Listar todas las cargas masivas con paginación y filtros"""
+    try:
+        from app.models.partner import BulkUploadBatch
+
+        current_user = g.current_user
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        per_page = min(per_page, 100)
+
+        query = BulkUploadBatch.query
+
+        # Multi-tenant: coordinador solo ve sus cargas
+        if _is_coordinator_role(current_user.role):
+            eff_id = _get_effective_coordinator_id(current_user)
+            query = query.filter(BulkUploadBatch.uploaded_by_id == eff_id)
+
+        # Filtros opcionales
+        partner_id = request.args.get('partner_id', type=int)
+        campus_id = request.args.get('campus_id', type=int)
+        if partner_id:
+            query = query.filter(BulkUploadBatch.partner_id == partner_id)
+        if campus_id:
+            query = query.filter(BulkUploadBatch.campus_id == campus_id)
+
+        query = query.order_by(BulkUploadBatch.created_at.desc())
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return jsonify({
+            'batches': [b.to_dict() for b in pagination.items],
+            'total': pagination.total,
+            'page': pagination.page,
+            'per_page': pagination.per_page,
+            'pages': pagination.pages,
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/bulk-history/<int:batch_id>', methods=['GET'])
+@jwt_required()
+@management_required
+def get_bulk_upload_detail(batch_id):
+    """Obtener detalle de una carga masiva (resumen + miembros)"""
+    try:
+        from app.models.partner import BulkUploadBatch
+
+        current_user = g.current_user
+        batch = BulkUploadBatch.query.get_or_404(batch_id)
+
+        # Multi-tenant
+        if _is_coordinator_role(current_user.role):
+            eff_id = _get_effective_coordinator_id(current_user)
+            if batch.uploaded_by_id != eff_id:
+                return jsonify({'error': 'No tienes acceso a este registro'}), 403
+
+        return jsonify(batch.to_dict(include_members=True)), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/bulk-history/<int:batch_id>/export', methods=['GET'])
+@jwt_required()
+@management_required
+def export_bulk_upload_batch(batch_id):
+    """Exportar a Excel los candidatos de una carga masiva"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from flask import send_file
+        from app.models.partner import BulkUploadBatch, BulkUploadMember, Campus
+        import io
+
+        current_user = g.current_user
+        batch = BulkUploadBatch.query.get_or_404(batch_id)
+
+        # Multi-tenant
+        if _is_coordinator_role(current_user.role):
+            eff_id = _get_effective_coordinator_id(current_user)
+            if batch.uploaded_by_id != eff_id:
+                return jsonify({'error': 'No tienes acceso a este registro'}), 403
+
+        # Obtener miembros con sus usuarios
+        members = BulkUploadMember.query.filter_by(batch_id=batch_id).order_by(BulkUploadMember.row_number).all()
+
+        # Fetch users for getting passwords
+        user_ids = [m.user_id for m in members if m.user_id]
+        users_map = {}
+        if user_ids:
+            CHUNK = 500
+            for i in range(0, len(user_ids), CHUNK):
+                chunk = user_ids[i:i + CHUNK]
+                users = User.query.filter(User.id.in_(chunk)).all()
+                for u in users:
+                    users_map[u.id] = u
+
+        # Crear Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Altas Masivas"
+
+        # Estilos
+        header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
+        header_font = Font(color='FFFFFF', bold=True, size=11)
+        cell_border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+
+        # Encabezados
+        headers = [
+            'Fila', 'Nombre Completo', 'Email', 'Usuario', 'Contraseña',
+            'CURP', 'Género', 'Estado', 'Partner', 'País', 'Estado/Provincia',
+            'Plantel', 'Grupo', 'Fecha de Carga'
+        ]
+        for col, header in enumerate(headers, start=1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = cell_border
+
+        # Datos
+        status_labels = {
+            'created': 'Creado',
+            'existing_assigned': 'Existente asignado',
+            'error': 'Error',
+            'skipped': 'Omitido',
+        }
+        for row_idx, member in enumerate(members, start=2):
+            user = users_map.get(member.user_id) if member.user_id else None
+            password = user.get_decrypted_password() if user else '(no disponible)'
+
+            row_data = [
+                member.row_number or '',
+                member.full_name or '',
+                member.email or '-',
+                member.username or '-',
+                password or '(no disponible)',
+                member.curp or '-',
+                member.gender or '-',
+                status_labels.get(member.status, member.status),
+                batch.partner_name or '-',
+                batch.country or '-',
+                batch.state_name or '-',
+                batch.campus_name or '-',
+                batch.group_name or '-',
+                batch.created_at.strftime('%d/%m/%Y %H:%M') if batch.created_at else '-',
+            ]
+            for col, value in enumerate(row_data, start=1):
+                cell = ws.cell(row=row_idx, column=col, value=value)
+                cell.border = cell_border
+                cell.alignment = Alignment(vertical='center')
+
+        # Ajustar anchos
+        column_widths = [8, 30, 30, 20, 20, 20, 10, 18, 25, 15, 20, 25, 20, 18]
+        for col, width in enumerate(column_widths, start=1):
+            letter = chr(64 + col) if col <= 26 else chr(64 + (col // 26)) + chr(64 + (col % 26))
+            ws.column_dimensions[letter].width = width
+
+        ws.freeze_panes = 'A2'
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        safe_name = (batch.group_name or 'carga').replace(' ', '_')[:30]
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'altas_masivas_{safe_name}_{batch.id}.xlsx'
+        )
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

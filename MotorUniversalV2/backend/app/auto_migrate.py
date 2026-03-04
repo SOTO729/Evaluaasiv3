@@ -1220,3 +1220,141 @@ def check_and_create_certificate_code_history_table():
     except Exception as e:
         print(f"❌ Error creando tabla certificate_code_history: {e}")
         db.session.rollback()
+
+
+def check_and_create_bulk_upload_tables():
+    """Crear tablas bulk_upload_batches y bulk_upload_members si no existen"""
+    print("🔍 Verificando tablas de historial de altas masivas...")
+
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        db_type = get_db_type()
+
+        if 'bulk_upload_batches' not in tables:
+            print("  📝 Creando tabla bulk_upload_batches...")
+            if db_type == 'mssql':
+                sql = """
+                    CREATE TABLE bulk_upload_batches (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        uploaded_by_id NVARCHAR(36) NULL,
+                        partner_id INT NULL,
+                        campus_id INT NULL,
+                        group_id INT NULL,
+                        partner_name NVARCHAR(200) NULL,
+                        campus_name NVARCHAR(200) NULL,
+                        group_name NVARCHAR(100) NULL,
+                        country NVARCHAR(100) NULL,
+                        state_name NVARCHAR(100) NULL,
+                        total_processed INT NOT NULL DEFAULT 0,
+                        total_created INT NOT NULL DEFAULT 0,
+                        total_existing_assigned INT NOT NULL DEFAULT 0,
+                        total_errors INT NOT NULL DEFAULT 0,
+                        total_skipped INT NOT NULL DEFAULT 0,
+                        emails_sent INT NOT NULL DEFAULT 0,
+                        emails_failed INT NOT NULL DEFAULT 0,
+                        original_filename NVARCHAR(300) NULL,
+                        created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT fk_bulk_batch_uploaded_by FOREIGN KEY (uploaded_by_id) REFERENCES users(id) ON DELETE SET NULL,
+                        CONSTRAINT fk_bulk_batch_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE SET NULL,
+                        CONSTRAINT fk_bulk_batch_campus FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE SET NULL,
+                        CONSTRAINT fk_bulk_batch_group FOREIGN KEY (group_id) REFERENCES candidate_groups(id) ON DELETE SET NULL
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE bulk_upload_batches (
+                        id SERIAL PRIMARY KEY,
+                        uploaded_by_id VARCHAR(36) NULL REFERENCES users(id) ON DELETE SET NULL,
+                        partner_id INT NULL REFERENCES partners(id) ON DELETE SET NULL,
+                        campus_id INT NULL REFERENCES campuses(id) ON DELETE SET NULL,
+                        group_id INT NULL REFERENCES candidate_groups(id) ON DELETE SET NULL,
+                        partner_name VARCHAR(200) NULL,
+                        campus_name VARCHAR(200) NULL,
+                        group_name VARCHAR(100) NULL,
+                        country VARCHAR(100) NULL,
+                        state_name VARCHAR(100) NULL,
+                        total_processed INT NOT NULL DEFAULT 0,
+                        total_created INT NOT NULL DEFAULT 0,
+                        total_existing_assigned INT NOT NULL DEFAULT 0,
+                        total_errors INT NOT NULL DEFAULT 0,
+                        total_skipped INT NOT NULL DEFAULT 0,
+                        emails_sent INT NOT NULL DEFAULT 0,
+                        emails_failed INT NOT NULL DEFAULT 0,
+                        original_filename VARCHAR(300) NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✅ Tabla bulk_upload_batches creada")
+
+            # Índices
+            try:
+                db.session.execute(text("CREATE INDEX ix_bulk_upload_batches_uploaded_by ON bulk_upload_batches (uploaded_by_id)"))
+                db.session.execute(text("CREATE INDEX ix_bulk_upload_batches_created ON bulk_upload_batches (created_at)"))
+                db.session.commit()
+                print("  ✅ Índices bulk_upload_batches creados")
+            except Exception as idx_err:
+                print(f"  ⚠️ Error creando índices batches: {idx_err}")
+                db.session.rollback()
+        else:
+            print("  ✓ Tabla bulk_upload_batches ya existe")
+
+        if 'bulk_upload_members' not in tables:
+            print("  📝 Creando tabla bulk_upload_members...")
+            if db_type == 'mssql':
+                sql = """
+                    CREATE TABLE bulk_upload_members (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        batch_id INT NOT NULL,
+                        user_id NVARCHAR(36) NULL,
+                        row_number INT NULL,
+                        email NVARCHAR(255) NULL,
+                        full_name NVARCHAR(300) NULL,
+                        username NVARCHAR(100) NULL,
+                        curp NVARCHAR(18) NULL,
+                        gender NVARCHAR(1) NULL,
+                        status NVARCHAR(20) NOT NULL DEFAULT 'created',
+                        error_message NVARCHAR(500) NULL,
+                        created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        CONSTRAINT fk_bulk_member_batch FOREIGN KEY (batch_id) REFERENCES bulk_upload_batches(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_bulk_member_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE bulk_upload_members (
+                        id SERIAL PRIMARY KEY,
+                        batch_id INT NOT NULL REFERENCES bulk_upload_batches(id) ON DELETE CASCADE,
+                        user_id VARCHAR(36) NULL REFERENCES users(id) ON DELETE SET NULL,
+                        row_number INT NULL,
+                        email VARCHAR(255) NULL,
+                        full_name VARCHAR(300) NULL,
+                        username VARCHAR(100) NULL,
+                        curp VARCHAR(18) NULL,
+                        gender VARCHAR(1) NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'created',
+                        error_message VARCHAR(500) NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✅ Tabla bulk_upload_members creada")
+
+            # Índices
+            try:
+                db.session.execute(text("CREATE INDEX ix_bulk_upload_members_batch ON bulk_upload_members (batch_id)"))
+                db.session.execute(text("CREATE INDEX ix_bulk_upload_members_user ON bulk_upload_members (user_id)"))
+                db.session.commit()
+                print("  ✅ Índices bulk_upload_members creados")
+            except Exception as idx_err:
+                print(f"  ⚠️ Error creando índices members: {idx_err}")
+                db.session.rollback()
+        else:
+            print("  ✓ Tabla bulk_upload_members ya existe")
+
+    except Exception as e:
+        print(f"❌ Error en auto-migración bulk_upload_tables: {e}")
+        db.session.rollback()

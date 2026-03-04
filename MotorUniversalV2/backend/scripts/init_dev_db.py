@@ -56,6 +56,7 @@ def init_dev_database():
                 check_and_add_question_types,
                 check_and_add_percentage_columns,
                 check_and_add_group_exam_columns,
+                check_and_create_bulk_upload_tables,
             )
             check_and_add_columns()
             check_and_add_study_interactive_columns()
@@ -63,6 +64,7 @@ def init_dev_database():
             check_and_add_question_types()
             check_and_add_percentage_columns()
             check_and_add_group_exam_columns()
+            check_and_create_bulk_upload_tables()
             print("✅ Auto-migraciones completadas")
         except Exception as e:
             print(f"⚠️  Auto-migración: {e}")
