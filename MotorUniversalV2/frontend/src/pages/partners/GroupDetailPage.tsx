@@ -83,7 +83,8 @@ export default function GroupDetailPage() {
         getMyBalance().catch(() => ({ balances: [], totals: {}, coordinator: {} })),
       ]);
       setGroup(groupData);
-      const myBal = (balanceData as any).balances?.find((b: any) => b.group_id === Number(groupId)) || null;
+      // Balance ahora es por plantel, buscar por campus_id del grupo
+      const myBal = (balanceData as any).balances?.find((b: any) => b.campus_id === groupData.campus_id) || null;
       setGroupBalance(myBal);
       setMembers(membersData.members);
       setEligibilitySummary(membersData.eligibility_summary || null);

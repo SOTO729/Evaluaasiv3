@@ -82,7 +82,7 @@ def approver_required(f):
 @jwt_required()
 @coordinator_required
 def get_my_balance():
-    """Obtener saldos del coordinador logueado (por grupo)"""
+    """Obtener saldos del coordinador logueado (por plantel)"""
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
@@ -90,7 +90,7 @@ def get_my_balance():
         if user.role not in ['coordinator', 'admin', 'developer']:
             return jsonify({'error': 'Solo coordinadores tienen saldo'}), 400
         
-        # Obtener todos los balances por grupo
+        # Obtener todos los balances por plantel
         balances = CoordinatorBalance.query.filter_by(coordinator_id=user_id).all()
         
         # Calcular totales globales
@@ -100,7 +100,7 @@ def get_my_balance():
         total_scholarships = sum(float(b.total_scholarships or 0) for b in balances)
         
         return jsonify({
-            'balances': [b.to_dict(include_group=True) for b in balances],
+            'balances': [b.to_dict(include_campus=True) for b in balances],
             'totals': {
                 'current_balance': total_balance,
                 'total_received': total_received,
@@ -134,10 +134,13 @@ def get_my_transactions():
         
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
+        campus_id = request.args.get('campus_id', type=int)
         group_id = request.args.get('group_id', type=int)
         
         query = BalanceTransaction.query.filter_by(coordinator_id=user_id)
         
+        if campus_id:
+            query = query.filter_by(campus_id=campus_id)
         if group_id:
             query = query.filter_by(group_id=group_id)
         
@@ -146,7 +149,7 @@ def get_my_transactions():
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         return jsonify({
-            'transactions': [t.to_dict(include_created_by=True, include_group=True) for t in pagination.items],
+            'transactions': [t.to_dict(include_created_by=True, include_group=True, include_campus=True) for t in pagination.items],
             'total': pagination.total,
             'pages': pagination.pages,
             'current_page': page
@@ -218,8 +221,6 @@ def create_request():
             return jsonify({'error': 'Justificación es requerida'}), 400
         if not data.get('campus_id'):
             return jsonify({'error': 'Plantel destino es requerido'}), 400
-        if not data.get('group_id'):
-            return jsonify({'error': 'Grupo destino es requerido'}), 400
         
         amount = float(data['amount_requested'])
         if amount <= 0:
@@ -230,12 +231,12 @@ def create_request():
         if not campus:
             return jsonify({'error': 'Plantel no encontrado'}), 404
         
-        # Verificar grupo (obligatorio)
-        group = CandidateGroup.query.get(data['group_id'])
-        if not group:
-            return jsonify({'error': 'Grupo no encontrado'}), 404
-        if group.campus_id != campus.id:
-            return jsonify({'error': 'El grupo no pertenece al plantel especificado'}), 400
+        # Verificar grupo (opcional - para precio especial)
+        group = None
+        if data.get('group_id'):
+            group = CandidateGroup.query.get(data['group_id'])
+            if group and group.campus_id != campus.id:
+                return jsonify({'error': 'El grupo no pertenece al plantel especificado'}), 400
         
         # Procesar attachments si se proporcionan
         import json
@@ -246,7 +247,7 @@ def create_request():
         balance_request = BalanceRequest(
             coordinator_id=user_id,
             campus_id=campus.id,
-            group_id=group.id,
+            group_id=group.id if group else None,
             request_type=data.get('request_type', 'saldo'),
             amount_requested=amount,
             justification=data['justification'],
@@ -284,7 +285,7 @@ def create_request():
                 gerentes = User.query.filter_by(role='gerente', is_active=True).all()
                 coordinator_name = user.full_name or user.name or 'Coordinador'
                 campus_name = campus.name if campus else 'N/A'
-                group_name = group.name if group else 'N/A'
+                group_name = group.name if group else 'Plantel general'
                 
                 for gerente in gerentes:
                     if gerente.email:
@@ -844,16 +845,17 @@ def approve_request(request_id):
         balance_request.approver_notes = data.get('notes', '')
         balance_request.approved_at = datetime.utcnow()
         
-        # Acreditar saldo al coordinador para el grupo específico de la solicitud
+        # Acreditar saldo al coordinador para el plantel de la solicitud
         is_scholarship = balance_request.request_type == 'beca'
         concept = 'beca' if is_scholarship else 'saldo_aprobado'
         
         transaction, balance = create_balance_transaction(
             coordinator_id=balance_request.coordinator_id,
-            group_id=balance_request.group_id,
+            campus_id=balance_request.campus_id,
             transaction_type='credit',
             concept=concept,
             amount=amount_approved,
+            group_id=balance_request.group_id,
             reference_type='balance_request',
             reference_id=request_id,
             notes=f"Aprobado por {user.full_name}. {data.get('notes', '')}",
@@ -1037,7 +1039,7 @@ def get_coordinators_balances():
         
         coordinators = query.all()
         
-        # Obtener saldos por grupo
+        # Obtener saldos por plantel
         results = []
         for coord in coordinators:
             balances = CoordinatorBalance.query.filter_by(coordinator_id=coord.id).all()
@@ -1053,7 +1055,7 @@ def get_coordinators_balances():
                     'full_name': coord.full_name,
                     'email': coord.email,
                 },
-                'balances': [b.to_dict(include_group=True) for b in balances],
+                'balances': [b.to_dict(include_campus=True) for b in balances],
                 'totals': {
                     'current_balance': total_balance,
                     'total_received': sum(float(b.total_received or 0) for b in balances),
@@ -1095,23 +1097,25 @@ def create_adjustment():
             return jsonify({'error': 'Monto es requerido'}), 400
         if not data.get('notes'):
             return jsonify({'error': 'Notas/justificación es requerida'}), 400
-        if not data.get('group_id'):
-            return jsonify({'error': 'Grupo es requerido para ajustes de saldo'}), 400
+        if not data.get('campus_id'):
+            return jsonify({'error': 'Plantel es requerido para ajustes de saldo'}), 400
         
         coordinator = User.query.get(data['coordinator_id'])
         if not coordinator or coordinator.role != 'coordinator':
             return jsonify({'error': 'Coordinador no encontrado'}), 404
         
-        group_id = int(data['group_id'])
+        campus_id = int(data['campus_id'])
+        group_id = int(data['group_id']) if data.get('group_id') else None
         amount = float(data['amount'])  # Puede ser positivo o negativo
         transaction_type = 'credit' if amount > 0 else 'debit'
         
         transaction, balance = create_balance_transaction(
             coordinator_id=coordinator.id,
-            group_id=group_id,
+            campus_id=campus_id,
             transaction_type='adjustment',
             concept='ajuste_manual',
             amount=amount,
+            group_id=group_id,
             notes=data['notes'],
             created_by_id=user_id
         )
@@ -1808,10 +1812,11 @@ def email_action(token):
 
                 transaction, balance = create_balance_transaction(
                     coordinator_id=br.coordinator_id,
-                    group_id=br.group_id,
+                    campus_id=br.campus_id,
                     transaction_type='credit',
                     concept=concept,
                     amount=amount_approved,
+                    group_id=br.group_id,
                     reference_type='balance_request',
                     reference_id=rid,
                     notes=f"Aprobado vía email por {gerente.full_name}",

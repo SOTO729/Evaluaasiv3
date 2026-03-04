@@ -15,7 +15,7 @@ import api from './api';
 export interface CoordinatorBalance {
   id: number;
   coordinator_id: string;
-  group_id: number;
+  campus_id: number;
   current_balance: number;
   total_received: number;
   total_spent: number;
@@ -30,13 +30,11 @@ export interface CoordinatorBalance {
     full_name: string;
     email: string;
   };
-  group?: {
+  campus?: {
     id: number;
     name: string;
-    code: string;
-    campus_id: number;
-    campus_name?: string;
     certification_cost?: number;
+    partner_name?: string;
   };
 }
 
@@ -139,6 +137,7 @@ export interface Attachment {
 export interface BalanceTransaction {
   id: number;
   coordinator_id: string;
+  campus_id: number | null;
   group_id: number | null;
   transaction_type: TransactionType;
   transaction_type_label: string;
@@ -239,7 +238,7 @@ export async function createBalanceRequest(data: {
   amount_requested: number;
   justification: string;
   campus_id: number;
-  group_id: number;
+  group_id?: number;
   request_type?: RequestType;
   attachments?: Attachment[];
 }): Promise<{ message: string; request: BalanceRequest }> {
@@ -253,7 +252,7 @@ export async function createBalanceRequest(data: {
 export async function createBatchBalanceRequest(data: {
   items: {
     campus_id: number;
-    group_id: number;
+    group_id?: number;
     amount_requested: number;
     request_type?: RequestType;
   }[];
@@ -384,7 +383,8 @@ export async function getCoordinatorsBalances(params?: {
  */
 export async function createAdjustment(data: {
   coordinator_id: string;
-  group_id: number;
+  campus_id: number;
+  group_id?: number;
   amount: number;
   notes: string;
 }): Promise<{ message: string; transaction: BalanceTransaction; new_balance: number }> {

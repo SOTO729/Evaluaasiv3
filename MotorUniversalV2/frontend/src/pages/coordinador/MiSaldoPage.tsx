@@ -1,10 +1,10 @@
 /**
  * Página de Mi Saldo - Coordinador / Admin
  * 
- * Para Coordinador: ver saldos por grupo, solicitar más saldo/becas,
+ * Para Coordinador: ver saldos por plantel, solicitar más saldo/becas,
  * y ver el historial de transacciones
  * 
- * Para Admin: ver todos los saldos de coordinadores (agrupados por grupo)
+ * Para Admin: ver todos los saldos de coordinadores (agrupados por plantel)
  */
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -40,7 +40,7 @@ import {
   getStatusLabel,
 } from '../../services/balanceService';
 
-// Helper para formatear unidades usando el costo real de certificación del grupo
+// Helper para formatear unidades usando el costo real de certificación del plantel
 const formatUnits = (amount: number, certCost?: number): string => {
   if (!certCost || certCost <= 0) return '';
   const units = Math.floor(amount / certCost);
@@ -166,7 +166,7 @@ export default function MiSaldoPage() {
               Saldos de Coordinadores
             </h1>
             <p className="text-gray-600 mt-1">
-              Vista administrativa — saldo por grupo
+              Vista administrativa — saldo por plantel
             </p>
           </div>
           <button
@@ -235,7 +235,7 @@ export default function MiSaldoPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Coordinador</th>
-                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Grupos con Saldo</th>
+                  <th className="text-left px-6 py-4 text-sm font-semibold text-gray-600">Planteles con Saldo</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Saldo Total</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Total Recibido</th>
                   <th className="text-right px-6 py-4 text-sm font-semibold text-gray-600">Total Consumido</th>
@@ -262,7 +262,7 @@ export default function MiSaldoPage() {
                         <div className="flex flex-wrap gap-1">
                           {coord.balances.map(bal => (
                             <span key={bal.id} className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full">
-                              {bal.group?.name || `Grupo #${bal.group_id}`}: {formatCurrency(bal.current_balance)}
+                              {bal.campus?.name || `Plantel #${bal.campus_id}`}: {formatCurrency(bal.current_balance)}
                             </span>
                           ))}
                           {coord.balances.length === 0 && (
@@ -336,7 +336,7 @@ export default function MiSaldoPage() {
 
   // ===== Vista Coordinador =====
   const totals = balanceData?.totals || { current_balance: 0, total_received: 0, total_spent: 0, total_scholarships: 0 };
-  const groupBalances = balanceData?.balances || [];
+  const campusBalances = balanceData?.balances || [];
   
   const usagePercent = totals.total_received > 0
     ? Math.round((totals.total_spent / totals.total_received) * 100)
@@ -352,7 +352,7 @@ export default function MiSaldoPage() {
             Mi Saldo
           </h1>
           <p className="text-gray-600 mt-1">
-            Saldo por grupo para certificaciones
+            Saldo por plantel para certificaciones
           </p>
         </div>
         <button
@@ -374,7 +374,7 @@ export default function MiSaldoPage() {
               {formatCurrency(totals.current_balance)}
             </p>
             <p className="text-green-100 mt-2">
-              Distribuido en {groupBalances.length} grupo{groupBalances.length !== 1 ? 's' : ''}
+              Distribuido en {campusBalances.length} plantel{campusBalances.length !== 1 ? 'es' : ''}
             </p>
           </div>
           <div className="mt-6 md:mt-0 flex gap-3">
@@ -415,17 +415,17 @@ export default function MiSaldoPage() {
         <div className="p-6 border-b">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <Wallet className="w-5 h-5 text-emerald-500" />
-            Saldo por Grupo
+            Saldo por Plantel
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Cada grupo tiene su propio saldo independiente
+            Cada plantel tiene su propio saldo independiente
           </p>
         </div>
         <div className="p-6">
-          {groupBalances.length === 0 ? (
+          {campusBalances.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <Wallet className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="mb-2">No tienes saldo asignado a ningún grupo</p>
+              <p className="mb-2">No tienes saldo asignado a ningún plantel</p>
               <Link
                 to="/solicitar-saldo"
                 className="text-blue-600 hover:underline"
@@ -435,8 +435,8 @@ export default function MiSaldoPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {groupBalances.map((bal) => {
-                const groupUsage = bal.total_received > 0
+              {campusBalances.map((bal) => {
+                const campusUsage = bal.total_received > 0
                   ? Math.round((bal.total_spent / bal.total_received) * 100)
                   : 0;
                 return (
@@ -447,11 +447,11 @@ export default function MiSaldoPage() {
                     <div className="mb-3 sm:mb-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-gray-800">
-                          {bal.group?.name || `Grupo #${bal.group_id}`}
+                          {bal.campus?.name || `Plantel #${bal.campus_id}`}
                         </p>
-                        {bal.group?.campus_name && (
+                        {bal.campus?.partner_name && (
                           <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full">
-                            {bal.group.campus_name}
+                            {bal.campus.partner_name}
                           </span>
                         )}
                       </div>
@@ -466,20 +466,20 @@ export default function MiSaldoPage() {
                       <div className="flex items-center gap-2 mt-2">
                         <div className="w-32 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                           <div 
-                            className={`h-full rounded-full ${groupUsage > 80 ? 'bg-red-500' : groupUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`}
-                            style={{ width: `${Math.min(groupUsage, 100)}%` }}
+                            className={`h-full rounded-full ${campusUsage > 80 ? 'bg-red-500' : campusUsage > 50 ? 'bg-amber-500' : 'bg-green-500'}`}
+                            style={{ width: `${Math.min(campusUsage, 100)}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-400">{groupUsage}%</span>
+                        <span className="text-xs text-gray-400">{campusUsage}%</span>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-2xl font-bold ${bal.current_balance > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                         {formatCurrency(bal.current_balance)}
                       </p>
-                      {bal.group?.certification_cost && bal.group.certification_cost > 0 && (
+                      {bal.campus?.certification_cost && bal.campus.certification_cost > 0 && (
                         <p className="text-xs text-gray-500">
-                          {formatUnits(bal.current_balance, bal.group.certification_cost)}
+                          {formatUnits(bal.current_balance, bal.campus.certification_cost)}
                         </p>
                       )}
                     </div>

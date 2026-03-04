@@ -5060,11 +5060,11 @@ def assignment_cost_preview(group_id):
         billable_count = units - already_assigned_count
         total_cost = unit_cost * billable_count
         
-        # Obtener saldo actual del coordinador para este grupo
+        # Obtener saldo actual del coordinador para este plantel
         coordinator_id = g.current_user.id
         balance = CoordinatorBalance.query.filter_by(
             coordinator_id=coordinator_id,
-            group_id=group_id
+            campus_id=group.campus_id
         ).first()
         current_balance = float(balance.current_balance) if balance else 0.0
         
@@ -5255,14 +5255,14 @@ def assign_exam_to_group(group_id):
                     coordinator_id = g.current_user.id
                     balance = CoordinatorBalance.query.filter_by(
                         coordinator_id=coordinator_id,
-                        group_id=group_id
+                        campus_id=group.campus_id
                     ).first()
                     current_bal = float(balance.current_balance) if balance else 0.0
                     
                     if current_bal < r_total_cost:
                         db.session.rollback()
                         return jsonify({
-                            'error': f'Saldo insuficiente para este grupo. Necesitas ${r_total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                            'error': f'Saldo insuficiente para este plantel. Necesitas ${r_total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
                             'error_type': 'insufficient_balance',
                             'required': r_total_cost,
                             'available': current_bal,
@@ -5277,10 +5277,11 @@ def assign_exam_to_group(group_id):
                     
                     create_balance_transaction(
                         coordinator_id=coordinator_id,
-                        group_id=group_id,
+                        campus_id=group.campus_id,
                         transaction_type='debit',
                         concept='asignacion_certificacion',
                         amount=r_total_cost,
+                        group_id=group_id,
                         reference_type='group_exam',
                         reference_id=existing.id,
                         notes=notes,
@@ -5458,14 +5459,14 @@ def assign_exam_to_group(group_id):
             coordinator_id = g.current_user.id
             balance = CoordinatorBalance.query.filter_by(
                 coordinator_id=coordinator_id,
-                group_id=group_id
+                campus_id=group.campus_id
             ).first()
             current_balance = float(balance.current_balance) if balance else 0.0
             
             if current_balance < total_cost:
                 db.session.rollback()
                 return jsonify({
-                    'error': f'Saldo insuficiente para este grupo. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error': f'Saldo insuficiente para este plantel. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': total_cost,
                     'available': current_balance,
@@ -5481,10 +5482,11 @@ def assign_exam_to_group(group_id):
             
             create_balance_transaction(
                 coordinator_id=coordinator_id,
-                group_id=group_id,
+                campus_id=group.campus_id,
                 transaction_type='debit',
                 concept='asignacion_certificacion',
                 amount=total_cost,
+                group_id=group_id,
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
@@ -6936,7 +6938,7 @@ def apply_ecm_retake(group_id, exam_id, user_id):
         else:
             retake_cost = 0.0
 
-        # Verificar saldo del coordinador para este grupo
+        # Verificar saldo del coordinador para este plantel
         # Admins y developers no requieren verificación de saldo
         user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
         is_admin_or_dev = user_role in ('admin', 'developer')
@@ -6946,13 +6948,13 @@ def apply_ecm_retake(group_id, exam_id, user_id):
             coordinator_id = g.current_user.id
             balance = CoordinatorBalance.query.filter_by(
                 coordinator_id=coordinator_id,
-                group_id=group_id
+                campus_id=group.campus_id
             ).first()
             current_balance = float(balance.current_balance) if balance else 0.0
             
             if current_balance < retake_cost:
                 return jsonify({
-                    'error': f'Saldo insuficiente para este grupo. La retoma cuesta ${retake_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error': f'Saldo insuficiente para este plantel. La retoma cuesta ${retake_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': retake_cost,
                     'available': current_balance,
@@ -6967,10 +6969,11 @@ def apply_ecm_retake(group_id, exam_id, user_id):
             
             transaction = create_balance_transaction(
                 coordinator_id=coordinator_id,
-                group_id=group_id,
+                campus_id=group.campus_id,
                 transaction_type='debit',
                 concept='asignacion_retoma',
                 amount=retake_cost,
+                group_id=group_id,
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
@@ -7061,11 +7064,11 @@ def preview_ecm_retake(group_id, exam_id):
         max_retakes = group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus and campus.max_retakes is not None else 0)
         retake_cost = float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus and campus.retake_cost else 0)
 
-        # Saldo del grupo específico
+        # Saldo del plantel
         from app.models.balance import CoordinatorBalance
         balance = CoordinatorBalance.query.filter_by(
             coordinator_id=g.current_user.id,
-            group_id=group_id
+            campus_id=group.campus_id
         ).first()
         current_balance = float(balance.current_balance) if balance else 0.0
 

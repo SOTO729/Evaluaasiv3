@@ -64,7 +64,7 @@ interface RequestLine {
   campusId: number;
   campusName: string;
   campusPartner: string;
-  groupId: number | null; // null only before selection
+  groupId: number | null; // null = precio base del plantel
   groupName: string;
   units: number;
   pricePerUnit: number;
@@ -318,7 +318,6 @@ export default function SolicitarSaldoPage() {
 
   const handleAddLine = (campus: AvailableCampus) => {
     if (newLineUnits <= 0) return;
-    if (newLineGroupId === null) return; // Grupo obligatorio
 
     const price = getGroupPrice(campus.id, newLineGroupId);
     const newLine: RequestLine = {
@@ -328,7 +327,7 @@ export default function SolicitarSaldoPage() {
       campusName: campus.name,
       campusPartner: campus.partner_name,
       groupId: newLineGroupId,
-      groupName: getGroupName(campus.id, newLineGroupId),
+      groupName: newLineGroupId ? getGroupName(campus.id, newLineGroupId) : 'Precio base plantel',
       units: newLineUnits,
       pricePerUnit: price,
       hasDifferentPrice: hasDifferentPrice(campus.id, newLineGroupId),
@@ -411,7 +410,7 @@ export default function SolicitarSaldoPage() {
           request_type: line.type,
           amount_requested: line.units * line.pricePerUnit,
           campus_id: line.campusId,
-          group_id: line.groupId!,
+          group_id: line.groupId || undefined,
         })),
         justification: justification.trim(),
         attachments: attachments,
@@ -973,13 +972,13 @@ export default function SolicitarSaldoPage() {
 
                                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div>
-                                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Grupo <span className="text-red-500">*</span></label>
+                                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Grupo <span className="text-gray-400">(opcional, para precio especial)</span></label>
                                           <select
                                             value={newLineGroupId ?? ''}
                                             onChange={(e) => setNewLineGroupId(e.target.value === '' ? null : parseInt(e.target.value))}
                                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm bg-white"
                                           >
-                                            <option value="">Seleccionar grupo...</option>
+                                            <option value="">Precio base del plantel</option>
                                             {getGroupOptions(campus.id).map(opt => (
                                               <option key={opt.id ?? 'null'} value={opt.id ?? ''}>
                                                 {opt.name} {opt.hasDifferentPrice ? `(${formatCurrency(opt.price)})` : ''}
@@ -1009,7 +1008,7 @@ export default function SolicitarSaldoPage() {
                                         <div className="flex items-end">
                                           <button
                                             onClick={() => handleAddLine(campus)}
-                                            disabled={newLineUnits <= 0 || newLineGroupId === null}
+                                            disabled={newLineUnits <= 0}
                                             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-all shadow-sm hover:shadow-md"
                                           >
                                             <Plus className="w-4 h-4" />
