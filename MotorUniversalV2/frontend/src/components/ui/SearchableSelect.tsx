@@ -22,6 +22,7 @@ interface SearchableSelectProps {
   disabled?: boolean;
   loading?: boolean;
   loadingText?: string;
+  emptyMessage?: string;
   icon?: React.ReactNode;
   label?: string;
   className?: string;
@@ -35,6 +36,7 @@ export default function SearchableSelect({
   disabled = false,
   loading = false,
   loadingText = 'Cargando...',
+  emptyMessage = 'Sin opciones',
   icon,
   label,
   className = '',
@@ -231,7 +233,7 @@ export default function SearchableSelect({
           >
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-sm text-gray-400 text-center">
-                {search ? 'Sin resultados' : 'Sin opciones'}
+                {search ? 'Sin resultados' : emptyMessage}
               </li>
             ) : (
               filtered.map((option, idx) => (

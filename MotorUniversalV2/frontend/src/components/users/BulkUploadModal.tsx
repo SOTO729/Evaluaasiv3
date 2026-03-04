@@ -445,6 +445,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     loading={loadingPartners}
                     loadingText="Cargando partners..."
                     placeholder="-- Selecciona un partner --"
+                    emptyMessage="No hay partners registrados"
                   />
 
                   {/* Plantel */}
@@ -458,6 +459,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     loading={loadingCampuses}
                     loadingText="Cargando planteles..."
                     placeholder={!selectedPartnerId ? '-- Selecciona un partner primero --' : '-- Selecciona un plantel --'}
+                    emptyMessage="No hay planteles en este partner"
                   />
 
                   {/* Grupo */}
@@ -472,6 +474,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                       loading={loadingGroups}
                       loadingText="Cargando grupos..."
                       placeholder={!selectedCampusId ? '-- Selecciona un plantel primero --' : '-- Selecciona un grupo --'}
+                      emptyMessage="No hay grupos en este plantel"
                     />
 
                     {/* Botón crear grupo */}
