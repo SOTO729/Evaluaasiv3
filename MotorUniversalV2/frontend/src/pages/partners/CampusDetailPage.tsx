@@ -46,7 +46,6 @@ import {
   getCampus,
   getSchoolCycles,
   createSchoolCycle,
-  deactivateCampus,
   permanentDeleteCampus,
   permanentDeleteCycle,
   getCampusCompetencyStandards,
@@ -335,17 +334,6 @@ export default function CampusDetailPage() {
     }
   };
 
-  const handleDeactivateCampus = async () => {
-    if (!campus) return;
-    if (!confirm('¿Deseas desactivar este plantel?')) return;
-    try {
-      await deactivateCampus(campus.id);
-      window.location.reload();
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al desactivar el plantel');
-    }
-  };
-
   const handleReactivateCampus = async () => {
     if (!campus) return;
     try {
@@ -499,15 +487,6 @@ export default function CampusDetailPage() {
               <Edit className="fluid-icon-base" />
               Editar
             </Link>
-            {campus.is_active && (
-              <button
-                onClick={handleDeactivateCampus}
-                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300"
-              >
-                <AlertCircle className="fluid-icon-base" />
-                Desactivar
-              </button>
-            )}
             {!campus.is_active && campus.configuration_completed && (
               <button
                 onClick={handleReactivateCampus}
