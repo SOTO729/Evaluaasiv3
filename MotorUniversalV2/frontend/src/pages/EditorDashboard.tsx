@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { editorDashboardService, EditorDashboardData } from '../services/editorDashboardService'
 import {
@@ -695,10 +695,10 @@ const EditorDashboard = () => {
           ) : (
             <div className="flex flex-col fluid-gap-2">
               {recentStandards.map((standard) => (
-                <div 
+                <Link 
                   key={standard.id}
-                  onClick={() => navigate(`/standards/${standard.id}`)}
-                  className="fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-purple-50 cursor-pointer transition-colors group border border-transparent hover:border-purple-200"
+                  to={`/standards/${standard.id}`}
+                  className="block fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-purple-50 cursor-pointer transition-colors group border border-transparent hover:border-purple-200 no-underline"
                 >
                   <div className="flex items-center justify-between fluid-gap-2">
                     <div className="flex-1 min-w-0">
@@ -716,7 +716,7 @@ const EditorDashboard = () => {
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-purple-500 flex-shrink-0" />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -746,10 +746,10 @@ const EditorDashboard = () => {
           ) : (
             <div className="flex flex-col fluid-gap-2">
               {recentExams.map((exam) => (
-                <div 
+                <Link 
                   key={exam.id}
-                  onClick={() => navigate(`/exams/${exam.id}/edit`)}
-                  className="fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-blue-50 cursor-pointer transition-colors group border border-transparent hover:border-blue-200"
+                  to={`/exams/${exam.id}/edit`}
+                  className="block fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-blue-50 cursor-pointer transition-colors group border border-transparent hover:border-blue-200 no-underline"
                 >
                   <div className="flex items-center justify-between fluid-gap-2">
                     <div className="flex-1 min-w-0">
@@ -773,7 +773,7 @@ const EditorDashboard = () => {
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500 flex-shrink-0" />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
@@ -803,10 +803,10 @@ const EditorDashboard = () => {
           ) : (
             <div className="flex flex-col fluid-gap-2">
               {recentMaterials.map((material) => (
-                <div 
+                <Link 
                   key={material.id}
-                  onClick={() => navigate(`/study-contents/${material.id}`)}
-                  className="fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-emerald-50 cursor-pointer transition-colors group border border-transparent hover:border-emerald-200"
+                  to={`/study-contents/${material.id}`}
+                  className="block fluid-p-3 bg-gray-50 rounded-fluid-lg hover:bg-emerald-50 cursor-pointer transition-colors group border border-transparent hover:border-emerald-200 no-underline"
                 >
                   <div className="flex items-center justify-between fluid-gap-2">
                     <div className="flex-1 min-w-0">
@@ -834,7 +834,7 @@ const EditorDashboard = () => {
                     </div>
                     <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 flex-shrink-0" />
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}
