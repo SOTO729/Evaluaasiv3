@@ -46,7 +46,6 @@ import {
   getCampus,
   getSchoolCycles,
   createSchoolCycle,
-  deleteSchoolCycle,
   deactivateCampus,
   permanentDeleteCampus,
   permanentDeleteCycle,
@@ -291,36 +290,11 @@ export default function CampusDetailPage() {
     }
   };
 
-  // Abrir modal de confirmación para desactivar ciclo
-  const openCycleDeleteModal = (cycle: SchoolCycle) => {
-    setCycleToDelete(cycle);
-    setIsPermanentDelete(false);
-    setShowCycleDeleteModal(true);
-  };
-
   // Abrir modal de confirmación para borrar permanentemente
   const openCyclePermanentDeleteModal = (cycle: SchoolCycle) => {
     setCycleToDelete(cycle);
     setIsPermanentDelete(true);
     setShowCycleDeleteModal(true);
-  };
-
-  // Desactivar ciclo (soft delete)
-  const handleDeactivateCycle = async () => {
-    if (!cycleToDelete) return;
-    try {
-      setIsDeletingCycle(true);
-      await deleteSchoolCycle(cycleToDelete.id);
-      setCycles(prev => prev.map(c => c.id === cycleToDelete.id ? { ...c, is_active: false, is_current: false } : c));
-      setDeletedCycleName(cycleToDelete.name);
-      setShowCycleDeleteModal(false);
-      setCycleDeleteStats(null);
-      setShowCycleDeleteSuccessModal(true);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al desactivar el ciclo');
-    } finally {
-      setIsDeletingCycle(false);
-    }
   };
 
   // Eliminar permanentemente ciclo (solo admin)
@@ -1035,17 +1009,8 @@ export default function CampusDetailPage() {
                               </span>
                             </div>
                           </div>
-                          {/* Botones de acción: desactivar y borrar */}
+                          {/* Botones de acción: solo borrar permanentemente (admin) */}
                           <div className="flex items-center fluid-gap-1">
-                            {cycle.is_active && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); openCycleDeleteModal(cycle); }}
-                                className="fluid-p-2 hover:bg-amber-50 rounded-fluid-xl text-gray-400 hover:text-amber-600 transition-colors"
-                                title="Desactivar ciclo"
-                              >
-                                <Power className="fluid-icon-base" />
-                              </button>
-                            )}
                             {isAdmin && (
                               <button
                                 onClick={(e) => { e.stopPropagation(); openCyclePermanentDeleteModal(cycle); }}
@@ -1363,7 +1328,7 @@ export default function CampusDetailPage() {
                 Cancelar
               </button>
               <button
-                onClick={isPermanentDelete ? handlePermanentDeleteCycle : handleDeactivateCycle}
+                onClick={handlePermanentDeleteCycle}
                 disabled={isDeletingCycle}
                 className={`fluid-px-6 fluid-py-3 rounded-fluid-xl transition-all fluid-text-sm font-bold flex items-center fluid-gap-2 disabled:opacity-50 shadow-lg hover:shadow-xl hover:-translate-y-0.5 ${isPermanentDelete ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'}`}
               >

@@ -2227,7 +2227,7 @@ def update_school_cycle(cycle_id):
             cycle.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
         
         if 'is_active' in data:
-            cycle.is_active = data['is_active']
+            pass  # Los ciclos escolares siempre deben estar activos
         
         # Si se marca como ciclo actual, desmarcar los demás del mismo campus
         if data.get('is_current', False) and not cycle.is_current:
@@ -2254,18 +2254,8 @@ def update_school_cycle(cycle_id):
 @jwt_required()
 @coordinator_required
 def delete_school_cycle(cycle_id):
-    """Eliminar un ciclo escolar (soft delete)"""
-    try:
-        cycle = SchoolCycle.query.get_or_404(cycle_id)
-        cycle.is_active = False
-        cycle.is_current = False
-        db.session.commit()
-        
-        return jsonify({'message': 'Ciclo escolar desactivado exitosamente'})
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+    """Desactivar ciclo escolar — DESHABILITADO: los ciclos siempre deben estar activos"""
+    return jsonify({'error': 'No se permite desactivar ciclos escolares. Los ciclos siempre deben estar activos.'}), 403
 
 
 @bp.route('/cycles/<int:cycle_id>/permanent-delete', methods=['DELETE'])
