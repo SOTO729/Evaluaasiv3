@@ -622,7 +622,8 @@ def create_campus(partner_id):
         import uuid
         
         def generate_unique_username():
-            chars = string.ascii_uppercase + string.digits
+            _CONFUSING = set('ILO0')
+            chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
             while True:
                 username = ''.join(random.choices(chars, k=10))
                 if not User.query.filter_by(username=username).first():
@@ -1059,8 +1060,10 @@ def create_campus_responsable(campus_id):
                     return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
         
         # Generar username único de 10 caracteres (letras y números en mayúsculas)
+        # Excluye caracteres confusos: I, L, O, 0
         def generate_unique_username():
-            chars = string.ascii_uppercase + string.digits
+            _CONFUSING = set('ILO0')
+            chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
             while True:
                 username = ''.join(random.choices(chars, k=10))
                 if not User.query.filter_by(username=username).first():
@@ -1522,7 +1525,9 @@ def add_campus_responsable(campus_id):
                 return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({curp}). No se puede usar la misma persona como responsable en otro plantel.'}), 400
 
         # Generar username y password
-        chars = string.ascii_uppercase + string.digits
+        # Excluye caracteres confusos: I, L, O, 0
+        _CONFUSING = set('ILO0')
+        chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
         while True:
             username = ''.join(random.choices(chars, k=10))
             if not User.query.filter_by(username=username).first():

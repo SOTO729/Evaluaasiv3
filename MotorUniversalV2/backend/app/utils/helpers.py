@@ -46,9 +46,10 @@ def paginate_query(query, page=1, per_page=20):
 
 
 def generate_voucher_code(length=12):
-    """Generar código de voucher único"""
+    """Generar código de voucher único (excluye caracteres confusos: I, L, O, 0)"""
     import random
     import string
     
-    chars = string.ascii_uppercase + string.digits
+    _CONFUSING = set('ILO0')
+    chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
     return ''.join(random.choice(chars) for _ in range(length))

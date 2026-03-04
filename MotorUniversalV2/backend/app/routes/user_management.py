@@ -95,11 +95,14 @@ def validate_password(password):
 
 
 def generate_secure_password(length=12):
-    """Generar contraseña que siempre cumple los requisitos de validación."""
+    """Generar contraseña que siempre cumple los requisitos de validación.
+    Excluye caracteres confusos: i, I, l, L, o, O, 0
+    """
     import secrets, string
-    upper = string.ascii_uppercase
-    lower = string.ascii_lowercase
-    digits = string.digits
+    _CONFUSING = set('iIlLoO0')
+    upper = ''.join(c for c in string.ascii_uppercase if c not in _CONFUSING)
+    lower = ''.join(c for c in string.ascii_lowercase if c not in _CONFUSING)
+    digits = ''.join(c for c in string.digits if c not in _CONFUSING)
     special = '-_'
     all_chars = upper + lower + digits + special
     while True:
@@ -609,8 +612,11 @@ def create_user():
         import string
         
         def generate_unique_username():
-            """Genera un username único de 10 caracteres alfanuméricos en MAYÚSCULAS"""
-            chars = string.ascii_uppercase + string.digits
+            """Genera un username único de 10 caracteres alfanuméricos en MAYÚSCULAS.
+            Excluye caracteres confusos: I, L, O, 0
+            """
+            _CONFUSING = set('ILO0')
+            chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
             while True:
                 username = ''.join(random.choices(chars, k=10))
                 if not User.query.filter_by(username=username).first():
@@ -1503,15 +1509,17 @@ def _batch_generate_usernames(rows_to_create):
     from sqlalchemy import func as sf, or_
     CHUNK = 500
 
-    # Calcular base usernames
+    # Calcular base usernames (excluir caracteres confusos: I, L, O, 0)
+    _CONFUSING = set('ILO0')
     bases = {}
     for r in rows_to_create:
         if r['email']:
             base = r['email'].split('@')[0].upper()
         else:
             base = f"{(r['nombre'] or 'X')[:3]}{(r['primer_apellido'] or 'X')[:3]}".upper()
-        # Limpiar caracteres no alfanuméricos
+        # Limpiar caracteres no alfanuméricos y confusos
         base = re.sub(r'[^A-Z0-9]', '', base) or 'USER'
+        base = ''.join(c for c in base if c not in _CONFUSING) or 'USER'
         bases[r['row']] = base
 
     # Batch-fetch usernames existentes con esos prefijos
@@ -1939,10 +1947,14 @@ def bulk_upload_candidates():
         # Generar usernames
         username_map = _batch_generate_usernames(to_create) if to_create else {}
 
-        # Función para generar contraseña
+        # Función para generar contraseña (excluye caracteres confusos: i, I, l, L, o, O, 0)
         def _gen_pwd(length=10):
-            alpha = string.ascii_letters + string.digits
-            pwd = [secrets.choice(string.ascii_uppercase), secrets.choice(string.ascii_lowercase), secrets.choice(string.digits)]
+            _CONFUSING = set('iIlLoO0')
+            upper = ''.join(c for c in string.ascii_uppercase if c not in _CONFUSING)
+            lower = ''.join(c for c in string.ascii_lowercase if c not in _CONFUSING)
+            digits = ''.join(c for c in string.digits if c not in _CONFUSING)
+            alpha = upper + lower + digits
+            pwd = [secrets.choice(upper), secrets.choice(lower), secrets.choice(digits)]
             pwd += [secrets.choice(alpha) for _ in range(length - 3)]
             secrets.SystemRandom().shuffle(pwd)
             return ''.join(pwd)
