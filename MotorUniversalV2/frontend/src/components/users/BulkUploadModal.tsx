@@ -22,6 +22,7 @@ import {
   Eye,
   ArrowLeft,
   UserPlus,
+  Plus,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -35,6 +36,7 @@ import {
   getPartners,
   getCampuses,
   getGroups,
+  createGroup,
 } from '../../services/partnersService';
 import SearchableSelect from '../ui/SearchableSelect';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -84,6 +86,12 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [loadingCampuses, setLoadingCampuses] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [showGroupSelector, setShowGroupSelector] = useState(false);
+
+  // Estado para crear grupo inline
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [createGroupError, setCreateGroupError] = useState<string | null>(null);
 
   // Cargar partners al abrir el selector
   useEffect(() => {
@@ -325,6 +333,26 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     setSelectedGroupId('');
     setCampuses([]);
     setGroups([]);
+    setShowCreateGroup(false);
+    setNewGroupName('');
+  };
+
+  const handleCreateGroup = async () => {
+    if (!newGroupName.trim() || !selectedCampusId) return;
+    setCreatingGroup(true);
+    setCreateGroupError(null);
+    try {
+      const newGroup = await createGroup(Number(selectedCampusId), { name: newGroupName.trim() });
+      // Agregar el grupo nuevo a la lista y seleccionarlo
+      setGroups(prev => [...prev, { id: newGroup.id, name: newGroup.name }]);
+      setSelectedGroupId(newGroup.id);
+      setShowCreateGroup(false);
+      setNewGroupName('');
+    } catch (err: any) {
+      setCreateGroupError(err?.response?.data?.error || 'Error al crear el grupo');
+    } finally {
+      setCreatingGroup(false);
+    }
   };
 
   const handleCopyPassword = (row: number, password: string) => {
@@ -433,17 +461,78 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   />
 
                   {/* Grupo */}
-                  <SearchableSelect
-                    label="Grupo"
-                    icon={<Layers className="h-4 w-4 text-gray-400" />}
-                    options={groups}
-                    value={selectedGroupId}
-                    onChange={v => setSelectedGroupId(v ? Number(v) : '')}
-                    disabled={!selectedCampusId || loadingGroups}
-                    loading={loadingGroups}
-                    loadingText="Cargando grupos..."
-                    placeholder={!selectedCampusId ? '-- Selecciona un plantel primero --' : '-- Selecciona un grupo --'}
-                  />
+                  <div className="space-y-2">
+                    <SearchableSelect
+                      label="Grupo"
+                      icon={<Layers className="h-4 w-4 text-gray-400" />}
+                      options={groups}
+                      value={selectedGroupId}
+                      onChange={v => { setSelectedGroupId(v ? Number(v) : ''); setShowCreateGroup(false); }}
+                      disabled={!selectedCampusId || loadingGroups}
+                      loading={loadingGroups}
+                      loadingText="Cargando grupos..."
+                      placeholder={!selectedCampusId ? '-- Selecciona un plantel primero --' : '-- Selecciona un grupo --'}
+                    />
+
+                    {/* Botón crear grupo */}
+                    {selectedCampusId && !selectedGroupId && !showCreateGroup && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowCreateGroup(true); setNewGroupName(''); setCreateGroupError(null); }}
+                        className="flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Crear nuevo grupo
+                      </button>
+                    )}
+
+                    {/* Mini formulario crear grupo */}
+                    {showCreateGroup && (
+                      <div className="p-3 bg-white rounded-lg border border-purple-300 space-y-2">
+                        <p className="text-xs font-medium text-purple-700">Nuevo grupo en: {campuses.find(c => c.id === selectedCampusId)?.name}</p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newGroupName}
+                            onChange={e => { setNewGroupName(e.target.value); setCreateGroupError(null); }}
+                            placeholder="Nombre del grupo"
+                            className="flex-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && newGroupName.trim()) {
+                                e.preventDefault();
+                                handleCreateGroup();
+                              } else if (e.key === 'Escape') {
+                                setShowCreateGroup(false);
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCreateGroup}
+                            disabled={!newGroupName.trim() || creatingGroup}
+                            className="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                          >
+                            {creatingGroup ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                            Crear
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowCreateGroup(false)}
+                            className="px-2 py-1.5 text-gray-500 hover:text-gray-700 text-sm"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        {createGroupError && (
+                          <p className="text-xs text-red-600 flex items-center gap-1">
+                            <XCircle className="h-3.5 w-3.5" />
+                            {createGroupError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Selected group summary */}
                   {selectedGroupId && (
