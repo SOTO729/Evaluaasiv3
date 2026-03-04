@@ -23,6 +23,7 @@ import {
   ArrowLeft,
   UserPlus,
   Plus,
+  CalendarDays,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -37,6 +38,7 @@ import {
   getCampuses,
   getGroups,
   createGroup,
+  getSchoolCycles,
 } from '../../services/partnersService';
 import SearchableSelect from '../ui/SearchableSelect';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -87,6 +89,11 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [showGroupSelector, setShowGroupSelector] = useState(false);
 
+  // Estado para ciclo escolar
+  const [selectedCycleId, setSelectedCycleId] = useState<number | ''>('');
+  const [cycles, setCycles] = useState<Array<{ id: number; name: string }>>([]);
+  const [loadingCycles, setLoadingCycles] = useState(false);
+
   // Estado para crear grupo inline
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -107,8 +114,10 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   // Cargar campuses cuando cambia el partner
   useEffect(() => {
     setCampuses([]);
+    setCycles([]);
     setGroups([]);
     setSelectedCampusId('');
+    setSelectedCycleId('');
     setSelectedGroupId('');
     if (selectedPartnerId) {
       setLoadingCampuses(true);
@@ -119,18 +128,33 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   }, [selectedPartnerId]);
 
-  // Cargar grupos cuando cambia el campus
+  // Cargar ciclos escolares cuando cambia el campus
+  useEffect(() => {
+    setCycles([]);
+    setGroups([]);
+    setSelectedCycleId('');
+    setSelectedGroupId('');
+    if (selectedCampusId) {
+      setLoadingCycles(true);
+      getSchoolCycles(Number(selectedCampusId), { active_only: true })
+        .then(res => setCycles((res.cycles || []).map((c: any) => ({ id: c.id, name: c.name }))))
+        .catch(() => {})
+        .finally(() => setLoadingCycles(false));
+    }
+  }, [selectedCampusId]);
+
+  // Cargar grupos cuando cambia el ciclo escolar
   useEffect(() => {
     setGroups([]);
     setSelectedGroupId('');
-    if (selectedCampusId) {
+    if (selectedCampusId && selectedCycleId) {
       setLoadingGroups(true);
-      getGroups(Number(selectedCampusId))
+      getGroups(Number(selectedCampusId), { cycle_id: Number(selectedCycleId) })
         .then(res => setGroups((res.groups || []).map((g: any) => ({ id: g.id, name: g.name }))))
         .catch(() => {})
         .finally(() => setLoadingGroups(false));
     }
-  }, [selectedCampusId]);
+  }, [selectedCampusId, selectedCycleId]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -330,8 +354,10 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const handleResetGroup = () => {
     setSelectedPartnerId('');
     setSelectedCampusId('');
+    setSelectedCycleId('');
     setSelectedGroupId('');
     setCampuses([]);
+    setCycles([]);
     setGroups([]);
     setShowCreateGroup(false);
     setNewGroupName('');
@@ -342,7 +368,10 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     setCreatingGroup(true);
     setCreateGroupError(null);
     try {
-      const newGroup = await createGroup(Number(selectedCampusId), { name: newGroupName.trim() });
+      const newGroup = await createGroup(Number(selectedCampusId), {
+        name: newGroupName.trim(),
+        ...(selectedCycleId ? { school_cycle_id: Number(selectedCycleId) } : {}),
+      });
       // Agregar el grupo nuevo a la lista y seleccionarlo
       setGroups(prev => [...prev, { id: newGroup.id, name: newGroup.name }]);
       setSelectedGroupId(newGroup.id);
@@ -462,6 +491,20 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     emptyMessage="No hay planteles en este partner"
                   />
 
+                  {/* Ciclo Escolar */}
+                  <SearchableSelect
+                    label="Ciclo Escolar"
+                    icon={<CalendarDays className="h-4 w-4 text-gray-400" />}
+                    options={cycles}
+                    value={selectedCycleId}
+                    onChange={v => setSelectedCycleId(v ? Number(v) : '')}
+                    disabled={!selectedCampusId || loadingCycles}
+                    loading={loadingCycles}
+                    loadingText="Cargando ciclos..."
+                    placeholder={!selectedCampusId ? '-- Selecciona un plantel primero --' : '-- Selecciona un ciclo escolar --'}
+                    emptyMessage="No hay ciclos escolares en este plantel"
+                  />
+
                   {/* Grupo */}
                   <div className="space-y-2">
                     <SearchableSelect
@@ -470,15 +513,15 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                       options={groups}
                       value={selectedGroupId}
                       onChange={v => { setSelectedGroupId(v ? Number(v) : ''); setShowCreateGroup(false); }}
-                      disabled={!selectedCampusId || loadingGroups}
+                      disabled={!selectedCycleId || loadingGroups}
                       loading={loadingGroups}
                       loadingText="Cargando grupos..."
-                      placeholder={!selectedCampusId ? '-- Selecciona un plantel primero --' : '-- Selecciona un grupo --'}
-                      emptyMessage="No hay grupos en este plantel"
+                      placeholder={!selectedCycleId ? '-- Selecciona un ciclo primero --' : '-- Selecciona un grupo --'}
+                      emptyMessage="No hay grupos en este ciclo"
                     />
 
                     {/* Botón crear grupo */}
-                    {selectedCampusId && !selectedGroupId && !showCreateGroup && (
+                    {selectedCycleId && !selectedGroupId && !showCreateGroup && (
                       <button
                         type="button"
                         onClick={() => { setShowCreateGroup(true); setNewGroupName(''); setCreateGroupError(null); }}
@@ -547,7 +590,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                         </span>
                         <span className="text-gray-400">•</span>
                         <span className="text-gray-500 text-xs">
-                          {partners.find(p => p.id === selectedPartnerId)?.name} / {campuses.find(c => c.id === selectedCampusId)?.name}
+                          {partners.find(p => p.id === selectedPartnerId)?.name} / {campuses.find(c => c.id === selectedCampusId)?.name} / {cycles.find(c => c.id === selectedCycleId)?.name}
                         </span>
                       </div>
                       <button
