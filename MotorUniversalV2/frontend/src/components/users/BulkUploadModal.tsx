@@ -419,17 +419,17 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     placeholder="-- Selecciona un partner --"
                   />
 
-                  {/* Campus */}
+                  {/* Plantel */}
                   <SearchableSelect
-                    label="Campus"
+                    label="Plantel"
                     icon={<MapPin className="h-4 w-4 text-gray-400" />}
                     options={campuses}
                     value={selectedCampusId}
                     onChange={v => setSelectedCampusId(v ? Number(v) : '')}
                     disabled={!selectedPartnerId || loadingCampuses}
                     loading={loadingCampuses}
-                    loadingText="Cargando campus..."
-                    placeholder={!selectedPartnerId ? '-- Selecciona un partner primero --' : '-- Selecciona un campus --'}
+                    loadingText="Cargando planteles..."
+                    placeholder={!selectedPartnerId ? '-- Selecciona un partner primero --' : '-- Selecciona un plantel --'}
                   />
 
                   {/* Grupo */}
@@ -442,7 +442,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     disabled={!selectedCampusId || loadingGroups}
                     loading={loadingGroups}
                     loadingText="Cargando grupos..."
-                    placeholder={!selectedCampusId ? '-- Selecciona un campus primero --' : '-- Selecciona un grupo --'}
+                    placeholder={!selectedCampusId ? '-- Selecciona un plantel primero --' : '-- Selecciona un grupo --'}
                   />
 
                   {/* Selected group summary */}
