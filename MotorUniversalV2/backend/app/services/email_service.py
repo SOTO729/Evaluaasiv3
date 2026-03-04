@@ -34,6 +34,10 @@ API_URL = os.getenv('API_URL', 'https://evaluaasi-motorv2-api.purpleocean-384694
 CONTACT_RECIPIENT = os.getenv('CONTACT_RECIPIENT', 'contacto@evaluaasi.com')
 EMAIL_ACTION_SECRET = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Test email override: when set, ALL emails go to this address instead of actual recipients
+# Used for testing email flows in DEV environment
+TEST_EMAIL_OVERRIDE = os.getenv('TEST_EMAIL_OVERRIDE', '')
+
 # Token expiration: 7 days
 EMAIL_TOKEN_MAX_AGE = 7 * 24 * 3600
 
@@ -123,11 +127,21 @@ def send_email(
     
     Returns True si se envió correctamente, False en caso de error.
     NO lanza excepciones para no interrumpir flujos principales.
+    
+    Note: If TEST_EMAIL_OVERRIDE env var is set, all emails go to that address.
     """
     client = _get_client()
     if not client:
         logger.info(f"[EMAIL SKIP] to={to} subject={subject}")
         return False
+
+    # Test override: redirect all emails to test recipient
+    original_to = to
+    if TEST_EMAIL_OVERRIDE:
+        to = TEST_EMAIL_OVERRIDE
+        subject = f"[TEST→{original_to}] {subject}"
+        cc = None  # Don't CC in test mode
+        logger.info(f"[EMAIL TEST OVERRIDE] original={original_to} → test={to}")
 
     try:
         recipients = {"to": [{"address": to}]}
