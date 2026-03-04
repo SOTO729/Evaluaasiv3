@@ -129,5 +129,5 @@ esac
 echo ""
 log "DEV URLs:"
 log "  API:      https://evaluaasi-motorv2-api-dev.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
-log "  Frontend: https://orange-sky-01755e210.1.azurestaticapps.net"
+log "  Frontend: https://dev.evaluaasi.com"
 log "  Login:    admin / Admin123!"

@@ -107,7 +107,7 @@ def init_dev_database():
             print(f"ℹ️  {existing} tipos de preguntas ya existen")
         
         print("\n🎉 Base de datos de desarrollo inicializada correctamente")
-        print(f"   URL: https://orange-sky-01755e210.1.azurestaticapps.net")
+        print(f"   URL: https://dev.evaluaasi.com")
         print(f"   API: https://evaluaasi-motorv2-api-dev.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api")
         print(f"   Login: admin / Admin123!")
 
