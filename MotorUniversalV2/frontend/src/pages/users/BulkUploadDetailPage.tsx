@@ -216,63 +216,41 @@ export default function BulkUploadDetailPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 fluid-gap-4 fluid-mb-6">
-        <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-blue-300 hover:shadow-md transition-all">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-fluid-xl shadow-sm">
-              <BarChart3 className="fluid-icon-sm text-white" />
-            </div>
-            <div>
-              <p className="fluid-text-xs text-gray-500 font-medium">Total</p>
-              <p className="fluid-text-xl font-bold text-gray-900">{batch.total_processed}</p>
-            </div>
+      {(() => {
+        const total = batch.total_processed || 1;
+        const stats = [
+          { label: 'Total Procesados', value: batch.total_processed, pct: 100, icon: <BarChart3 className="fluid-icon-sm text-white" />, gradient: 'from-blue-500 to-blue-600', bar: 'bg-blue-500', border: 'hover:border-blue-300' },
+          { label: 'Creados', value: batch.total_created, pct: Math.round((batch.total_created / total) * 100), icon: <UserPlus className="fluid-icon-sm text-white" />, gradient: 'from-emerald-500 to-emerald-600', bar: 'bg-emerald-500', border: 'hover:border-emerald-300' },
+          { label: 'Existentes Asignados', value: batch.total_existing_assigned, pct: Math.round((batch.total_existing_assigned / total) * 100), icon: <UserCheck className="fluid-icon-sm text-white" />, gradient: 'from-indigo-500 to-indigo-600', bar: 'bg-indigo-500', border: 'hover:border-indigo-300' },
+          { label: 'Errores', value: batch.total_errors, pct: Math.round((batch.total_errors / total) * 100), icon: <XCircle className="fluid-icon-sm text-white" />, gradient: 'from-red-500 to-red-600', bar: 'bg-red-500', border: 'hover:border-red-300' },
+          { label: 'Omitidos', value: batch.total_skipped, pct: Math.round((batch.total_skipped / total) * 100), icon: <SkipForward className="fluid-icon-sm text-white" />, gradient: 'from-gray-400 to-gray-500', bar: 'bg-gray-400', border: 'hover:border-gray-400' },
+        ];
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 fluid-gap-4 fluid-mb-6">
+            {stats.map((s, i) => (
+              <div key={i} className={`bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 ${s.border} hover:shadow-md transition-all`}>
+                <div className="flex items-center fluid-gap-3">
+                  <div className={`fluid-p-2.5 bg-gradient-to-br ${s.gradient} rounded-fluid-xl shadow-sm`}>
+                    {s.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="fluid-text-xs text-gray-500 font-medium truncate">{s.label}</p>
+                    <div className="flex items-baseline fluid-gap-1.5">
+                      <p className="fluid-text-xl font-bold text-gray-900">{s.value}</p>
+                      {i > 0 && <span className="fluid-text-xs text-gray-400 font-medium">{s.pct}%</span>}
+                    </div>
+                  </div>
+                </div>
+                {i > 0 && (
+                  <div className="mt-2.5 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${s.bar} rounded-full transition-all duration-500`} style={{ width: `${s.pct}%` }} />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-        </div>
-        <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-green-300 hover:shadow-md transition-all">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-gradient-to-br from-green-500 to-green-600 rounded-fluid-xl shadow-sm">
-              <UserPlus className="fluid-icon-sm text-white" />
-            </div>
-            <div>
-              <p className="fluid-text-xs text-gray-500 font-medium">Creados</p>
-              <p className="fluid-text-xl font-bold text-gray-900">{batch.total_created}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-indigo-300 hover:shadow-md transition-all">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-fluid-xl shadow-sm">
-              <UserCheck className="fluid-icon-sm text-white" />
-            </div>
-            <div>
-              <p className="fluid-text-xs text-gray-500 font-medium">Existentes</p>
-              <p className="fluid-text-xl font-bold text-gray-900">{batch.total_existing_assigned}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-red-300 hover:shadow-md transition-all">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-gradient-to-br from-red-500 to-red-600 rounded-fluid-xl shadow-sm">
-              <XCircle className="fluid-icon-sm text-white" />
-            </div>
-            <div>
-              <p className="fluid-text-xs text-gray-500 font-medium">Errores</p>
-              <p className="fluid-text-xl font-bold text-gray-900">{batch.total_errors}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-gray-400 hover:shadow-md transition-all">
-          <div className="flex items-center fluid-gap-3">
-            <div className="fluid-p-2.5 bg-gradient-to-br from-gray-400 to-gray-500 rounded-fluid-xl shadow-sm">
-              <SkipForward className="fluid-icon-sm text-white" />
-            </div>
-            <div>
-              <p className="fluid-text-xs text-gray-500 font-medium">Omitidos</p>
-              <p className="fluid-text-xl font-bold text-gray-900">{batch.total_skipped}</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Información del Batch */}
       <div className="bg-white border-2 border-gray-200 rounded-fluid-xl fluid-p-6 fluid-mb-6 shadow-sm">
@@ -281,59 +259,30 @@ export default function BulkUploadDetailPage() {
           Información de la Carga
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 fluid-gap-x-8 fluid-gap-y-3">
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <Building2 className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Partner</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{batch.partner_name || '—'}</span>
-          </div>
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <Globe className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">País</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{batch.country || '—'}</span>
-          </div>
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <MapPin className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Estado</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{batch.state_name || '—'}</span>
-          </div>
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <Building2 className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Plantel</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{batch.campus_name || '—'}</span>
-          </div>
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <Users className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Grupo</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{batch.group_name || '—'}</span>
-          </div>
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <Calendar className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Fecha</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{formatDate(batch.created_at)}</span>
-          </div>
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <User className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Realizado por</span>
-            <span className="fluid-text-sm font-medium text-gray-900">{batch.uploaded_by_name || '—'}</span>
-          </div>
-          {batch.original_filename && (
-            <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-              <FileSpreadsheet className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-              <span className="fluid-text-sm text-gray-500 min-w-[80px]">Archivo</span>
-              <span className="fluid-text-sm font-medium text-gray-900 truncate max-w-[200px]">{batch.original_filename}</span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 fluid-gap-3">
+          {[
+            { icon: <Building2 className="w-4 h-4" />, label: 'Partner', value: batch.partner_name, color: 'text-violet-500', bg: 'bg-violet-50' },
+            { icon: <Globe className="w-4 h-4" />, label: 'País', value: batch.country, color: 'text-sky-500', bg: 'bg-sky-50' },
+            { icon: <MapPin className="w-4 h-4" />, label: 'Estado', value: batch.state_name, color: 'text-amber-500', bg: 'bg-amber-50' },
+            { icon: <Building2 className="w-4 h-4" />, label: 'Plantel', value: batch.campus_name, color: 'text-teal-500', bg: 'bg-teal-50' },
+            { icon: <Users className="w-4 h-4" />, label: 'Grupo', value: batch.group_name, color: 'text-indigo-500', bg: 'bg-indigo-50' },
+            { icon: <Calendar className="w-4 h-4" />, label: 'Fecha', value: formatDate(batch.created_at), color: 'text-pink-500', bg: 'bg-pink-50' },
+            { icon: <User className="w-4 h-4" />, label: 'Realizado por', value: batch.uploaded_by_name, color: 'text-cyan-500', bg: 'bg-cyan-50' },
+            ...(batch.original_filename ? [{ icon: <FileSpreadsheet className="w-4 h-4" />, label: 'Archivo', value: batch.original_filename, color: 'text-emerald-500', bg: 'bg-emerald-50' }] : []),
+            { icon: <Mail className="w-4 h-4" />, label: 'Emails', value: `${batch.emails_sent} enviados${batch.emails_failed > 0 ? ` (${batch.emails_failed} fallidos)` : ''}`, color: 'text-orange-500', bg: 'bg-orange-50' },
+          ].map((item, i) => (
+            <div key={i} className="rounded-fluid-lg border border-gray-100 fluid-p-3 hover:shadow-sm transition-all">
+              <div className="flex items-center fluid-gap-2 fluid-mb-1.5">
+                <div className={`${item.bg} ${item.color} p-1.5 rounded-lg`}>
+                  {item.icon}
+                </div>
+                <span className="fluid-text-xs text-gray-400 font-medium uppercase tracking-wider">{item.label}</span>
+              </div>
+              <p className="fluid-text-sm font-semibold text-gray-800 truncate pl-0.5" title={item.value || '—'}>
+                {item.value || '—'}
+              </p>
             </div>
-          )}
-          <div className="flex items-center fluid-gap-3 fluid-py-2 border-b border-gray-100">
-            <Mail className="w-4 h-4 text-indigo-400 flex-shrink-0" />
-            <span className="fluid-text-sm text-gray-500 min-w-[80px]">Emails</span>
-            <span className="fluid-text-sm font-medium text-gray-900">
-              {batch.emails_sent} enviados
-              {batch.emails_failed > 0 && (
-                <span className="text-red-500 ml-1">({batch.emails_failed} fallidos)</span>
-              )}
-            </span>
-          </div>
+          ))}
         </div>
       </div>
 

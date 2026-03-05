@@ -22,10 +22,13 @@ import {
   XCircle,
   BarChart3,
   Search,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getBulkUploadHistory,
+  exportBulkUploadBatch,
   BulkUploadBatchSummary,
 } from '../../services/userManagementService';
 
@@ -40,6 +43,19 @@ export default function BulkUploadHistoryPage() {
   const [perPage] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [exportingId, setExportingId] = useState<number | null>(null);
+
+  const handleExportBatch = async (e: React.MouseEvent, batch: BulkUploadBatchSummary) => {
+    e.stopPropagation();
+    try {
+      setExportingId(batch.id);
+      await exportBulkUploadBatch(batch.id, batch.group_name || undefined);
+    } catch {
+      // silent
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -276,10 +292,11 @@ export default function BulkUploadHistoryPage() {
                     <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Grupo
                     </th>
-                    <th className="text-center fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="text-left fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Resultado
                     </th>
-                    <th className="text-center fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">
+                    <th className="text-center fluid-px-4 fluid-py-3 fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">
+                      Acciones
                     </th>
                   </tr>
                 </thead>
@@ -313,33 +330,78 @@ export default function BulkUploadHistoryPage() {
                       <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 whitespace-nowrap">
                         {b.group_name || '—'}
                       </td>
-                      <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-center">
-                        <div className="inline-flex items-center fluid-gap-1.5">
-                          <span className="inline-flex items-center justify-center min-w-[26px] px-1.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200" title="Creados">
-                            {b.total_created}
-                          </span>
-                          <span className="inline-flex items-center justify-center min-w-[26px] px-1.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700 border border-blue-200" title="Existentes">
-                            {b.total_existing_assigned}
-                          </span>
-                          {b.total_errors > 0 && (
-                            <span className="inline-flex items-center justify-center min-w-[26px] px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200" title="Errores">
-                              {b.total_errors}
+                      <td className="fluid-px-4 fluid-py-3 fluid-text-sm">
+                        <div className="flex flex-col fluid-gap-1">
+                          {/* Progress bar */}
+                          <div className="flex items-center fluid-gap-2">
+                            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden flex" style={{ maxWidth: '140px' }}>
+                              {b.total_processed > 0 && (
+                                <>
+                                  <div
+                                    className="h-full bg-emerald-500 transition-all"
+                                    style={{ width: `${(b.total_created / b.total_processed) * 100}%` }}
+                                  />
+                                  <div
+                                    className="h-full bg-blue-500 transition-all"
+                                    style={{ width: `${(b.total_existing_assigned / b.total_processed) * 100}%` }}
+                                  />
+                                  {b.total_errors > 0 && (
+                                    <div
+                                      className="h-full bg-red-400 transition-all"
+                                      style={{ width: `${(b.total_errors / b.total_processed) * 100}%` }}
+                                    />
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <span className="fluid-text-xs font-semibold text-gray-500 whitespace-nowrap">
+                              {b.total_processed}
                             </span>
-                          )}
-                          <span className="text-xs text-gray-400 ml-0.5">/ {b.total_processed}</span>
+                          </div>
+                          {/* Labels */}
+                          <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500">
+                            <span className="inline-flex items-center fluid-gap-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                              {b.total_created} nuevos
+                            </span>
+                            <span className="inline-flex items-center fluid-gap-1">
+                              <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                              {b.total_existing_assigned} exist.
+                            </span>
+                            {b.total_errors > 0 && (
+                              <span className="inline-flex items-center fluid-gap-1 text-red-500 font-medium">
+                                <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                                {b.total_errors} error{b.total_errors !== 1 ? 'es' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="fluid-px-4 fluid-py-3 text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/user-management/bulk-history/${b.id}`);
-                          }}
-                          className="text-gray-400 group-hover:text-indigo-600 transition-colors"
-                          title="Ver detalle"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                        <div className="inline-flex items-center fluid-gap-1">
+                          <button
+                            onClick={(e) => handleExportBatch(e, b)}
+                            disabled={exportingId === b.id}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                            title="Descargar reporte Excel"
+                          >
+                            {exportingId === b.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/user-management/bulk-history/${b.id}`);
+                            }}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            title="Ver detalle"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
