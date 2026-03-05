@@ -2392,14 +2392,16 @@ def download_bulk_upload_template():
 @management_required
 def export_user_credentials():
     """
-    Exportar usuarios seleccionados con sus contraseñas en Excel (admin y coordinador)
-    Recibe una lista de IDs de usuarios a exportar
+    Exportar usuarios seleccionados con el mismo formato del reporte de altas masivas.
+    Un usuario puede pertenecer a varios grupos, por lo que se genera una fila por cada
+    combinación usuario-grupo (o una sola fila si no tiene grupo).
     """
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from flask import send_file
         import io
+        from app.models.partner import Campus, CandidateGroup, GroupMember, Partner
         
         current_user = g.current_user
         data = request.get_json()
@@ -2408,34 +2410,92 @@ def export_user_credentials():
         if not user_ids:
             return jsonify({'error': 'Debes seleccionar al menos un usuario'}), 400
         
-        # Obtener usuarios (compartidos: sin filtro coordinator_id)
-        query = User.query.filter(User.id.in_(user_ids))
-        if current_user.role == 'coordinator':
-            query = query.filter(
-                User.role.in_(['candidato', 'responsable', 'responsable_partner'])
-            )
-        users = query.all()
+        # Obtener usuarios
+        CHUNK = 500
+        users_map = {}
+        for i in range(0, len(user_ids), CHUNK):
+            chunk = user_ids[i:i + CHUNK]
+            q = User.query.filter(User.id.in_(chunk))
+            if current_user.role == 'coordinator':
+                q = q.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
+            for u in q.all():
+                users_map[u.id] = u
         
-        if not users:
+        if not users_map:
             return jsonify({'error': 'No se encontraron usuarios'}), 404
+        
+        # Obtener membresías de grupo para todos los usuarios seleccionados
+        all_uids = list(users_map.keys())
+        memberships = []
+        for i in range(0, len(all_uids), CHUNK):
+            chunk = all_uids[i:i + CHUNK]
+            memberships.extend(
+                db.session.query(GroupMember.user_id, GroupMember.group_id)
+                .filter(GroupMember.user_id.in_(chunk), GroupMember.status == 'active')
+                .all()
+            )
+        
+        # Mapear user_id → [group_ids]
+        user_group_ids = {}
+        all_group_ids = set()
+        for uid, gid in memberships:
+            user_group_ids.setdefault(uid, []).append(gid)
+            all_group_ids.add(gid)
+        
+        # Cargar grupos con sus campus
+        groups_map = {}
+        if all_group_ids:
+            for i in range(0, len(list(all_group_ids)), CHUNK):
+                chunk = list(all_group_ids)[i:i + CHUNK]
+                for grp in CandidateGroup.query.filter(CandidateGroup.id.in_(chunk)).all():
+                    groups_map[grp.id] = grp
+        
+        # Cargar campus
+        all_campus_ids = set(grp.campus_id for grp in groups_map.values())
+        # Agregar campus_id de usuarios sin grupo
+        for u in users_map.values():
+            if u.campus_id:
+                all_campus_ids.add(u.campus_id)
+        campus_map = {}
+        if all_campus_ids:
+            for i in range(0, len(list(all_campus_ids)), CHUNK):
+                chunk = list(all_campus_ids)[i:i + CHUNK]
+                for c in Campus.query.filter(Campus.id.in_(chunk)).all():
+                    campus_map[c.id] = c
+        
+        # Cargar partners
+        all_partner_ids = set(c.partner_id for c in campus_map.values())
+        partner_map = {}
+        if all_partner_ids:
+            for p in Partner.query.filter(Partner.id.in_(list(all_partner_ids))).all():
+                partner_map[p.id] = p
+        
+        # Cargar responsables de campus
+        resp_ids = set(c.responsable_id for c in campus_map.values() if c.responsable_id)
+        resp_map = {}
+        if resp_ids:
+            for u in User.query.filter(User.id.in_(list(resp_ids))).all():
+                resp_map[u.id] = u
         
         # Crear Excel
         wb = Workbook()
         ws = wb.active
-        ws.title = "Credenciales"
+        ws.title = "Usuarios Seleccionados"
         
         # Estilos
         header_fill = PatternFill(start_color='1F4E79', end_color='1F4E79', fill_type='solid')
         header_font = Font(color='FFFFFF', bold=True, size=11)
         cell_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
         )
         
-        # Encabezados
-        headers = ['Nombre Completo', 'Email', 'Usuario', 'Contraseña', 'CURP', 'Rol', 'Estado', 'Plantel', 'Fecha Creación']
+        headers = [
+            'Partner', 'País', 'Estado', 'Plantel', 'Grupo',
+            'Nombre de Usuario', 'Nombre Completo',
+            'CURP', 'Género', 'Email del Usuario',
+            'Email del Responsable', 'Contraseña',
+        ]
         for col, header in enumerate(headers, start=1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.fill = header_fill
@@ -2443,46 +2503,78 @@ def export_user_credentials():
             cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = cell_border
         
-        # Datos de usuarios
-        from app.models.partner import Campus
+        gender_labels = {'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro'}
         
-        for row, user in enumerate(users, start=2):
-            # Obtener plantel si existe
-            campus_name = ''
-            if user.campus_id:
-                campus = Campus.query.get(user.campus_id)
-                if campus:
-                    campus_name = campus.name
-            
-            # Obtener contraseña desencriptada
+        # Helper para construir fila de datos
+        def build_row(user, campus, partner, group_name, resp_email):
+            parts = [user.name or '', user.first_surname or '']
+            if user.second_surname:
+                parts.append(user.second_surname)
+            full_name = ' '.join(p for p in parts if p)
+            gender_display = gender_labels.get(user.gender, user.gender or '-')
             password = user.get_decrypted_password() or '(no disponible)'
-            
-            row_data = [
-                user.full_name,
-                user.email or '-',
-                user.username,
-                password,
+            return [
+                partner.name if partner else '-',
+                (campus.country if campus else None) or '-',
+                (campus.state_name if campus else None) or '-',
+                (campus.name if campus else None) or '-',
+                group_name or '-',
+                user.username or '-',
+                full_name or '-',
                 user.curp or '-',
-                user.role,
-                'Activo' if user.is_active else 'Inactivo',
-                campus_name or '-',
-                user.created_at.strftime('%d/%m/%Y %H:%M') if user.created_at else '-'
+                gender_display,
+                user.email or '-',
+                resp_email or '-',
+                password,
             ]
+        
+        # Generar filas: una por cada combinación usuario-grupo
+        row_idx = 2
+        for uid, user in users_map.items():
+            group_ids = user_group_ids.get(uid, [])
             
-            for col, value in enumerate(row_data, start=1):
-                cell = ws.cell(row=row, column=col, value=value)
-                cell.border = cell_border
-                cell.alignment = Alignment(vertical='center')
+            if group_ids:
+                for gid in group_ids:
+                    grp = groups_map.get(gid)
+                    campus = campus_map.get(grp.campus_id) if grp else None
+                    partner = partner_map.get(campus.partner_id) if campus else None
+                    resp_email = '-'
+                    if campus and campus.responsable_id:
+                        resp_user = resp_map.get(campus.responsable_id)
+                        if resp_user:
+                            resp_email = resp_user.email or '-'
+                    
+                    row_data = build_row(user, campus, partner, grp.name if grp else '-', resp_email)
+                    for col, value in enumerate(row_data, start=1):
+                        cell = ws.cell(row=row_idx, column=col, value=value)
+                        cell.border = cell_border
+                        cell.alignment = Alignment(vertical='center')
+                    row_idx += 1
+            else:
+                # Usuario sin grupo — usar su campus_id directo si tiene
+                campus = campus_map.get(user.campus_id) if user.campus_id else None
+                partner = partner_map.get(campus.partner_id) if campus else None
+                resp_email = '-'
+                if campus and campus.responsable_id:
+                    resp_user = resp_map.get(campus.responsable_id)
+                    if resp_user:
+                        resp_email = resp_user.email or '-'
+                
+                row_data = build_row(user, campus, partner, '-', resp_email)
+                for col, value in enumerate(row_data, start=1):
+                    cell = ws.cell(row=row_idx, column=col, value=value)
+                    cell.border = cell_border
+                    cell.alignment = Alignment(vertical='center')
+                row_idx += 1
         
-        # Ajustar anchos de columna
-        column_widths = [30, 35, 20, 20, 20, 15, 12, 30, 18]
+        # Ajustar anchos
+        column_widths = [25, 15, 20, 25, 20, 20, 35, 22, 12, 30, 30, 20]
         for col, width in enumerate(column_widths, start=1):
-            ws.column_dimensions[chr(64 + col)].width = width
+            letter = chr(64 + col) if col <= 26 else chr(64 + (col // 26)) + chr(64 + (col % 26))
+            ws.column_dimensions[letter].width = width
         
-        # Congelar primera fila
         ws.freeze_panes = 'A2'
         
-        # Guardar en memoria
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
@@ -2491,7 +2583,7 @@ def export_user_credentials():
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            download_name=f'credenciales_usuarios_{len(users)}.xlsx'
+            download_name=f'credenciales_usuarios_{len(users_map)}.xlsx'
         )
         
     except Exception as e:
