@@ -2369,6 +2369,11 @@ def get_groups(campus_id):
         # Usar joinedload para cargar la relación campus (necesaria para effective_config)
         query = CandidateGroup.query.options(joinedload(CandidateGroup.campus)).filter_by(campus_id=campus_id)
         
+        # Aislamiento de coordinador: solo ver sus propios grupos
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(CandidateGroup.coordinator_id == coord_id)
+        
         if active_only:
             query = query.filter(CandidateGroup.is_active == True)
         
