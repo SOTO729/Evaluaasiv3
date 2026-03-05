@@ -19,12 +19,19 @@ ph = PasswordHasher(
 )
 
 # Funciones de encriptación/desencriptación para contraseñas (solo admin puede acceder)
-def _get_encryption_key():
+def _get_encryption_key(secret_key=None):
     """Genera una clave de encriptación basada en SECRET_KEY"""
-    secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    # Derivar una clave Fernet válida (32 bytes base64)
+    if secret_key is None:
+        secret_key = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     key = hashlib.sha256(secret_key.encode()).digest()
     return base64.urlsafe_b64encode(key)
+
+def _get_fallback_keys():
+    """Claves anteriores para desencriptar contraseñas legacy"""
+    raw = os.getenv('SECRET_KEY_FALLBACKS', '')
+    if not raw:
+        return []
+    return [k.strip() for k in raw.split(',') if k.strip()]
 
 def encrypt_password(password):
     """Encripta una contraseña de forma reversible"""
@@ -37,14 +44,23 @@ def encrypt_password(password):
         return None
 
 def decrypt_password(encrypted_password):
-    """Desencripta una contraseña"""
+    """Desencripta una contraseña, probando claves fallback si la actual falla"""
     if not encrypted_password:
         return None
+    # Intentar con la clave actual
     try:
         f = Fernet(_get_encryption_key())
         return f.decrypt(encrypted_password.encode()).decode()
     except Exception:
-        return None
+        pass
+    # Intentar con claves anteriores
+    for fallback_key in _get_fallback_keys():
+        try:
+            f = Fernet(_get_encryption_key(fallback_key))
+            return f.decrypt(encrypted_password.encode()).decode()
+        except Exception:
+            continue
+    return None
 
 
 class User(db.Model):
