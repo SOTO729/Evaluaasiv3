@@ -5,7 +5,7 @@ IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'bulk_upload_batches')
 BEGIN
     CREATE TABLE bulk_upload_batches (
         id INT IDENTITY(1,1) PRIMARY KEY,
-        uploaded_by_id NVARCHAR(36) NULL,
+        uploaded_by_id VARCHAR(36) NULL,
         partner_id INT NULL,
         campus_id INT NULL,
         group_id INT NULL,
@@ -24,9 +24,9 @@ BEGIN
         original_filename NVARCHAR(300) NULL,
         created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         CONSTRAINT fk_bulk_batch_uploaded_by FOREIGN KEY (uploaded_by_id) REFERENCES users(id) ON DELETE SET NULL,
-        CONSTRAINT fk_bulk_batch_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE SET NULL,
-        CONSTRAINT fk_bulk_batch_campus FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE SET NULL,
-        CONSTRAINT fk_bulk_batch_group FOREIGN KEY (group_id) REFERENCES candidate_groups(id) ON DELETE SET NULL
+        CONSTRAINT fk_bulk_batch_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE NO ACTION,
+        CONSTRAINT fk_bulk_batch_campus FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE NO ACTION,
+        CONSTRAINT fk_bulk_batch_group FOREIGN KEY (group_id) REFERENCES candidate_groups(id) ON DELETE NO ACTION
     );
     CREATE INDEX ix_bulk_upload_batches_uploaded_by ON bulk_upload_batches(uploaded_by_id);
     CREATE INDEX ix_bulk_upload_batches_created ON bulk_upload_batches(created_at);
@@ -41,7 +41,7 @@ BEGIN
     CREATE TABLE bulk_upload_members (
         id INT IDENTITY(1,1) PRIMARY KEY,
         batch_id INT NOT NULL,
-        user_id NVARCHAR(36) NULL,
+        user_id VARCHAR(36) NULL,
         row_number INT NULL,
         email NVARCHAR(255) NULL,
         full_name NVARCHAR(300) NULL,

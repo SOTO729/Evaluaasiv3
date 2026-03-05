@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, g
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_, and_, func, case, text
+from werkzeug.exceptions import HTTPException
 from datetime import datetime
 from app import db, cache
 from app.models import User
@@ -384,6 +385,8 @@ def get_user_detail(user_id):
             'user': user.to_dict(include_private=True, include_partners=True)
         })
         
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2540,6 +2543,7 @@ def get_bulk_upload_detail(batch_id):
     """Obtener detalle de una carga masiva (resumen + miembros)"""
     try:
         from app.models.partner import BulkUploadBatch
+        from werkzeug.exceptions import HTTPException
 
         current_user = g.current_user
         batch = BulkUploadBatch.query.get_or_404(batch_id)
@@ -2551,6 +2555,8 @@ def get_bulk_upload_detail(batch_id):
                 return jsonify({'error': 'No tienes acceso a este registro'}), 403
 
         return jsonify(batch.to_dict(include_members=True)), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2565,6 +2571,7 @@ def export_bulk_upload_batch(batch_id):
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from flask import send_file
         from app.models.partner import BulkUploadBatch, BulkUploadMember, Campus
+        from werkzeug.exceptions import HTTPException
         import io
 
         current_user = g.current_user
@@ -2667,6 +2674,8 @@ def export_bulk_upload_batch(batch_id):
             as_attachment=True,
             download_name=f'altas_masivas_{safe_name}_{batch.id}.xlsx'
         )
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

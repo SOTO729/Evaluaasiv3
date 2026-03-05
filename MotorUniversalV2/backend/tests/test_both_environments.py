@@ -917,7 +917,7 @@ class TestUserManagement:
         r = requests.post(f"{api}{self.UM}/users", json={
             "username": u, "email": f"{u}@test.com", "password": "Test1234!",
             "name": "UmTest", "first_surname": "A", "second_surname": "B",
-            "role": "candidato"
+            "role": "candidato", "gender": "M"
         }, headers=headers, timeout=TIMEOUT)
         assert r.status_code in (200, 201), f"Create user: {r.text}"
         body = r.json()
@@ -938,7 +938,7 @@ class TestUserManagement:
     def test_get_nonexistent_user(self, api, headers):
         r = requests.get(f"{api}{self.UM}/users/00000000-0000-0000-0000-000000000000",
                          headers=headers, timeout=TIMEOUT)
-        assert r.status_code == 404
+        assert r.status_code == 404, f"Expected 404: {r.status_code}"
 
     def test_unauthorized_access(self, api):
         r = requests.get(f"{api}{self.UM}/users", timeout=TIMEOUT)
@@ -957,7 +957,7 @@ class TestUserManagement:
 
 
 # ════════════════════════════════════════════════════════════
-#  19. BULK UPLOAD HISTORY  (solo DEV — PROD no tiene deploy)
+#  19. BULK UPLOAD HISTORY
 # ════════════════════════════════════════════════════════════
 class TestBulkUploadHistory:
     UM = "/user-management"
@@ -965,10 +965,6 @@ class TestBulkUploadHistory:
     def test_list_bulk_history(self, api, headers, env_name):
         r = requests.get(f"{api}{self.UM}/bulk-history",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD":
-            # PROD aún no tiene el endpoint desplegado
-            if r.status_code == 404:
-                pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 200, f"bulk-history list: {r.status_code} {r.text[:300]}"
         body = r.json()
         assert "batches" in body
@@ -980,8 +976,6 @@ class TestBulkUploadHistory:
     def test_bulk_history_pagination(self, api, headers, env_name):
         r = requests.get(f"{api}{self.UM}/bulk-history?page=1&per_page=5",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 200
         body = r.json()
         assert body["per_page"] == 5
@@ -989,37 +983,27 @@ class TestBulkUploadHistory:
     def test_bulk_history_filter_partner(self, api, headers, env_name):
         r = requests.get(f"{api}{self.UM}/bulk-history?partner_id=999999",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 200
         assert r.json()["total"] == 0
 
     def test_bulk_history_detail_nonexistent(self, api, headers, env_name):
         r = requests.get(f"{api}{self.UM}/bulk-history/999999",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 404
 
     def test_bulk_history_export_nonexistent(self, api, headers, env_name):
         r = requests.get(f"{api}{self.UM}/bulk-history/999999/export",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 404
 
     def test_bulk_history_unauthorized(self, api, env_name):
         r = requests.get(f"{api}{self.UM}/bulk-history", timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 401
 
     def test_bulk_history_detail_if_data_exists(self, api, headers, env_name):
         """Si hay batches, obtener detalle del primero."""
         r = requests.get(f"{api}{self.UM}/bulk-history?per_page=1",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 200
         batches = r.json().get("batches", [])
         if not batches:
@@ -1040,8 +1024,6 @@ class TestBulkUploadHistory:
         """Si hay batches, exportar Excel del primero."""
         r = requests.get(f"{api}{self.UM}/bulk-history?per_page=1",
                          headers=headers, timeout=TIMEOUT)
-        if env_name == "PROD" and r.status_code == 404:
-            pytest.skip("bulk-history no desplegado en PROD aún")
         assert r.status_code == 200
         batches = r.json().get("batches", [])
         if not batches:
