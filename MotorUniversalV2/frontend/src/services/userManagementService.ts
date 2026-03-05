@@ -420,6 +420,7 @@ export interface BulkUploadResult {
     assigned_existing: number;
     errors: Array<{ username: string; error: string }>;
   };
+  batch_id?: number;
 }
 
 export async function bulkUploadCandidates(file: File, groupId?: number, includeExistingIds?: string[], skipRowNumbers?: number[]): Promise<BulkUploadResult> {

@@ -1987,12 +1987,18 @@ def bulk_upload_candidates():
                 new_user.set_password(password)
                 new_user.encrypted_password = encrypt_password(password)
                 db.session.add(new_user)
+                _parts = [r['nombre'], r['primer_apellido']]
+                if r.get('segundo_apellido'):
+                    _parts.append(r['segundo_apellido'])
                 created.append({
                     'row': r['row'],
                     'email': r['email'],
                     'name': f"{r['nombre']} {r['primer_apellido']}",
+                    'full_name': ' '.join(_parts),
                     'username': username,
                     'password': password,
+                    'curp': r.get('curp'),
+                    'gender': r.get('genero'),
                 })
                 batch_count += 1
                 # Commit en lotes
@@ -2167,10 +2173,10 @@ def bulk_upload_candidates():
                     user_id=created_user_ids.get(c['username']),
                     row_number=c.get('row'),
                     email=c.get('email'),
-                    full_name=c.get('name', ''),
+                    full_name=c.get('full_name', c.get('name', '')),
                     username=c.get('username'),
-                    curp=None,
-                    gender=None,
+                    curp=c.get('curp'),
+                    gender=c.get('gender'),
                     status='created',
                 ))
 
@@ -2610,11 +2616,21 @@ def export_bulk_upload_batch(batch_id):
             top=Side(style='thin'), bottom=Side(style='thin')
         )
 
-        # Encabezados
+        # Obtener email del responsable del plantel
+        responsable_email = '-'
+        if batch.campus_id:
+            campus_obj = Campus.query.get(batch.campus_id)
+            if campus_obj and campus_obj.responsable_id:
+                resp_user = User.query.get(campus_obj.responsable_id)
+                if resp_user and resp_user.email:
+                    responsable_email = resp_user.email
+
+        # Encabezados (orden solicitado)
         headers = [
-            'Fila', 'Nombre Completo', 'Email', 'Usuario', 'Contraseña',
-            'CURP', 'Género', 'Estado', 'Partner', 'País', 'Estado/Provincia',
-            'Plantel', 'Grupo', 'Fecha de Carga'
+            'Partner', 'País', 'Estado', 'Plantel', 'Grupo',
+            'Fecha de Carga', 'Nombre de Usuario', 'Nombre Completo',
+            'CURP', 'Género', 'Email del Usuario',
+            'Email del Responsable', 'Contraseña', 'Estado de Carga'
         ]
         for col, header in enumerate(headers, start=1):
             cell = ws.cell(row=1, column=col, value=header)
@@ -2623,6 +2639,9 @@ def export_bulk_upload_batch(batch_id):
             cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = cell_border
 
+        # Mapeo de género
+        gender_labels = {'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro'}
+
         # Datos
         status_labels = {
             'created': 'Creado',
@@ -2630,25 +2649,39 @@ def export_bulk_upload_batch(batch_id):
             'error': 'Error',
             'skipped': 'Omitido',
         }
+        fecha_carga = batch.created_at.strftime('%d/%m/%Y %H:%M') if batch.created_at else '-'
+
         for row_idx, member in enumerate(members, start=2):
             user = users_map.get(member.user_id) if member.user_id else None
             password = user.get_decrypted_password() if user else '(no disponible)'
 
+            # Nombre completo: preferir datos del User si existe (incluye segundo_apellido)
+            full_name = member.full_name or ''
+            if user:
+                parts = [user.name or '', user.first_surname or '']
+                if user.second_surname:
+                    parts.append(user.second_surname)
+                full_name = ' '.join(p for p in parts if p)
+
+            # Género: preferir del User, fallback al member snapshot
+            gender_raw = (user.gender if user and user.gender else member.gender) or '-'
+            gender_display = gender_labels.get(gender_raw, gender_raw)
+
             row_data = [
-                member.row_number or '',
-                member.full_name or '',
-                member.email or '-',
-                member.username or '-',
-                password or '(no disponible)',
-                member.curp or '-',
-                member.gender or '-',
-                status_labels.get(member.status, member.status),
                 batch.partner_name or '-',
                 batch.country or '-',
                 batch.state_name or '-',
                 batch.campus_name or '-',
                 batch.group_name or '-',
-                batch.created_at.strftime('%d/%m/%Y %H:%M') if batch.created_at else '-',
+                fecha_carga,
+                member.username or '-',
+                full_name or '-',
+                (user.curp if user and user.curp else member.curp) or '-',
+                gender_display,
+                member.email or '-',
+                responsable_email,
+                password or '(no disponible)',
+                status_labels.get(member.status, member.status),
             ]
             for col, value in enumerate(row_data, start=1):
                 cell = ws.cell(row=row_idx, column=col, value=value)
@@ -2656,7 +2689,7 @@ def export_bulk_upload_batch(batch_id):
                 cell.alignment = Alignment(vertical='center')
 
         # Ajustar anchos
-        column_widths = [8, 30, 30, 20, 20, 20, 10, 18, 25, 15, 20, 25, 20, 18]
+        column_widths = [25, 15, 20, 25, 20, 18, 20, 35, 22, 12, 30, 30, 20, 18]
         for col, width in enumerate(column_widths, start=1):
             letter = chr(64 + col) if col <= 26 else chr(64 + (col // 26)) + chr(64 + (col % 26))
             ws.column_dimensions[letter].width = width
