@@ -240,6 +240,59 @@ def get_dashboard():
         if not current_user:
             return jsonify({'error': 'Usuario no encontrado'}), 404
         
+        # ========== FILTRO POR ASIGNACIONES PARA CANDIDATOS ==========
+        # Para candidatos: solo exámenes/materiales asignados a sus grupos
+        # Para admin/coordinator/editor: todos los publicados
+        assigned_exam_ids = None  # None = sin filtro (todos los publicados)
+        assigned_material_ids = None
+        
+        if current_user.role == 'candidato':
+            from app.models.partner import GroupExam, GroupMember, GroupExamMember, GroupExamMaterial, CandidateGroup
+            
+            memberships = GroupMember.query.filter_by(
+                user_id=str(user_id),
+                status='active'
+            ).all()
+            
+            group_ids = []
+            for m in memberships:
+                group = CandidateGroup.query.filter_by(id=m.group_id, is_active=True).first()
+                if group:
+                    group_ids.append(m.group_id)
+            
+            assigned_exam_ids = set()
+            assigned_material_ids = set()
+            
+            if group_ids:
+                group_exams = GroupExam.query.filter(
+                    GroupExam.group_id.in_(group_ids),
+                    GroupExam.is_active == True
+                ).all()
+                
+                for ge in group_exams:
+                    has_access = False
+                    if ge.assignment_type == 'all' or ge.assignment_type is None:
+                        has_access = True
+                    elif ge.assignment_type == 'selected':
+                        member_assignment = GroupExamMember.query.filter_by(
+                            group_exam_id=ge.id,
+                            user_id=str(user_id)
+                        ).first()
+                        has_access = member_assignment is not None
+                    
+                    if has_access:
+                        assigned_exam_ids.add(ge.exam_id)
+                        # Materiales asociados al examen grupal
+                        gem_list = GroupExamMaterial.query.filter_by(
+                            group_exam_id=ge.id,
+                            is_included=True
+                        ).all()
+                        for gem in gem_list:
+                            assigned_material_ids.add(gem.study_material_id)
+            
+            assigned_exam_ids = list(assigned_exam_ids)
+            assigned_material_ids = list(assigned_material_ids)
+        
         # ========== OPTIMIZACIÓN: Query única para exámenes con conteo de categorías ==========
         # Usamos subquery para contar categorías en lugar de lazy loading
         from app.models.category import Category
@@ -249,14 +302,25 @@ def get_dashboard():
             func.count(Category.id).label('count')
         ).group_by(Category.exam_id).subquery()
         
-        available_exams = db.session.query(
+        exam_query = db.session.query(
             Exam,
             func.coalesce(category_counts.c.count, 0).label('categories_count')
         ).outerjoin(
             category_counts, Exam.id == category_counts.c.exam_id
         ).filter(
             Exam.is_published == True
-        ).order_by(Exam.name).all()
+        )
+        
+        # Aplicar filtro de asignaciones para candidatos
+        if assigned_exam_ids is not None:
+            if not assigned_exam_ids:
+                available_exams = []
+            else:
+                available_exams = exam_query.filter(
+                    Exam.id.in_(assigned_exam_ids)
+                ).order_by(Exam.name).all()
+        else:
+            available_exams = exam_query.order_by(Exam.name).all()
         
         # ========== OPTIMIZACIÓN: Una sola query para todos los resultados ==========
         user_results = Result.query.filter_by(user_id=str(user_id)).order_by(Result.created_at.desc()).all()
@@ -325,8 +389,17 @@ def get_dashboard():
             from app.models.study_content import StudyMaterial, StudySession, StudyTopic, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
             from app.models.student_progress import StudentContentProgress
             
-            # Query para obtener materiales publicados
-            available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
+            # Query para obtener materiales publicados (filtrados por asignación para candidatos)
+            if assigned_material_ids is not None:
+                if not assigned_material_ids:
+                    available_materials = []
+                else:
+                    available_materials = StudyMaterial.query.filter(
+                        StudyMaterial.id.in_(assigned_material_ids),
+                        StudyMaterial.is_published == True
+                    ).order_by(StudyMaterial.order, StudyMaterial.title).all()
+            else:
+                available_materials = StudyMaterial.query.filter_by(is_published=True).order_by(StudyMaterial.order, StudyMaterial.title).all()
             
             if available_materials:
                 material_ids = [m.id for m in available_materials]

@@ -3483,32 +3483,17 @@ def options_upload_result_report(result_id):
 @rate_limit_pdf(limit=5, window=60)
 def generate_result_pdf(result_id):
     """
-    Genera el PDF del reporte de evaluación en el backend
+    Genera el PDF del reporte de evaluación usando el módulo compartido.
     """
     from flask import send_file, current_app, request
-    from io import BytesIO
-    from reportlab.lib import colors
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.units import inch
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.pdfgen import canvas
-    from datetime import datetime
-    import pytz
+    from app.utils.pdf_generator import generate_evaluation_report_pdf
     import re
     import time
     
     start_time = time.time()
     current_app.logger.info(f'📥 [PDF] Iniciando generación de reporte - result_id: {result_id}')
     
-    # Obtener zona horaria del cliente (enviada como query param)
     client_timezone = request.args.get('timezone', 'America/Mexico_City')
-    try:
-        tz = pytz.timezone(client_timezone)
-    except:
-        tz = pytz.timezone('America/Mexico_City')
-    
-    current_app.logger.info(f'📥 [PDF] Zona horaria del cliente: {client_timezone}')
     
     try:
         from app.models.result import Result
@@ -3517,480 +3502,29 @@ def generate_result_pdf(result_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        current_app.logger.info(f'📥 [PDF] Usuario: {user.email if user else "Unknown"}')
-        
-        # Obtener resultado
         result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
         if not result:
-            current_app.logger.warning(f'📥 [PDF] Resultado no encontrado: {result_id}')
             return jsonify({'error': 'Resultado no encontrado'}), 404
         
-        # Obtener examen
         exam = Exam.query.get(result.exam_id)
         if not exam:
             current_app.logger.warning(f'📥 [PDF] Examen no encontrado para resultado: {result_id}')
             return jsonify({'error': 'Examen no encontrado'}), 404
         
-        current_app.logger.info(f'📥 [PDF] Examen: {exam.name[:50] if exam.name else "Sin nombre"}')
-        current_app.logger.info(f'📥 [PDF] Score: {result.score}% - Resultado: {"Aprobado" if result.result == 1 else "No aprobado"}')
+        # Generar PDF usando módulo compartido
+        buffer = generate_evaluation_report_pdf(result, exam, user, timezone=client_timezone)
         
-        # Crear PDF en memoria
-        buffer = BytesIO()
-        
-        # Configuración de página
-        page_width, page_height = letter
-        margin = 50
-        
-        c = canvas.Canvas(buffer, pagesize=letter)
-        
-        # Colores
-        primary_color = colors.HexColor('#1e40af')
-        success_color = colors.HexColor('#16a34a')
-        error_color = colors.HexColor('#dc2626')
-        gray_color = colors.HexColor('#6b7280')
-        light_gray = colors.HexColor('#e5e7eb')
-        
-        # Función para limpiar HTML
         def strip_html(text):
             if not text:
                 return ''
             return re.sub(r'<[^>]+>', '', str(text))
-        
-        y = page_height - margin
-        
-        # === ENCABEZADO CON LOGO ===
-        # Cargar logo
-        import os
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'logo.png')
-        logo_height = 40
-        if os.path.exists(logo_path):
-            try:
-                from reportlab.lib.utils import ImageReader
-                logo = ImageReader(logo_path)
-                # Logo de 40x40 en la esquina superior izquierda
-                c.drawImage(logo, margin, y - 30, width=40, height=logo_height, preserveAspectRatio=True, mask='auto')
-                # Texto "Evaluaasi" en negro, pegado al logo
-                c.setFillColor(colors.black)
-                c.setFont('Helvetica-Bold', 16)
-                c.drawString(margin + 42, y - 15, 'Evaluaasi')  # Pegado al logo
-            except Exception as e:
-                print(f"Error cargando logo: {e}")
-                c.setFillColor(colors.black)
-                c.setFont('Helvetica-Bold', 16)
-                c.drawString(margin, y, 'Evaluaasi')
-        else:
-            c.setFillColor(colors.black)
-            c.setFont('Helvetica-Bold', 16)
-            c.drawString(margin, y, 'Evaluaasi')
-        
-        # Esquina superior derecha - ajustado para que quepa
-        # Usar zona horaria del cliente para la fecha de generación
-        now_utc = datetime.now(pytz.utc)
-        now_local = now_utc.astimezone(tz)
-        c.setFillColor(gray_color)
-        c.setFont('Helvetica', 7)
-        c.drawRightString(page_width - margin, y, 'Sistema de Evaluación y Certificación')
-        c.drawRightString(page_width - margin, y - 12, f'Fecha de descarga: {now_local.strftime("%d/%m/%Y %H:%M")}')
-        
-        y -= 45
-        c.setStrokeColor(primary_color)
-        c.setLineWidth(2)
-        c.line(margin, y, page_width - margin, y)
-        
-        y -= 30
-        
-        # === TÍTULO ===
-        c.setFillColor(colors.black)
-        c.setFont('Helvetica-Bold', 14)
-        c.drawCentredString(page_width / 2, y, 'REPORTE DE EVALUACIÓN')
-        y -= 30
-        
-        # === DATOS DEL ESTUDIANTE ===
-        c.setFillColor(primary_color)
-        c.setFont('Helvetica-Bold', 10)
-        c.drawString(margin, y, 'DATOS DEL ESTUDIANTE')
-        y -= 15
-        
-        c.setFillColor(colors.black)
-        # Construir nombre completo usando los campos correctos del modelo
-        name_parts = [user.name or '']
-        if user.first_surname:
-            name_parts.append(user.first_surname)
-        if user.second_surname:
-            name_parts.append(user.second_surname)
-        student_name = ' '.join(name_parts).strip() or user.email
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Nombre:')
-        c.setFont('Helvetica', 9)
-        c.drawString(margin + 50, y, student_name)
-        y -= 12
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Correo:')
-        c.setFont('Helvetica', 9)
-        c.drawString(margin + 50, y, user.email)
-        y -= 20
-        
-        # === DATOS DEL EXAMEN ===
-        c.setFillColor(primary_color)
-        c.setFont('Helvetica-Bold', 10)
-        c.drawString(margin, y, 'DATOS DEL EXAMEN')
-        y -= 15
-        
-        c.setFillColor(colors.black)
-        exam_name = strip_html(exam.name)[:60] if exam.name else 'Sin nombre'
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Examen:')
-        c.setFont('Helvetica', 9)
-        c.drawString(margin + 55, y, exam_name)
-        y -= 12
-        
-        # Código ECM del examen
-        ecm_code = exam.version or 'N/A'
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Código ECM:')
-        c.setFont('Helvetica', 9)
-        c.drawString(margin + 70, y, ecm_code)
-        y -= 12
-        
-        # Convertir fecha a zona horaria del cliente
-        if result.start_date:
-            # Asumir que start_date está en UTC
-            utc_date = pytz.utc.localize(result.start_date) if result.start_date.tzinfo is None else result.start_date
-            local_date = utc_date.astimezone(tz)
-            start_date = local_date.strftime('%d/%m/%Y %H:%M')
-        else:
-            start_date = 'N/A'
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 5, y, 'Fecha de la evaluación:')
-        c.setFont('Helvetica', 9)
-        c.drawString(margin + 115, y, start_date)
-        y -= 25
-        
-        # === OBTENER DATOS DE ANSWERS_DATA PARA PORCENTAJE REAL ===
-        answers_data_raw = result.answers_data
-        if isinstance(answers_data_raw, str):
-            try:
-                answers_data = json.loads(answers_data_raw)
-            except:
-                answers_data = {}
-        else:
-            answers_data = answers_data_raw or {}
-        
-        # Obtener porcentaje real del summary (con decimales)
-        real_percentage = result.score or 0  # Fallback al score entero
-        if isinstance(answers_data, dict):
-            summary = answers_data.get('summary', {})
-            if isinstance(summary, dict) and 'percentage' in summary:
-                real_percentage = summary.get('percentage', real_percentage)
-        
-        # Redondear a 1 decimal
-        real_percentage = round(float(real_percentage), 1)
-        # Calcular puntaje sobre 1000
-        score_1000 = round(real_percentage * 10)
-        
-        # === RESULTADO ===
-        c.setFillColor(primary_color)
-        c.setFont('Helvetica-Bold', 10)
-        c.drawString(margin, y, 'RESULTADO DE LA EVALUACIÓN')
-        y -= 10
-        
-        # Recuadro de resultados
-        box_height = 40
-        c.setStrokeColor(colors.black)
-        c.setLineWidth(0.5)
-        c.rect(margin, y - box_height, page_width - 2 * margin, box_height)
-        
-        # Calificación (porcentaje con decimal)
-        passing_score = exam.passing_score or 70
-        is_passed = result.result == 1
-        
-        c.setFillColor(colors.black)
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 10, y - 15, 'Calificación:')
-        c.setFont('Helvetica-Bold', 18)
-        # Mostrar con decimal solo si es necesario
-        if real_percentage == int(real_percentage):
-            c.drawString(margin + 70, y - 18, f'{int(real_percentage)}%')
-        else:
-            c.drawString(margin + 70, y - 18, f'{real_percentage}%')
-        
-        # Puntaje (puntos sobre 1000) - alineado
-        puntaje_x = page_width / 2 + 10
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(puntaje_x, y - 15, 'Puntaje:')
-        c.setFont('Helvetica-Bold', 14)
-        c.drawString(puntaje_x + 80, y - 17, f'{score_1000}')
-        c.setFont('Helvetica', 10)
-        c.drawString(puntaje_x + 115, y - 17, '/ 1000 puntos')
-        
-        # Resultado y puntaje mínimo - alineado
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(margin + 10, y - 35, 'Resultado:')
-        
-        if is_passed:
-            c.setFillColor(success_color)
-            result_text = 'APROBADO'
-        else:
-            c.setFillColor(error_color)
-            result_text = 'NO APROBADO'
-        
-        c.setFont('Helvetica-Bold', 11)
-        c.drawString(margin + 60, y - 35, result_text)
-        
-        c.setFillColor(colors.black)
-        c.setFont('Helvetica-Bold', 9)
-        c.drawString(puntaje_x, y - 35, 'Puntaje mínimo:')
-        c.setFont('Helvetica', 9)
-        passing_score_1000 = round(passing_score * 10)
-        c.drawString(puntaje_x + 80, y - 35, f'{passing_score_1000} / 1000 puntos')
-        
-        y -= box_height + 20
-        
-        # === DESGLOSE POR ÁREA/TEMA ===
-        # (answers_data ya fue parseado arriba)
-        
-        # DEBUG: Mostrar estructura de answers_data
-        print(f"📋 PDF - answers_data keys: {list(answers_data.keys()) if isinstance(answers_data, dict) else 'No es dict'}")
-        
-        # Buscar evaluation_breakdown - PRIORIZAR el de summary que tiene earned/max/percentage correctos
-        category_results = {}
-        if isinstance(answers_data, dict):
-            # Primero buscar en summary (tiene los datos correctos con earned/max)
-            summary = answers_data.get('summary', {})
-            if isinstance(summary, dict):
-                category_results = summary.get('evaluation_breakdown', {})
-            
-            # Solo si no hay en summary, usar el de nivel raíz (fallback)
-            if not category_results:
-                category_results = answers_data.get('evaluation_breakdown', {})
-        
-        # DEBUG: Mostrar estructura de category_results  
-        print(f"📋 PDF - evaluation_breakdown: {category_results}")
-        for cat_name, cat_data in category_results.items():
-            print(f"📋 PDF - Categoría '{cat_name}': {cat_data}")
-        
-        if category_results:
-            c.setStrokeColor(primary_color)
-            c.setLineWidth(0.5)
-            c.line(margin, y, page_width - margin, y)
-            y -= 15
-            
-            # Encabezado de tabla
-            c.setFillColor(colors.black)
-            c.setFont('Helvetica-Bold', 8)
-            c.drawString(margin + 5, y, 'ÁREA / TEMA')
-            c.drawRightString(page_width - margin - 10, y, 'PORCENTAJE')
-            y -= 8
-            
-            c.setStrokeColor(colors.black)
-            c.setLineWidth(0.3)
-            c.line(margin, y, page_width - margin, y)
-            y -= 12
-            
-            cat_index = 0
-            for cat_name, cat_data in category_results.items():
-                cat_index += 1
-                
-                # Verificar si necesitamos nueva página
-                if y < 100:
-                    c.showPage()
-                    y = page_height - margin
-                
-                # Porcentaje de categoría - usar el porcentaje pre-calculado si existe
-                # Verificar que sea un número válido, no solo None
-                cat_percentage = cat_data.get('percentage')
-                print(f"📋 PDF - cat '{cat_name}' percentage raw: {cat_percentage} (type: {type(cat_percentage)})")
-                
-                # Si no hay percentage o es None/0, calcularlo de earned/max o correct/total
-                if cat_percentage is None or (isinstance(cat_percentage, (int, float)) and cat_percentage == 0):
-                    earned = cat_data.get('earned')
-                    max_score = cat_data.get('max')
-                    
-                    # Si no hay earned/max, usar correct/total como fallback
-                    if earned is None:
-                        earned = cat_data.get('correct', 0)
-                    if max_score is None:
-                        max_score = cat_data.get('total', 0)
-                    
-                    print(f"📋 PDF - cat '{cat_name}' calculando: earned={earned}, max={max_score}")
-                    
-                    if max_score and max_score > 0:
-                        cat_percentage = round((float(earned) / float(max_score)) * 100, 1)
-                    else:
-                        cat_percentage = 0
-                
-                # Asegurar que sea un número
-                try:
-                    cat_percentage = float(cat_percentage)
-                except (TypeError, ValueError):
-                    cat_percentage = 0
-                
-                print(f"📋 PDF - cat '{cat_name}' percentage final: {cat_percentage}")
-                
-                # Formatear porcentaje (mostrar decimal solo si es necesario)
-                if cat_percentage == int(cat_percentage):
-                    cat_percentage_str = f'{int(cat_percentage)}%'
-                else:
-                    cat_percentage_str = f'{cat_percentage}%'
-                
-                # Nombre de categoría
-                c.setFillColor(colors.black)
-                c.setFont('Helvetica-Bold', 9)
-                display_name = strip_html(cat_name).upper()[:40]
-                c.drawString(margin + 5, y, f'{cat_index}. {display_name}')
-                c.drawRightString(page_width - margin - 10, y, cat_percentage_str)
-                y -= 12
-                
-                # Topics
-                topics = cat_data.get('topics', {})
-                topic_index = 0
-                for topic_name, topic_data in topics.items():
-                    topic_index += 1
-                    
-                    if y < 80:
-                        c.showPage()
-                        y = page_height - margin
-                    
-                    # Porcentaje del tema - usar el porcentaje pre-calculado si existe
-                    topic_percentage = topic_data.get('percentage')
-                    print(f"📋 PDF - topic '{topic_name}' percentage raw: {topic_percentage}")
-                    
-                    # Si no hay percentage o es None/0, calcularlo
-                    if topic_percentage is None or (isinstance(topic_percentage, (int, float)) and topic_percentage == 0):
-                        earned = topic_data.get('earned')
-                        max_score = topic_data.get('max')
-                        
-                        if earned is None:
-                            earned = topic_data.get('correct', 0)
-                        if max_score is None:
-                            max_score = topic_data.get('total', 0)
-                        
-                        print(f"📋 PDF - topic '{topic_name}' calculando: earned={earned}, max={max_score}")
-                        
-                        if max_score and max_score > 0:
-                            topic_percentage = round((float(earned) / float(max_score)) * 100, 1)
-                        else:
-                            topic_percentage = 0
-                    
-                    # Asegurar que sea un número
-                    try:
-                        topic_percentage = float(topic_percentage)
-                    except (TypeError, ValueError):
-                        topic_percentage = 0
-                    
-                    print(f"📋 PDF - topic '{topic_name}' percentage final: {topic_percentage}")
-                    
-                    # Formatear porcentaje (mostrar decimal solo si es necesario)
-                    if topic_percentage == int(topic_percentage):
-                        topic_percentage_str = f'{int(topic_percentage)}%'
-                    else:
-                        topic_percentage_str = f'{topic_percentage}%'
-                    
-                    c.setFillColor(gray_color)
-                    c.setFont('Helvetica', 8)
-                    topic_display = strip_html(topic_name)[:35]
-                    c.drawString(margin + 20, y, f'{cat_index}.{topic_index} {topic_display}')
-                    c.drawRightString(page_width - margin - 10, y, topic_percentage_str)
-                    y -= 10
-                
-                # Línea separadora
-                c.setStrokeColor(light_gray)
-                c.setLineWidth(0.2)
-                c.line(margin, y, page_width - margin, y)
-                y -= 8
-            
-            # Total
-            c.setStrokeColor(colors.black)
-            c.setLineWidth(0.3)
-            c.line(margin, y, page_width - margin, y)
-            y -= 12
-            
-            c.setFillColor(colors.black)
-            c.setFont('Helvetica-Bold', 9)
-            c.drawString(margin + 5, y, 'TOTAL')
-            # Mostrar con decimal solo si es necesario
-            if real_percentage == int(real_percentage):
-                c.drawRightString(page_width - margin - 10, y, f'{int(real_percentage)}%')
-            else:
-                c.drawRightString(page_width - margin - 10, y, f'{real_percentage}%')
-            y -= 8
-            
-            c.setLineWidth(0.5)
-            c.line(margin, y, page_width - margin, y)
-            y -= 15
-        
-        # === QR DE VERIFICACIÓN ===
-        # Generar QR con el código de verificación
-        verification_code = result.certificate_code
-        if verification_code:
-            import qrcode
-            from io import BytesIO as QRBuffer
-            
-            # URL de verificación
-            verify_url = f"https://app.evaluaasi.com/verify/{verification_code}"
-            
-            # Crear QR
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_M,
-                box_size=3,
-                border=1,
-            )
-            qr.add_data(verify_url)
-            qr.make(fit=True)
-            
-            # Crear QR con fondo transparente
-            qr_img = qr.make_image(fill_color="black", back_color="transparent").convert('RGBA')
-            
-            # Guardar QR en buffer
-            qr_buffer = QRBuffer()
-            qr_img.save(qr_buffer, format='PNG')
-            qr_buffer.seek(0)
-            
-            # Dibujar QR en el PDF (esquina inferior izquierda)
-            from reportlab.lib.utils import ImageReader
-            qr_image = ImageReader(qr_buffer)
-            qr_size = 60
-            qr_x = margin  # Lado izquierdo
-            qr_y = 25
-            c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
-            
-            # Código de verificación debajo del QR
-            c.setFillColor(gray_color)
-            c.setFont('Helvetica', 6)
-            c.drawCentredString(qr_x + qr_size/2, qr_y - 8, verification_code)
-            c.setFont('Helvetica', 5)
-            c.drawCentredString(qr_x + qr_size/2, qr_y - 14, 'Escanea para verificar')
-        
-        # === PIE DE PÁGINA ===
-        y = 50
-        c.setStrokeColor(primary_color)
-        c.setLineWidth(0.3)
-        c.line(margin + 70, y, page_width - margin, y)  # Línea más corta para no chocar con QR (ahora del lado izquierdo)
-        y -= 10
-        
-        c.setFillColor(primary_color)
-        c.setFont('Helvetica', 7)
-        c.drawString(margin + 75, y, 'Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.')
-        y -= 8
-        c.setFillColor(gray_color)
-        c.drawString(margin, y, f'ID de resultado: {result.id}')
-        
-        c.save()
-        
-        # Preparar respuesta
-        buffer.seek(0)
-        
-        # Nombre del archivo
+
         exam_short = strip_html(exam.name)[:20] if exam.name else 'Examen'
         filename = f"Reporte_Evaluacion_{exam_short.replace(' ', '_')}.pdf"
         
-        # Log de completado
         elapsed_time = time.time() - start_time
         pdf_size = buffer.getbuffer().nbytes
-        current_app.logger.info(f'✅ [PDF] Reporte generado exitosamente')
-        current_app.logger.info(f'✅ [PDF] Archivo: {filename} - Tamaño: {pdf_size/1024:.2f} KB')
-        current_app.logger.info(f'✅ [PDF] Tiempo de generación: {elapsed_time*1000:.0f} ms')
+        current_app.logger.info(f'✅ [PDF] Reporte generado: {filename} - {pdf_size/1024:.2f} KB - {elapsed_time*1000:.0f} ms')
         
         return send_file(
             buffer,
@@ -4023,20 +3557,15 @@ def options_generate_pdf(result_id):
 @rate_limit_pdf(limit=5, window=60)
 def generate_certificate_pdf(result_id):
     """
-    Genera el certificado PDF usando la plantilla
-    Solo disponible para resultados aprobados
+    Genera el certificado PDF usando la plantilla (módulo compartido).
+    Solo disponible para resultados aprobados.
     """
     from flask import send_file, current_app
-    from io import BytesIO
-    from reportlab.pdfgen import canvas
-    from reportlab.lib.colors import HexColor
-    from reportlab.pdfbase.pdfmetrics import stringWidth
-    from pypdf import PdfReader, PdfWriter
-    import os
+    from app.utils.pdf_generator import generate_certificate_pdf as _gen_cert
+    import re
     import time
     
     start_time = time.time()
-    current_app.logger.info(f'🎓 [CERTIFICADO] Iniciando generación - result_id: {result_id}')
     
     try:
         from app.models.result import Result
@@ -4045,189 +3574,19 @@ def generate_certificate_pdf(result_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        current_app.logger.info(f'🎓 [CERTIFICADO] Usuario: {user.email if user else "Unknown"}')
-        
-        # Obtener resultado
         result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
         if not result:
-            current_app.logger.warning(f'🎓 [CERTIFICADO] Resultado no encontrado: {result_id}')
             return jsonify({'error': 'Resultado no encontrado'}), 404
         
-        # Verificar que el resultado sea aprobado
         exam = Exam.query.get(result.exam_id)
         if not exam:
-            current_app.logger.warning(f'🎓 [CERTIFICADO] Examen no encontrado para resultado: {result_id}')
             return jsonify({'error': 'Examen no encontrado'}), 404
         
-        current_app.logger.info(f'🎓 [CERTIFICADO] Examen: {exam.name[:50] if exam.name else "Sin nombre"}')
-        current_app.logger.info(f'🎓 [CERTIFICADO] Score: {result.score}% - Passing: {exam.passing_score}%')
-        
         if result.score < exam.passing_score:
-            current_app.logger.warning(f'🎓 [CERTIFICADO] Examen no aprobado - Score insuficiente')
             return jsonify({'error': 'Solo se pueden generar certificados para exámenes aprobados'}), 400
         
-        # === Buscar plantilla personalizada por ECM ===
-        custom_template = None
-        custom_template_bytes = None
-        if exam.competency_standard_id:
-            from app.models.certificate_template import CertificateTemplate
-            custom_template = CertificateTemplate.query.filter_by(
-                competency_standard_id=exam.competency_standard_id
-            ).first()
-            
-            if custom_template:
-                current_app.logger.info(f'🎓 [CERTIFICADO] Usando plantilla personalizada para ECM #{exam.competency_standard_id}')
-                try:
-                    from app.utils.azure_storage import azure_storage as az_storage
-                    custom_template_bytes = az_storage.download_file(custom_template.template_blob_url)
-                except Exception as tmpl_err:
-                    current_app.logger.warning(f'🎓 [CERTIFICADO] Error al descargar plantilla personalizada: {tmpl_err}. Usando plantilla global.')
-                    custom_template = None
-                    custom_template_bytes = None
+        buffer_final = _gen_cert(result, exam, user)
         
-        # Cargar plantilla PDF (personalizada o global)
-        if custom_template_bytes:
-            reader = PdfReader(BytesIO(custom_template_bytes))
-        else:
-            template_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static', 'plantilla.pdf')
-            if not os.path.exists(template_path):
-                current_app.logger.error(f'🎓 [CERTIFICADO] Plantilla no encontrada: {template_path}')
-                return jsonify({'error': 'Plantilla de certificado no encontrada'}), 500
-            reader = PdfReader(template_path)
-        
-        page = reader.pages[0]
-        width = float(page.mediabox.width)
-        height = float(page.mediabox.height)
-        
-        # Crear overlay con el texto
-        buffer_overlay = BytesIO()
-        c = canvas.Canvas(buffer_overlay, pagesize=(width, height))
-        
-        c.setFillColor(HexColor('#1a365d'))
-        
-        # === Obtener posiciones (config personalizada o default) ===
-        if custom_template:
-            tmpl_config = custom_template.get_config()
-            name_cfg = tmpl_config['name_field']
-            cert_cfg = tmpl_config['cert_name_field']
-            qr_cfg = tmpl_config['qr_field']
-        else:
-            name_cfg = {'x': 85, 'y': 375, 'width': 455, 'height': 50, 'maxFontSize': 36, 'color': '#1a365d'}
-            cert_cfg = {'x': 85, 'y': 300, 'width': 455, 'height': 30, 'maxFontSize': 18, 'color': '#1a365d'}
-            qr_cfg = {'x': 30, 'y': 25, 'size': 50, 'background': 'transparent', 'showCode': True, 'showText': True}
-        
-        # Función para ajustar tamaño de fuente
-        def draw_fitted_text_cfg(canv, text, cfg, font_name='Helvetica-Bold'):
-            color = cfg.get('color', '#1a365d')
-            canv.setFillColor(HexColor(color))
-            cx = cfg['x'] + cfg['width'] / 2
-            y = cfg['y']
-            mw = cfg['width']
-            max_font_size = cfg.get('maxFontSize', 36)
-            font_size = max_font_size
-            while font_size >= 8:
-                text_width = stringWidth(text, font_name, font_size)
-                if text_width <= mw:
-                    canv.setFont(font_name, font_size)
-                    canv.drawCentredString(cx, y, text)
-                    return font_size
-                font_size -= 1
-            canv.setFont(font_name, 8)
-            canv.drawCentredString(cx, y, text)
-            return 8
-        
-        # Construir nombre completo del usuario (Title Case)
-        name_parts = [user.name or '']
-        if user.first_surname:
-            name_parts.append(user.first_surname)
-        if user.second_surname:
-            name_parts.append(user.second_surname)
-        student_name = ' '.join(name_parts).strip() or user.email
-        # Convertir a Title Case
-        student_name = student_name.title()
-        
-        # NOMBRE según config
-        draw_fitted_text_cfg(c, student_name, name_cfg)
-        
-        # Construir nombre del certificado (MAYÚSCULAS)
-        if exam.name:
-            cert_name = exam.name.upper()
-        else:
-            cert_name = "CERTIFICADO DE COMPETENCIA"
-        
-        # CERTIFICADO según config
-        draw_fitted_text_cfg(c, cert_name, cert_cfg)
-        
-        # === QR DE VERIFICACIÓN ===
-        verification_code = result.eduit_certificate_code
-        if verification_code:
-            import qrcode
-            from io import BytesIO as QRBuffer
-            from reportlab.lib.utils import ImageReader
-            
-            verify_url = f"https://app.evaluaasi.com/verify/{verification_code}"
-            
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_M,
-                box_size=3,
-                border=1,
-            )
-            qr.add_data(verify_url)
-            qr.make(fit=True)
-            
-            # Fondo según config (white o transparent)
-            bg_color = 'white' if qr_cfg.get('background') == 'white' else 'transparent'
-            qr_img = qr.make_image(fill_color="black", back_color=bg_color)
-            if bg_color == 'transparent':
-                qr_img = qr_img.convert('RGBA')
-            
-            qr_buffer = QRBuffer()
-            qr_img.save(qr_buffer, format='PNG')
-            qr_buffer.seek(0)
-            
-            # Posición y tamaño según config
-            qr_image = ImageReader(qr_buffer)
-            qr_size = qr_cfg.get('size', 50)
-            qr_x = qr_cfg.get('x', 30)
-            qr_y = qr_cfg.get('y', 25)
-            c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
-            
-            # Código de verificación debajo del QR
-            if qr_cfg.get('showCode', True):
-                c.setFillColor(HexColor('#666666'))
-                c.setFont('Helvetica', 5)
-                c.drawCentredString(qr_x + qr_size/2, qr_y - 6, verification_code)
-            
-            if qr_cfg.get('showText', True):
-                c.setFillColor(HexColor('#666666'))
-                c.setFont('Helvetica', 4)
-                c.drawCentredString(qr_x + qr_size/2, qr_y - 11, 'Escanea para verificar')
-        
-        c.save()
-        
-        # Combinar plantilla con overlay
-        buffer_overlay.seek(0)
-        overlay = PdfReader(buffer_overlay)
-        
-        # Recargar plantilla para combinar
-        if custom_template_bytes:
-            reader2 = PdfReader(BytesIO(custom_template_bytes))
-        else:
-            reader2 = PdfReader(template_path)
-        page2 = reader2.pages[0]
-        page2.merge_page(overlay.pages[0])
-        
-        writer = PdfWriter()
-        writer.add_page(page2)
-        
-        # Escribir PDF final a buffer
-        buffer_final = BytesIO()
-        writer.write(buffer_final)
-        buffer_final.seek(0)
-        
-        # Generar nombre del archivo
-        import re
         def strip_html(text):
             if not text:
                 return ''
@@ -4236,12 +3595,9 @@ def generate_certificate_pdf(result_id):
         exam_short = strip_html(exam.name)[:30] if exam.name else 'Certificado'
         filename = f"Certificado_{exam_short.replace(' ', '_')}.pdf"
         
-        # Log de completado
         elapsed_time = time.time() - start_time
         pdf_size = buffer_final.getbuffer().nbytes
-        current_app.logger.info(f'✅ [CERTIFICADO] Certificado generado exitosamente')
-        current_app.logger.info(f'✅ [CERTIFICADO] Archivo: {filename} - Tamaño: {pdf_size/1024:.2f} KB')
-        current_app.logger.info(f'✅ [CERTIFICADO] Tiempo de generación: {elapsed_time*1000:.0f} ms')
+        current_app.logger.info(f'✅ [CERTIFICADO] Generado: {filename} - {pdf_size/1024:.2f} KB - {elapsed_time*1000:.0f} ms')
         
         return send_file(
             buffer_final,

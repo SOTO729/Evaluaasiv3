@@ -11470,13 +11470,15 @@ def download_group_certificates_zip(group_id):
         certificate_types = data.get('certificate_types', ['tier_basic', 'tier_standard'])
         user_ids = data.get('user_ids', None)
         
-        # --- FUNCIONES DE GENERACIÓN DE PDF ---
+        # --- FUNCIONES DE GENERACIÓN DE PDF (módulo compartido) ---
+        from app.utils.pdf_generator import generate_evaluation_report_pdf, generate_certificate_pdf as generate_certificate_pdf_with_template
+        
         def strip_html(text):
             if not text:
                 return ''
             return re.sub(r'<[^>]+>', '', str(text))
         
-        def generate_evaluation_report_pdf(result, exam, user):
+        def _old_generate_evaluation_report_pdf(result, exam, user):
             """Genera el PDF del reporte de evaluación"""
             buffer = BytesIO()
             page_width, page_height = letter
@@ -11615,7 +11617,7 @@ def download_group_certificates_zip(group_id):
             buffer.seek(0)
             return buffer
         
-        def generate_certificate_pdf_with_template(result, exam, user):
+        def _old_generate_certificate_pdf_with_template(result, exam, user):
             """Genera el certificado PDF usando plantilla si existe"""
             from pypdf import PdfReader, PdfWriter
             import qrcode
@@ -11680,7 +11682,8 @@ def download_group_certificates_zip(group_id):
                 verification_code = result.eduit_certificate_code
                 if verification_code:
                     # URL de verificación
-                    verify_url = f"https://app.evaluaasi.com/verify/{verification_code}"
+                    base_url = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+                    verify_url = f"{base_url}/verify/{verification_code}"
                     
                     # Crear QR
                     qr = qrcode.QRCode(
@@ -14649,7 +14652,7 @@ def get_mi_partner_certificates():
         if not cert_type_filter or cert_type_filter == 'reporte_evaluacion':
             results_q = Result.query.filter(
                 Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
-                Result.report_url.isnot(None)
+                db.or_(Result.report_url.isnot(None), Result.certificate_code.isnot(None))
             )
             if search:
                 # Buscar por nombre de usuario
@@ -14696,7 +14699,7 @@ def get_mi_partner_certificates():
         if not cert_type_filter or cert_type_filter == 'certificado_eduit':
             results_q = Result.query.filter(
                 Result.user_id.in_(candidate_ids), Result.status == 1, Result.result == 1,
-                Result.certificate_url.isnot(None)
+                db.or_(Result.certificate_url.isnot(None), Result.eduit_certificate_code.isnot(None))
             )
             if search:
                 matching_users = User.query.filter(

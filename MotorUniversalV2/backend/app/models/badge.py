@@ -124,8 +124,12 @@ class IssuedBadge(db.Model):
 
     @property
     def verify_url(self):
-        return f"https://app.evaluaasi.com/verify/{self.badge_code}"
+        import os
+        base = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+        return f"{base}/verify/{self.badge_code}"
 
     @property
     def credential_url(self):
-        return f"https://app.evaluaasi.com/api/badges/{self.badge_uuid}/credential.json"
+        import os
+        base = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+        return f"{base}/api/badges/{self.badge_uuid}/credential.json"
