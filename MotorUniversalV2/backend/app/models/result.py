@@ -4,6 +4,7 @@ Modelo de Resultado
 from datetime import datetime
 from app import db
 from sqlalchemy import event
+from sqlalchemy.orm.attributes import NEVER_SET, NO_VALUE
 
 
 class Result(db.Model):
@@ -119,7 +120,7 @@ def _archive_code_on_change(target, value, oldvalue, initiator):
     """Listener de SQLAlchemy que archiva un código de certificado cuando cambia.
     Se dispara ANTES de que el nuevo valor se escriba en la columna."""
     # Solo archivar si había un valor previo y está cambiando
-    if oldvalue is None or oldvalue == value or oldvalue is event.symbol('NEVER_SET') or oldvalue is event.symbol('NO_VALUE'):
+    if oldvalue is None or oldvalue == value or oldvalue is NEVER_SET or oldvalue is NO_VALUE:
         return
 
     attr_name = initiator.key  # 'certificate_code' o 'eduit_certificate_code'
