@@ -114,6 +114,9 @@ class User(db.Model):
     enable_conocer_certificate = db.Column(db.Boolean, default=False, nullable=False)
     enable_digital_badge = db.Column(db.Boolean, default=False, nullable=False)
     
+    # LinkedIn API OAuth2 token
+    linkedin_token = db.Column(db.String(2000), nullable=True)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -581,11 +581,12 @@ def badge_share_preview(code):
 
     description = '. '.join(description_parts) + '.'
 
-    # Image: prefer baked badge, fallback to template
-    image_url = (badge.badge_image_url
-                 or badge.template_image_url
-                 or (template.badge_image_url if template else None)
-                 or '')
+    # Image: serve PNG via our conversion endpoint (LinkedIn requires PNG/JPEG, not WebP)
+    api_base = os.environ.get('API_BASE_URL', request.host_url.rstrip('/'))
+    # Ensure HTTPS (container app is behind TLS-terminating reverse proxy)
+    if api_base.startswith('http://'):
+        api_base = 'https://' + api_base[7:]
+    image_url = f"{api_base}/api/badges/share-image/{code}.png"
 
     # Determine SPA verify URL
     swa_base = os.environ.get('SWA_BASE_URL', 'https://app.evaluaasi.com')
@@ -600,13 +601,16 @@ def badge_share_preview(code):
 <meta property="og:title" content="{escape(badge_name)}" />
 <meta property="og:description" content="{escape(description)}" />
 <meta property="og:image" content="{escape(image_url)}" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="627" />
 <meta property="og:url" content="{escape(verify_url)}" />
 <meta property="og:site_name" content="Evaluaasi - Grupo Eduit" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="{escape(badge_name)}" />
 <meta name="twitter:description" content="{escape(description)}" />
 <meta name="twitter:image" content="{escape(image_url)}" />
-<meta http-equiv="refresh" content="0;url={escape(verify_url)}" />
+<meta http-equiv="refresh" content="2;url={escape(verify_url)}" />
 </head>
 <body>
 <p>Redirigiendo a la verificación de <strong>{escape(badge_name)}</strong>...</p>
@@ -618,6 +622,74 @@ def badge_share_preview(code):
     resp = make_response(html, 200)
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     return resp
+
+
+@bp.route('/share-image/<code>.png', methods=['GET'])
+def badge_share_image(code):
+    """
+    Sirve la imagen de la insignia convertida a PNG para LinkedIn/redes.
+    LinkedIn no soporta WebP en og:image, así que convertimos al vuelo.
+    Cacheable por CDN/browser.
+    """
+    import requests as http_requests
+    from io import BytesIO
+
+    badge = IssuedBadge.query.filter_by(badge_code=code).first()
+    if not badge:
+        abort(404)
+
+    # Prefer template image (higher quality), fallback to baked badge, then ECM logo
+    template = BadgeTemplate.query.get(badge.badge_template_id) if badge.badge_template_id else None
+    ecm_logo = None
+    if template and template.competency_standard_id:
+        from app.models.competency_standard import CompetencyStandard
+        cs = CompetencyStandard.query.get(template.competency_standard_id)
+        ecm_logo = cs.logo_url if cs else None
+
+    image_url = (badge.template_image_url
+                 or (template.badge_image_url if template else None)
+                 or ecm_logo
+                 or badge.badge_image_url)
+    if not image_url:
+        abort(404)
+
+    try:
+        img_resp = http_requests.get(image_url, timeout=10)
+        img_resp.raise_for_status()
+
+        from PIL import Image
+        img = Image.open(BytesIO(img_resp.content))
+
+        # Convert to RGB if needed (RGBA/palette → RGB for broader compat)
+        if img.mode in ('RGBA', 'LA'):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[-1])
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        # Ensure minimum size for LinkedIn (1200x627 recommended)
+        # Scale up if too small, maintaining aspect ratio, on white bg
+        min_w, min_h = 1200, 627
+        if img.width < min_w or img.height < min_h:
+            scale = max(min_w / img.width, min_h / img.height)
+            new_w = int(img.width * scale)
+            new_h = int(img.height * scale)
+            img = img.resize((new_w, new_h), Image.LANCZOS)
+
+        buf = BytesIO()
+        img.save(buf, format='PNG', optimize=True)
+        buf.seek(0)
+
+        from flask import make_response as mk
+        resp = mk(buf.getvalue())
+        resp.headers['Content-Type'] = 'image/png'
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception as e:
+        print(f"[BADGE] Error converting image for {code}: {e}")
+        abort(404)
+
 
 @bp.route('/<int:badge_id>/linkedin-url', methods=['GET'])
 @jwt_required()
@@ -650,15 +722,31 @@ def linkedin_share_url(badge_id):
     for k, v in params.items():
         add_profile_url += f'&{k}={v}'
 
-    # 2. Share as Post URL (creates a post with OG preview: image, skills, etc.)
+    # 2. Share as Post URL
+    # Uses sharing/share-offsite which crawls OG tags from the share-preview page
+    # The share-preview page has og:image pointing to a PNG conversion endpoint,
+    # og:description with skills, and og:title with badge name.
     api_base = os.environ.get('API_BASE_URL', request.host_url.rstrip('/'))
+    if api_base.startswith('http://'):
+        api_base = 'https://' + api_base[7:]
     share_preview_url = f"{api_base}/api/badges/share-preview/{badge.badge_code}"
+    image_png_url = f"{api_base}/api/badges/share-image/{badge.badge_code}.png"
     share_post_url = f"https://www.linkedin.com/sharing/share-offsite/?url={quote(share_preview_url)}"
+
+    # Check LinkedIn API availability
+    from app.services.linkedin_service import is_configured
+    user_id = get_jwt_identity()
+    user = User.query.get(str(user_id))
+    linkedin_api_configured = is_configured()
+    linkedin_connected = bool(getattr(user, 'linkedin_token', None)) if user else False
 
     return jsonify({
         'linkedin_url': share_post_url,
         'add_profile_url': add_profile_url,
         'share_post_url': share_post_url,
+        'image_url': image_png_url,
+        'linkedin_api_available': linkedin_api_configured,
+        'linkedin_connected': linkedin_connected,
     })
 
 
@@ -893,3 +981,188 @@ def issue_pending_group_badges(group_id):
         'issued': issued_count,
         'errors': errors_list[:20] if errors_list else [],
     }), 200
+
+
+# ═══════════════════════════════════════════════
+# LinkedIn API Integration (OAuth2 + Share Posts)
+# ═══════════════════════════════════════════════
+
+@bp.route('/linkedin/status', methods=['GET'])
+@jwt_required()
+def linkedin_api_status():
+    """Check if LinkedIn API is configured and if user has a stored token."""
+    from app.services.linkedin_service import is_configured
+    user_id = get_jwt_identity()
+    user = User.query.get(str(user_id))
+    has_token = bool(getattr(user, 'linkedin_token', None)) if user else False
+    return jsonify({
+        'configured': is_configured(),
+        'connected': has_token,
+    })
+
+
+@bp.route('/linkedin/authorize', methods=['GET'])
+@jwt_required()
+def linkedin_authorize():
+    """
+    Start LinkedIn OAuth2 flow.
+    Returns the authorization URL. The frontend opens it in a popup/new tab.
+    Query param: badge_id — the badge to share after auth completes.
+    """
+    from app.services.linkedin_service import is_configured, build_authorize_url
+    import json, base64
+
+    if not is_configured():
+        return jsonify({'error': 'LinkedIn API no está configurada. Contacte al administrador.'}), 501
+
+    badge_id = request.args.get('badge_id', '')
+    user_id = get_jwt_identity()
+
+    # state = base64(JSON{user_id, badge_id}) — used in callback to resume flow
+    state_data = json.dumps({'user_id': user_id, 'badge_id': badge_id})
+    state = base64.urlsafe_b64encode(state_data.encode()).decode()
+
+    auth_url = build_authorize_url(state)
+    return jsonify({'authorize_url': auth_url})
+
+
+@bp.route('/linkedin/callback', methods=['GET'])
+def linkedin_callback():
+    """
+    LinkedIn OAuth2 callback. Exchanges code for token, stores it,
+    then redirects to frontend with success/error.
+    """
+    import json, base64, os
+    from app.services.linkedin_service import exchange_code_for_token
+
+    code = request.args.get('code')
+    state = request.args.get('state', '')
+    error = request.args.get('error')
+
+    swa_base = os.environ.get('SWA_BASE_URL', 'https://app.evaluaasi.com')
+
+    if error:
+        return _redirect_html(f"{swa_base}/certificates?linkedin_error={error}")
+
+    if not code:
+        return _redirect_html(f"{swa_base}/certificates?linkedin_error=no_code")
+
+    try:
+        state_data = json.loads(base64.urlsafe_b64decode(state))
+        user_id = state_data.get('user_id')
+        badge_id = state_data.get('badge_id', '')
+    except Exception:
+        return _redirect_html(f"{swa_base}/certificates?linkedin_error=invalid_state")
+
+    try:
+        token_data = exchange_code_for_token(code)
+        access_token = token_data.get('access_token')
+        if not access_token:
+            return _redirect_html(f"{swa_base}/certificates?linkedin_error=no_token")
+
+        # Store token on user record
+        user = User.query.get(str(user_id))
+        if user:
+            user.linkedin_token = access_token
+            db.session.commit()
+
+        redirect_url = f"{swa_base}/certificates?linkedin_connected=1"
+        if badge_id:
+            redirect_url += f"&share_badge={badge_id}"
+        return _redirect_html(redirect_url)
+
+    except Exception as e:
+        print(f"[LINKEDIN] Token exchange error: {e}")
+        return _redirect_html(f"{swa_base}/certificates?linkedin_error=token_exchange_failed")
+
+
+def _redirect_html(url):
+    """Return a simple HTML redirect page."""
+    from markupsafe import escape
+    from flask import make_response
+    html = f'''<!DOCTYPE html><html><head>
+<meta http-equiv="refresh" content="0;url={escape(url)}" />
+</head><body><p>Redirigiendo...</p></body></html>'''
+    resp = make_response(html, 200)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
+
+
+@bp.route('/linkedin/share/<int:badge_id>', methods=['POST'])
+@jwt_required()
+def linkedin_share_badge(badge_id):
+    """
+    Share a badge on LinkedIn using the API (with image upload).
+    Requires the user to have completed OAuth2 flow (linkedin_token stored).
+    Falls back to URL-based sharing if no token.
+    """
+    import os
+    from io import BytesIO
+    from app.services.linkedin_service import is_configured, share_badge_with_image
+
+    user_id = get_jwt_identity()
+    user = User.query.get(str(user_id))
+    badge = IssuedBadge.query.get_or_404(badge_id)
+    template = BadgeTemplate.query.get(badge.badge_template_id)
+
+    access_token = getattr(user, 'linkedin_token', None) if user else None
+
+    if not is_configured() or not access_token:
+        # Fallback: return URL-based sharing
+        return _build_url_share_response(badge, template)
+
+    # Get the PNG badge image
+    try:
+        api_base = os.environ.get('API_BASE_URL', request.host_url.rstrip('/'))
+        if api_base.startswith('http://'):
+            api_base = 'https://' + api_base[7:]
+        png_url = f"{api_base}/api/badges/share-image/{badge.badge_code}.png"
+
+        import requests as http_req
+        img_resp = http_req.get(png_url, timeout=15)
+        img_resp.raise_for_status()
+        image_bytes = img_resp.content
+
+        result = share_badge_with_image(access_token, badge, template, image_bytes)
+
+        # Track the share
+        badge.share_count = (badge.share_count or 0) + 1
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'method': 'linkedin_api',
+            'message': 'Insignia publicada en LinkedIn exitosamente',
+            'post': result,
+        })
+    except Exception as e:
+        print(f"[LINKEDIN] Share error: {e}")
+        # If API share fails (e.g., expired token), clear token and fallback
+        if user and hasattr(user, 'linkedin_token'):
+            user.linkedin_token = None
+            db.session.commit()
+        return _build_url_share_response(badge, template, error=str(e))
+
+
+def _build_url_share_response(badge, template, error=None):
+    """Build fallback URL-based sharing response."""
+    import os
+    from urllib.parse import quote
+
+    api_base = os.environ.get('API_BASE_URL', request.host_url.rstrip('/'))
+    if api_base.startswith('http://'):
+        api_base = 'https://' + api_base[7:]
+
+    share_preview_url = f"{api_base}/api/badges/share-preview/{badge.badge_code}"
+    image_png_url = f"{api_base}/api/badges/share-image/{badge.badge_code}.png"
+    share_post_url = f"https://www.linkedin.com/sharing/share-offsite/?url={quote(share_preview_url)}"
+
+    resp_data = {
+        'success': False,
+        'method': 'url_fallback',
+        'share_post_url': share_post_url,
+        'image_url': image_png_url,
+    }
+    if error:
+        resp_data['error'] = f'LinkedIn API no disponible: {error}. Use el enlace alternativo.'
+    return jsonify(resp_data)

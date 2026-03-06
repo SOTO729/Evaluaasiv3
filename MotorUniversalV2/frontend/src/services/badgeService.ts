@@ -203,7 +203,35 @@ export const badgeService = {
   },
 
   getLinkedInUrl: async (badgeId: number) => {
-    const resp = await api.get<{ linkedin_url: string; add_profile_url?: string; share_post_url?: string }>(`/badges/${badgeId}/linkedin-url`)
+    const resp = await api.get<{
+      linkedin_url: string
+      add_profile_url?: string
+      share_post_url?: string
+      image_url?: string
+      linkedin_api_available?: boolean
+      linkedin_connected?: boolean
+    }>(`/badges/${badgeId}/linkedin-url`)
+    return resp.data
+  },
+
+  linkedinAuthorize: async (badgeId: number) => {
+    const resp = await api.get<{ authorize_url: string }>(`/badges/linkedin/authorize?badge_id=${badgeId}`)
+    return resp.data
+  },
+
+  linkedinShareViaApi: async (badgeId: number) => {
+    const resp = await api.post<{
+      success: boolean
+      method: string
+      message?: string
+      error?: string
+      share_post_url?: string
+    }>(`/badges/linkedin/share/${badgeId}`)
+    return resp.data
+  },
+
+  linkedinStatus: async () => {
+    const resp = await api.get<{ configured: boolean; connected: boolean }>('/badges/linkedin/status')
     return resp.data
   },
 }

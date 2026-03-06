@@ -135,5 +135,14 @@ class IssuedBadge(db.Model):
     @property
     def credential_url(self):
         import os
-        base = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
-        return f"{base}/api/badges/{self.badge_uuid}/credential.json"
+        api_base = os.environ.get('API_BASE_URL', '').strip()
+        if not api_base:
+            try:
+                from flask import request as _req
+                api_base = _req.host_url.rstrip('/')
+            except RuntimeError:
+                env = os.environ.get('FLASK_ENV', '')
+                api_base = 'https://app.evaluaasi.com' if env == 'production' else 'https://dev.evaluaasi.com'
+        if api_base.startswith('http://'):
+            api_base = 'https://' + api_base[7:]
+        return f"{api_base}/api/badges/{self.badge_uuid}/credential.json"

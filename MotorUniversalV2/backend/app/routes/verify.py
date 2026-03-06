@@ -260,7 +260,10 @@ def verify_certificate(code):
                     'description': template.description if template else None,
                     'issuer_name': template.issuer_name if template else 'Grupo Eduit',
                     'image_url': badge.badge_image_url,
-                    'template_image_url': badge.template_image_url or (template.badge_image_url if template else None),
+                    'template_image_url': (badge.template_image_url
+                                           or (template.badge_image_url if template else None)
+                                           or ecm_logo_url
+                                           or (template.issuer_image_url if template else None)),
                     'issued_date': formatted_date,
                     'expires_date': expires_formatted,
                     'badge_uuid': badge.badge_uuid,

@@ -559,6 +559,33 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
         const { default: badgeService } = await import('../../services/badgeService')
         const data = await badgeService.getMyBadges()
         setBadges(data.badges)
+
+        // Handle LinkedIn OAuth2 callback — auto-share if returning from auth
+        const params = new URLSearchParams(window.location.search)
+        const shareBadgeId = params.get('share_badge')
+        const linkedinConnected = params.get('linkedin_connected')
+        const linkedinError = params.get('linkedin_error')
+
+        if (linkedinError) {
+          alert(`Error al conectar con LinkedIn: ${linkedinError}`)
+          window.history.replaceState({}, '', window.location.pathname)
+        } else if (linkedinConnected && shareBadgeId) {
+          // Clean URL params immediately
+          window.history.replaceState({}, '', window.location.pathname)
+          // Auto-share the badge after successful OAuth2
+          try {
+            const result = await badgeService.linkedinShareViaApi(Number(shareBadgeId))
+            if (result.success) {
+              alert('✅ Insignia publicada en LinkedIn exitosamente')
+            } else if (result.share_post_url) {
+              window.open(result.share_post_url, '_blank', 'noopener')
+            }
+          } catch {
+            console.error('Auto-share after OAuth2 failed')
+          }
+        } else if (linkedinConnected) {
+          window.history.replaceState({}, '', window.location.pathname)
+        }
       } catch (err) {
         console.error('Error loading badges:', err)
       } finally {
@@ -579,12 +606,43 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     try {
       const { default: badgeService } = await import('../../services/badgeService')
       const data = await badgeService.getLinkedInUrl(badge.id)
+
+      // If LinkedIn API is available and user is connected → share via API
+      if (data.linkedin_api_available && data.linkedin_connected) {
+        try {
+          const result = await badgeService.linkedinShareViaApi(badge.id)
+          if (result.success) {
+            alert('✅ Insignia publicada en LinkedIn exitosamente')
+            return
+          }
+          // API failed — fallback to URL sharing
+          if (result.share_post_url) {
+            window.open(result.share_post_url, '_blank', 'noopener')
+            return
+          }
+        } catch {
+          // Fall through to URL sharing
+        }
+      }
+
+      // If LinkedIn API is available but user not connected → start OAuth2 flow
+      if (data.linkedin_api_available && !data.linkedin_connected) {
+        try {
+          const auth = await badgeService.linkedinAuthorize(badge.id)
+          if (auth.authorize_url) {
+            window.open(auth.authorize_url, '_blank', 'noopener')
+            return
+          }
+        } catch {
+          // Fall through to URL sharing
+        }
+      }
+
+      // URL-based fallback
       await badgeService.trackShare(badge.id)
-      // Use share_post_url (creates a LinkedIn post with OG preview: image, skills, expiry)
       const shareUrl = typeof data === 'string' ? data : (data.share_post_url || data.linkedin_url)
       window.open(shareUrl, '_blank', 'noopener')
     } catch (err) {
-      // Fallback: copy verify URL
       const verifyUrl = badge.verify_url || `https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/${badge.badge_code}`
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(verifyUrl)

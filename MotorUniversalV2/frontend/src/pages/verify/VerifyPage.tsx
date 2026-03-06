@@ -185,38 +185,25 @@ const VerifyPage = () => {
             {/* ═══ BADGE LAYOUT ═══ */}
             {isBadge && data.badge && (
               <>
-                {/* Hero: Imagen de la insignia centrada */}
-                {data.badge.template_image_url && (
-                  <div className="flex justify-center py-4">
-                    <div className="relative group">
-                      <div className="absolute -inset-3 bg-gradient-to-br from-emerald-200 via-green-100 to-teal-200 rounded-3xl opacity-60 blur-md" />
-                      <img
-                        src={data.badge.template_image_url}
-                        alt={data.badge.name}
-                        className="relative h-56 w-auto rounded-2xl object-contain shadow-xl ring-2 ring-white"
-                      />
-                      <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg ring-3 ring-white">
-                        <CheckCircle className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Nombre de la insignia */}
                 <div className="text-center">
                   <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Insignia Digital</p>
                   <h3 className="text-xl font-bold text-gray-900">{data.badge.name}</h3>
                 </div>
 
-                {/* Imagen de la plantilla */}
+                {/* Imagen de la plantilla – justo debajo del título, centrada y grande */}
                 {data.badge.template_image_url && (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="flex justify-center">
+                  <div className="flex justify-center py-4">
+                    <div className="relative group">
+                      <div className="absolute -inset-4 bg-gradient-to-br from-emerald-200 via-green-100 to-teal-200 rounded-3xl opacity-60 blur-lg" />
                       <img
                         src={data.badge.template_image_url}
                         alt={data.badge.name}
-                        className="max-h-52 rounded-lg object-contain shadow-sm"
+                        className="relative h-72 w-auto rounded-2xl object-contain shadow-xl ring-2 ring-white"
                       />
+                      <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg ring-3 ring-white">
+                        <CheckCircle className="w-6 h-6 text-white" />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -277,6 +264,17 @@ const VerifyPage = () => {
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Descripción de la insignia */}
+                {data.badge.description && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5 font-medium">
+                      <BookOpen className="w-3.5 h-3.5 text-gray-600" />
+                      Descripción
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{data.badge.description}</p>
                   </div>
                 )}
 
