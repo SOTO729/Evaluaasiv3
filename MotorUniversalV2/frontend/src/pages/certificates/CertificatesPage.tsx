@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight } from 'lucide-react'
+import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight, Share2, UserPlus } from 'lucide-react'
 import { dashboardService } from '../../services/dashboardService'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -578,9 +578,11 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     setSharingId(badge.id)
     try {
       const { default: badgeService } = await import('../../services/badgeService')
-      const linkedinUrl = await badgeService.getLinkedInUrl(badge.id)
+      const data = await badgeService.getLinkedInUrl(badge.id)
       await badgeService.trackShare(badge.id)
-      window.open(linkedinUrl, '_blank', 'noopener')
+      // Use share_post_url (creates a LinkedIn post with OG preview: image, skills, expiry)
+      const shareUrl = typeof data === 'string' ? data : (data.share_post_url || data.linkedin_url)
+      window.open(shareUrl, '_blank', 'noopener')
     } catch (err) {
       // Fallback: copy verify URL
       const verifyUrl = badge.verify_url || `https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/${badge.badge_code}`
@@ -588,6 +590,23 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
         await navigator.clipboard.writeText(verifyUrl)
         alert('URL de verificación copiada al portapapeles')
       }
+    } finally {
+      setSharingId(null)
+    }
+  }
+
+  const handleAddToProfile = async (badge: any) => {
+    setSharingId(badge.id)
+    try {
+      const { default: badgeService } = await import('../../services/badgeService')
+      const data = await badgeService.getLinkedInUrl(badge.id)
+      await badgeService.trackShare(badge.id)
+      const profileUrl = typeof data === 'string' ? data : data.add_profile_url
+      if (profileUrl) {
+        window.open(profileUrl, '_blank', 'noopener')
+      }
+    } catch (err) {
+      console.error('Error adding to profile:', err)
     } finally {
       setSharingId(null)
     }
@@ -686,10 +705,18 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               <button
                 onClick={() => handleShare(badge)}
                 disabled={sharingId === badge.id}
-                className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                className="fluid-px-3 fluid-py-2 border border-blue-300 text-blue-600 rounded-fluid-lg fluid-text-sm hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
                 title="Compartir en LinkedIn"
               >
-                <ExternalLink className="fluid-icon-xs" />
+                <Share2 className="fluid-icon-xs" />
+              </button>
+              <button
+                onClick={() => handleAddToProfile(badge)}
+                disabled={sharingId === badge.id}
+                className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                title="Agregar al perfil de LinkedIn"
+              >
+                <UserPlus className="fluid-icon-xs" />
               </button>
             </div>
           </div>

@@ -203,8 +203,8 @@ export const badgeService = {
   },
 
   getLinkedInUrl: async (badgeId: number) => {
-    const resp = await api.get<{ linkedin_url: string }>(`/badges/${badgeId}/linkedin-url`)
-    return resp.data.linkedin_url
+    const resp = await api.get<{ linkedin_url: string; add_profile_url?: string; share_post_url?: string }>(`/badges/${badgeId}/linkedin-url`)
+    return resp.data
   },
 }
 

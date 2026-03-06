@@ -530,13 +530,100 @@ def revoke_badge(badge_id):
 
 
 # ═══════════════════════════════════════════════
-# LINKEDIN SHARE URL
+# SHARE PREVIEW (OG meta tags para LinkedIn/redes)
 # ═══════════════════════════════════════════════
+
+@bp.route('/share-preview/<code>', methods=['GET'])
+def badge_share_preview(code):
+    """
+    Página HTML pública con Open Graph meta tags para que LinkedIn
+    y otras redes sociales muestren una preview rica de la insignia.
+    Redirige al usuario al verify page de la SPA después de cargar.
+    """
+    import os
+    from markupsafe import escape
+
+    badge = IssuedBadge.query.filter_by(badge_code=code).first()
+    if not badge:
+        return '<html><body>Insignia no encontrada</body></html>', 404
+
+    template = BadgeTemplate.query.get(badge.badge_template_id)
+    user = User.query.get(str(badge.user_id))
+
+    # Build candidate name
+    name_parts = [user.name or ''] if user else ['N/A']
+    if user and user.first_surname:
+        name_parts.append(user.first_surname)
+    if user and user.second_surname:
+        name_parts.append(user.second_surname)
+    full_name = ' '.join(name_parts).strip() or 'N/A'
+
+    badge_name = template.name if template else 'Insignia Digital'
+    description_parts = [f'Insignia digital verificada otorgada a {full_name}']
+
+    # Add skills to description
+    skills_text = ''
+    if template and template.skills:
+        skills_list = [s.strip() for s in template.skills.split(',') if s.strip()]
+        if skills_list:
+            skills_text = ', '.join(skills_list)
+            description_parts.append(f'Aptitudes: {skills_text}')
+
+    # Add expiry
+    if badge.expires_at:
+        meses = {1:'ene',2:'feb',3:'mar',4:'abr',5:'may',6:'jun',
+                 7:'jul',8:'ago',9:'sep',10:'oct',11:'nov',12:'dic'}
+        description_parts.append(
+            f'Válida hasta: {badge.expires_at.day}/{meses[badge.expires_at.month]}/{badge.expires_at.year}'
+        )
+    else:
+        description_parts.append('Sin fecha de caducidad')
+
+    description = '. '.join(description_parts) + '.'
+
+    # Image: prefer baked badge, fallback to template
+    image_url = (badge.badge_image_url
+                 or badge.template_image_url
+                 or (template.badge_image_url if template else None)
+                 or '')
+
+    # Determine SPA verify URL
+    swa_base = os.environ.get('SWA_BASE_URL', 'https://app.evaluaasi.com')
+    verify_url = f"{swa_base}/verify/{escape(code)}"
+
+    html = f'''<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>{escape(badge_name)} — Verificación de Insignia | Evaluaasi</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="{escape(badge_name)}" />
+<meta property="og:description" content="{escape(description)}" />
+<meta property="og:image" content="{escape(image_url)}" />
+<meta property="og:url" content="{escape(verify_url)}" />
+<meta property="og:site_name" content="Evaluaasi - Grupo Eduit" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{escape(badge_name)}" />
+<meta name="twitter:description" content="{escape(description)}" />
+<meta name="twitter:image" content="{escape(image_url)}" />
+<meta http-equiv="refresh" content="0;url={escape(verify_url)}" />
+</head>
+<body>
+<p>Redirigiendo a la verificación de <strong>{escape(badge_name)}</strong>...</p>
+<p><a href="{escape(verify_url)}">Haz clic aquí si no eres redirigido</a></p>
+</body>
+</html>'''
+
+    from flask import make_response
+    resp = make_response(html, 200)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
 
 @bp.route('/<int:badge_id>/linkedin-url', methods=['GET'])
 @jwt_required()
 def linkedin_share_url(badge_id):
-    """Generar URL para agregar insignia a perfil de LinkedIn"""
+    """Generar URLs para compartir insignia en LinkedIn"""
+    import os
     badge = IssuedBadge.query.get_or_404(badge_id)
     template = BadgeTemplate.query.get(badge.badge_template_id)
 
@@ -545,10 +632,11 @@ def linkedin_share_url(badge_id):
     issued_month = badge.issued_at.month if badge.issued_at else ''
 
     from urllib.parse import quote
-    # LinkedIn Add to Profile URL
+
+    # 1. Add to Profile URL (adds certification to LinkedIn profile)
     params = {
         'name': quote(template.name if template else 'Insignia Digital'),
-        'organizationName': quote(template.issuer_name or 'EduIT / Evaluaasi'),
+        'organizationName': quote(template.issuer_name or 'Grupo Eduit'),
         'issueYear': str(issued_year),
         'issueMonth': str(issued_month),
         'certUrl': quote(verify_url),
@@ -558,11 +646,20 @@ def linkedin_share_url(badge_id):
         params['expirationYear'] = str(badge.expires_at.year)
         params['expirationMonth'] = str(badge.expires_at.month)
 
-    linkedin_url = 'https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME'
+    add_profile_url = 'https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME'
     for k, v in params.items():
-        linkedin_url += f'&{k}={v}'
+        add_profile_url += f'&{k}={v}'
 
-    return jsonify({'linkedin_url': linkedin_url})
+    # 2. Share as Post URL (creates a post with OG preview: image, skills, etc.)
+    api_base = os.environ.get('API_BASE_URL', request.host_url.rstrip('/'))
+    share_preview_url = f"{api_base}/api/badges/share-preview/{badge.badge_code}"
+    share_post_url = f"https://www.linkedin.com/sharing/share-offsite/?url={quote(share_preview_url)}"
+
+    return jsonify({
+        'linkedin_url': share_post_url,
+        'add_profile_url': add_profile_url,
+        'share_post_url': share_post_url,
+    })
 
 
 # ═══════════════════════════════════════════════
