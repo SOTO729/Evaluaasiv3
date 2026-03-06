@@ -186,15 +186,16 @@ const VerifyPage = () => {
               <>
                 {/* Hero: Imagen de la insignia centrada */}
                 {data.badge.template_image_url && (
-                  <div className="flex justify-center py-2">
-                    <div className="relative">
+                  <div className="flex justify-center py-4">
+                    <div className="relative group">
+                      <div className="absolute -inset-3 bg-gradient-to-br from-emerald-200 via-green-100 to-teal-200 rounded-3xl opacity-60 blur-md" />
                       <img
                         src={data.badge.template_image_url}
                         alt={data.badge.name}
-                        className="h-44 w-auto rounded-2xl object-contain shadow-md"
+                        className="relative h-56 w-auto rounded-2xl object-contain shadow-xl ring-2 ring-white"
                       />
-                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                        <CheckCircle className="w-5 h-5 text-white" />
+                      <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg ring-3 ring-white">
+                        <CheckCircle className="w-6 h-6 text-white" />
                       </div>
                     </div>
                   </div>
