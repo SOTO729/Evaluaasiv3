@@ -72,6 +72,8 @@ def build_ob3_credential(issued_badge, template, user, result=None):
         }
     if template.tags:
         achievement["tag"] = [t.strip() for t in template.tags.split(',') if t.strip()]
+    if template.skills:
+        achievement["specialization"] = [s.strip() for s in template.skills.split(',') if s.strip()]
 
     # Build CredentialSubject
     user_name = f"{user.name or ''} {getattr(user, 'first_surname', '') or ''} {getattr(user, 'second_surname', '') or ''}".strip()
@@ -352,6 +354,11 @@ def issue_badge_for_result(result, user, exam, force=False):
         if template.expiry_months:
             expires_at = now + relativedelta(months=template.expiry_months)
 
+        # Snapshot de la imagen del template al momento de emisión
+        display_image = (template.badge_image_url
+                         or template.issuer_image_url
+                         or (template.competency_standard.logo_url if template.competency_standard else None))
+
         issued = IssuedBadge(
             badge_uuid=badge_uuid,
             badge_template_id=template.id,
@@ -362,6 +369,7 @@ def issue_badge_for_result(result, user, exam, force=False):
             valid_from=now,
             expires_at=expires_at,
             status='active',
+            template_image_url=display_image,
         )
         db.session.add(issued)
         db.session.flush()  # Get ID before building credential

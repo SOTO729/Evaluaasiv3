@@ -9,7 +9,7 @@ import {
   Award, ArrowLeft, Save, Upload, Image as ImageIcon,
   Tag, Clock, Globe, FileText, BookOpen, Sparkles, Search,
   CheckCircle2, AlertCircle, X, Eye, EyeOff,
-  ChevronDown, Info
+  ChevronDown, Info, Zap
 } from 'lucide-react'
 import { badgeService } from '../../services/badgeService'
 import { getStandards, type CompetencyStandard } from '../../services/standardsService'
@@ -22,6 +22,7 @@ interface FormState {
   exam_id: number | null
   competency_standard_id: number | null
   tags: string
+  skills: string
   expiry_months: number | null
   is_active: boolean
 }
@@ -33,6 +34,7 @@ const EMPTY_FORM: FormState = {
   exam_id: null,
   competency_standard_id: null,
   tags: '',
+  skills: '',
   expiry_months: null,
   is_active: true,
 }
@@ -81,6 +83,7 @@ export default function BadgeTemplateFormPage() {
           exam_id: t.exam_id,
           competency_standard_id: t.competency_standard_id,
           tags: Array.isArray(t.tags) ? t.tags.join(', ') : (t.tags || ''),
+          skills: Array.isArray((t as any).skills) ? (t as any).skills.join(', ') : ((t as any).skills || ''),
           expiry_months: t.expiry_months || null,
           is_active: t.is_active,
         })
@@ -151,6 +154,15 @@ export default function BadgeTemplateFormPage() {
       if (std.certifying_body) tagParts.push(std.certifying_body)
       updates.tags = tagParts.join(', ')
       prefilled.push('etiquetas')
+    }
+    if (!form.skills?.trim()) {
+      const skillParts: string[] = []
+      if (std.name) skillParts.push(std.name)
+      if (std.sector) skillParts.push(std.sector)
+      if (skillParts.length > 0) {
+        updates.skills = skillParts.join(', ')
+        prefilled.push('aptitudes')
+      }
     }
 
     setForm(prev => ({ ...prev, ...updates }))
@@ -522,6 +534,35 @@ export default function BadgeTemplateFormPage() {
                     placeholder="Aprobó la evaluación con resultado competente…"
                   />
                 </div>
+              </div>
+
+              {/* Aptitudes (Skills) */}
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                  <Zap className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
+                  Aptitudes
+                </label>
+                <input
+                  type="text"
+                  value={form.skills}
+                  onChange={e => setForm({ ...form, skills: e.target.value })}
+                  className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
+                  placeholder="Ej: Liderazgo, Gestión de proyectos, Comunicación…"
+                />
+                {form.skills && (
+                  <div className="flex flex-wrap fluid-gap-1 fluid-mt-2">
+                    {tagArray(form.skills).map((skill, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center fluid-px-2.5 fluid-py-0.5 bg-emerald-50 text-emerald-700 rounded-full fluid-text-2xs font-medium border border-emerald-100"
+                      >
+                        <Zap className="w-3 h-3 mr-1" />
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="fluid-text-2xs text-gray-400 fluid-mt-1">Separadas por coma. Aparecerán en la insignia digital emitida.</p>
               </div>
             </div>
           </section>

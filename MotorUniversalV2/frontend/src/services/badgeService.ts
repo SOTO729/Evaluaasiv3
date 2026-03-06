@@ -20,6 +20,7 @@ export interface BadgeTemplate {
   issuer_url: string | null
   issuer_image_url: string | null
   tags: string | null
+  skills: string | null
   expiry_months: number | null
   is_active: boolean
   issued_count: number

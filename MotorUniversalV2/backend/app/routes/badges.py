@@ -114,6 +114,12 @@ def create_template():
         raw_tags = ', '.join(str(t).strip() for t in raw_tags if str(t).strip())
     tags_str = (raw_tags or '').strip() or None
 
+    # Normalize skills: accept string or list
+    raw_skills = data.get('skills', '')
+    if isinstance(raw_skills, list):
+        raw_skills = ', '.join(str(s).strip() for s in raw_skills if str(s).strip())
+    skills_str = (raw_skills or '').strip() or None
+
     # Emisor siempre es Grupo Eduit (regla de negocio)
     template = BadgeTemplate(
         name=name,
@@ -125,6 +131,7 @@ def create_template():
         issuer_url='https://www.grupoeduit.com',
         issuer_image_url=None,
         tags=tags_str,
+        skills=skills_str,
         expiry_months=data.get('expiry_months'),
         is_active=wants_active,
         created_by_id=user.id,
@@ -170,6 +177,20 @@ def update_template(template_id):
         if isinstance(raw, list):
             raw = ', '.join(str(t).strip() for t in raw if str(t).strip())
         template.tags = (raw or '').strip() or None
+
+    # skills: accept string or list
+    if 'skills' in data:
+        raw = data['skills']
+        if isinstance(raw, list):
+            raw = ', '.join(str(s).strip() for s in raw if str(s).strip())
+        template.skills = (raw or '').strip() or None
+
+    # skills: accept string or list
+    if 'skills' in data:
+        raw = data['skills']
+        if isinstance(raw, list):
+            raw = ', '.join(str(s).strip() for s in raw if str(s).strip())
+        template.skills = (raw or '').strip() or None
 
     for int_field in ('exam_id', 'competency_standard_id', 'expiry_months'):
         if int_field in data:
@@ -459,9 +480,9 @@ def verify_badge(code):
         'badge': {
             'name': template.name if template else 'N/A',
             'description': template.description if template else None,
-            'template_image_url': template.badge_image_url if template else None,
+            'template_image_url': (badge.template_image_url or (template.badge_image_url if template else None)),
             'candidate_name': full_name,
-            'issuer_name': 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.',
+            'issuer_name': 'Grupo Eduit',
             'issued_date': formatted_date,
             'expires_date': expires_date,
             'is_expired': bool(is_expired),
@@ -471,6 +492,7 @@ def verify_badge(code):
             'credential_url': badge.credential_url,
             'share_count': badge.share_count or 0,
             'verify_count': badge.verify_count or 0,
+            'skills': template.skills if template else None,
         }
     }
     return jsonify(resp)

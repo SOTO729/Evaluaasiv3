@@ -29,6 +29,7 @@ class BadgeTemplate(db.Model):
 
     # Metadata
     tags = db.Column(db.String(500))
+    skills = db.Column(db.Text)  # Aptitudes, separadas por coma
     expiry_months = db.Column(db.Integer, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
@@ -60,6 +61,7 @@ class BadgeTemplate(db.Model):
             'issuer_url': self.issuer_url,
             'issuer_image_url': self.issuer_image_url,
             'tags': self.tags or '',
+            'skills': self.skills or '',
             'expiry_months': self.expiry_months,
             'is_active': self.is_active,
             'issued_count': self.issued_badges.count() if self.issued_badges else 0,
@@ -106,6 +108,7 @@ class IssuedBadge(db.Model):
             'result_id': self.result_id,
             'badge_code': self.badge_code,
             'badge_image_url': self.badge_image_url,
+            'template_image_url': self.template_image_url,
             'issued_at': self.issued_at.isoformat() if self.issued_at else None,
             'valid_from': self.valid_from.isoformat() if self.valid_from else None,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,

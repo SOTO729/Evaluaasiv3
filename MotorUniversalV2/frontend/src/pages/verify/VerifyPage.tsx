@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, Award, User, Calendar, BookOpen, Shield } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, Award, User, Calendar, BookOpen, Shield, Zap } from 'lucide-react'
 
 interface VerificationData {
   valid: boolean
@@ -38,6 +38,7 @@ interface VerificationData {
     ecm_code?: string | null
     ecm_name?: string | null
     ecm_logo_url?: string | null
+    skills?: string | null
   }
 }
 
@@ -227,15 +228,51 @@ const VerifyPage = () => {
                       <p className="font-semibold text-gray-900">{data.badge.issued_date}</p>
                     </div>
                   )}
-                  {data.badge.expires_date && (
+                  {data.badge.expires_date ? (
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500">Expira</p>
+                      <p className="text-sm text-gray-500">Fecha de Caducidad</p>
                       <p className={`font-semibold ${data.status === 'expired' ? 'text-red-600' : 'text-gray-900'}`}>
                         {data.badge.expires_date}
                       </p>
                     </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <p className="text-sm text-gray-500">Fecha de Caducidad</p>
+                      <p className="font-semibold text-green-700">Sin caducidad</p>
+                    </div>
                   )}
                 </div>
+
+                {/* Skills / Aptitudes */}
+                {data.badge.skills && (
+                  <div className="bg-emerald-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1.5">
+                      <Zap className="w-4 h-4 text-emerald-600" />
+                      Aptitudes
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {data.badge.skills.split(',').map(s => s.trim()).filter(Boolean).map((skill, i) => (
+                        <span key={i} className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Contenido Multimedia — template image */}
+                {data.badge.template_image_url && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-sm text-gray-500 mb-3">Contenido Multimedia</p>
+                    <div className="flex justify-center">
+                      <img
+                        src={data.badge.template_image_url}
+                        alt={data.badge.name}
+                        className="max-h-48 rounded-lg object-contain shadow-sm"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* OB3 credential link */}
                 {data.badge.credential_url && (
