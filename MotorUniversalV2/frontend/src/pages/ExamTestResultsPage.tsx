@@ -555,7 +555,7 @@ const ExamTestResultsPage: React.FC = () => {
           {!canViewAnswers && (
             <div className="fluid-mb-4">
               <button
-                onClick={() => navigate('/exams')}
+                onClick={() => { window.location.href = '/exams' }}
                 className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 rounded-fluid-md text-white fluid-text-sm font-medium transition-colors"
               >
                 <ArrowLeft className="fluid-icon-sm" />
@@ -1019,7 +1019,10 @@ const ExamTestResultsPage: React.FC = () => {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row flex-wrap justify-center fluid-gap-4">
           <button
-            onClick={() => navigate(canViewAnswers ? '/test-exams' : '/exams')}
+            onClick={() => {
+              if (canViewAnswers) { navigate('/test-exams') }
+              else { window.location.href = '/exams' }
+            }}
             className="fluid-px-5 fluid-py-3 fluid-text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-fluid-lg hover:bg-gray-50 flex items-center justify-center shadow-sm"
           >
             <ArrowLeft className="fluid-icon-sm fluid-mr-2" />
