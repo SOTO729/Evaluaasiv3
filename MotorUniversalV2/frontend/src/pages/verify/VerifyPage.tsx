@@ -125,8 +125,17 @@ const VerifyPage = () => {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          {/* Logo de la marca del ECM */}
-          {data.certification?.brand_logo_url ? (
+          {/* Logo: Eduit para insignias, marca del ECM o Evaluaasi para certificados */}
+          {data.document_type === 'digital_badge' ? (
+            <img 
+              src="/images/eduit-logo.webp" 
+              alt="Grupo Eduit" 
+              className="h-20 min-w-[80px] max-w-[200px] mx-auto mb-4 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          ) : data.certification?.brand_logo_url ? (
             <img 
               src={data.certification.brand_logo_url} 
               alt={data.certification.brand_name || 'Marca'} 
