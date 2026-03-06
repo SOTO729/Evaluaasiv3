@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, Award, User, Calendar, BookOpen, Shield, Zap } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap } from 'lucide-react'
 
 interface VerificationData {
   valid: boolean
@@ -119,14 +119,17 @@ const VerifyPage = () => {
     )
   }
 
+  // helpers
+  const isBadge = data.document_type === 'digital_badge'
+
   // Documento válido
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className={`min-h-screen py-8 px-4 ${isBadge ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-100' : 'bg-gradient-to-br from-green-50 to-emerald-100'}`}>
+      <div className={`mx-auto ${isBadge ? 'max-w-3xl' : 'max-w-2xl'}`}>
         {/* Header */}
         <div className="text-center mb-8">
           {/* Logo: Eduit para insignias, marca del ECM o Evaluaasi para certificados */}
-          {data.document_type === 'digital_badge' ? (
+          {isBadge ? (
             <img 
               src="/images/eduit-logo.webp" 
               alt="Grupo Eduit" 
@@ -154,114 +157,110 @@ const VerifyPage = () => {
               }}
             />
           )}
-          <h1 className="text-3xl font-bold text-gray-900">Verificación de Documento</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {isBadge ? 'Verificación de Insignia' : 'Verificación de Documento'}
+          </h1>
           <p className="text-gray-600 mt-2">Sistema de Evaluación y Certificación</p>
         </div>
 
         {/* Card de verificación */}
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Status bar */}
-          <div className="bg-green-500 px-6 py-4 flex items-center gap-3">
+          <div className={`px-6 py-4 flex items-center gap-3 ${isBadge ? 'bg-gradient-to-r from-emerald-500 to-green-500' : 'bg-green-500'}`}>
             <CheckCircle className="w-8 h-8 text-white" />
             <div>
-              <h2 className="text-white font-bold text-lg">Documento Verificado</h2>
-              <p className="text-green-100 text-sm">Este documento es auténtico y válido</p>
+              <h2 className="text-white font-bold text-lg">
+                {isBadge ? 'Insignia Verificada' : 'Documento Verificado'}
+              </h2>
+              <p className="text-green-100 text-sm">
+                {isBadge ? 'Esta insignia es auténtica y válida' : 'Este documento es auténtico y válido'}
+              </p>
             </div>
           </div>
 
           {/* Contenido */}
           <div className="p-6 space-y-6">
-            {/* Tipo de documento */}
-            <div className="flex items-center gap-3 pb-4 border-b">
-              <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                {data.document_type === 'digital_badge' || data.document_type === 'eduit_certificate' ? (
-                  <Award className="w-6 h-6 text-primary-600" />
-                ) : (
-                  <BookOpen className="w-6 h-6 text-primary-600" />
-                )}
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Tipo de Documento</p>
-                <p className="font-semibold text-gray-900">{data.document_name}</p>
-              </div>
-            </div>
 
-            {/* Badge-specific section */}
-            {data.document_type === 'digital_badge' && data.badge && (
+            {/* ═══ BADGE LAYOUT ═══ */}
+            {isBadge && data.badge && (
               <>
-                {/* Badge info with template image */}
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-amber-50">
-                    {data.badge.template_image_url ? (
-                      <img src={data.badge.template_image_url} alt={data.badge.name} className="w-full h-full object-contain" />
-                    ) : (
-                      <Award className="w-6 h-6 text-amber-600" />
-                    )}
+                {/* Hero: Imagen de la insignia centrada */}
+                {data.badge.template_image_url && (
+                  <div className="flex justify-center py-2">
+                    <div className="relative">
+                      <img
+                        src={data.badge.template_image_url}
+                        alt={data.badge.name}
+                        className="h-44 w-auto rounded-2xl object-contain shadow-md"
+                      />
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                        <CheckCircle className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-500">Insignia Digital</p>
-                    <p className="font-semibold text-gray-900 text-lg">{data.badge.name}</p>
-                    {data.badge.description && (
-                      <p className="text-sm text-gray-600 mt-1">{data.badge.description}</p>
-                    )}
+                )}
+
+                {/* Nombre + descripción de la insignia */}
+                <div className="text-center">
+                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Insignia Digital</p>
+                  <h3 className="text-xl font-bold text-gray-900">{data.badge.name}</h3>
+                  {data.badge.description && (
+                    <p className="text-sm text-gray-500 mt-1.5 max-w-lg mx-auto">{data.badge.description}</p>
+                  )}
+                </div>
+
+                {/* Grid 2 cols: Titular + Emisor */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-4">
+                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Titular</p>
+                      <p className="font-semibold text-gray-900 truncate">{data.candidate?.full_name}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-purple-50 rounded-xl p-4">
+                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Shield className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">Emitida por</p>
+                      <p className="font-semibold text-gray-900 truncate">{data.badge.issuer_name}</p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Candidato */}
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <User className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Titular</p>
-                    <p className="font-semibold text-gray-900 text-lg">{data.candidate?.full_name}</p>
-                  </div>
-                </div>
-
-                {/* Issuer */}
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Emitida por</p>
-                    <p className="font-semibold text-gray-900">{data.badge.issuer_name}</p>
-                  </div>
-                </div>
-
-                {/* Dates */}
+                {/* Grid 2 cols: Fechas */}
                 <div className="grid grid-cols-2 gap-4">
                   {data.badge.issued_date && (
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500">Fecha de Emisión</p>
-                      <p className="font-semibold text-gray-900">{data.badge.issued_date}</p>
+                      <p className="text-xs text-gray-500">Fecha de Emisión</p>
+                      <p className="font-semibold text-gray-900 text-sm mt-0.5">{data.badge.issued_date}</p>
                     </div>
                   )}
-                  {data.badge.expires_date ? (
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500">Fecha de Caducidad</p>
-                      <p className={`font-semibold ${data.status === 'expired' ? 'text-red-600' : 'text-gray-900'}`}>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500">Fecha de Caducidad</p>
+                    {data.badge.expires_date ? (
+                      <p className={`font-semibold text-sm mt-0.5 ${data.status === 'expired' ? 'text-red-600' : 'text-gray-900'}`}>
                         {data.badge.expires_date}
                       </p>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-gray-500">Fecha de Caducidad</p>
-                      <p className="font-semibold text-green-700">Sin caducidad</p>
-                    </div>
-                  )}
+                    ) : (
+                      <p className="font-semibold text-green-700 text-sm mt-0.5">Sin caducidad</p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Skills / Aptitudes */}
+                {/* Aptitudes */}
                 {data.badge.skills && (
-                  <div className="bg-emerald-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1.5">
-                      <Zap className="w-4 h-4 text-emerald-600" />
+                  <div className="bg-emerald-50/70 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5 font-medium">
+                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
                       Aptitudes
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {data.badge.skills.split(',').map(s => s.trim()).filter(Boolean).map((skill, i) => (
-                        <span key={i} className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium">
+                        <span key={i} className="inline-flex items-center px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">
                           {skill}
                         </span>
                       ))}
@@ -269,67 +268,52 @@ const VerifyPage = () => {
                   </div>
                 )}
 
-                {/* Contenido Multimedia — template image */}
-                {data.badge.template_image_url && (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-sm text-gray-500 mb-3">Contenido Multimedia</p>
-                    <div className="flex justify-center">
+                {/* ECM info — compacto */}
+                {(data.badge.ecm_code || data.badge.ecm_name) && (
+                  <div className="flex items-center gap-3 bg-indigo-50 rounded-xl p-4">
+                    {data.badge.ecm_logo_url ? (
                       <img
-                        src={data.badge.template_image_url}
-                        alt={data.badge.name}
-                        className="max-h-48 rounded-lg object-contain shadow-sm"
+                        src={data.badge.ecm_logo_url}
+                        alt={data.badge.ecm_code || 'ECM'}
+                        className="w-10 h-10 rounded-lg flex-shrink-0 object-contain bg-white p-1"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden') }}
                       />
+                    ) : null}
+                    <div className={`w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 ${data.badge.ecm_logo_url ? 'hidden' : ''}`}>
+                      <BookOpen className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-500">
+                        Estándar de Competencia
+                        {data.badge.ecm_code && (
+                          <span className="font-mono bg-indigo-100 px-1.5 py-0.5 rounded ml-1.5 text-indigo-700 text-[10px]">{data.badge.ecm_code}</span>
+                        )}
+                      </p>
+                      {data.badge.ecm_name && (
+                        <p className="font-semibold text-gray-900 text-sm truncate">{data.badge.ecm_name}</p>
+                      )}
                     </div>
                   </div>
                 )}
 
                 {/* OB3 credential link */}
                 {data.badge.credential_url && (
-                  <div className="bg-blue-50 rounded-xl p-4 text-center">
-                    <p className="text-sm text-blue-600 mb-1">Credencial Open Badges 3.0</p>
+                  <div className="bg-blue-50 rounded-xl p-3 text-center">
                     <a
                       href={data.badge.credential_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-700 underline font-mono text-sm break-all"
+                      className="text-blue-600 hover:text-blue-800 text-xs font-medium transition-colors"
                     >
-                      Ver Credencial JSON-LD
+                      🔗 Ver Credencial Open Badges 3.0 (JSON-LD)
                     </a>
-                  </div>
-                )}
-
-                {/* ECM info */}
-                {(data.badge.ecm_code || data.badge.ecm_name) && (
-                  <div className="flex items-start gap-3">
-                    {data.badge.ecm_logo_url ? (
-                      <img
-                        src={data.badge.ecm_logo_url}
-                        alt={data.badge.ecm_code || 'ECM'}
-                        className="w-12 h-12 rounded-xl flex-shrink-0 object-contain bg-gray-50 p-1"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden') }}
-                      />
-                    ) : null}
-                    <div className={`w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 ${data.badge.ecm_logo_url ? 'hidden' : ''}`}>
-                      <BookOpen className="w-6 h-6 text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        Estándar de Competencia
-                        {data.badge.ecm_code && (
-                          <span className="font-mono bg-gray-100 px-2 py-0.5 rounded ml-2 text-gray-700">{data.badge.ecm_code}</span>
-                        )}
-                      </p>
-                      {data.badge.ecm_name && (
-                        <p className="font-semibold text-gray-900">{data.badge.ecm_name}</p>
-                      )}
-                    </div>
                   </div>
                 )}
               </>
             )}
 
-            {/* Regular certificate content (non-badge) */}
-            {data.document_type !== 'digital_badge' && (
+            {/* ═══ CERTIFICATE LAYOUT (non-badge) ═══ */}
+            {!isBadge && (
               <>
                 {/* Información del candidato */}
             <div className="flex items-start gap-3">
