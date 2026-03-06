@@ -762,7 +762,7 @@ def issue_pending_group_badges(group_id):
             if badge:
                 issued_count += 1
         except Exception as e:
-            errors_list.append(f"{user.email}: {str(e)}")
+            errors_list.append(f"{getattr(user, 'email', None) or user.username}: {str(e)}")
 
     return jsonify({
         'message': f'Se emitieron {issued_count} insignia(s)',
