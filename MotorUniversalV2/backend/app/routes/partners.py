@@ -11199,6 +11199,7 @@ def get_group_certificates_stats(group_id):
         from app.models.result import Result
         from app.models.conocer_certificate import ConocerCertificate
         from app.models.exam import Exam
+        from app.models.badge import IssuedBadge
         from sqlalchemy import and_, or_
         
         group = CandidateGroup.query.get_or_404(group_id)
@@ -11263,7 +11264,20 @@ def get_group_certificates_stats(group_id):
                 tier_standard_pending += 1
         
         tier_advanced_count = len(conocer_certs)
-        digital_badge_count = len(results)
+        
+        # Contar insignias digitales REALMENTE emitidas
+        issued_badges = IssuedBadge.query.filter(
+            and_(
+                IssuedBadge.user_id.in_(member_user_ids),
+                IssuedBadge.status == 'active'
+            )
+        ).all() if member_user_ids else []
+        digital_badge_count = len(issued_badges)
+        
+        # Mapa de badges por user_id para candidates stats
+        user_badges_map = {}
+        for b in issued_badges:
+            user_badges_map.setdefault(b.user_id, []).append(b)
         
         # Contar usuarios únicos con resultados aprobados (certificados)
         certified_user_ids = set(r.user_id for r in results)
@@ -11334,7 +11348,7 @@ def get_group_certificates_stats(group_id):
             ts_ready = sum(1 for r in user_results if r.certificate_url or r.eduit_certificate_code)
             ts_pending = sum(1 for r in user_results if not r.certificate_url and not r.eduit_certificate_code)
             ta_count = len(user_conocer)
-            db_count = len(user_results)
+            db_count = len(user_badges_map.get(member.user_id, []))
             
             # Determinar ready/pending para el tipo solicitado
             if cert_type == 'tier_basic':

@@ -609,6 +609,19 @@ def get_dashboard():
             except Exception as e:
                 pass  # Mantener defaults si hay error
         
+        # Si el candidato tiene insignias emitidas, habilitar la sección aunque el campus no lo tenga activo
+        if current_user.role == 'candidato' and not document_options['digital_badge']:
+            try:
+                from app.models.badge import IssuedBadge
+                has_badges = IssuedBadge.query.filter_by(
+                    user_id=str(user_id),
+                    status='active'
+                ).first() is not None
+                if has_badges:
+                    document_options['digital_badge'] = True
+            except Exception:
+                pass
+        
         # Agregar información sobre requisitos faltantes al response
         document_requirements_missing = []
         if not can_receive_conocer:
