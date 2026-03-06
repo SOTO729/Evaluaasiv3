@@ -39,6 +39,7 @@ interface VerificationData {
     ecm_name?: string | null
     ecm_logo_url?: string | null
     skills?: string | null
+    criteria_narrative?: string | null
   }
 }
 
@@ -201,14 +202,24 @@ const VerifyPage = () => {
                   </div>
                 )}
 
-                {/* Nombre + descripción de la insignia */}
+                {/* Nombre de la insignia */}
                 <div className="text-center">
                   <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Insignia Digital</p>
                   <h3 className="text-xl font-bold text-gray-900">{data.badge.name}</h3>
-                  {data.badge.description && (
-                    <p className="text-sm text-gray-500 mt-1.5 max-w-lg mx-auto">{data.badge.description}</p>
-                  )}
                 </div>
+
+                {/* Imagen de la plantilla */}
+                {data.badge.template_image_url && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <div className="flex justify-center">
+                      <img
+                        src={data.badge.template_image_url}
+                        alt={data.badge.name}
+                        className="max-h-52 rounded-lg object-contain shadow-sm"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Grid 2 cols: Titular + Emisor */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -269,31 +280,14 @@ const VerifyPage = () => {
                   </div>
                 )}
 
-                {/* ECM info — compacto */}
-                {(data.badge.ecm_code || data.badge.ecm_name) && (
-                  <div className="flex items-center gap-3 bg-indigo-50 rounded-xl p-4">
-                    {data.badge.ecm_logo_url ? (
-                      <img
-                        src={data.badge.ecm_logo_url}
-                        alt={data.badge.ecm_code || 'ECM'}
-                        className="w-10 h-10 rounded-lg flex-shrink-0 object-contain bg-white p-1"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden') }}
-                      />
-                    ) : null}
-                    <div className={`w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0 ${data.badge.ecm_logo_url ? 'hidden' : ''}`}>
-                      <BookOpen className="w-5 h-5 text-indigo-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-500">
-                        Estándar de Competencia
-                        {data.badge.ecm_code && (
-                          <span className="font-mono bg-indigo-100 px-1.5 py-0.5 rounded ml-1.5 text-indigo-700 text-[10px]">{data.badge.ecm_code}</span>
-                        )}
-                      </p>
-                      {data.badge.ecm_name && (
-                        <p className="font-semibold text-gray-900 text-sm truncate">{data.badge.ecm_name}</p>
-                      )}
-                    </div>
+                {/* Criterios de obtención */}
+                {data.badge.criteria_narrative && (
+                  <div className="bg-indigo-50 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5 font-medium">
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                      Criterios de Obtención
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed">{data.badge.criteria_narrative}</p>
                   </div>
                 )}
 

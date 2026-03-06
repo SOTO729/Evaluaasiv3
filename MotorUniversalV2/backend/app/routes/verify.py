@@ -268,6 +268,7 @@ def verify_certificate(code):
                     'verify_count': badge.verify_count,
                     'share_count': badge.share_count,
                     'skills': template.skills if template else None,
+                    'criteria_narrative': template.criteria_narrative if template else None,
                     'ecm_code': ecm_code,
                     'ecm_name': ecm_name,
                     'ecm_logo_url': ecm_logo_url,
