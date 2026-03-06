@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   Award, ArrowLeft, Save, Upload, Image as ImageIcon,
-  Tag, Clock, Globe, FileText, BookOpen, Sparkles, Search,
+  Clock, Globe, FileText, BookOpen, Sparkles, Search,
   CheckCircle2, AlertCircle, X, Eye, EyeOff,
   ChevronDown, Info, Zap
 } from 'lucide-react'
@@ -21,7 +21,6 @@ interface FormState {
   criteria_narrative: string
   exam_id: number | null
   competency_standard_id: number | null
-  tags: string
   skills: string
   expiry_months: number | null
   is_active: boolean
@@ -33,7 +32,6 @@ const EMPTY_FORM: FormState = {
   criteria_narrative: '',
   exam_id: null,
   competency_standard_id: null,
-  tags: '',
   skills: '',
   expiry_months: null,
   is_active: true,
@@ -82,7 +80,6 @@ export default function BadgeTemplateFormPage() {
           criteria_narrative: t.criteria_narrative || '',
           exam_id: t.exam_id,
           competency_standard_id: t.competency_standard_id,
-          tags: Array.isArray(t.tags) ? t.tags.join(', ') : (t.tags || ''),
           skills: Array.isArray((t as any).skills) ? (t as any).skills.join(', ') : ((t as any).skills || ''),
           expiry_months: t.expiry_months || null,
           is_active: t.is_active,
@@ -147,13 +144,6 @@ export default function BadgeTemplateFormPage() {
     if (form.expiry_months === null && std.validity_years) {
       updates.expiry_months = std.validity_years * 12
       prefilled.push('vigencia')
-    }
-    if (!form.tags?.trim()) {
-      const tagParts = [std.code]
-      if (std.sector) tagParts.push(std.sector)
-      if (std.certifying_body) tagParts.push(std.certifying_body)
-      updates.tags = tagParts.join(', ')
-      prefilled.push('etiquetas')
     }
     if (!form.skills?.trim()) {
       const skillParts: string[] = []
@@ -747,33 +737,6 @@ export default function BadgeTemplateFormPage() {
                           Usar vigencia del ECM ({selectedStandard.validity_years} año{selectedStandard.validity_years > 1 ? 's' : ''})
                         </button>
                       )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Tags */}
-                <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                    <Tag className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                    Etiquetas
-                  </label>
-                  <input
-                    type="text"
-                    value={form.tags}
-                    onChange={e => setForm({ ...form, tags: e.target.value })}
-                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
-                    placeholder="EC0217, administración…"
-                  />
-                  {form.tags && (
-                    <div className="flex flex-wrap fluid-gap-1 fluid-mt-2">
-                      {tagArray(form.tags).map((tag, i) => (
-                        <span
-                          key={i}
-                          className="inline-flex items-center fluid-px-2 fluid-py-0.5 bg-blue-50 text-blue-700 rounded-full fluid-text-2xs font-medium border border-blue-100"
-                        >
-                          {tag}
-                        </span>
-                      ))}
                     </div>
                   )}
                 </div>

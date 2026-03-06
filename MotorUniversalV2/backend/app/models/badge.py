@@ -85,6 +85,7 @@ class IssuedBadge(db.Model):
     credential_json = db.Column(db.Text)  # JSON-LD completo del OpenBadgeCredential
     badge_image_url = db.Column(db.String(500))
     badge_image_blob_name = db.Column(db.String(500))
+    template_image_url = db.Column(db.String(500))
 
     issued_at = db.Column(db.DateTime, default=datetime.utcnow)
     valid_from = db.Column(db.DateTime, default=datetime.utcnow)

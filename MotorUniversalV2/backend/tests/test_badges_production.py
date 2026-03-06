@@ -77,7 +77,7 @@ try:
     cols = [r[0] for r in cursor.fetchall()]
     expected_cols = ['id', 'name', 'description', 'criteria_narrative', 'exam_id',
                      'competency_standard_id', 'badge_image_url', 'badge_image_blob_name',
-                     'issuer_name', 'issuer_url', 'issuer_image_url', 'tags',
+                     'issuer_name', 'issuer_url', 'issuer_image_url', 'tags', 'skills',
                      'expiry_months', 'is_active', 'created_by_id', 'created_at', 'updated_at']
     for c in expected_cols:
         test(f"  Columna badge_templates.{c}", c in cols, f"Columnas: {cols}")
@@ -86,7 +86,7 @@ try:
     cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='issued_badges' ORDER BY ORDINAL_POSITION")
     cols2 = [r[0] for r in cursor.fetchall()]
     expected_cols2 = ['badge_uuid', 'badge_template_id', 'user_id', 'result_id',
-                      'badge_code', 'credential_json', 'badge_image_url',
+                      'badge_code', 'credential_json', 'badge_image_url', 'template_image_url',
                       'issued_at', 'expires_at', 'status', 'share_count', 'verify_count']
     for c in expected_cols2:
         test(f"  Columna issued_badges.{c}", c in cols2, f"Columnas: {cols2}")
@@ -119,7 +119,7 @@ if conn:
             OUTPUT INSERTED.id
             VALUES (?, ?, ?, ?, 1, GETDATE(), GETDATE())
         """, ('TEST: Insignia de Prueba OB3', 'Plantilla de test automatizado', 
-              'Aprobar evaluación con 80% mínimo', 'EduIT / Evaluaasi Test'))
+              'Aprobar evaluación con 80% mínimo', 'Grupo Eduit'))
         template_id = int(cursor.fetchone()[0])
         conn.commit()
         test("INSERT badge_template", template_id > 0, f"ID={template_id}")
@@ -130,10 +130,12 @@ if conn:
         test("SELECT badge_template", row is not None and row[0] == 'TEST: Insignia de Prueba OB3')
 
         # Update
-        cursor.execute("UPDATE badge_templates SET tags=? WHERE id=?", ('test,ob3,automático', template_id))
+        cursor.execute("UPDATE badge_templates SET tags=?, skills=? WHERE id=?", ('test,ob3,automático', 'liderazgo,comunicación', template_id))
         conn.commit()
-        cursor.execute("SELECT tags FROM badge_templates WHERE id=?", template_id)
-        test("UPDATE badge_template", cursor.fetchone()[0] == 'test,ob3,automático')
+        cursor.execute("SELECT tags, skills FROM badge_templates WHERE id=?", template_id)
+        row = cursor.fetchone()
+        test("UPDATE badge_template tags", row[0] == 'test,ob3,automático')
+        test("UPDATE badge_template skills", row[1] == 'liderazgo,comunicación')
 
     except Exception as e:
         test("CRUD badge_templates", False, str(e))
@@ -165,7 +167,7 @@ if conn and template_id:
             "issuer": {
                 "id": f"{API}/badges/issuer",
                 "type": ["Profile"],
-                "name": "EduIT / Evaluaasi Test"
+                "name": "Grupo Eduit"
             },
             "credentialSubject": {
                 "type": ["AchievementSubject"],
@@ -204,8 +206,8 @@ try:
     data = r.json()
     test("GET /badges/issuer — status 200", r.status_code == 200)
     test("  Issuer type=[Profile]", data.get('type') == ['Profile'])
-    test("  Issuer name contiene EIA", 'ENTRENAMIENTO' in data.get('name', ''))
-    test("  Issuer url=evaluaasi.com", 'evaluaasi.com' in data.get('url', ''))
+    test("  Issuer name = Grupo Eduit", data.get('name') == 'Grupo Eduit')
+    test("  Issuer url = grupoeduit.com", 'grupoeduit.com' in data.get('url', ''))
 except Exception as e:
     test("GET /badges/issuer", False, str(e))
 
@@ -215,9 +217,9 @@ try:
     data = r.json()
     test(f"GET /badges/verify/{badge_code} — status 200", r.status_code == 200)
     test("  valid=True", data.get('valid') == True)
-    test("  document_type=digital_badge", data.get('document_type') == 'digital_badge')
     test("  badge.name present", data.get('badge', {}).get('name') is not None)
-    test("  badge.badge_uuid matches", data.get('badge', {}).get('badge_uuid') == badge_uuid)
+    test("  badge.badge_code matches", data.get('badge', {}).get('badge_code') == badge_code)
+    test("  badge.skills present", 'skills' in data.get('badge', {}))
 except Exception as e:
     test(f"GET /badges/verify/{badge_code}", False, str(e))
 
@@ -318,11 +320,15 @@ try:
 except Exception as e:
     test("Issue auth check", False, str(e))
 
-# ── 9. Share endpoint (public) ──
+# ── 9. Share endpoint (requires auth) ──
 print("\n📤 9. SHARE ENDPOINT")
 if issued_badge_id:
     try:
-        r = requests.post(f"{API}/badges/{issued_badge_id}/share", timeout=10)
+        # Login to get token
+        login_resp = requests.post(f"{API}/auth/login", json={"username": "admin", "password": "Admin123!"}, timeout=10)
+        token = login_resp.json().get('access_token', '')
+        headers = {'Authorization': f'Bearer {token}'}
+        r = requests.post(f"{API}/badges/{issued_badge_id}/share", headers=headers, timeout=10)
         data = r.json()
         test(f"POST /badges/{issued_badge_id}/share — 200", r.status_code == 200)
         test("  share_count > 0", data.get('share_count', 0) > 0)

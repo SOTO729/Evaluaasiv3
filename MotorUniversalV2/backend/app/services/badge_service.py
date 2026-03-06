@@ -220,19 +220,41 @@ def bake_badge_image(template, issued_badge, user):
             issuer_text = issuer_text[:47] + '...'
         bbox4 = draw.textbbox((0, 0), issuer_text, font=small_font)
         text_w4 = bbox4[2] - bbox4[0]
-        draw.text(((600 - text_w4) / 2, 455), issuer_text, fill=(107, 114, 128, 255), font=small_font)
+        draw.text(((600 - text_w4) / 2, 450), issuer_text, fill=(107, 114, 128, 255), font=small_font)
+
+        # Skills / Aptitudes
+        y_cursor = 475
+        if template.skills:
+            skills_list = [s.strip() for s in template.skills.split(',') if s.strip()]
+            if skills_list:
+                skills_text = '  •  '.join(skills_list[:4])  # max 4 to fit
+                if len(skills_list) > 4:
+                    skills_text += f'  (+{len(skills_list) - 4})'
+                try:
+                    skill_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
+                except Exception:
+                    skill_font = code_font
+                bbox_sk = draw.textbbox((0, 0), skills_text, font=skill_font)
+                text_wsk = bbox_sk[2] - bbox_sk[0]
+                # Truncate if too wide
+                if text_wsk > 560:
+                    skills_text = '  •  '.join(skills_list[:2]) + f'  (+{len(skills_list) - 2})'
+                    bbox_sk = draw.textbbox((0, 0), skills_text, font=skill_font)
+                    text_wsk = bbox_sk[2] - bbox_sk[0]
+                draw.text(((600 - text_wsk) / 2, y_cursor), skills_text, fill=(16, 185, 129, 255), font=skill_font)
+                y_cursor += 20
 
         # Date
         date_text = f"Emitida: {(issued_badge.issued_at or datetime.utcnow()).strftime('%d/%m/%Y')}"
         bbox5 = draw.textbbox((0, 0), date_text, font=small_font)
         text_w5 = bbox5[2] - bbox5[0]
-        draw.text(((600 - text_w5) / 2, 485), date_text, fill=(107, 114, 128, 255), font=small_font)
+        draw.text(((600 - text_w5) / 2, y_cursor), date_text, fill=(107, 114, 128, 255), font=small_font)
 
         # Code
         code_text = f"Código: {issued_badge.badge_code}"
         bbox6 = draw.textbbox((0, 0), code_text, font=code_font)
         text_w6 = bbox6[2] - bbox6[0]
-        draw.text(((600 - text_w6) / 2, 515), code_text, fill=(156, 163, 175, 255), font=code_font)
+        draw.text(((600 - text_w6) / 2, y_cursor + 25), code_text, fill=(156, 163, 175, 255), font=code_font)
 
         # Verify URL text at bottom
         verify_text = f"Verificar: {SWA_BASE}/verify/{issued_badge.badge_code}"

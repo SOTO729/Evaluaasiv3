@@ -108,17 +108,14 @@ def create_template():
                 'error': f'Ya existe una plantilla activa para este ECM (ID {existing_active.id}: {existing_active.name}). Desactívela primero.'
             }), 409
 
-    # Normalize tags: accept string or list
-    raw_tags = data.get('tags', '')
-    if isinstance(raw_tags, list):
-        raw_tags = ', '.join(str(t).strip() for t in raw_tags if str(t).strip())
-    tags_str = (raw_tags or '').strip() or None
-
     # Normalize skills: accept string or list
     raw_skills = data.get('skills', '')
     if isinstance(raw_skills, list):
         raw_skills = ', '.join(str(s).strip() for s in raw_skills if str(s).strip())
     skills_str = (raw_skills or '').strip() or None
+
+    # tags se sincroniza desde skills
+    tags_str = skills_str
 
     # Emisor siempre es Grupo Eduit (regla de negocio)
     template = BadgeTemplate(
@@ -171,26 +168,13 @@ def update_template(template_id):
     template.issuer_name = 'Grupo Eduit'
     template.issuer_url = 'https://www.grupoeduit.com'
 
-    # tags: accept string or list
-    if 'tags' in data:
-        raw = data['tags']
-        if isinstance(raw, list):
-            raw = ', '.join(str(t).strip() for t in raw if str(t).strip())
-        template.tags = (raw or '').strip() or None
-
-    # skills: accept string or list
+    # skills: accept string or list — tags se sincroniza desde skills
     if 'skills' in data:
         raw = data['skills']
         if isinstance(raw, list):
             raw = ', '.join(str(s).strip() for s in raw if str(s).strip())
         template.skills = (raw or '').strip() or None
-
-    # skills: accept string or list
-    if 'skills' in data:
-        raw = data['skills']
-        if isinstance(raw, list):
-            raw = ', '.join(str(s).strip() for s in raw if str(s).strip())
-        template.skills = (raw or '').strip() or None
+        template.tags = template.skills
 
     for int_field in ('exam_id', 'competency_standard_id', 'expiry_months'):
         if int_field in data:
@@ -429,8 +413,8 @@ def issuer_profile():
     return jsonify({
         'id': request.url_root.rstrip('/') + '/api/badges/issuer',
         'type': ['Profile'],
-        'name': 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.',
-        'url': 'https://evaluaasi.com',
+        'name': 'Grupo Eduit',
+        'url': 'https://www.grupoeduit.com',
         'description': 'Plataforma de evaluación y certificación de competencias laborales.',
         'email': 'soporte@evaluaasi.com',
     })
