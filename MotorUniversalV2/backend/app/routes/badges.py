@@ -114,20 +114,16 @@ def create_template():
         raw_tags = ', '.join(str(t).strip() for t in raw_tags if str(t).strip())
     tags_str = (raw_tags or '').strip() or None
 
-    # issuer_name is NOT NULL — use default if empty
-    issuer_name = data.get('issuer_name', '').strip() if isinstance(data.get('issuer_name'), str) else ''
-    if not issuer_name:
-        issuer_name = 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.'
-
+    # Emisor siempre es Grupo Eduit (regla de negocio)
     template = BadgeTemplate(
         name=name,
         description=data.get('description', '').strip() or None,
         criteria_narrative=data.get('criteria_narrative', '').strip() or None,
         exam_id=data.get('exam_id'),
         competency_standard_id=ecm_id,
-        issuer_name=issuer_name,
-        issuer_url=data.get('issuer_url', '').strip() or None,
-        issuer_image_url=data.get('issuer_image_url', '').strip() or None,
+        issuer_name='Grupo Eduit',
+        issuer_url='https://www.grupoeduit.com',
+        issuer_image_url=None,
         tags=tags_str,
         expiry_months=data.get('expiry_months'),
         is_active=wants_active,
@@ -156,8 +152,7 @@ def update_template(template_id):
     template = BadgeTemplate.query.get_or_404(template_id)
     data = request.get_json(silent=True) or {}
 
-    for field in ('name', 'description', 'criteria_narrative',
-                  'issuer_url', 'issuer_image_url'):
+    for field in ('name', 'description', 'criteria_narrative'):
         if field in data:
             val = data[field]
             if isinstance(val, str):
@@ -165,11 +160,9 @@ def update_template(template_id):
             else:
                 setattr(template, field, val or None)
 
-    # issuer_name is NOT NULL — never set to None
-    if 'issuer_name' in data:
-        val = data['issuer_name']
-        val = val.strip() if isinstance(val, str) else ''
-        template.issuer_name = val or 'ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.'
+    # Emisor siempre es Grupo Eduit (regla de negocio) — ignorar valores del cliente
+    template.issuer_name = 'Grupo Eduit'
+    template.issuer_url = 'https://www.grupoeduit.com'
 
     # tags: accept string or list
     if 'tags' in data:

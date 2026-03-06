@@ -22,9 +22,9 @@ class BadgeTemplate(db.Model):
     badge_image_url = db.Column(db.String(500))
     badge_image_blob_name = db.Column(db.String(500))
 
-    # Datos del emisor (Issuer)
-    issuer_name = db.Column(db.String(255), nullable=False, default='ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.')
-    issuer_url = db.Column(db.String(500), default='https://evaluaasi.com')
+    # Datos del emisor (Issuer) — siempre Grupo Eduit
+    issuer_name = db.Column(db.String(255), nullable=False, default='Grupo Eduit')
+    issuer_url = db.Column(db.String(500), default='https://www.grupoeduit.com')
     issuer_image_url = db.Column(db.String(500))
 
     # Metadata

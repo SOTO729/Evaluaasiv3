@@ -45,8 +45,8 @@ def build_ob3_credential(issued_badge, template, user, result=None):
     issuer = {
         "id": f"{SWA_BASE}/api/badges/issuer",
         "type": ["Profile"],
-        "name": template.issuer_name or "ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.",
-        "url": template.issuer_url or "https://evaluaasi.com",
+        "name": "Grupo Eduit",
+        "url": "https://www.grupoeduit.com",
     }
     if template.issuer_image_url:
         issuer["image"] = {
@@ -213,7 +213,7 @@ def bake_badge_image(template, issued_badge, user):
             draw.text(((600 - text_w3) / 2, 420), user_name, fill=(55, 65, 81, 255), font=title_font)
 
         # Issuer
-        issuer_text = template.issuer_name or 'EduIT / Evaluaasi'
+        issuer_text = 'Grupo Eduit'
         if len(issuer_text) > 50:
             issuer_text = issuer_text[:47] + '...'
         bbox4 = draw.textbbox((0, 0), issuer_text, font=small_font)

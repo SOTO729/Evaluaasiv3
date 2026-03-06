@@ -8,7 +8,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   Award, ArrowLeft, Save, Upload, Image as ImageIcon,
   Tag, Clock, Globe, FileText, BookOpen, Sparkles, Search,
-  CheckCircle2, AlertCircle, X, Eye, EyeOff, Link2, User,
+  CheckCircle2, AlertCircle, X, Eye, EyeOff,
   ChevronDown, Info
 } from 'lucide-react'
 import { badgeService } from '../../services/badgeService'
@@ -21,8 +21,6 @@ interface FormState {
   criteria_narrative: string
   exam_id: number | null
   competency_standard_id: number | null
-  issuer_name: string
-  issuer_url: string
   tags: string
   expiry_months: number | null
   is_active: boolean
@@ -34,8 +32,6 @@ const EMPTY_FORM: FormState = {
   criteria_narrative: '',
   exam_id: null,
   competency_standard_id: null,
-  issuer_name: '',
-  issuer_url: '',
   tags: '',
   expiry_months: null,
   is_active: true,
@@ -84,8 +80,6 @@ export default function BadgeTemplateFormPage() {
           criteria_narrative: t.criteria_narrative || '',
           exam_id: t.exam_id,
           competency_standard_id: t.competency_standard_id,
-          issuer_name: t.issuer_name || '',
-          issuer_url: t.issuer_url || '',
           tags: Array.isArray(t.tags) ? t.tags.join(', ') : (t.tags || ''),
           expiry_months: t.expiry_months || null,
           is_active: t.is_active,
@@ -158,22 +152,6 @@ export default function BadgeTemplateFormPage() {
       updates.tags = tagParts.join(', ')
       prefilled.push('etiquetas')
     }
-    if (!form.issuer_name?.trim()) {
-      const issuerParts: string[] = []
-      if (std.certifying_body) issuerParts.push(std.certifying_body)
-      if (std.brand?.name) issuerParts.push(std.brand.name)
-      if (issuerParts.length > 0) {
-        updates.issuer_name = issuerParts.join(' / ')
-        prefilled.push('emisor')
-      }
-    }
-    if (!form.issuer_url?.trim()) {
-      const body = (std.certifying_body || '').toLowerCase()
-      updates.issuer_url = body.includes('conocer')
-        ? 'https://www.conocer.gob.mx'
-        : 'https://evaluaasi.com'
-      prefilled.push('URL emisor')
-    }
 
     setForm(prev => ({ ...prev, ...updates }))
 
@@ -226,9 +204,6 @@ export default function BadgeTemplateFormPage() {
   const validate = (): boolean => {
     const errs: Record<string, string> = {}
     if (!form.name.trim()) errs.name = 'El nombre es requerido'
-    if (form.issuer_url && !/^https?:\/\/.+/.test(form.issuer_url)) {
-      errs.issuer_url = 'Debe ser una URL válida (https://...)'
-    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -551,52 +526,22 @@ export default function BadgeTemplateFormPage() {
             </div>
           </section>
 
-            {/* ── SECTION: Issuer Info ── */}
-            <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm">
-              <div className="flex items-center fluid-gap-3 fluid-mb-5">
-                <div className="fluid-p-2 bg-blue-50 rounded-fluid-lg">
+            {/* ── SECTION: Emisor (read-only) ── */}
+            <section className="bg-gradient-to-r from-gray-50 to-blue-50/50 rounded-fluid-2xl border border-gray-200 fluid-px-6 fluid-py-4 shadow-sm">
+              <div className="flex items-center fluid-gap-4">
+                <div className="fluid-p-2.5 bg-blue-100 rounded-fluid-xl flex-shrink-0">
                   <Globe className="fluid-icon-sm text-blue-600" />
                 </div>
-                <div>
-                  <h2 className="fluid-text-lg font-semibold text-gray-900">Emisor (Issuer)</h2>
-                  <p className="fluid-text-xs text-gray-500">Organización que emite las insignias</p>
+                <div className="flex-1 min-w-0">
+                  <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide">Emisor</p>
+                  <p className="fluid-text-base font-semibold text-gray-900">Grupo Eduit</p>
+                  <a href="https://www.grupoeduit.com" target="_blank" rel="noopener noreferrer" className="fluid-text-xs text-blue-500 hover:text-blue-700 transition-colors">
+                    www.grupoeduit.com
+                  </a>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
-                {/* Issuer Name */}
-                <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                    <User className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                    Nombre del Emisor
-                  </label>
-                  <input
-                    type="text"
-                    value={form.issuer_name}
-                    onChange={e => setForm({ ...form, issuer_name: e.target.value })}
-                    className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
-                    placeholder="CONOCER / EIA / EduIT"
-                  />
-                </div>
-
-                {/* Issuer URL */}
-                <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
-                    <Link2 className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
-                    URL del Emisor
-                  </label>
-                  <input
-                    type="url"
-                    value={form.issuer_url}
-                    onChange={e => { setForm({ ...form, issuer_url: e.target.value }); if (errors.issuer_url) setErrors(prev => { const { issuer_url, ...rest } = prev; return rest }) }}
-                    className={`w-full fluid-px-4 py-2.5 border-2 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm transition-colors ${errors.issuer_url ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`}
-                    placeholder="https://evaluaasi.com"
-                  />
-                  {errors.issuer_url && (
-                    <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium flex items-center fluid-gap-1">
-                      <AlertCircle className="w-3 h-3" /> {errors.issuer_url}
-                    </p>
-                  )}
+                <div className="flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="fluid-text-2xs font-medium">Fijo</span>
                 </div>
               </div>
             </section>
