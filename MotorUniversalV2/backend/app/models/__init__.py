@@ -73,6 +73,11 @@ from app.models.activity_log import (
     ENTITY_TYPES,
     PERSONAL_ROLES
 )
+from app.models.support_chat import (
+    SupportConversation,
+    SupportConversationParticipant,
+    SupportMessage
+)
 
 __all__ = [
     'User',
@@ -142,5 +147,9 @@ __all__ = [
     'get_request_info',
     'ACTION_TYPES',
     'ENTITY_TYPES',
-    'PERSONAL_ROLES'
+    'PERSONAL_ROLES',
+    # Support chat models
+    'SupportConversation',
+    'SupportConversationParticipant',
+    'SupportMessage'
 ]

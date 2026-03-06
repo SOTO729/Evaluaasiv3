@@ -10,15 +10,24 @@ import {
   Building2,
   CalendarClock,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import Layout from '../layout/Layout'
 import { isSupportPreviewEnabled } from '../../support/supportPreview'
 import { loadSupportSettings, subscribeSupportSettings } from '../../support/supportSettings'
+import { supportChatService } from '../../services/supportChatService'
 
-const navItems = [
+type SupportNavItem = {
+  path: string
+  label: string
+  icon: LucideIcon
+  badge?: number
+}
+
+const navItems: SupportNavItem[] = [
   { path: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: 'campuses', label: 'Planteles a cargo', icon: Building2 },
   { path: 'users', label: 'Administración', icon: Users },
-  { path: 'communication', label: 'Chat', icon: MessageCircle, badge: 3 },
+  { path: 'communication', label: 'Chat', icon: MessageCircle },
   { path: 'calendar', label: 'Calendario de sesiones', icon: CalendarDays },
   { path: 'sessions', label: 'Total sesiones', icon: CalendarClock },
   { path: 'settings', label: 'Settings', icon: Settings },
@@ -30,6 +39,7 @@ const SupportLayout = () => {
   const queryClient = useQueryClient()
   const basePath = location.pathname.startsWith('/dev/support') ? '/dev/support' : '/support'
   const [settings, setSettings] = useState(loadSupportSettings())
+  const [chatUnreadCount, setChatUnreadCount] = useState(0)
 
   useEffect(() => subscribeSupportSettings(setSettings), [])
 
@@ -41,6 +51,36 @@ const SupportLayout = () => {
 
     return () => window.clearInterval(intervalId)
   }, [queryClient, settings.autoRefreshEnabled])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadUnread = async () => {
+      try {
+        const response = await supportChatService.listConversations({
+          page: 1,
+          per_page: 50,
+          status: 'open',
+        })
+        if (cancelled) return
+        const total = response.conversations.reduce(
+          (sum, item) => sum + Number(item.unread_count || 0),
+          0
+        )
+        setChatUnreadCount(total)
+      } catch {
+        if (!cancelled) setChatUnreadCount(0)
+      }
+    }
+
+    loadUnread()
+    const intervalId = window.setInterval(loadUnread, 7000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [location.pathname])
 
   return (
     <Layout>
@@ -66,7 +106,7 @@ const SupportLayout = () => {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            {navItems.map(({ path, label, icon: Icon, badge }) => (
+            {navItems.map(({ path, label, icon: Icon }) => (
               <NavLink
                 key={path}
                 to={`${basePath}/${path}`}
@@ -80,9 +120,9 @@ const SupportLayout = () => {
               >
                 <Icon className="h-4 w-4" />
                 {label}
-                {badge ? (
+                {path === 'communication' && chatUnreadCount > 0 ? (
                   <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
-                    {badge}
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                   </span>
                 ) : null}
               </NavLink>

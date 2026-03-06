@@ -32,7 +32,12 @@ const LoginPage = () => {
     try {
       const response = await authService.login(formData)
       login(response.user, response.access_token, response.refresh_token)
-      navigate('/dashboard')
+      const normalizedRole = String(response.user?.role || '').trim().toLowerCase()
+      if (normalizedRole === 'soporte' || normalizedRole === 'support') {
+        navigate('/support/dashboard')
+      } else {
+        navigate('/dashboard')
+      }
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Error al iniciar sesión'
       setError(errorMessage)

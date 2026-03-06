@@ -21,6 +21,11 @@ const MAX_ATTEMPTS = 5
 const RETRY_DELAY = 5000 // 5 seconds
 
 export default function SystemReadyGuard({ children }: SystemReadyGuardProps) {
+  // En desarrollo no bloquear la app por warmup/CORS.
+  if (import.meta.env.DEV) {
+    return <>{children}</>
+  }
+
   // Permitir acceso directo al módulo soporte sin warmup
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/support')) {
     return <>{children}</>

@@ -10,12 +10,12 @@ const SupportGuard = () => {
   const devSupportBypass =
     import.meta.env.DEV && String(import.meta.env.VITE_DEV_SUPPORT_LOGIN) === 'true'
 
-  if ((supportPreviewEnabled || devSupportBypass) && location.pathname.startsWith('/support')) {
+  if ((supportPreviewEnabled || devSupportBypass) && (location.pathname.startsWith('/support') || location.pathname.startsWith('/dev/support'))) {
     return <Outlet />
   }
 
   const normalizedRole = String(user?.role || '').trim().toLowerCase()
-  const isSupportUser = normalizedRole === 'support' || normalizedRole === 'soporte'
+  const isSupportUser = ['support', 'soporte', 'admin', 'developer'].includes(normalizedRole)
 
   if (!isSupportUser) {
     return (

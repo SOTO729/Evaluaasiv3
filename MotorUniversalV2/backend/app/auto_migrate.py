@@ -1358,3 +1358,38 @@ def check_and_create_bulk_upload_tables():
     except Exception as e:
         print(f"❌ Error en auto-migración bulk_upload_tables: {e}")
         db.session.rollback()
+
+
+def check_and_create_support_chat_tables():
+    """Verificar y crear tablas del módulo de chat candidato-soporte."""
+    print("🔍 Verificando tablas support chat...")
+
+    try:
+        from app.models.support_chat import (
+            SupportConversation,
+            SupportConversationParticipant,
+            SupportMessage,
+        )
+
+        inspector = inspect(db.engine)
+        existing_tables = set(inspector.get_table_names())
+        required_tables = {
+            "support_conversations",
+            "support_conversation_participants",
+            "support_messages",
+        }
+
+        if required_tables.issubset(existing_tables):
+            print("  ✓ Tablas support chat ya existen")
+            return
+
+        print("  📝 Creando tablas support chat faltantes...")
+        SupportConversation.__table__.create(bind=db.engine, checkfirst=True)
+        SupportMessage.__table__.create(bind=db.engine, checkfirst=True)
+        SupportConversationParticipant.__table__.create(bind=db.engine, checkfirst=True)
+        db.session.commit()
+        print("  ✅ Tablas support chat listas")
+
+    except Exception as e:
+        print(f"❌ Error creando tablas support chat: {e}")
+        db.session.rollback()
