@@ -640,10 +640,10 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
         badges.map((badge, index) => (
           <div
             key={badge.id}
-            className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-amber-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
+            className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-primary-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
             style={{ animationDelay: `${index * 75}ms` }}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-50/0 via-transparent to-amber-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 via-transparent to-primary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
             
             {/* Badge Image or Visual */}
             <div className="relative mx-auto w-24 h-24 fluid-mb-4 z-10">
@@ -651,20 +651,20 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
                 <img src={badge.badge_image_url} alt={badge.template_name || 'Insignia'} className="w-full h-full object-contain rounded-fluid-xl" />
               ) : (
                 <>
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-amber-700 rounded-full" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full" />
                   <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
-                    <div className="w-full h-full bg-gradient-to-br from-amber-500 to-amber-700 rounded-full flex items-center justify-center">
+                    <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center">
                       <BadgeCheck className="fluid-icon-xl text-white" />
                     </div>
                   </div>
-                  <div className="absolute -top-1 -right-1 fluid-icon-sm bg-yellow-400 rounded-full flex items-center justify-center shadow-md">
+                  <div className="absolute -top-1 -right-1 fluid-icon-sm bg-primary-400 rounded-full flex items-center justify-center shadow-md">
                     <span className="text-white fluid-text-xs">★</span>
                   </div>
                 </>
               )}
             </div>
 
-            <h3 className="font-bold text-gray-900 mb-1 relative z-10 group-hover:text-amber-700 transition-colors">
+            <h3 className="font-bold text-gray-900 mb-1 relative z-10 group-hover:text-primary-700 transition-colors">
               {badge.template_name || 'Insignia Digital'}
             </h3>
             <p className="fluid-text-xs text-gray-400 fluid-mb-2 relative z-10">
@@ -697,7 +697,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
             <div className="flex fluid-gap-2 relative z-10">   
               <button
                 onClick={() => handleDownload(badge)}
-                className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-amber-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-amber-700 transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
+                className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-primary-700 transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
               >
                 <Download className="fluid-icon-xs" /> 
                 Descargar
