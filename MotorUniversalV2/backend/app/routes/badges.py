@@ -93,6 +93,21 @@ def create_template():
     if not name:
         return jsonify({'error': 'El nombre es requerido'}), 400
 
+    ecm_id = data.get('competency_standard_id')
+    if not ecm_id:
+        return jsonify({'error': 'competency_standard_id es requerido'}), 400
+
+    # Regla: solo puede haber 1 plantilla activa por ECM
+    wants_active = data.get('is_active', True)
+    if wants_active:
+        existing_active = BadgeTemplate.query.filter_by(
+            competency_standard_id=ecm_id, is_active=True
+        ).first()
+        if existing_active:
+            return jsonify({
+                'error': f'Ya existe una plantilla activa para este ECM (ID {existing_active.id}: {existing_active.name}). Desactívela primero.'
+            }), 409
+
     # Normalize tags: accept string or list
     raw_tags = data.get('tags', '')
     if isinstance(raw_tags, list):
@@ -109,13 +124,13 @@ def create_template():
         description=data.get('description', '').strip() or None,
         criteria_narrative=data.get('criteria_narrative', '').strip() or None,
         exam_id=data.get('exam_id'),
-        competency_standard_id=data.get('competency_standard_id'),
+        competency_standard_id=ecm_id,
         issuer_name=issuer_name,
         issuer_url=data.get('issuer_url', '').strip() or None,
         issuer_image_url=data.get('issuer_image_url', '').strip() or None,
         tags=tags_str,
         expiry_months=data.get('expiry_months'),
-        is_active=data.get('is_active', True),
+        is_active=wants_active,
         created_by_id=user.id,
     )
     db.session.add(template)
@@ -167,8 +182,21 @@ def update_template(template_id):
         if int_field in data:
             setattr(template, int_field, data[int_field])
 
+    # Regla: solo puede haber 1 plantilla activa por ECM
     if 'is_active' in data:
-        template.is_active = bool(data['is_active'])
+        wants_active = bool(data['is_active'])
+        ecm_id = template.competency_standard_id
+        if wants_active and ecm_id:
+            existing_active = BadgeTemplate.query.filter(
+                BadgeTemplate.competency_standard_id == ecm_id,
+                BadgeTemplate.is_active == True,
+                BadgeTemplate.id != template.id
+            ).first()
+            if existing_active:
+                return jsonify({
+                    'error': f'Ya existe una plantilla activa para este ECM (ID {existing_active.id}: {existing_active.name}). Desactívela primero.'
+                }), 409
+        template.is_active = wants_active
 
     db.session.commit()
     return jsonify({'message': 'Plantilla actualizada', 'template': template.to_dict()})
