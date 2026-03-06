@@ -318,9 +318,6 @@ def issue_badge_for_result(result, user, exam, force=False):
     if not force and not _is_badge_enabled_for_result(result, user):
         return None
 
-    if not user.email:
-        return None
-
     # Find matching template
     template = None
     if exam and exam.id:
