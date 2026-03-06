@@ -299,19 +299,23 @@ def _is_badge_enabled_for_result(result, user):
     return getattr(user, 'enable_digital_badge', False)
 
 
-def issue_badge_for_result(result, user, exam):
+def issue_badge_for_result(result, user, exam, force=False):
     """
     Emite una insignia para un resultado aprobado.
 
     Busca un BadgeTemplate activo asociado al exam_id o competency_standard_id.
     Si no existe plantilla, no emite nada.
 
+    Args:
+        force: Si True, omite la verificación de enable_digital_badge del grupo/campus.
+               Usar cuando un admin/coordinador emite explícitamente.
+
     Returns: IssuedBadge or None
     """
     if not result or result.result != 1:
         return None
 
-    if not _is_badge_enabled_for_result(result, user):
+    if not force and not _is_badge_enabled_for_result(result, user):
         return None
 
     if not user.email:
@@ -420,7 +424,7 @@ def issue_badges_batch(result_ids):
         if not exam:
             continue
 
-        badge = issue_badge_for_result(result, user, exam)
+        badge = issue_badge_for_result(result, user, exam, force=True)
         if badge:
             issued_list.append(badge)
 

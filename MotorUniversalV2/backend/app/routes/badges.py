@@ -292,7 +292,7 @@ def issue_badge_manual():
     exam = Exam.query.get(result.exam_id)
 
     from app.services.badge_service import issue_badge_for_result
-    badge = issue_badge_for_result(result, user, exam)
+    badge = issue_badge_for_result(result, user, exam, force=True)
     if not badge:
         return jsonify({'error': 'No se pudo emitir la insignia (revise plantilla/resultado)'}), 400
 
@@ -758,7 +758,7 @@ def issue_pending_group_badges(group_id):
             continue
 
         try:
-            badge = issue_badge_for_result(result, user, exam)
+            badge = issue_badge_for_result(result, user, exam, force=True)
             if badge:
                 issued_count += 1
         except Exception as e:
