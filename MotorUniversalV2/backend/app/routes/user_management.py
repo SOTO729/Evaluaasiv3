@@ -860,11 +860,10 @@ def change_user_password(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores/auxiliares solo pueden cambiar contraseñas de sus propios candidatos/responsables
+        # Coordinadores/auxiliares solo pueden cambiar contraseñas de candidatos/responsables (usuarios compartidos)
         if _is_coordinator_role(current_user.role):
-            coord_id = _get_effective_coordinator_id(current_user)
-            if user.coordinator_id != coord_id:
-                return jsonify({'error': 'Solo puedes cambiar contraseñas de tus propios usuarios'}), 403
+            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+                return jsonify({'error': 'Solo puedes cambiar contraseñas de candidatos y responsables'}), 403
         
         new_password = data.get('new_password')
         if not new_password:
@@ -903,11 +902,10 @@ def generate_temp_password(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores/auxiliares solo pueden generar contraseñas de sus propios candidatos/responsables
+        # Coordinadores/auxiliares solo pueden generar contraseñas de candidatos/responsables (usuarios compartidos)
         if _is_coordinator_role(current_user.role):
-            coord_id = _get_effective_coordinator_id(current_user)
-            if user.coordinator_id != coord_id:
-                return jsonify({'error': 'Solo puedes generar contraseñas de tus propios usuarios'}), 403
+            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+                return jsonify({'error': 'Solo puedes generar contraseñas de candidatos y responsables'}), 403
         
         # Generar contraseña segura de 12 caracteres
         temp_password = generate_secure_password(12)
@@ -942,11 +940,10 @@ def get_user_password(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores/auxiliares solo pueden ver contraseñas de sus propios candidatos/responsables
+        # Coordinadores/auxiliares solo pueden ver contraseñas de candidatos/responsables (usuarios compartidos)
         if _is_coordinator_role(current_user.role):
-            coord_id = _get_effective_coordinator_id(current_user)
-            if user.coordinator_id != coord_id:
-                return jsonify({'error': 'Solo puedes ver contraseñas de tus propios usuarios'}), 403
+            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+                return jsonify({'error': 'Solo puedes ver contraseñas de candidatos y responsables'}), 403
         
         # Desencriptar la contraseña
         decrypted_password = user.get_decrypted_password()
