@@ -1,5 +1,5 @@
 """
-Test de compartir insignias por WhatsApp, Twitter/X y Email
+Test de compartir insignias por WhatsApp, Twitter/X, Email y Facebook
 
 Verifica:
   PARTE A — Construcción de URLs de compartir (unitario, sin red)
@@ -13,6 +13,9 @@ Verifica:
     8. Email genera mailto: con subject y body correctos
     9. Email incluye URL de verificación en el body
    10. Email usa fallback "Insignia Digital" si no hay template_name
+   10b. Facebook URL usa facebook.com/sharer/sharer.php con la URL de verificación
+   10c. Facebook incluye la URL de verificación correcta
+   10d. Facebook URL está URL-encoded correctamente
 
   PARTE B — getVerifyUrl (lógica de URL de verificación)
    11. Si badge tiene verify_url, lo usa directamente
@@ -78,6 +81,12 @@ def build_email_parts(badge: dict) -> tuple:
         f'Saludos.'
     )
     return subject, body
+
+
+def build_facebook_url(badge: dict) -> str:
+    """Replica handleShareFacebook del frontend."""
+    url = get_verify_url(badge)
+    return f"https://www.facebook.com/sharer/sharer.php?u={urllib.parse.quote(url, safe='')}"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -181,6 +190,32 @@ class TestEmailSharing:
         assert 'None' not in body
 
 
+class TestFacebookSharing:
+
+    def test_10b_facebook_url_format(self):
+        """URL de Facebook usa sharer.php con parámetro u."""
+        url = build_facebook_url(BADGE_WITH_NAME)
+        assert url.startswith('https://www.facebook.com/sharer/sharer.php?u=')
+
+    def test_10c_facebook_includes_verify_url(self):
+        """La URL de Facebook incluye la URL de verificación."""
+        url = build_facebook_url(BADGE_WITH_NAME)
+        decoded = urllib.parse.unquote(url)
+        assert '/verify/BDABC1234567' in decoded
+
+    def test_10d_facebook_url_is_encoded(self):
+        """El parámetro u de Facebook está URL-encoded (sin espacios)."""
+        url = build_facebook_url(BADGE_WITH_NAME)
+        query = url.split('?u=', 1)[1]
+        assert ' ' not in query
+
+    def test_10e_facebook_custom_verify_url(self):
+        """Si badge tiene verify_url custom, Facebook lo usa."""
+        url = build_facebook_url(BADGE_CUSTOM_VERIFY)
+        decoded = urllib.parse.unquote(url)
+        assert 'https://custom-domain.com/verify/BD0000000001' in decoded
+
+
 # ============================================================
 # PARTE B — getVerifyUrl
 # ============================================================
@@ -237,11 +272,13 @@ class TestShareUrlIntegrity:
         """Si badge tiene verify_url custom, todos los canales lo usan."""
         wa = urllib.parse.unquote(build_whatsapp_url(BADGE_CUSTOM_VERIFY))
         tw = urllib.parse.unquote(build_twitter_url(BADGE_CUSTOM_VERIFY))
+        fb = urllib.parse.unquote(build_facebook_url(BADGE_CUSTOM_VERIFY))
         _, email_body = build_email_parts(BADGE_CUSTOM_VERIFY)
 
         custom_url = BADGE_CUSTOM_VERIFY['verify_url']
         assert custom_url in wa
         assert custom_url in tw
+        assert custom_url in fb
         assert custom_url in email_body
 
     def test_18_special_characters_in_badge_name(self):
