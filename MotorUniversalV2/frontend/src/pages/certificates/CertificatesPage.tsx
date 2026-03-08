@@ -596,9 +596,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
   }, [])
 
   const handleDownload = (badge: any) => {
-    if (badge.badge_image_url) {
-      window.open(badge.badge_image_url, '_blank')
-    }
+    const url = getVerifyUrl(badge)
+    window.open(url, '_blank', 'noopener')
   }
 
   const handleShare = async (badge: any) => {
@@ -846,8 +845,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
                 onClick={() => handleDownload(badge)}
                 className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg fluid-text-sm font-medium hover:bg-primary-700 transition-all duration-200 hover:shadow-md hover:scale-105 active:scale-95"
               >
-                <Download className="fluid-icon-xs" />
-                Descargar
+                <Eye className="fluid-icon-xs" />
+                Ver Credencial
               </button>
               <button
                 onClick={() => handleAddToProfile(badge)}
