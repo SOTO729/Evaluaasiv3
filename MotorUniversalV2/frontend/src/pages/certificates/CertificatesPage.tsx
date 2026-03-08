@@ -577,7 +577,9 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
 
   const getSharePreviewUrl = (badge: any) => {
     const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api'
-    return `${apiUrl}/badges/share-preview/${badge.badge_code}`
+    // Remove /api suffix to get base host, then use short /s/ route
+    const baseUrl = apiUrl.replace(/\/api\/?$/, '')
+    return `${baseUrl}/s/${badge.badge_code}`
   }
 
   const handleShare = async (badge: any) => {

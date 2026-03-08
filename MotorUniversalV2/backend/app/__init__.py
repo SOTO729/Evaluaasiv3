@@ -168,6 +168,10 @@ def create_app(config_name='development'):
     app.register_blueprint(badges_bp, url_prefix='/api/badges')
     print("[INIT] ✅ badges registrado (insignias digitales)")
     
+    from app.routes.badges import short_share_bp
+    app.register_blueprint(short_share_bp)
+    print("[INIT] ✅ short-share registrado (URL corta /s/<code>)")
+    
     try:
         from app.routes.vm_sessions import bp as vm_sessions_bp
         print("[INIT] ✅ vm_sessions_bp importado")

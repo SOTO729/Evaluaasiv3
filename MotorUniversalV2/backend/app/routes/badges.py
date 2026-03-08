@@ -579,6 +579,14 @@ def revoke_badge(badge_id):
 # SHARE PREVIEW (OG meta tags para LinkedIn/redes)
 # ═══════════════════════════════════════════════
 
+# Blueprint para ruta corta /s/<code> (URL profesional para compartir)
+short_share_bp = Blueprint('short_share', __name__)
+
+@short_share_bp.route('/s/<code>', methods=['GET'])
+def short_share_redirect(code):
+    """Ruta corta para compartir insignias. Redirige a share-preview."""
+    return badge_share_preview(code)
+
 @bp.route('/share-preview/<code>', methods=['GET'])
 def badge_share_preview(code):
     """
