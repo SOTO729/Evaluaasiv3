@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify, g, send_file
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.orm import joinedload
+from werkzeug.exceptions import HTTPException
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from app import db
@@ -228,6 +229,10 @@ def get_partners():
             'current_page': page
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -244,6 +249,8 @@ def get_partner(partner_id):
         return jsonify({
             'partner': partner.to_dict(include_states=True, include_campuses=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -286,6 +293,10 @@ def create_partner():
             'partner': partner.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -320,6 +331,10 @@ def update_partner(partner_id):
             'partner': partner.to_dict(include_states=True)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -338,6 +353,10 @@ def delete_partner(partner_id):
         db.session.commit()
         
         return jsonify({'message': 'Partner desactivado exitosamente'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -362,6 +381,10 @@ def get_partner_states(partner_id):
             'partner_name': partner.name,
             'states': [p.to_dict() for p in presences]
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -409,6 +432,10 @@ def add_partner_state(partner_id):
             'presence': presence.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -433,6 +460,10 @@ def remove_partner_state(partner_id, presence_id):
         db.session.commit()
         
         return jsonify({'message': f'Presencia en {state_name} eliminada'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -470,6 +501,10 @@ def get_campuses(partner_id):
             'campuses': [c.to_dict(include_groups=True) for c in campuses],
             'total': len(campuses)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -681,6 +716,10 @@ def create_campus(partner_id):
             }
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -698,6 +737,8 @@ def get_campus(campus_id):
         return jsonify({
             'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True, include_responsable=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -776,6 +817,10 @@ def update_campus(campus_id):
             'campus': campus.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -794,6 +839,10 @@ def delete_campus(campus_id):
         db.session.commit()
         
         return jsonify({'message': 'Plantel desactivado exitosamente'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -909,6 +958,10 @@ def permanent_delete_campus(campus_id):
             'partner_id': partner_id,
             'stats': stats
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1138,6 +1191,10 @@ def create_campus_responsable(campus_id):
             }
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1182,6 +1239,10 @@ def get_campus_responsable(campus_id):
             },
             'activation_status': campus.activation_status
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1237,6 +1298,10 @@ def update_campus_responsable(campus_id):
                 'is_active': responsable.is_active
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1307,6 +1372,10 @@ def get_available_responsables(campus_id):
             'campus_id': campus_id,
             'partner_id': campus.partner_id
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1401,6 +1470,10 @@ def assign_existing_responsable(campus_id):
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1445,6 +1518,10 @@ def list_campus_responsables(campus_id):
             'total': len(result),
             'primary_responsable_id': campus.responsable_id
         })
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1588,6 +1665,10 @@ def add_campus_responsable(campus_id):
             }
         }), 201
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1632,6 +1713,10 @@ def update_responsable_permissions(campus_id, user_id):
                 'is_primary': responsable.id == campus.responsable_id,
             }
         })
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         db.session.rollback()
@@ -1680,6 +1765,10 @@ def remove_campus_responsable(campus_id, user_id):
             'message': 'Responsable desactivado exitosamente',
             'responsable_id': user_id
         })
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         db.session.rollback()
@@ -1736,6 +1825,10 @@ def activate_campus(campus_id):
             'message': 'Plantel activado exitosamente',
             'campus': campus.to_dict(include_config=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1881,6 +1974,8 @@ def configure_campus(campus_id):
     except ValueError as e:
         db.session.rollback()
         return jsonify({'error': f'Error en formato de datos: {str(e)}'}), 400
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1921,6 +2016,10 @@ def get_campus_config(campus_id):
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1943,6 +2042,10 @@ def deactivate_campus(campus_id):
             'message': 'Plantel desactivado. Puede reactivarlo en cualquier momento.',
             'campus': campus.to_dict(include_config=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1997,6 +2100,10 @@ def get_campus_competency_standards(campus_id):
             'competency_standards': standards_data,
             'total': len(standards_data)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2064,6 +2171,10 @@ def update_campus_competency_standards(campus_id):
             'total': len(standards_data)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2102,6 +2213,10 @@ def get_available_competency_standards():
             'total': len(standards)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2128,6 +2243,10 @@ def get_school_cycles(campus_id):
             'cycles': [c.to_dict(include_groups=True) for c in cycles],
             'total': len(cycles)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2189,6 +2308,8 @@ def create_school_cycle(campus_id):
         
     except ValueError as ve:
         return jsonify({'error': f'Formato de fecha inválido: {str(ve)}'}), 400
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2204,6 +2325,8 @@ def get_school_cycle(cycle_id):
         return jsonify({
             'cycle': cycle.to_dict(include_groups=True, include_campus=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2250,6 +2373,8 @@ def update_school_cycle(cycle_id):
         
     except ValueError as ve:
         return jsonify({'error': f'Formato de fecha inválido: {str(ve)}'}), 400
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2345,6 +2470,10 @@ def permanent_delete_cycle(cycle_id):
             'stats': stats
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2394,6 +2523,10 @@ def get_groups(campus_id):
             'total': len(groups)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2438,6 +2571,10 @@ def create_group(campus_id):
             'message': 'Grupo creado exitosamente',
             'group': group.to_dict(include_cycle=True)
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -2499,6 +2636,10 @@ def list_all_groups():
             'groups': result,
             'total': len(result)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2680,6 +2821,10 @@ def search_groups_paginated():
             'available_partners': available_partners,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -2711,6 +2856,10 @@ def get_group_members_count(group_id):
             'member_ids': member_ids
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2727,6 +2876,8 @@ def get_group(group_id):
         return jsonify({
             'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True, include_config=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2763,6 +2914,10 @@ def update_group(group_id):
             'group': group.to_dict(include_cycle=True)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2781,6 +2936,10 @@ def delete_group(group_id):
         db.session.commit()
         
         return jsonify({'message': 'Grupo desactivado exitosamente'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -2921,6 +3080,10 @@ def get_group_config(group_id):
             'assignment_count': assignment_count,
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2996,6 +3159,10 @@ def update_group_config(group_id):
             'group': group.to_dict(include_config=True)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -3044,6 +3211,10 @@ def reset_group_config(group_id):
             'message': 'Configuración del grupo restablecida a valores del campus',
             'group': group.to_dict(include_config=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -3343,6 +3514,10 @@ def get_group_members(group_id):
             'eligibility_summary': eligibility_summary,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
@@ -3390,6 +3565,8 @@ def get_group_campus_responsables(group_id):
             'campus_id': group.campus_id,
             'campus_name': group.campus.name if group.campus else None,
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -3439,6 +3616,10 @@ def add_group_member(group_id):
             'message': 'Miembro agregado exitosamente',
             'member': member.to_dict(include_user=True)
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -3554,6 +3735,10 @@ def add_group_members_bulk(group_id):
             'errors': errors,
             'auto_assigned_exams': auto_assigned_exams
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -3687,6 +3872,10 @@ def bulk_assign_by_criteria(group_id):
             'total_matched': len(all_user_ids),
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -3716,6 +3905,10 @@ def update_group_member(group_id, member_id):
             'member': member.to_dict(include_user=True)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -3733,6 +3926,10 @@ def remove_group_member(group_id, member_id):
         db.session.commit()
         
         return jsonify({'message': 'Miembro eliminado del grupo'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -3799,6 +3996,10 @@ def check_member_assignments(group_id, member_id):
             'material_assignments': material_assignments,
             'total_assignments': len(exam_assignments) + len(material_assignments)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -3907,6 +4108,10 @@ def search_candidates():
             'pages': pagination.pages,
             'current_page': page
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -4143,6 +4348,10 @@ def download_group_members_template():
             download_name='plantilla_asignacion_candidatos.xlsx'
         )
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -4354,6 +4563,10 @@ def upload_group_members(group_id):
             'mode': mode
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -4429,6 +4642,10 @@ def get_dashboard():
             'recent_groups': [g.to_dict(include_campus=True) for g in recent_groups]
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -4472,6 +4689,10 @@ def get_partner_users(partner_id):
             'current_page': page
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -4497,6 +4718,10 @@ def add_user_to_partner(partner_id, user_id):
             'user': user.to_dict(include_partners=True)
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -4521,6 +4746,10 @@ def remove_user_from_partner(partner_id, user_id):
         return jsonify({
             'message': f'Usuario {user.full_name} desasociado de {partner.name}'
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -4569,6 +4798,10 @@ def get_user_partners(user_id):
             'total': len(partners_data)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -4599,6 +4832,10 @@ def set_user_partners(user_id):
             'message': 'Partners actualizados exitosamente',
             'user': user.to_dict(include_partners=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -4656,6 +4893,10 @@ def get_my_partners():
             'total': len(partners_data)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -4689,6 +4930,10 @@ def get_available_partners():
             'total': len(partners_data)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -4720,6 +4965,10 @@ def link_to_partner(partner_id):
                 'logo_url': partner.logo_url
             }
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -4766,6 +5015,10 @@ def unlink_from_partner(partner_id):
             'message': f'Te has desligado de {partner.name}'
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -4799,6 +5052,10 @@ def get_group_exams(group_id):
             'assigned_exams': exams_data,
             'total': len(exams_data)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5005,6 +5262,10 @@ def get_group_exam_detail(group_id, exam_id):
             'has_custom_materials': has_custom_materials,
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -5098,6 +5359,10 @@ def assignment_cost_preview(group_id):
             'group_name': group.name,
             'cost_source': 'grupo (override)' if group.certification_cost_override is not None else 'campus',
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5578,6 +5843,10 @@ def assign_exam_to_group(group_id):
         
         return jsonify(response_data), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -5602,6 +5871,10 @@ def unassign_exam_from_group(group_id, exam_id):
         return jsonify({
             'message': 'Examen desasignado del grupo'
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -5640,6 +5913,10 @@ def get_group_exam_members(group_id, exam_id):
             'assigned_user_ids': assigned_user_ids,
             'total_members': len(assigned_user_ids)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -5696,6 +5973,10 @@ def update_group_exam_members(group_id, exam_id):
             'message': message,
             'assignment': group_exam.to_dict(include_exam=True, include_members=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -5764,6 +6045,10 @@ def add_members_to_exam(group_id, exam_id):
             'message': f'{len(added)} usuario(s) agregado(s) al examen',
             'added': added
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -6110,6 +6395,10 @@ def get_group_exam_members_detail(group_id, exam_id):
             'swappable_count': swappable_count,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -6402,6 +6691,10 @@ def swap_exam_member(group_id, exam_id):
             'assignment_number': transferred_assignment_number,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -6489,6 +6782,8 @@ def bulk_swap_exam_members(group_id, exam_id):
                     WHERE ss.study_material_id IN :mids
                 ''').bindparams(mids=tuple(material_ids) if len(material_ids) > 1 else tuple(material_ids + [0]))).fetchall()
                 topic_ids = [r[0] for r in topic_rows]
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"⚠️ Error pre-cargando material: {e}")
 
@@ -6706,6 +7001,10 @@ def bulk_swap_exam_members(group_id, exam_id):
             'errors': errors,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -6778,6 +7077,10 @@ def get_swap_history(group_id, exam_id):
             'per_page': per_page,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -6842,6 +7145,10 @@ def get_swap_timeline(group_id, exam_id):
             'total_assignments': len(timeline),
             'total_moves': len(all_records),
         })
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         import traceback
@@ -7015,6 +7322,10 @@ def apply_ecm_retake(group_id, exam_id, user_id):
             'new_total_attempts': total_allowed + 1,
         }), 201
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -7119,6 +7430,10 @@ def preview_ecm_retake(group_id, exam_id):
             )
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -7170,6 +7485,10 @@ def get_group_study_materials(group_id):
             'assigned_materials': materials_data,
             'total': len(materials_data)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -7291,6 +7610,10 @@ def assign_study_materials_to_group(group_id):
             'materials_count': len(assignments_created)
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -7315,6 +7638,10 @@ def unassign_study_material_from_group(group_id, material_id):
         return jsonify({
             'message': 'Material de estudio desasignado del grupo'
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -7357,6 +7684,10 @@ def get_study_material_members(group_id, material_id):
             'assignment_type': assignment.assignment_type,
             'assigned_user_ids': assigned_user_ids
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -7430,6 +7761,10 @@ def update_study_material_members(group_id, material_id):
             'total_members': len(new_user_ids)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -7501,6 +7836,10 @@ def add_members_to_study_material(group_id, material_id):
             'message': f'{len(added)} usuario(s) agregado(s) al material',
             'added': added
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -7614,6 +7953,10 @@ def get_available_study_materials():
             'current_page': page
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -7712,6 +8055,10 @@ def get_available_ecms():
             'total': len(ecms_data),
             'campus_id': campus_id
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -7861,6 +8208,8 @@ def get_available_exams():
                         simulator_questions = count
                     else:
                         exam_questions = count
+            except HTTPException:
+                raise
             except Exception as e:
                 print(f"[DEBUG] Error contando preguntas: {e}")
             
@@ -7883,6 +8232,8 @@ def get_available_exams():
                         simulator_exercises = count
                     else:
                         exam_exercises = count
+            except HTTPException:
+                raise
             except Exception as e:
                 print(f"[DEBUG] Error contando ejercicios: {e}")
             
@@ -7966,6 +8317,10 @@ def get_available_exams():
         
         return jsonify(response_data)
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         print(f"[DEBUG] Error en get_available_exams: {traceback.format_exc()}")
@@ -7999,6 +8354,8 @@ def get_exam_materials_for_assignment(exam_id):
             '''), {'exam_id': exam_id})
             linked_material_ids = [r[0] for r in result.fetchall()]
             print(f"Linked materials from study_material_exams: {linked_material_ids}")
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Error getting linked materials from study_material_exams: {e}")
         
@@ -8009,6 +8366,8 @@ def get_exam_materials_for_assignment(exam_id):
             for mat in legacy_materials:
                 if mat.id not in linked_material_ids:
                     linked_material_ids.append(mat.id)
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Error getting legacy materials: {e}")
         
@@ -8083,6 +8442,10 @@ def get_exam_materials_for_assignment(exam_id):
             'linked_count': len([m for m in materials_data if m['is_linked']]),
             'total_count': len(materials_data)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -8163,6 +8526,10 @@ def get_group_exam_materials(group_exam_id):
             'has_customizations': len(custom_materials) > 0
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -8204,6 +8571,10 @@ def update_group_exam_materials(group_exam_id):
             'group_exam_id': group_exam_id
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -8227,6 +8598,10 @@ def reset_group_exam_materials(group_exam_id):
             'message': 'Materiales reseteados a valores por defecto',
             'group_exam_id': group_exam_id
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -8334,6 +8709,10 @@ def move_members_to_group(source_group_id):
             'source_group': source_group.name,
             'target_group': target_group.name
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -8479,6 +8858,10 @@ def preview_group_members_upload(group_id):
             },
             'can_proceed': ready_count > 0
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -8717,6 +9100,10 @@ def search_candidates_advanced():
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -8862,6 +9249,10 @@ def export_group_members(group_id):
             download_name=filename
         )
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -8983,6 +9374,10 @@ def export_group_certifications(group_id):
             as_attachment=True,
             download_name=filename
         )
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -9159,6 +9554,8 @@ def export_campus_report(campus_id):
         safe_name = campus.name.replace(' ', '_').replace('/', '-')[:30]
         filename = f"Reporte_Plantel_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -9218,6 +9615,8 @@ def export_partner_report(partner_id):
         safe_name = partner.name.replace(' ', '_').replace('/', '-')[:30]
         filename = f"Reporte_Partner_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=filename)
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -9260,6 +9659,10 @@ def get_mi_plantel():
         return jsonify({
             'campus': campus.to_dict(include_partner=True, include_responsable=True, include_config=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -9383,6 +9786,10 @@ def get_mi_plantel_stats():
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -9498,6 +9905,10 @@ def get_mi_plantel_evaluations():
             'per_page': per_page,
             'pages': pagination.pages
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -9644,6 +10055,10 @@ def export_mi_plantel_evaluations():
             download_name=filename
         )
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -9667,6 +10082,10 @@ def get_mi_plantel_groups():
         return jsonify({
             'groups': [g.to_dict(include_members=False) for g in groups]
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -9708,6 +10127,10 @@ def get_mi_plantel_exams():
                 'description': exam.description
             } for exam in exams]
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -9917,6 +10340,8 @@ def get_mi_plantel_dashboard_advanced():
                 'certification_by_type': certification_by_type
             }
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -10002,6 +10427,8 @@ def get_mi_plantel_certificates_by_group():
             'campus_tiers': campus_tiers,
             'groups': groups_data
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -10045,6 +10472,8 @@ def update_mi_plantel_campus():
             'message': 'Datos del plantel actualizados',
             'campus': campus.to_dict(include_config=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10091,6 +10520,8 @@ def create_mi_plantel_group():
             'message': 'Grupo creado exitosamente',
             'group': group.to_dict(include_cycle=True)
         }), 201
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10109,6 +10540,8 @@ def get_mi_plantel_group_detail(group_id):
         return jsonify({
             'group': group.to_dict(include_members=True, include_campus=True, include_cycle=True, include_config=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -10145,6 +10578,8 @@ def update_mi_plantel_group(group_id):
             'message': 'Grupo actualizado',
             'group': group.to_dict(include_cycle=True)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10167,6 +10602,8 @@ def delete_mi_plantel_group(group_id):
         group.is_active = False
         db.session.commit()
         return jsonify({'message': 'Grupo desactivado exitosamente'})
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10206,6 +10643,8 @@ def get_mi_plantel_group_members(group_id):
             'members': members_data,
             'total': len(members_data)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -10250,6 +10689,8 @@ def add_mi_plantel_group_member(group_id):
             'message': 'Miembro agregado exitosamente',
             'member': member.to_dict(include_user=True)
         }), 201
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10297,6 +10738,8 @@ def add_mi_plantel_group_members_bulk(group_id):
             'message': f'{len(added)} miembros agregados',
             'added': len(added), 'errors': errors
         }), 201
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10320,6 +10763,8 @@ def remove_mi_plantel_group_member(group_id, member_id):
         db.session.delete(member)
         db.session.commit()
         return jsonify({'message': 'Miembro eliminado del grupo'})
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -10342,6 +10787,8 @@ def get_mi_plantel_group_exams(group_id):
             'assigned_exams': [ge.to_dict(include_exam=True, include_materials=True) for ge in group_exams],
             'total': len(group_exams)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -10403,6 +10850,8 @@ def search_mi_plantel_candidates():
             'page': page,
             'pages': paginated.pages
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -10557,6 +11006,10 @@ def get_mis_examenes():
             'current_page': 1
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -10677,6 +11130,10 @@ def get_mis_materiales():
             'current_page': 1
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -10764,6 +11221,10 @@ def hard_delete_group(group_id):
             'deleted': stats
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -10803,6 +11264,10 @@ def cleanup_orphan_memberships():
             'message': f'Se eliminaron {count} membresías huérfanas',
             'deleted_count': count
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -10916,6 +11381,10 @@ def download_bulk_exam_assign_template(group_id):
             as_attachment=True,
             download_name=filename
         )
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -11167,6 +11636,10 @@ def bulk_assign_exams_by_ecm(group_id):
                 'errors': len(results['errors'])
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -11441,6 +11914,10 @@ def get_group_certificates_stats(group_id):
         response['per_page'] = per_page
         
         return jsonify(response)
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -11760,6 +12237,10 @@ def download_group_certificates_zip(group_id):
                 
                 return output_buffer
                 
+            except HTTPException:
+                
+                raise
+                
             except Exception as e:
                 current_app.logger.error(f"Error generando certificado con plantilla: {e}")
                 import traceback
@@ -11796,6 +12277,8 @@ def download_group_certificates_zip(group_id):
                 )
                 
                 return blob_client.url
+            except HTTPException:
+                raise
             except Exception as e:
                 current_app.logger.error(f"Error subiendo a blob: {e}")
                 return None
@@ -11900,6 +12383,8 @@ def download_group_certificates_zip(group_id):
                                 db.session.commit()
                             
                             generated += 1
+                        except HTTPException:
+                            raise
                         except Exception as e:
                             errors.append({'user': user.full_name, 'type': 'tier_basic', 'error': str(e)})
                             continue
@@ -11955,6 +12440,8 @@ def download_group_certificates_zip(group_id):
                                 db.session.commit()
                             
                             generated += 1
+                        except HTTPException:
+                            raise
                         except Exception as e:
                             errors.append({'user': user.full_name, 'type': 'tier_standard', 'error': str(e)})
                             continue
@@ -11983,6 +12470,8 @@ def download_group_certificates_zip(group_id):
                             if blob_data:
                                 zip_file.writestr(filename, blob_data)
                                 files_added += 1
+                        except HTTPException:
+                            raise
                         except Exception as e:
                             errors.append({'user': user.full_name, 'type': 'tier_advanced', 'error': str(e)})
                 except ImportError:
@@ -12011,6 +12500,10 @@ def download_group_certificates_zip(group_id):
                 'Content-Length': len(zip_buffer.getvalue())
             }
         )
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -12100,6 +12593,8 @@ def generate_group_certificates(group_id):
                     'user_id': r.user_id,
                     'exam_id': r.exam_id
                 })
+            except HTTPException:
+                raise
             except Exception as e:
                 current_app.logger.error(f"Error encolando PDF para result {r.id}: {e}")
         
@@ -12109,6 +12604,10 @@ def generate_group_certificates(group_id):
             'certificate_type': certificate_type,
             'details': queued
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -12177,6 +12676,10 @@ def clear_group_certificates_urls(group_id):
             'group_id': group_id,
             'group_name': group.name
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -12545,6 +13048,10 @@ def get_group_analytics(group_id):
             'top_performers': top_performers,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -12669,6 +13176,10 @@ def get_candidate_certification_detail(group_id, user_id):
             'conocer_certificates': conocer_detail,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -12745,6 +13256,10 @@ def extend_assignment_validity(assignment_id):
             'ecm_assignments_updated': len(ecm_assignments),
         })
     
+    except HTTPException:
+    
+        raise
+    
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -12810,6 +13325,10 @@ def extend_ecm_assignment_validity(ecm_assignment_id):
             'expires_at': new_expires.isoformat() if new_expires else None,
             'is_expired': ecm_assignment.is_expired,
         })
+    
+    except HTTPException:
+    
+        raise
     
     except Exception as e:
         db.session.rollback()
@@ -12955,6 +13474,10 @@ def get_ecm_assignments():
             'total': len(result),
             'brands': brands,
         })
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         import traceback
@@ -13555,6 +14078,10 @@ def get_ecm_assignment_detail(ecm_id):
             }
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -13948,6 +14475,10 @@ def export_ecm_assignments_excel(ecm_id):
             download_name=filename,
         )
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -14238,6 +14769,10 @@ def get_candidate_assignment_detail(eca_id):
             'certificate_types': cert_types,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -14321,6 +14856,8 @@ def get_mi_partner():
             'campuses': [c.to_dict() for c in campuses],
             'states': states
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -14559,6 +15096,8 @@ def get_mi_partner_dashboard():
                 'candidates_by_state': candidates_by_state
             }
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -14858,6 +15397,8 @@ def get_mi_partner_certificates():
             'pagination': {'total': total, 'page': page, 'per_page': per_page, 'pages': pages},
             'filters': _get_partner_cert_filters(partner.id)
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -15074,6 +15615,8 @@ def export_mi_partner_certificates_excel():
             as_attachment=True,
             download_name=filename,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -15242,6 +15785,8 @@ def download_mi_partner_certificates_zip():
                         continue
                     
                     zf.writestr(path, content)
+                except HTTPException:
+                    raise
                 except Exception as e:
                     errors.append(f"{path}: {str(e)[:100]}")
                     continue
@@ -15260,6 +15805,8 @@ def download_mi_partner_certificates_zip():
             as_attachment=True,
             download_name=filename,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -15513,6 +16060,10 @@ def get_conocer_tramites():
             }
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -15734,6 +16285,10 @@ def export_conocer_tramites_excel():
             as_attachment=True,
             download_name=filename,
         )
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         import traceback
@@ -16009,6 +16564,10 @@ def send_conocer_solicitud():
             'solicitud_id': log.id,
         })
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -16159,6 +16718,8 @@ def _download_cosu_pdf_from_blob():
         download = blob_client.download_blob()
         pdf_bytes = download.readall()
         return base64.b64encode(pdf_bytes).decode('utf-8')
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[COSU PDF] Error downloading: {e}")
         return None

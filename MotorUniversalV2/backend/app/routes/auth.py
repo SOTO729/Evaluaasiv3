@@ -2,6 +2,7 @@
 Rutas de autenticación
 """
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -556,6 +557,8 @@ def forgot_password():
         else:
             logger.error("Redis no disponible para forgot-password")
             return jsonify(success_msg), 200
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error guardando token de reset: {e}")
         return jsonify(success_msg), 200
@@ -564,6 +567,8 @@ def forgot_password():
     try:
         from app.services.email_service import send_password_reset_email
         send_password_reset_email(user, token)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error enviando email de reset: {e}")
     
@@ -617,6 +622,8 @@ def reset_password():
             return jsonify({'error': 'El enlace ha expirado o es inválido. Solicita uno nuevo.'}), 400
         
         user_id = user_id.decode()
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error verificando token de reset: {e}")
         return jsonify({'error': 'Error al verificar el enlace'}), 500
@@ -699,6 +706,8 @@ def contact_form():
             return jsonify({'message': 'Mensaje enviado exitosamente. Nos pondremos en contacto pronto.'}), 200
         else:
             return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error en formulario de contacto: {e}")
         return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200
@@ -893,6 +902,10 @@ def get_my_assignments():
             'assignments': assignments,
             'total': len(assignments)
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         logger.error(f"Error obteniendo historial de asignaciones: {e}")
@@ -1162,6 +1175,10 @@ def get_campus_assignments():
             }
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         logger.error(f"Error obteniendo asignaciones del campus: {e}")
         import traceback
@@ -1232,6 +1249,10 @@ def get_locked_accounts():
             }
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         print(f"Error en get_locked_accounts: {e}")
         import traceback
@@ -1286,6 +1307,10 @@ def admin_unlock_account():
         else:
             return jsonify({'error': 'Error al desbloquear la cuenta'}), 500
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         print(f"Error en admin_unlock_account: {e}")
         return jsonify({'error': 'Error al desbloquear la cuenta'}), 500
@@ -1316,6 +1341,10 @@ def admin_unlock_all():
             'message': f'{unlocked_count} cuenta(s) desbloqueada(s)',
             'unlocked_count': unlocked_count
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         print(f"Error en admin_unlock_all: {e}")

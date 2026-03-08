@@ -7,6 +7,7 @@ Endpoints para:
 - Gerentes/Admin: aprobar o rechazar solicitudes
 """
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User
@@ -116,6 +117,10 @@ def get_my_balance():
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -154,6 +159,10 @@ def get_my_transactions():
             'pages': pagination.pages,
             'current_page': page
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -195,6 +204,10 @@ def get_my_requests():
             'pages': pagination.pages,
             'current_page': page
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -301,6 +314,8 @@ def create_request():
                             justification=data['justification'],
                             has_financiero_review=False,
                         )
+        except HTTPException:
+            raise
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error enviando email de nueva solicitud a gerente: {e}")
@@ -309,6 +324,10 @@ def create_request():
             'message': 'Solicitud creada exitosamente',
             'request': balance_request.to_dict(include_campus=True, include_group=True)
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -423,6 +442,8 @@ def create_request_batch():
                             items=email_items,
                             has_financiero_review=False,
                         )
+        except HTTPException:
+            raise
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error enviando email batch a gerente: {e}")
@@ -431,6 +452,10 @@ def create_request_batch():
             'message': f'{len(created_requests)} solicitud{"es" if len(created_requests) > 1 else ""} creada{"s" if len(created_requests) > 1 else ""} exitosamente',
             'requests': [r.to_dict(include_campus=True, include_group=True) for r in created_requests],
         }), 201
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         db.session.rollback()
@@ -509,6 +534,10 @@ def cancel_request(request_id):
             'request': balance_request.to_dict(include_campus=True, include_group=True)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -563,6 +592,10 @@ def get_pending_requests():
                 ).count()
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -620,6 +653,10 @@ def get_request_detail(request_id):
             result['attachments'] = []
         
         return jsonify(result)
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -740,6 +777,8 @@ def review_request(request_id):
                                 recommended_amount=balance_request.financiero_recommended_amount,
                                 has_financiero_review=True,
                             )
+            except HTTPException:
+                raise
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).error(f"Error enviando email de aprobación a gerente: {e}")
@@ -749,6 +788,10 @@ def review_request(request_id):
             'request': balance_request.to_dict(include_coordinator=True, include_campus=True, 
                                                include_group=True, include_reviewers=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -801,6 +844,10 @@ def get_requests_for_approval():
                 'rejected': BalanceRequest.query.filter_by(status='rejected').count()
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -893,6 +940,8 @@ def approve_request(request_id):
                     request_type=balance_request.request_type or 'recarga',
                     approver_notes=data.get('notes', ''),
                 )
+        except HTTPException:
+            raise
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error enviando email de aprobación a coordinador: {e}")
@@ -920,6 +969,8 @@ def approve_request(request_id):
                             financiero_name=user.full_name or user.name or 'Financiero',
                             financiero_notes=balance_request.financiero_notes or '',
                         )
+            except HTTPException:
+                raise
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).error(f"Error enviando email de delegación a gerente: {e}")
@@ -930,6 +981,10 @@ def approve_request(request_id):
                                                include_group=True, include_reviewers=True),
             'new_balance': float(balance.current_balance)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -996,6 +1051,8 @@ def reject_request(request_id):
                     request_type=balance_request.request_type or 'recarga',
                     approver_notes=data['notes'],
                 )
+        except HTTPException:
+            raise
         except Exception as e:
             import logging
             logging.getLogger(__name__).error(f"Error enviando email de rechazo a coordinador: {e}")
@@ -1005,6 +1062,10 @@ def reject_request(request_id):
             'request': balance_request.to_dict(include_coordinator=True, include_campus=True, 
                                                include_group=True, include_reviewers=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1076,6 +1137,10 @@ def get_coordinators_balances():
             'current_page': page
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1143,6 +1208,10 @@ def create_adjustment():
             'new_balance': float(balance.current_balance)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1189,6 +1258,10 @@ def get_balance_stats():
                 'awaiting_approval': recommended_requests
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1259,6 +1332,10 @@ def get_campus_balance_summary(campus_id):
             'coordinators': coordinators,
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1289,6 +1366,10 @@ def get_all_transactions():
             'pages': pagination.pages,
             'current_page': page
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1332,6 +1413,10 @@ def get_financieros_for_delegation():
                 'last_login': f.last_login.isoformat() if f.last_login else None,
             } for f in financieros]
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1391,6 +1476,10 @@ def toggle_financiero_delegation(financiero_id):
                 'can_approve_balance': financiero.can_approve_balance,
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1480,6 +1569,10 @@ def upload_attachment():
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1525,6 +1618,10 @@ def update_request_attachments(request_id):
             'success': True,
             'attachments': attachments
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1668,6 +1765,10 @@ def get_assignment_history():
                 'total_spent': float(total_spent),
             }
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2027,6 +2128,10 @@ def email_action(token):
             'message': msg,
             'details': details,
         })
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         db.session.rollback()

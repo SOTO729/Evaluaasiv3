@@ -8,6 +8,7 @@ Roles permitidos:
 """
 from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User
@@ -325,6 +326,8 @@ def create_session():
             'message': 'Sesión agendada exitosamente',
             'session': session.to_dict()
         }), 201
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         if 'uq_vm_session_slot' in str(e).lower() or 'unique' in str(e).lower():
@@ -368,6 +371,8 @@ def cancel_session(session_id):
             'message': 'Sesión cancelada',
             'session': session.to_dict()
         })
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -414,6 +419,8 @@ def update_session_status(session_id):
             'message': f'Estado actualizado a {new_status}',
             'session': session.to_dict()
         })
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500

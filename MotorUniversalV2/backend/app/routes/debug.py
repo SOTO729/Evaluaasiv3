@@ -1,5 +1,6 @@
 """Endpoint temporal de debug"""
 from flask import Blueprint, jsonify, current_app
+from werkzeug.exceptions import HTTPException
 import os
 import subprocess
 import inspect
@@ -30,6 +31,8 @@ def check_partners_routes():
             'exam_members_routes': exam_members,
             'all_study_materials_routes': [r for r in routes if 'study-materials' in r['route']]
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -78,6 +81,8 @@ def create_group_study_tables():
                 """))
                 db.session.commit()
                 results['tables_created'].append('group_study_materials')
+            except HTTPException:
+                raise
             except Exception as e:
                 if 'already exists' in str(e).lower():
                     results['tables_checked'].append('group_study_materials (already exists)')
@@ -103,6 +108,8 @@ def create_group_study_tables():
                 """))
                 db.session.commit()
                 results['tables_created'].append('group_study_material_members')
+            except HTTPException:
+                raise
             except Exception as e:
                 if 'already exists' in str(e).lower():
                     results['tables_checked'].append('group_study_material_members (already exists)')
@@ -121,6 +128,8 @@ def create_group_study_tables():
         results['success'] = len(results['errors']) == 0
         
         return jsonify(results)
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -193,6 +202,10 @@ def fix_group_study_material_members():
                 db.session.commit()
                 results['success'] = True
                 
+            except HTTPException:
+                
+                raise
+                
             except Exception as e:
                 db.session.rollback()
                 results['errors'].append(str(e))
@@ -213,6 +226,8 @@ def fix_group_study_material_members():
         results['final_columns'] = [row[0] for row in columns_after]
         
         return jsonify(results)
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -279,6 +294,8 @@ def debug_group_assignments(group_id):
         results['group_members'] = [{'id': r[0], 'user_id': r[1], 'status': r[2]} for r in members_result]
         
         return jsonify(results)
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -369,6 +386,8 @@ def check_exercises():
             'exams_with_exercise_counts': exams_with_counts,
             'sample_exercises': exercises_data
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -409,11 +428,15 @@ def test_conocer_upload():
             )
             result['test_upload_success'] = True
             result['test_blob_name'] = blob_name[:80] if blob_name else None
+        except HTTPException:
+            raise
         except Exception as e:
             result['test_upload_success'] = False
             result['test_upload_error'] = str(e)
         
         return jsonify(result)
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -442,6 +465,8 @@ def check_study_topic_model():
             'to_dict_source_preview': to_dict_source[:500],
             'estimated_in_to_dict': 'estimated_time_minutes' in to_dict_source
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)})
 
@@ -467,6 +492,8 @@ def ffmpeg_status():
             'compression_enabled': False,
             'error': 'FFmpeg not installed'
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({
             'ffmpeg_available': False,
@@ -515,6 +542,8 @@ def debug_result_data(result_id):
             'evaluation_breakdown': evaluation_breakdown,
             'summary': answers_data.get('summary') if isinstance(answers_data, dict) else None
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
@@ -536,6 +565,8 @@ def debug_code():
                 'curp_lines': curp_lines[:10]
             })
         return jsonify({'file_exists': False})
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)})
 
@@ -588,6 +619,8 @@ def debug_exam_relations():
             'sample_relations': samples,
             'materials': materials
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)})
 
@@ -604,6 +637,8 @@ def debug_material_detail(material_id):
             'exam_ids_direct': [e.id for e in material.exams] if material.exams else [],
             'exams_count': len(material.exams) if material.exams else 0
         })
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()})
@@ -673,6 +708,8 @@ def migrate_voucher_nullable():
                 IF @sql <> '' EXEC sp_executesql @sql;
             """))
             db.session.commit()
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Note: Could not drop FK constraint (may not exist): {e}")
             db.session.rollback()
@@ -691,6 +728,8 @@ def migrate_voucher_nullable():
                 FOREIGN KEY (voucher_id) REFERENCES vouchers(id)
             """))
             db.session.commit()
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Note: Could not recreate FK constraint: {e}")
             db.session.rollback()
@@ -700,6 +739,10 @@ def migrate_voucher_nullable():
             'message': 'Column voucher_id is now nullable',
             'migration_applied': True
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -741,6 +784,10 @@ def migrate_report_url():
             'migration_needed': True,
             'migration_applied': True
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -793,6 +840,10 @@ def check_result_data(result_id):
             'raw_preview': str(answers_data_raw)[:500] if answers_data_raw else None
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         return jsonify({
@@ -826,6 +877,10 @@ def recent_results():
             'count': len(results_list),
             'results': results_list
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -884,6 +939,8 @@ def ensure_ecm_tables():
                 '''))
                 db.session.commit()
                 results['competency_standards'] = {'status': 'created'}
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 results['competency_standards'] = {'status': 'error', 'error': str(e)}
@@ -916,6 +973,8 @@ def ensure_ecm_tables():
                 '''))
                 db.session.commit()
                 results['deletion_requests'] = {'status': 'created'}
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 results['deletion_requests'] = {'status': 'error', 'error': str(e)}
@@ -933,6 +992,8 @@ def ensure_ecm_tables():
                 results['exams_fk'] = {'status': 'column_added'}
             else:
                 results['exams_fk'] = {'status': 'already_exists'}
+        except HTTPException:
+            raise
         except Exception as e:
             db.session.rollback()
             results['exams_fk'] = {'status': 'error', 'error': str(e)}
@@ -948,6 +1009,8 @@ def ensure_ecm_tables():
                 results['results_fk'] = {'status': 'column_added'}
             else:
                 results['results_fk'] = {'status': 'already_exists'}
+        except HTTPException:
+            raise
         except Exception as e:
             db.session.rollback()
             results['results_fk'] = {'status': 'error', 'error': str(e)}
@@ -956,6 +1019,10 @@ def ensure_ecm_tables():
             'success': True,
             'results': results
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({
@@ -1003,6 +1070,10 @@ def migrate_results_to_ecm():
                     # El examen no tiene ECM asociado
                     skipped += 1
                     
+            except HTTPException:
+                    
+                raise
+                    
             except Exception as e:
                 errors.append({
                     'result_id': result.id,
@@ -1021,6 +1092,10 @@ def migrate_results_to_ecm():
             'errors': errors[:10] if errors else [],  # Mostrar máximo 10 errores
             'total_errors': len(errors)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1075,6 +1150,10 @@ def results_ecm_status():
             'sample_without_ecm': sample_without_ecm
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1114,6 +1193,8 @@ def exams_ecm_status():
             'exams_without_ecm': sum(1 for e in result if not e['ecm_id']),
             'exams': result
         })
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({
             'success': False,
@@ -1151,6 +1232,8 @@ def migrate_results_ecm():
                     migrated += 1
                 else:
                     skipped += 1
+            except HTTPException:
+                raise
             except Exception as e:
                 errors.append({
                     'result_id': result.id[:8],
@@ -1166,6 +1249,10 @@ def migrate_results_ecm():
             'skipped': skipped,
             'errors': errors[:10] if errors else []
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1225,6 +1312,10 @@ def create_test_candidate():
             'user': user.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -1265,6 +1356,10 @@ def list_users_summary():
             'total_users': sum(c for _, c in role_counts),
             'users_by_role': users_by_role
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({
@@ -1326,6 +1421,10 @@ def run_group_config_migration():
                 else:
                     results['columns_existing'].append(column_name)
                     
+            except HTTPException:
+                    
+                raise
+                    
             except Exception as e:
                 results['errors'].append({
                     'column': column_name,
@@ -1337,6 +1436,10 @@ def run_group_config_migration():
             'success': len(results['errors']) == 0,
             'results': results
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback

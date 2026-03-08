@@ -3,6 +3,7 @@ Rutas de exámenes
 """
 import json
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app import db
 from app.models.user import User
@@ -59,6 +60,8 @@ def _disabled_migrate_exercise_tables():
             'message': 'Tablas creadas/verificadas correctamente',
             'tables': ['exercise_steps', 'exercise_actions']
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -109,6 +112,8 @@ def _disabled_fix_ordering_answers():
             'fixed_count': fixed_count,
             'questions_checked': len(ordering_questions)
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -349,6 +354,10 @@ def create_exam():
             'exam': exam.to_dict(include_details=True)
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al crear el examen: {str(e)}'}), 500
@@ -524,6 +533,10 @@ def clone_exam(exam_id):
             'message': 'Examen clonado exitosamente',
             'exam': new_exam.to_dict(include_details=True)
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -750,6 +763,10 @@ def delete_exam(exam_id):
         
         return jsonify({'message': 'Examen eliminado exitosamente'}), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al eliminar examen: {str(e)}'}), 500
@@ -862,6 +879,10 @@ def delete_category(exam_id, category_id):
         return jsonify({
             'message': 'Categoría y todo su contenido eliminado exitosamente'
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1038,6 +1059,8 @@ def delete_topic(topic_id):
         return jsonify({
             'message': 'Tema y todo su contenido eliminado exitosamente'
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al eliminar el tema: {str(e)}'}), 500
@@ -1187,6 +1210,8 @@ def delete_question(question_id):
             'message': 'Pregunta eliminada exitosamente',
             'answers_deleted': answers_deleted
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al eliminar pregunta: {str(e)}'}), 500
@@ -1256,6 +1281,8 @@ def create_answer(question_id):
             'message': 'Respuesta creada exitosamente',
             'answer': answer.to_dict(include_correct=True)
         }), 201
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al crear respuesta: {str(e)}'}), 500
@@ -1470,6 +1497,8 @@ def delete_exercise(exercise_id):
                     else:
                         images_failed += 1
                         log(f"    ✗ No se pudo eliminar imagen")
+                except HTTPException:
+                    raise
                 except Exception as e:
                     images_failed += 1
                     log(f"    ✗ Error al eliminar imagen: {str(e)}")
@@ -1733,6 +1762,8 @@ def delete_step(step_id):
                 print(f"Imagen eliminada del blob: {step.image_url}")
             else:
                 print(f"No se pudo eliminar imagen del blob: {step.image_url}")
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"Error al eliminar imagen del blob: {str(e)}")
     
@@ -2027,6 +2058,8 @@ def upload_step_image(step_id):
                         print(f"Imagen anterior eliminada del blob: {old_image_url[:80]}...")
                     else:
                         print(f"No se pudo eliminar imagen anterior: {old_image_url[:80]}...")
+                except HTTPException:
+                    raise
                 except Exception as e:
                     print(f"Error al eliminar imagen anterior: {e}")
         else:
@@ -2208,6 +2241,10 @@ def validate_exam(exam_id):
                 'total_exercises': total_exercises
             }
         }), 200
+    
+    except HTTPException:
+    
+        raise
     
     except Exception as e:
         print(f"ERROR en validación: {str(e)}")
@@ -2990,6 +3027,10 @@ def evaluate_exam(exam_id):
             }
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         print(f"ERROR en evaluate_exam: {str(e)}")
@@ -3094,6 +3135,10 @@ def check_exam_access(exam_id):
             'expires_at': group_exam.effective_expires_at.isoformat() if group_exam.effective_expires_at else None,
             'extended_months': group_exam.extended_months or 0,
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -3314,6 +3359,10 @@ def save_exam_result(exam_id):
         
         return jsonify(response_data), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -3373,6 +3422,10 @@ def get_my_exam_results(exam_id):
             'grouped_by': 'ecm' if exam.competency_standard_id else 'exam',
             'ecm_id': exam.competency_standard_id
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -3458,6 +3511,10 @@ def upload_result_report(result_id):
             'report_url': report_url
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -3533,6 +3590,10 @@ def generate_result_pdf(result_id):
             download_name=filename
         )
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         current_app.logger.error(f"❌ [PDF] Error generando PDF: {str(e)}")
@@ -3606,6 +3667,10 @@ def generate_certificate_pdf(result_id):
             download_name=filename
         )
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         current_app.logger.error(f"❌ [CERTIFICADO] Error generando certificado: {str(e)}")
@@ -3665,6 +3730,10 @@ def debug_result_data(result_id):
             'evaluation_breakdown': category_results,
             'summary_in_answers_data': answers_data.get('summary', {}) if isinstance(answers_data, dict) else None
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -3755,6 +3824,10 @@ def request_pdf_generation(result_id):
                 'fallback_url': f'/api/exams/results/{result_id}/generate-pdf'
             }), 500
             
+    except HTTPException:
+            
+        raise
+            
     except Exception as e:
         import traceback
         return jsonify({
@@ -3797,6 +3870,10 @@ def get_pdf_status(result_id):
             response['status'] = 'completed'
         
         return jsonify(response), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

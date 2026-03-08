@@ -3,6 +3,7 @@ Rutas para gestión de Estándares de Competencia (ECM)
 """
 from datetime import datetime
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db, cache
 from app.models import User, CompetencyStandard, DeletionRequest, Exam
@@ -122,6 +123,10 @@ def create_standard():
             'standard': standard.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al crear el estándar: {str(e)}'}), 500
@@ -192,6 +197,10 @@ def update_standard(standard_id):
             'standard': standard.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al actualizar el estándar: {str(e)}'}), 500
@@ -239,6 +248,10 @@ def delete_standard(standard_id):
         invalidate_standards_cache()
         
         return jsonify({'message': 'Estándar eliminado exitosamente'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -296,6 +309,10 @@ def request_deletion(standard_id):
             'message': 'Solicitud de eliminación enviada',
             'request': deletion_request.to_dict()
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -418,6 +435,10 @@ def review_deletion_request(request_id):
             'request': deletion_request.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al procesar la solicitud: {str(e)}'}), 500
@@ -508,6 +529,10 @@ def create_brand():
             'brand': brand.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al crear la marca: {str(e)}'}), 500
@@ -555,6 +580,10 @@ def update_brand(brand_id):
             'brand': brand.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al actualizar la marca: {str(e)}'}), 500
@@ -590,6 +619,10 @@ def delete_brand(brand_id):
         return jsonify({
             'message': 'Marca desactivada exitosamente'
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -669,6 +702,10 @@ def upload_standard_logo(standard_id):
             'standard': standard.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al subir logo: {str(e)}'}), 500
@@ -717,6 +754,10 @@ def delete_standard_logo(standard_id):
             'message': 'Logo eliminado exitosamente',
             'standard': standard.to_dict()
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -794,6 +835,10 @@ def upload_brand_logo(brand_id):
             'brand': brand.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al subir logo: {str(e)}'}), 500
@@ -840,6 +885,10 @@ def delete_brand_logo(brand_id):
             'message': 'Logo de marca eliminado exitosamente',
             'brand': brand.to_dict()
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1058,6 +1107,10 @@ def upload_certificate_template(standard_id):
                 'template': template.to_dict()
             }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -1128,6 +1181,10 @@ def update_certificate_template(standard_id):
             'template': template.to_dict()
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al actualizar plantilla: {str(e)}'}), 500
@@ -1168,6 +1225,10 @@ def delete_certificate_template(standard_id):
         db.session.commit()
         
         return jsonify({'message': 'Plantilla eliminada exitosamente'})
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1306,6 +1367,10 @@ def preview_certificate_template(standard_id):
             as_attachment=False,
             download_name=f'preview_{standard.code}.pdf'
         )
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': f'Error al generar vista previa: {str(e)}'}), 500

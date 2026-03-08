@@ -3,6 +3,7 @@ Rutas para gestión de Certificados CONOCER
 """
 from datetime import datetime
 from flask import Blueprint, request, jsonify, send_file, current_app
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models import User
@@ -89,6 +90,8 @@ def get_certificate(certificate_id):
     try:
         blob_service = get_conocer_blob_service()
         blob_status = blob_service.get_blob_status(certificate.blob_name)
+    except HTTPException:
+        raise
     except Exception as e:
         current_app.logger.error(f"Error obteniendo estado del blob: {e}")
     
@@ -142,6 +145,10 @@ def download_certificate(certificate_id):
             as_attachment=True,
             download_name=filename
         )
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         error_msg = str(e)
@@ -210,6 +217,10 @@ def get_download_url(certificate_id):
             'filename': filename
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         current_app.logger.error(f"Error generando URL para certificado {certificate_id}: {e}")
         return jsonify({'error': 'Error al generar URL de descarga'}), 500
@@ -245,6 +256,10 @@ def rehydrate_certificate(certificate_id):
         result = blob_service.rehydrate_from_archive(certificate.blob_name, priority)
         
         return jsonify(result)
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         current_app.logger.error(f"Error rehidratando certificado {certificate_id}: {e}")
@@ -285,6 +300,10 @@ def get_certificate_status(certificate_id):
             'certificate_number': certificate.certificate_number,
             **status
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         current_app.logger.error(f"Error obteniendo estado de certificado {certificate_id}: {e}")
@@ -413,6 +432,8 @@ def upload_certificate():
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error subiendo certificado: {e}")
@@ -459,6 +480,10 @@ def archive_certificate(certificate_id):
                 'message': 'El certificado ya estaba en archivo',
                 'certificate': certificate.to_dict()
             })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -610,6 +635,10 @@ def upload_batch():
             'total_files': len(all_files),
             'status': 'queued'
         }), 202
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -815,6 +844,8 @@ def export_upload_batch_logs(batch_id):
             as_attachment=True,
             download_name=filename
         )
+    except HTTPException:
+        raise
     except Exception as e:
         current_app.logger.error(f"Error exportando logs del batch {batch_id}: {e}")
         return jsonify({'error': 'Error al exportar logs'}), 500

@@ -2,6 +2,7 @@
 Script para limpiar y reinicializar la base de datos
 """
 from flask import Blueprint, jsonify, request
+from werkzeug.exceptions import HTTPException
 from app import db
 import os
 
@@ -27,6 +28,10 @@ def reset_database():
             'status': 'success',
             'message': 'Base de datos limpiada y tablas recreadas. Ahora ejecuta /init-database'
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({

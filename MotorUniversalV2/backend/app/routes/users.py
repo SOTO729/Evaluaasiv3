@@ -2,6 +2,7 @@
 Rutas de usuarios
 """
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db, cache
 from app.models.user import User
@@ -540,6 +541,10 @@ def get_dashboard():
                         }
                     })
                     
+        except HTTPException:
+                    
+            raise
+                    
         except Exception as e:
             print(f"[DASHBOARD] Error al obtener materiales: {e}")
             import traceback
@@ -606,6 +611,8 @@ def get_dashboard():
                             badge_enabled = campus.enable_digital_badge
                         # Solo habilitado si el candidato tiene email
                         document_options['digital_badge'] = badge_enabled and can_receive_badge
+            except HTTPException:
+                raise
             except Exception as e:
                 pass  # Mantener defaults si hay error
         
@@ -665,6 +672,10 @@ def get_dashboard():
             'exams': exams_data,
             'materials': materials_data
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         print(f"Error en get_dashboard: {e}")
@@ -853,6 +864,10 @@ def get_editor_dashboard():
             'recent_exams': recent_exams_data,
             'recent_materials': recent_materials_data
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         print(f"Error en get_editor_dashboard: {e}")

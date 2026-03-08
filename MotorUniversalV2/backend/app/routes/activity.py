@@ -7,6 +7,7 @@ Endpoints para:
 - Dashboard de resumen
 """
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User
@@ -139,6 +140,10 @@ def get_activity_logs():
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -178,6 +183,10 @@ def get_user_activity(user_id):
             'pages': pagination.pages,
             'current_page': page
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -266,6 +275,10 @@ def get_activity_summary():
             'recent_important': [log.to_dict(include_user=True) for log in recent_important]
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -296,6 +309,10 @@ def get_personal_users():
             } for u in users],
             'roles': visible_roles
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -365,6 +382,10 @@ def get_security_report():
             'off_hours_actions': off_hours_actions,
             'recent_failed_logins': [log.to_dict() for log in recent_failed]
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

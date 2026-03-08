@@ -2,6 +2,7 @@
 Rutas de health check
 """
 from flask import Blueprint, jsonify
+from werkzeug.exceptions import HTTPException
 from sqlalchemy import text
 from app import db
 from datetime import datetime
@@ -24,6 +25,8 @@ def health_check():
     db_status = 'healthy'
     try:
         db.session.execute(text('SELECT 1'))
+    except HTTPException:
+        raise
     except Exception as e:
         db_status = f'unhealthy: {str(e)}'
     
@@ -71,6 +74,10 @@ def warmup_database():
             'timestamp': datetime.utcnow().isoformat(),
             'message': 'Database is ready to serve requests'
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         elapsed_ms = (time.time() - start_time) * 1000

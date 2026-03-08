@@ -4,6 +4,7 @@ Estas rutas NO requieren autenticación.
 Soporta verificación de códigos actuales Y códigos históricos (QR anteriores).
 """
 from flask import Blueprint, jsonify
+from werkzeug.exceptions import HTTPException
 from app import db
 
 bp = Blueprint('verify', __name__, url_prefix='/verify')
@@ -282,6 +283,8 @@ def verify_certificate(code):
                     'result': 'Verificada' if badge.status == 'active' and not is_expired else 'Expirada/Revocada',
                 },
             }), 200
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"[VERIFY] Error verificando badge {code}: {e}")
             return jsonify({'valid': False, 'error': 'Error al verificar insignia'}), 500

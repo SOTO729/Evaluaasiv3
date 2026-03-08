@@ -11,6 +11,7 @@ Endpoints:
   Analytics         → POST /api/badges/<id>/share, /api/badges/<id>/verify-count
 """
 from flask import Blueprint, request, jsonify, abort, g
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.badge import BadgeTemplate, IssuedBadge
@@ -243,6 +244,8 @@ def upload_template_image(template_id):
         webp_buf = io.BytesIO()
         img.save(webp_buf, format='WEBP', quality=90, lossless=False)
         webp_bytes = webp_buf.getvalue()
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': f'Error al procesar la imagen: {e}'}), 400
 
@@ -686,6 +689,8 @@ def badge_share_image(code):
         resp.headers['Content-Type'] = 'image/png'
         resp.headers['Cache-Control'] = 'public, max-age=86400'
         return resp
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[BADGE] Error converting image for {code}: {e}")
         abort(404)
@@ -973,6 +978,8 @@ def issue_pending_group_badges(group_id):
             badge = issue_badge_for_result(result, user, exam, force=True)
             if badge:
                 issued_count += 1
+        except HTTPException:
+            raise
         except Exception as e:
             errors_list.append(f"{getattr(user, 'email', None) or user.username}: {str(e)}")
 
@@ -1071,6 +1078,10 @@ def linkedin_callback():
             redirect_url += f"&share_badge={badge_id}"
         return _redirect_html(redirect_url)
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         print(f"[LINKEDIN] Token exchange error: {e}")
         return _redirect_html(f"{swa_base}/certificates?linkedin_error=token_exchange_failed")
@@ -1135,6 +1146,8 @@ def linkedin_share_badge(badge_id):
             'message': 'Insignia publicada en LinkedIn exitosamente',
             'post': result,
         })
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"[LINKEDIN] Share error: {e}")
         # If API share fails (e.g., expired token), clear token and fallback

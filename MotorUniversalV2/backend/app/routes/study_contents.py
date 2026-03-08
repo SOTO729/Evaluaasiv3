@@ -6,6 +6,7 @@ import uuid
 import os
 from functools import wraps
 from flask import Blueprint, request, jsonify
+from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import text
 from app import db
@@ -106,6 +107,8 @@ def ensure_study_material_exams_table():
             print("✅ Tabla study_material_exams creada exitosamente")
             return True
         return False
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error verificando/creando tabla: {e}")
         db.session.rollback()
@@ -124,6 +127,8 @@ def migrate_exams_table():
             return jsonify({'message': 'Tabla study_material_exams creada exitosamente'}), 201
         else:
             return jsonify({'message': 'La tabla ya existe o hubo un error'}), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -202,6 +207,8 @@ def _disabled_setup_sessions_tables_public():
             results.append('study_topics ya existe')
         
         return jsonify({'message': 'Proceso completado', 'results': results}), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -230,6 +237,8 @@ def _disabled_fix_sessions_fk():
                 db.session.execute(text(f"ALTER TABLE study_sessions DROP CONSTRAINT [{fk_name}]"))
                 db.session.commit()
                 results.append(f'FK {fk_name} eliminada')
+            except HTTPException:
+                raise
             except Exception as e:
                 results.append(f'Error eliminando {fk_name}: {str(e)}')
         
@@ -250,10 +259,14 @@ def _disabled_fix_sessions_fk():
             """))
             db.session.commit()
             results.append('Nueva FK creada exitosamente')
+        except HTTPException:
+            raise
         except Exception as e:
             results.append(f'Error creando FK: {str(e)}')
         
         return jsonify({'message': 'Proceso completado', 'results': results}), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -312,6 +325,10 @@ def get_materials():
             'current_page': page
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -335,6 +352,8 @@ def get_material(material_id):
                     return jsonify({'error': 'Material no encontrado'}), 404
         
         return jsonify(material.to_dict(include_sessions=True)), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -517,6 +536,10 @@ def clone_material(material_id):
             'material': new_material.to_dict(include_sessions=True)
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al clonar el material: {str(e)}'}), 500
@@ -560,6 +583,10 @@ def create_material():
             'message': 'Material de estudio creado exitosamente',
             'material': material.to_dict()
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -611,6 +638,10 @@ def update_material(material_id):
             'material': material.to_dict()
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -636,12 +667,16 @@ def delete_material(material_id):
                 if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
                     try:
                         azure_storage.delete_video(topic.video.video_url)
+                    except HTTPException:
+                        raise
                     except Exception as e:
                         print(f"Error eliminando video {topic.video.video_url}: {e}")
                 # Eliminar archivo descargable si existe
                 if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
                     try:
                         azure_storage.delete_downloadable(topic.downloadable_exercise.file_url)
+                    except HTTPException:
+                        raise
                     except Exception as e:
                         print(f"Error eliminando descargable {topic.downloadable_exercise.file_url}: {e}")
                 
@@ -667,6 +702,8 @@ def delete_material(material_id):
         if material.image_url and 'blob.core.windows.net' in material.image_url:
             try:
                 azure_storage.delete_file(material.image_url)
+            except HTTPException:
+                raise
             except Exception as e:
                 print(f"Error eliminando imagen de portada {material.image_url}: {e}")
         
@@ -674,6 +711,10 @@ def delete_material(material_id):
         db.session.commit()
         
         return jsonify({'message': 'Material eliminado exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -715,6 +756,10 @@ def upload_cover_image():
             'message': 'Imagen subida exitosamente',
             'url': file_url
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -785,6 +830,8 @@ def upload_reading_image():
             # Decodificar base64
             try:
                 image_bytes = base64.b64decode(base64_data)
+            except HTTPException:
+                raise
             except Exception as e:
                 return jsonify({'error': f'Error decodificando imagen base64: {str(e)}'}), 400
             
@@ -808,6 +855,10 @@ def upload_reading_image():
             'url': file_url
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -822,6 +873,8 @@ def get_sessions(material_id):
         material = StudyMaterial.query.get_or_404(material_id)
         sessions = material.sessions.all()
         return jsonify([s.to_dict(include_topics=True) for s in sessions]), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -853,6 +906,10 @@ def create_session(material_id):
             'session': session.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -865,6 +922,8 @@ def get_session(material_id, session_id):
     try:
         session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
         return jsonify(session.to_dict(include_topics=True)), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -888,6 +947,10 @@ def update_session(material_id, session_id):
             'message': 'Sesión actualizada exitosamente',
             'session': session.to_dict()
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -940,6 +1003,10 @@ def delete_session(material_id, session_id):
         
         return jsonify({'message': 'Sesión eliminada exitosamente'}), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -955,6 +1022,8 @@ def get_topics(material_id, session_id):
         session = StudySession.query.filter_by(id=session_id, material_id=material_id).first_or_404()
         topics = session.topics.all()
         return jsonify([t.to_dict(include_elements=True) for t in topics]), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1007,6 +1076,10 @@ def create_topic(material_id, session_id):
             'topic': topic.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1019,6 +1092,8 @@ def get_topic(material_id, session_id, topic_id):
     try:
         topic = StudyTopic.query.filter_by(id=topic_id, session_id=session_id).first_or_404()
         return jsonify(topic.to_dict(include_elements=True)), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1056,6 +1131,10 @@ def update_topic(material_id, session_id, topic_id):
             'message': 'Tema actualizado exitosamente',
             'topic': topic.to_dict()
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1107,6 +1186,10 @@ def delete_topic(material_id, session_id, topic_id):
         
         return jsonify({'message': 'Tema eliminado exitosamente'}), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1146,6 +1229,10 @@ def upsert_reading(material_id, session_id, topic_id):
             'reading': topic.reading.to_dict() if topic.reading else None
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1163,6 +1250,10 @@ def delete_reading(material_id, session_id, topic_id):
             db.session.commit()
         
         return jsonify({'message': 'Lectura eliminada exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1197,6 +1288,10 @@ def get_video_signed_url(video_id):
             'requires_refresh': True,
             'expires_in_hours': 24
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1234,6 +1329,10 @@ def get_video_signed_url_by_topic(topic_id):
             'requires_refresh': True,
             'expires_in_hours': 24
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1275,6 +1374,10 @@ def upsert_video(material_id, session_id, topic_id):
             'video': topic.video.to_dict() if topic.video else None
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1295,6 +1398,10 @@ def delete_video(material_id, session_id, topic_id):
             db.session.commit()
         
         return jsonify({'message': 'Video eliminado exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1325,6 +1432,10 @@ def get_video_upload_url(material_id, session_id, topic_id):
             'download_url': result['download_url'],
             'blob_name': result['blob_name']
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1377,6 +1488,10 @@ def confirm_video_upload(material_id, session_id, topic_id):
             'message': 'Video guardado exitosamente',
             'video': topic.video.to_dict() if topic.video else None
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1514,6 +1629,10 @@ def upload_video(material_id, session_id, topic_id):
             'storage_tier': 'Cool (optimizado para costos)'
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1546,6 +1665,10 @@ def upload_file():
             'url': file_url,
             'filename': file.filename
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1587,6 +1710,10 @@ def upsert_downloadable(material_id, session_id, topic_id):
             'downloadable_exercise': topic.downloadable_exercise.to_dict() if topic.downloadable_exercise else None
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1607,6 +1734,10 @@ def delete_downloadable(material_id, session_id, topic_id):
             db.session.commit()
         
         return jsonify({'message': 'Ejercicio descargable eliminado exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1737,6 +1868,10 @@ def upload_downloadable(material_id, session_id, topic_id):
             'storage_tier': 'Cool (optimizado para costos)'
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1756,6 +1891,10 @@ def get_interactive(material_id, session_id, topic_id):
         return jsonify({
             'interactive_exercise': topic.interactive_exercise.to_dict(include_steps=True)
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1792,6 +1931,10 @@ def create_interactive(material_id, session_id, topic_id):
             'interactive_exercise': interactive.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1822,6 +1965,10 @@ def update_interactive(material_id, session_id, topic_id):
             'message': 'Ejercicio interactivo actualizado exitosamente',
             'interactive_exercise': topic.interactive_exercise.to_dict()
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1859,6 +2006,10 @@ def delete_interactive(material_id, session_id, topic_id):
             db.session.commit()
         
         return jsonify({'message': 'Ejercicio interactivo eliminado exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1902,6 +2053,10 @@ def create_step(material_id, session_id, topic_id):
             'step': step.to_dict()
         }), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1932,6 +2087,8 @@ def update_step(material_id, session_id, topic_id, step_id):
                         print(f"Imagen anterior de paso eliminada del blob: {old_image_url[:80]}...")
                     else:
                         print(f"No se pudo eliminar imagen anterior de paso: {old_image_url[:80]}...")
+                except HTTPException:
+                    raise
                 except Exception as e:
                     print(f"Error al eliminar imagen anterior de paso: {e}")
         
@@ -1948,6 +2105,10 @@ def update_step(material_id, session_id, topic_id, step_id):
             'message': 'Paso actualizado exitosamente',
             'step': step.to_dict()
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1982,6 +2143,10 @@ def delete_step(material_id, session_id, topic_id, step_id):
         db.session.commit()
         
         return jsonify({'message': 'Paso eliminado exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -2064,6 +2229,10 @@ def create_action(material_id, session_id, topic_id, step_id):
             'action': action.to_dict(),
             'all_actions': [a.to_dict() for a in all_actions]
         }), 201
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -2158,6 +2327,10 @@ def update_action(material_id, session_id, topic_id, step_id, action_id):
             'all_actions': [a.to_dict() for a in all_actions]
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2174,6 +2347,10 @@ def delete_action(material_id, session_id, topic_id, step_id, action_id):
         db.session.commit()
         
         return jsonify({'message': 'Acción eliminada exitosamente'}), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -2215,6 +2392,10 @@ def upload_interactive_image():
             'message': 'Imagen subida exitosamente',
             'url': file_url
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2285,6 +2466,8 @@ def ensure_student_progress_tables():
             print("✅ Tabla student_topic_progress creada exitosamente")
         
         return True
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error verificando/creando tablas de progreso: {e}")
         db.session.rollback()
@@ -2327,6 +2510,8 @@ def _disabled_setup_progress_tables():
                     )
                 """))
                 db.session.commit()
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 errors.append(f"student_content_progress: {str(e)}")
@@ -2358,6 +2543,8 @@ def _disabled_setup_progress_tables():
                     )
                 """))
                 db.session.commit()
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 errors.append(f"student_topic_progress: {str(e)}")
@@ -2366,6 +2553,8 @@ def _disabled_setup_progress_tables():
             return jsonify({'message': 'Errores al crear tablas', 'errors': errors}), 500
         
         return jsonify({'message': 'Tablas de progreso verificadas/creadas'}), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2396,6 +2585,8 @@ def debug_all_progress_records():
             'count': len(records_list),
             'records': records_list
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
@@ -2452,6 +2643,8 @@ def debug_progress_tables():
             result['student_topic_progress_count'] = count
         
         return jsonify(result), 200
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
@@ -2491,6 +2684,8 @@ def migrate_progress_tables():
         db.session.commit()
         
         return jsonify({'message': 'Tabla student_content_progress migrada exitosamente a VARCHAR(36)'}), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -2595,6 +2790,10 @@ def register_content_progress(content_type, content_id):
             'progress': progress.to_dict()
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         print(f"DEBUG: Error in register_content_progress: {str(e)}")
@@ -2679,6 +2878,10 @@ def update_topic_progress(user_id, topic_id):
         
         db.session.commit()
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         print(f"Error actualizando progreso del tema: {e}")
         db.session.rollback()
@@ -2730,6 +2933,10 @@ def get_topic_progress(topic_id):
             },
             'content_progress': progress_by_type
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         import traceback
@@ -2877,6 +3084,10 @@ def get_material_progress(material_id):
             'interactive_scores': all_interactive_scores
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         error_traceback = traceback.format_exc()
@@ -2939,6 +3150,10 @@ def debug_material_progress(material_id):
         
         return jsonify(result), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         return jsonify({
@@ -2956,6 +3171,8 @@ def debug_list_materials():
             'count': len(materials),
             'materials': [{'id': m.id, 'title': m.title} for m in materials]
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -2993,6 +3210,8 @@ def debug_test_progress_query():
             'records': all_records,
             'success': True
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({
@@ -3112,6 +3331,10 @@ def debug_full_progress(material_id):
             'all_completed_contents': completed_content_ids
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         return jsonify({
@@ -3131,6 +3354,8 @@ def debug_interactive_progress():
             'count': len(progresses),
             'records': [p.to_dict() for p in progresses]
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         import traceback
         return jsonify({

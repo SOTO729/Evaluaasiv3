@@ -334,6 +334,10 @@ def list_users():
             'next_cursor_date': next_cursor_date
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -385,6 +389,8 @@ def get_user_detail(user_id):
             'user': user.to_dict(include_private=True, include_partners=True)
         })
         
+    except HTTPException:
+        raise
     except HTTPException:
         raise
     except Exception as e:
@@ -497,6 +503,10 @@ def check_name_similarity():
             'has_exact_match': has_exact,
             'total_found': len(similar),
         }), 200
+
+    except HTTPException:
+
+        raise
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -743,6 +753,10 @@ def create_user():
         
         return jsonify(response_data), 201
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -825,6 +839,10 @@ def update_user(user_id):
             'user': user.to_dict(include_private=True)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -863,6 +881,10 @@ def change_user_password(user_id):
             'message': 'Contraseña actualizada exitosamente'
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -899,6 +921,10 @@ def generate_temp_password(user_id):
             'password': temp_password,
             'user': user.to_dict(include_private=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -941,6 +967,10 @@ def get_user_password(user_id):
             }
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -973,6 +1003,10 @@ def toggle_user_active(user_id):
             'message': f'Usuario {status} exitosamente',
             'user': user.to_dict(include_private=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1011,6 +1045,10 @@ def update_user_document_options(user_id):
             'message': 'Opciones de documentos actualizadas',
             'user': user.to_dict(include_private=True)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -1133,6 +1171,10 @@ def delete_user(user_id):
             'message': f'Usuario {user_name} ({user_email}) eliminado permanentemente'
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -1222,6 +1264,10 @@ def get_user_stats():
         
         return jsonify(result)
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -1239,6 +1285,8 @@ def invalidate_stats_cache():
         # Invalidar también los conteos de usuarios
         cache.delete_many('user_count_*')
         return jsonify({'message': 'Caché de estadísticas invalidada'})
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1278,6 +1326,10 @@ def get_available_roles():
                 for role in AVAILABLE_ROLES
             ] if current_user.role in ['admin', 'developer'] else None
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1325,6 +1377,10 @@ def get_available_campuses():
             'total': len(campuses)
         })
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -1352,6 +1408,10 @@ def get_available_partners():
             } for p in partners],
             'total': len(partners)
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1391,6 +1451,8 @@ def _parse_bulk_candidates_excel(file_storage):
     try:
         workbook = load_workbook(filename=io.BytesIO(file_storage.read()), data_only=True)
         sheet = workbook.active
+    except HTTPException:
+        raise
     except Exception as e:
         return None, f'Error al leer el archivo Excel: {str(e)}'
 
@@ -1837,6 +1899,10 @@ def preview_bulk_upload_candidates():
             'group_info': {'id': target_group.id, 'name': target_group.name} if target_group else None,
         }), 200
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2011,6 +2077,8 @@ def bulk_upload_candidates():
                 if batch_count >= BATCH_COMMIT_SIZE:
                     db.session.commit()
                     batch_count = 0
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 create_errors.append({'row': r['row'], 'email': r['email'] or '(vacío)', 'error': str(e)})
@@ -2020,6 +2088,8 @@ def bulk_upload_candidates():
         if batch_count > 0:
             try:
                 db.session.commit()
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 import logging
@@ -2093,6 +2163,8 @@ def bulk_upload_candidates():
                         if batch_count >= BATCH_COMMIT_SIZE:
                             db.session.commit()
                             batch_count = 0
+                    except HTTPException:
+                        raise
                     except Exception as e:
                         assignment_errors.append({'username': uname, 'error': str(e)})
 
@@ -2258,6 +2330,10 @@ def bulk_upload_candidates():
 
         return jsonify(response_data), 200
 
+    except HTTPException:
+
+        raise
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2386,6 +2462,10 @@ def download_bulk_upload_template():
             as_attachment=True,
             download_name='plantilla_candidatos.xlsx'
         )
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2592,6 +2672,10 @@ def export_user_credentials():
             download_name=f'credenciales_usuarios_{len(users_map)}.xlsx'
         )
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2636,6 +2720,8 @@ def list_bulk_upload_history():
             'per_page': pagination.per_page,
             'pages': pagination.pages,
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2659,6 +2745,8 @@ def get_bulk_upload_detail(batch_id):
                 return jsonify({'error': 'No tienes acceso a este registro'}), 403
 
         return jsonify(batch.to_dict(include_members=True)), 200
+    except HTTPException:
+        raise
     except HTTPException:
         raise
     except Exception as e:
@@ -2805,6 +2893,8 @@ def export_bulk_upload_batch(batch_id):
             as_attachment=True,
             download_name=f'altas_masivas_{safe_name}_{batch.id}.xlsx'
         )
+    except HTTPException:
+        raise
     except HTTPException:
         raise
     except Exception as e:

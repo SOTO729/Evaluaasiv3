@@ -3,6 +3,7 @@ Rutas temporales para inicialización
 ELIMINAR DESPUÉS DE USAR EN PRODUCCIÓN
 """
 from flask import Blueprint, jsonify, request
+from werkzeug.exceptions import HTTPException
 from app import db
 from app.models.user import User
 from app.models.exam import Exam
@@ -195,6 +196,10 @@ def init_database():
             }
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -220,6 +225,8 @@ def migrate_tables():
             'status': 'success',
             'message': 'Tablas creadas/actualizadas exitosamente'
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -240,6 +247,8 @@ def health_db():
             'exams': exam_count,
             'initialized': user_count > 0
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         return jsonify({
             'status': 'error',
@@ -282,6 +291,8 @@ def recreate_study_tables():
             try:
                 db.session.execute(db.text(f"DROP TABLE IF EXISTS {table_name}"))
                 db.session.commit()
+            except HTTPException:
+                raise
             except Exception as e:
                 db.session.rollback()
                 # Continuar si la tabla no existe
@@ -293,6 +304,8 @@ def recreate_study_tables():
             'status': 'success',
             'message': 'Tablas de study_content recreadas exitosamente'
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -393,6 +406,10 @@ def add_performance_indexes():
                 db.session.commit()
                 created.append(idx_name)
                 
+            except HTTPException:
+                
+                raise
+                
             except Exception as e:
                 error_msg = str(e)
                 if 'already exists' in error_msg.lower():
@@ -412,6 +429,10 @@ def add_performance_indexes():
                 'errors': len(errors)
             }
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -457,6 +478,10 @@ def create_group_exam_members_table():
             'message': 'Tabla group_exam_members creada exitosamente'
         }), 200
         
+    except HTTPException:
+        
+        raise
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({
@@ -498,6 +523,10 @@ def add_campus_website_column():
             'status': 'success',
             'message': 'Columna website agregada exitosamente a la tabla campuses'
         }), 200
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
@@ -661,6 +690,10 @@ def emergency_exam_results():
             'created_details': results_created,
             'skipped_details': results_skipped
         })
+        
+    except HTTPException:
+        
+        raise
         
     except Exception as e:
         db.session.rollback()
