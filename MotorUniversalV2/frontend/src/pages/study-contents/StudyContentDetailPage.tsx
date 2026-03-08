@@ -76,7 +76,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
-import { isAzureUrl } from '../../lib/urlHelpers';
+import { isAzureUrl } from '../../utils/urlHelpers';
 
 // Modal genérico
 interface ModalProps {

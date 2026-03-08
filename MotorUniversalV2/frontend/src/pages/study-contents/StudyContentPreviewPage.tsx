@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
-import { isAzureUrl } from '../../lib/urlHelpers';
+import { isAzureUrl } from '../../utils/urlHelpers';
 
 // Función para calcular similitud entre dos strings (algoritmo de Levenshtein)
 const calculateSimilarity = (str1: string, str2: string): number => {
