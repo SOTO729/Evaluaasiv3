@@ -586,7 +586,9 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
     const url = getSharePreviewUrl(badge)
-    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,width=600,height=500')
+    const name = badge.template_name || 'Insignia Digital'
+    const text = `🎓 ¡He obtenido la insignia digital "${name}" en EvaluaaSi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${url}`
+    window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank', 'noopener,width=600,height=600')
   }
 
   const handleAddToProfile = async (badge: any) => {
