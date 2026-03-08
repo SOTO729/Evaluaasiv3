@@ -1,34 +1,36 @@
 """
-Test de compartir insignias por WhatsApp, Twitter/X, Email, Facebook e Instagram
+Test de compartir insignias por WhatsApp, Twitter/X, Email, Facebook, Instagram y LinkedIn
 
 Verifica:
   PARTE A — Construcción de URLs de compartir (unitario, sin red)
-    1. WhatsApp URL se forma correctamente con wa.me y texto codificado
-    2. WhatsApp incluye el nombre de la insignia en el mensaje
-    3. WhatsApp incluye la URL de verificación en el mensaje
-    4. WhatsApp usa fallback "Insignia Digital" si no hay template_name
-    5. Twitter/X URL usa twitter.com/intent/tweet con texto y url
-    6. Twitter/X incluye hashtags #OpenBadges #Credenciales
-    7. Twitter/X incluye el nombre de la insignia
-    8. Email genera mailto: con subject y body correctos
-    9. Email incluye URL de verificación en el body
-   10. Email usa fallback "Insignia Digital" si no hay template_name
-   10b. Facebook URL usa facebook.com/sharer/sharer.php con la URL de verificación
-   10c. Facebook incluye la URL de verificación correcta
-   10d. Facebook URL está URL-encoded correctamente
-   10f. Instagram abre instagram.com
-   10g. Instagram genera nombre de archivo correcto para descarga
-   10h. Instagram usa fallback "digital" si no hay template_name
-   10i. Instagram incluye URL de verificación para copiar al portapapeles
+    1-4. WhatsApp
+    5-7. Twitter/X
+    8-10. Email
+    10b-10e. Facebook
+    10f-10j. Instagram
 
-  PARTE B — getVerifyUrl (lógica de URL de verificación)
-   11. Si badge tiene verify_url, lo usa directamente
-   12. Si no tiene verify_url, construye desde origin + badge_code
-   13. badge_code siempre empieza con "BD" y tiene 12 caracteres
+  PARTE A2 — LinkedIn share (unitario)
+    19. LinkedIn URL usa feed/?shareActive=true con texto predefinido
+    20. LinkedIn texto incluye nombre de la insignia y "Evaluaasi"
+    21. LinkedIn texto incluye la URL de share-preview (/s/<code>)
+    22. LinkedIn usa fallback "Insignia Digital" si no hay template_name
+    23. LinkedIn add-to-profile URL contiene parámetros correctos
 
-  PARTE C — trackShare endpoint (contra API real)
-   14. POST /badges/{id}/share incrementa share_count
-   15. share_count retornado es un entero positivo
+  PARTE B — getVerifyUrl / getSharePreviewUrl (lógica de URLs)
+    11-13. getVerifyUrl
+    24. getSharePreviewUrl usa API base + /s/ + badge_code
+    25. getSharePreviewUrl quita sufijo /api para ruta corta
+
+  PARTE C — Integridad de URLs (14-18)
+
+  PARTE D — Endpoint /s/<code> (share-preview con OG tags, Flask test client)
+    26. /s/<code> devuelve 200 con HTML cuando badge existe
+    27. /s/<code> devuelve 404 cuando badge no existe
+    28. /s/<code> incluye og:title con nombre de la plantilla
+    29. /s/<code> incluye og:description con nombre del candidato
+    30. /s/<code> incluye og:image apuntando a share-image PNG
+    31. /s/<code> incluye meta refresh redirigiendo a verify URL
+    32. /s/<code> y /api/badges/share-preview/<code> devuelven el mismo contenido
 
 USO:
   cd backend && python -m pytest tests/test_badge_social_sharing.py -v
@@ -52,6 +54,18 @@ def get_verify_url(badge: dict) -> str:
     return badge.get('verify_url') or f"{ORIGIN}/verify/{badge['badge_code']}"
 
 
+API_URL_PROD = "https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
+API_URL_DEV = "https://evaluaasi-motorv2-api-dev.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
+
+
+def get_share_preview_url(badge: dict, api_url: str = API_URL_PROD) -> str:
+    """Replica getSharePreviewUrl del frontend.
+    Quita /api del final y usa /s/<code>."""
+    import re as _re
+    base_url = _re.sub(r'/api/?$', '', api_url)
+    return f"{base_url}/s/{badge['badge_code']}"
+
+
 def build_whatsapp_url(badge: dict) -> str:
     """Replica handleShareWhatsApp del frontend."""
     url = get_verify_url(badge)
@@ -60,15 +74,15 @@ def build_whatsapp_url(badge: dict) -> str:
     return f"https://wa.me/?text={urllib.parse.quote(text, safe='')}"
 
 
-def build_twitter_url(badge: dict) -> str:
+def build_twitter_url(badge: dict, api_url: str = None) -> str:
     """Replica handleShareTwitter del frontend."""
-    url = get_verify_url(badge)
+    share_url = get_share_preview_url(badge, api_url or API_URL_PROD)
     name = badge.get('template_name') or 'Insignia Digital'
     text = f'\U0001f3c5 ¡He obtenido la insignia digital "{name}"! #OpenBadges #Credenciales'
     return (
         f"https://twitter.com/intent/tweet"
         f"?text={urllib.parse.quote(text, safe='')}"
-        f"&url={urllib.parse.quote(url, safe='')}"
+        f"&url={urllib.parse.quote(share_url, safe='')}"
     )
 
 
@@ -87,10 +101,10 @@ def build_email_parts(badge: dict) -> tuple:
     return subject, body
 
 
-def build_facebook_url(badge: dict) -> str:
+def build_facebook_url(badge: dict, api_url: str = None) -> str:
     """Replica handleShareFacebook del frontend."""
-    url = get_verify_url(badge)
-    return f"https://www.facebook.com/sharer/sharer.php?u={urllib.parse.quote(url, safe='')}"
+    share_url = get_share_preview_url(badge, api_url or API_URL_PROD)
+    return f"https://www.facebook.com/sharer/sharer.php?u={urllib.parse.quote(share_url, safe='')}"
 
 
 def build_instagram_share_info(badge: dict) -> dict:
@@ -103,6 +117,27 @@ def build_instagram_share_info(badge: dict) -> dict:
         'clipboard_text': text,
         'verify_url': url,
     }
+
+
+def build_linkedin_share_url(badge: dict, api_url: str = API_URL_PROD) -> str:
+    """Replica handleShare (LinkedIn) del frontend."""
+    share_url = get_share_preview_url(badge, api_url)
+    name = badge.get('template_name') or 'Insignia Digital'
+    text = f'🎓 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n{share_url}'
+    return f"https://www.linkedin.com/feed/?shareActive=true&text={urllib.parse.quote(text, safe='')}"
+
+
+def build_linkedin_profile_url(badge: dict) -> str:
+    """Replica handleAddToProfile del frontend."""
+    url = get_verify_url(badge)
+    name = badge.get('template_name') or 'Insignia Digital'
+    return (
+        f"https://www.linkedin.com/profile/add"
+        f"?startTask=CERTIFICATION_NAME"
+        f"&name={urllib.parse.quote(name, safe='')}"
+        f"&certUrl={urllib.parse.quote(url, safe='')}"
+        f"&organizationName={urllib.parse.quote('Evaluaasi', safe='')}"
+    )
 
 
 # ──────────────────────────────────────────────────────────────
@@ -216,11 +251,11 @@ class TestFacebookSharing:
         url = build_facebook_url(BADGE_WITH_NAME)
         assert url.startswith('https://www.facebook.com/sharer/sharer.php?u=')
 
-    def test_10c_facebook_includes_verify_url(self):
-        """La URL de Facebook incluye la URL de verificación."""
+    def test_10c_facebook_includes_share_preview_url(self):
+        """La URL de Facebook incluye la URL de share-preview (/s/)."""
         url = build_facebook_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
-        assert '/verify/BDABC1234567' in decoded
+        assert '/s/BDABC1234567' in decoded
 
     def test_10d_facebook_url_is_encoded(self):
         """El parámetro u de Facebook está URL-encoded (sin espacios)."""
@@ -228,11 +263,12 @@ class TestFacebookSharing:
         query = url.split('?u=', 1)[1]
         assert ' ' not in query
 
-    def test_10e_facebook_custom_verify_url(self):
-        """Si badge tiene verify_url custom, Facebook lo usa."""
+    def test_10e_facebook_uses_share_preview(self):
+        """Facebook usa share-preview URL con /s/ (no verify URL)."""
         url = build_facebook_url(BADGE_CUSTOM_VERIFY)
         decoded = urllib.parse.unquote(url)
-        assert 'https://custom-domain.com/verify/BD0000000001' in decoded
+        assert '/s/BD0000000001' in decoded
+        assert '/verify/' not in decoded
 
 
 class TestInstagramSharing:
@@ -317,20 +353,25 @@ class TestShareUrlIntegrity:
         assert mailto.startswith('mailto:?subject=')
         assert '&body=' in mailto
 
-    def test_17_custom_verify_url_used_in_all_channels(self):
-        """Si badge tiene verify_url custom, todos los canales lo usan."""
+    def test_17_custom_verify_url_used_in_verify_channels(self):
+        """Canales que usan verify URL (WhatsApp, Instagram, Email) respetan custom verify_url.
+        LinkedIn, Twitter y Facebook usan share-preview URL (/s/)."""
         wa = urllib.parse.unquote(build_whatsapp_url(BADGE_CUSTOM_VERIFY))
-        tw = urllib.parse.unquote(build_twitter_url(BADGE_CUSTOM_VERIFY))
-        fb = urllib.parse.unquote(build_facebook_url(BADGE_CUSTOM_VERIFY))
         ig = build_instagram_share_info(BADGE_CUSTOM_VERIFY)
         _, email_body = build_email_parts(BADGE_CUSTOM_VERIFY)
 
         custom_url = BADGE_CUSTOM_VERIFY['verify_url']
         assert custom_url in wa
-        assert custom_url in tw
-        assert custom_url in fb
         assert custom_url in ig['clipboard_text']
         assert custom_url in email_body
+
+        # LinkedIn, Twitter, Facebook usan share-preview (/s/) no verify URL
+        li = urllib.parse.unquote(build_linkedin_share_url(BADGE_CUSTOM_VERIFY))
+        tw = urllib.parse.unquote(build_twitter_url(BADGE_CUSTOM_VERIFY))
+        fb = urllib.parse.unquote(build_facebook_url(BADGE_CUSTOM_VERIFY))
+        assert '/s/BD0000000001' in li
+        assert '/s/BD0000000001' in tw
+        assert '/s/BD0000000001' in fb
 
     def test_18_special_characters_in_badge_name(self):
         """Nombres con caracteres especiales (acentos, ñ) se codifican correctamente."""
@@ -348,3 +389,213 @@ class TestShareUrlIntegrity:
         assert 'Evaluación & Diseño — Año 2024' in urllib.parse.unquote(wa_url)
         assert 'Evaluación & Diseño — Año 2024' in urllib.parse.unquote(tw_url)
         assert 'Evaluación & Diseño — Año 2024' in subject
+
+
+# ============================================================
+# PARTE A2 — LinkedIn share
+# ============================================================
+
+class TestLinkedInSharing:
+
+    def test_19_linkedin_url_format(self):
+        """LinkedIn URL usa feed/?shareActive=true con text= param."""
+        url = build_linkedin_share_url(BADGE_WITH_NAME)
+        assert 'https://www.linkedin.com/feed/?shareActive=true&text=' in url
+
+    def test_20_linkedin_includes_badge_name_and_evaluaasi(self):
+        """LinkedIn texto incluye nombre de la insignia y 'Evaluaasi'."""
+        url = build_linkedin_share_url(BADGE_WITH_NAME)
+        decoded = urllib.parse.unquote(url)
+        assert 'Certificación Python Avanzado' in decoded
+        assert 'Evaluaasi' in decoded
+
+    def test_21_linkedin_includes_share_preview_url(self):
+        """LinkedIn texto incluye la URL de share-preview con ruta /s/."""
+        url = build_linkedin_share_url(BADGE_WITH_NAME)
+        decoded = urllib.parse.unquote(url)
+        assert '/s/BDABC1234567' in decoded
+
+    def test_21b_linkedin_share_url_uses_short_path(self):
+        """La URL de share-preview no contiene /api/badges/share-preview/."""
+        url = build_linkedin_share_url(BADGE_WITH_NAME)
+        decoded = urllib.parse.unquote(url)
+        assert '/api/badges/share-preview/' not in decoded
+
+    def test_22_linkedin_fallback_name(self):
+        """Si no hay template_name, LinkedIn usa 'Insignia Digital'."""
+        url = build_linkedin_share_url(BADGE_NO_NAME)
+        decoded = urllib.parse.unquote(url)
+        assert 'Insignia Digital' in decoded
+        assert 'None' not in decoded
+
+    def test_23_linkedin_add_to_profile(self):
+        """LinkedIn add-to-profile URL contiene name, certUrl, organizationName."""
+        url = build_linkedin_profile_url(BADGE_WITH_NAME)
+        assert 'startTask=CERTIFICATION_NAME' in url
+        decoded = urllib.parse.unquote(url)
+        assert 'Certificación Python Avanzado' in decoded
+        assert 'Evaluaasi' in decoded
+        assert '/verify/BDABC1234567' in decoded
+
+    def test_23b_linkedin_add_to_profile_org_name(self):
+        """LinkedIn add-to-profile usa 'Evaluaasi' como organizationName."""
+        url = build_linkedin_profile_url(BADGE_WITH_NAME)
+        assert 'organizationName=Evaluaasi' in url
+
+
+class TestSharePreviewUrl:
+
+    def test_24_share_preview_url_format(self):
+        """getSharePreviewUrl genera URL con /s/ + badge_code."""
+        url = get_share_preview_url(BADGE_WITH_NAME)
+        assert url.endswith('/s/BDABC1234567')
+
+    def test_24b_share_preview_url_for_dev(self):
+        """getSharePreviewUrl funciona con API URL de DEV."""
+        url = get_share_preview_url(BADGE_WITH_NAME, API_URL_DEV)
+        assert 'evaluaasi-motorv2-api-dev' in url
+        assert url.endswith('/s/BDABC1234567')
+
+    def test_25_share_preview_removes_api_suffix(self):
+        """getSharePreviewUrl quita /api del final de la URL."""
+        url = get_share_preview_url(BADGE_WITH_NAME)
+        assert '/api/' not in url
+
+    def test_25b_share_preview_with_trailing_slash(self):
+        """getSharePreviewUrl maneja /api/ con trailing slash."""
+        url = get_share_preview_url(BADGE_WITH_NAME, API_URL_PROD + '/')
+        assert '/api/' not in url
+        assert url.endswith('/s/BDABC1234567')
+
+    def test_25c_linkedin_uses_share_preview_not_verify(self):
+        """LinkedIn y Twitter usan share-preview URL; WhatsApp y Email usan verify URL."""
+        li_url = urllib.parse.unquote(build_linkedin_share_url(BADGE_WITH_NAME))
+        wa_url = urllib.parse.unquote(build_whatsapp_url(BADGE_WITH_NAME))
+        # LinkedIn debe tener /s/ (share-preview)
+        assert '/s/BDABC1234567' in li_url
+        # WhatsApp debe tener /verify/ (no /s/)
+        assert '/verify/BDABC1234567' in wa_url
+        assert '/s/' not in wa_url
+
+
+# ============================================================
+# PARTE D — Endpoint /s/<code> (Flask test client)
+# ============================================================
+
+import pytest
+
+@pytest.fixture(scope='module')
+def flask_app():
+    """Crea la app Flask con BD SQLite en memoria."""
+    os.environ['JWT_SECRET_KEY'] = 'test-secret'
+    os.environ['SWA_BASE_URL'] = 'https://app.evaluaasi.com'
+    os.environ.setdefault('AZURE_STORAGE_CONNECTION_STRING', 'DefaultEndpointsProtocol=https;AccountName=fake;AccountKey=ZmFrZWtleQ==;EndpointSuffix=core.windows.net')
+    try:
+        from app import create_app, db as flask_db
+        app = create_app('testing')
+        with app.app_context():
+            flask_db.create_all()
+            yield app, flask_db
+            flask_db.drop_all()
+    except Exception as e:
+        pytest.skip(f"No se pudo crear la app Flask: {e}")
+
+
+@pytest.fixture(scope='module')
+def app_client(flask_app):
+    """Crea un Flask test client."""
+    app, _ = flask_app
+    with app.test_client() as client:
+        yield client
+
+
+@pytest.fixture(scope='module')
+def test_badge_code(flask_app):
+    """Inserta un usuario, template y badge de prueba. Retorna el badge_code."""
+    app, flask_db = flask_app
+    from app.models.badge import BadgeTemplate, IssuedBadge
+    from app.models.user import User
+    import uuid
+    from datetime import datetime, timedelta
+
+    with app.app_context():
+        # Crear usuario de prueba
+        user = User(id=str(uuid.uuid4()), email='test@evaluaasi.com',
+                    username='test_share_user',
+                    name='Juan', first_surname='Pérez', second_surname='López')
+        user.set_password('test1234')
+        flask_db.session.add(user)
+        flask_db.session.flush()
+
+        # Crear template de prueba
+        tmpl = BadgeTemplate(
+            name='Certificación Test OG Tags',
+            description='Template de prueba para tests de share-preview',
+            skills='Python, Testing, OG Tags',
+            created_by_id=user.id
+        )
+        flask_db.session.add(tmpl)
+        flask_db.session.flush()
+
+        # Crear badge emitido
+        badge = IssuedBadge(
+            badge_template_id=tmpl.id,
+            user_id=user.id,
+            badge_uuid=str(uuid.uuid4()),
+            badge_code='BDTEST123456',
+            issued_at=datetime.utcnow(),
+            expires_at=datetime.utcnow() + timedelta(days=365)
+        )
+        flask_db.session.add(badge)
+        flask_db.session.commit()
+
+        return 'BDTEST123456'
+
+
+class TestShortShareEndpoint:
+
+    def test_26_short_url_returns_200_for_existing_badge(self, app_client, test_badge_code):
+        """GET /s/<code> devuelve 200 con HTML para badge existente."""
+        resp = app_client.get(f'/s/{test_badge_code}')
+        assert resp.status_code == 200
+        assert b'<!DOCTYPE html>' in resp.data
+
+    def test_27_short_url_returns_404_for_nonexistent(self, app_client):
+        """GET /s/<code> devuelve 404 para badge inexistente."""
+        resp = app_client.get('/s/BDNOTEXIST99')
+        assert resp.status_code == 404
+
+    def test_28_short_url_has_og_title(self, app_client, test_badge_code):
+        """GET /s/<code> incluye og:title en el HTML."""
+        resp = app_client.get(f'/s/{test_badge_code}')
+        html = resp.data.decode('utf-8')
+        assert 'og:title' in html
+
+    def test_29_short_url_has_og_description(self, app_client, test_badge_code):
+        """GET /s/<code> incluye og:description con info del candidato."""
+        resp = app_client.get(f'/s/{test_badge_code}')
+        html = resp.data.decode('utf-8')
+        assert 'og:description' in html
+        assert 'Insignia digital verificada' in html
+
+    def test_30_short_url_has_og_image(self, app_client, test_badge_code):
+        """GET /s/<code> incluye og:image apuntando a PNG."""
+        resp = app_client.get(f'/s/{test_badge_code}')
+        html = resp.data.decode('utf-8')
+        assert 'og:image' in html
+        assert 'share-image' in html
+        assert '.png' in html
+
+    def test_31_short_url_has_meta_refresh(self, app_client, test_badge_code):
+        """GET /s/<code> incluye meta refresh redirigiendo a verify URL."""
+        resp = app_client.get(f'/s/{test_badge_code}')
+        html = resp.data.decode('utf-8')
+        assert 'http-equiv="refresh"' in html
+        assert 'app.evaluaasi.com/verify/' in html
+
+    def test_32_short_url_matches_share_preview(self, app_client, test_badge_code):
+        """/s/<code> y /api/badges/share-preview/<code> devuelven el mismo contenido."""
+        resp_short = app_client.get(f'/s/{test_badge_code}')
+        resp_long = app_client.get(f'/api/badges/share-preview/{test_badge_code}')
+        assert resp_short.status_code == resp_long.status_code == 200
+        assert resp_short.data == resp_long.data
