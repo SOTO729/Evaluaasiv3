@@ -264,44 +264,137 @@ def _info_table(rows: list) -> str:
 # 1. EMAIL DE BIENVENIDA + CONTRASEÑA TEMPORAL
 # ═══════════════════════════════════════════════════════════════
 
+_ROLE_LABELS = {
+    'candidato': 'Candidato',
+    'responsable': 'Responsable de Plantel',
+    'responsable_partner': 'Responsable de Partner',
+    'auxiliar': 'Auxiliar de Coordinación',
+    'coordinator': 'Coordinador',
+    'editor': 'Editor de Contenido',
+    'editor_invitado': 'Editor Invitado',
+    'gerente': 'Gerente',
+    'financiero': 'Financiero',
+    'admin': 'Administrador',
+}
+
+
 def send_welcome_email(user, temporary_password: str) -> bool:
-    """Enviar email de bienvenida con credenciales de acceso."""
+    """Enviar email ejecutivo de bienvenida con credenciales de acceso."""
     if not user.email:
         return False
 
     full_name = f"{user.name or ''} {user.first_surname or ''}".strip() or user.username or 'Usuario'
-    
+    role_label = _ROLE_LABELS.get(getattr(user, 'role', ''), 'Usuario')
+    login_url = f'{APP_URL}/login'
+
     body = f"""
-        <h2 style="margin:0 0 8px;color:#111827;font-size:20px;">¡Bienvenido/a a Evaluaasi!</h2>
-        <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-            Hola <strong>{full_name}</strong>, tu cuenta ha sido creada exitosamente.
-            A continuación encontrarás tus credenciales de acceso:
+        <!-- Saludo ejecutivo -->
+        <h2 style="margin:0 0 4px;color:#111827;font-size:22px;font-weight:700;">
+            ¡Bienvenido/a a Evaluaasi!
+        </h2>
+        <p style="margin:0 0 20px;color:#6b7280;font-size:13px;">
+            Plataforma de Evaluación y Certificación de Competencias Laborales
         </p>
-        
-        {_info_table([
-            ('Usuario', user.username or user.email),
-            ('Contraseña temporal', temporary_password),
-            ('Email', user.email),
-        ])}
-        
-        <div style="background-color:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin:16px 0;">
-            <p style="margin:0;color:#92400e;font-size:13px;">
-                <strong>⚠️ Importante:</strong> Te recomendamos cambiar tu contraseña después de tu primer inicio de sesión.
+
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 6px;">
+            Estimado/a <strong style="color:#1e40af;">{full_name}</strong>,
+        </p>
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+            Nos complace informarte que tu cuenta en <strong>Evaluaasi</strong> ha sido creada exitosamente
+            con el perfil de <strong>{role_label}</strong>. A partir de este momento
+            tienes acceso a nuestra plataforma de evaluación y certificación.
+        </p>
+
+        <!-- Credenciales en card destacado -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:12px;padding:24px 28px;">
+                    <p style="margin:0 0 14px;color:#93c5fd;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">
+                        Tus credenciales de acceso
+                    </p>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="padding:8px 0;color:rgba(255,255,255,0.7);font-size:13px;width:120px;">Usuario</td>
+                            <td style="padding:8px 0;color:#ffffff;font-size:16px;font-weight:700;font-family:'Courier New',monospace;letter-spacing:1px;">
+                                {user.username or user.email}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px 0;color:rgba(255,255,255,0.7);font-size:13px;border-top:1px solid rgba(255,255,255,0.1);width:120px;">Contraseña</td>
+                            <td style="padding:8px 0;color:#fbbf24;font-size:16px;font-weight:700;font-family:'Courier New',monospace;letter-spacing:1px;border-top:1px solid rgba(255,255,255,0.1);">
+                                {temporary_password}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+
+        <!-- CTA Button -->
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:10px;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
+                    <a href="{login_url}" target="_blank" style="display:inline-block;padding:14px 44px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.4px;">
+                        Iniciar Sesión →
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Pasos siguientes -->
+        <div style="background-color:#f0f9ff;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;padding:16px 20px;margin:24px 0 16px;">
+            <p style="margin:0 0 10px;color:#1e40af;font-size:14px;font-weight:700;">Primeros pasos</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">①</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Ingresa a la plataforma con las credenciales proporcionadas arriba.
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">②</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Te recomendamos cambiar tu contraseña desde tu perfil para mayor seguridad.
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">③</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Completa tu perfil y comienza a utilizar todas las funciones disponibles.
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Aviso de seguridad -->
+        <div style="background-color:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin:16px 0;">
+            <p style="margin:0;color:#92400e;font-size:12px;line-height:1.5;">
+                <strong>🔒 Seguridad:</strong> No compartas tus credenciales con terceros.
+                Si no solicitaste esta cuenta, ignora este correo o contacta a tu coordinador.
             </p>
         </div>
-        
-        {_button('Iniciar Sesión', f'{APP_URL}/login')}
-        
-        <p style="color:#9ca3af;font-size:12px;text-align:center;">
-            Si tienes problemas para iniciar sesión, contacta a tu coordinador.
+
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:20px 0 0;">
+            ¿Necesitas ayuda? Contacta a tu coordinador o escríbenos a
+            <a href="mailto:soporte@evaluaasi.com" style="color:#2563eb;text-decoration:none;">soporte@evaluaasi.com</a>
         </p>
     """
-    
+
     return send_email(
         to=user.email,
-        subject="[Evaluaasi] ¡Bienvenido/a! — Tus credenciales de acceso",
+        subject="¡Bienvenido/a a Evaluaasi! — Tu cuenta está lista",
         html=_base_template("Bienvenido a Evaluaasi", body),
-        plain_text=f"Bienvenido a Evaluaasi. Usuario: {user.username or user.email}. Contraseña temporal: {temporary_password}. Inicia sesión en {APP_URL}/login",
+        plain_text=(
+            f"¡Bienvenido/a a Evaluaasi!\n\n"
+            f"Hola {full_name},\n\n"
+            f"Tu cuenta ha sido creada con el perfil de {role_label}.\n\n"
+            f"CREDENCIALES DE ACCESO:\n"
+            f"  Usuario: {user.username or user.email}\n"
+            f"  Contraseña: {temporary_password}\n\n"
+            f"Inicia sesión en: {login_url}\n\n"
+            f"Te recomendamos cambiar tu contraseña después de tu primer inicio de sesión.\n\n"
+            f"— Equipo Evaluaasi"
+        ),
     )
 
 
