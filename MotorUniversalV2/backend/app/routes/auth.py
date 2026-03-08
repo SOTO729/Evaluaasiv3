@@ -206,7 +206,7 @@ def login():
         }), 401
     
     if not user.is_active:
-        return jsonify({'error': 'Usuario inactivo'}), 401
+        return jsonify({'error': 'Credenciales inválidas'}), 401
     
     # Login exitoso - resetear contador de intentos fallidos
     reset_failed_login(username)

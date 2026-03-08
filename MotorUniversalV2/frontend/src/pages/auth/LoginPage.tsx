@@ -39,8 +39,14 @@ const LoginPage = () => {
         navigate('/dashboard')
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error || err.message || 'Error al iniciar sesión'
-      setError(errorMessage)
+      const status = err.response?.status
+      if (status === 423) {
+        const retryAfter = err.response?.data?.retry_after
+        const minutes = retryAfter ? Math.ceil(retryAfter / 60) : 15
+        setError(`Demasiados intentos fallidos. Tu cuenta está bloqueada por ${minutes} minutos.`)
+      } else {
+        setError('Usuario o contraseña incorrectos. Verifica tus datos e intenta de nuevo.')
+      }
     } finally {
       setLoading(false)
     }
