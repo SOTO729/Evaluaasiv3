@@ -587,9 +587,9 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const shareUrl = getSharePreviewUrl(badge)
+    const verifyUrl = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
-    const text = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${shareUrl}`
+    const text = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${verifyUrl}`
     window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank', 'noopener,width=600,height=600')
   }
 
@@ -644,7 +644,10 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
     const shareUrl = getSharePreviewUrl(badge)
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener,width=600,height=400')
+    const verifyUrl = getVerifyUrl(badge)
+    const name = badge.template_name || 'Insignia Digital'
+    const quote = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${verifyUrl}`
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(quote)}`, '_blank', 'noopener,width=600,height=400')
   }
 
   const handleShareInstagram = async (badge: any) => {

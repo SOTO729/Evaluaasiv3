@@ -103,9 +103,17 @@ def build_email_parts(badge: dict) -> tuple:
 
 
 def build_facebook_url(badge: dict, api_url: str = None) -> str:
-    """Replica handleShareFacebook del frontend."""
+    """Replica handleShareFacebook del frontend.
+    u= lleva share-preview (OG card), quote= lleva texto profesional con verify URL."""
     share_url = get_share_preview_url(badge, api_url or API_URL_PROD)
-    return f"https://www.facebook.com/sharer/sharer.php?u={urllib.parse.quote(share_url, safe='')}"
+    verify_url = get_verify_url(badge)
+    name = badge.get('template_name') or 'Insignia Digital'
+    quote = f'\U0001f393 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n{verify_url}'
+    return (
+        f"https://www.facebook.com/sharer/sharer.php"
+        f"?u={urllib.parse.quote(share_url, safe='')}"
+        f"&quote={urllib.parse.quote(quote, safe='')}"
+    )
 
 
 def build_instagram_share_info(badge: dict) -> dict:
@@ -121,10 +129,11 @@ def build_instagram_share_info(badge: dict) -> dict:
 
 
 def build_linkedin_share_url(badge: dict, api_url: str = API_URL_PROD) -> str:
-    """Replica handleShare (LinkedIn) del frontend."""
-    share_url = get_share_preview_url(badge, api_url)
+    """Replica handleShare (LinkedIn) del frontend.
+    Usa verify URL (frontend) en el texto visible."""
+    verify_url = get_verify_url(badge)
     name = badge.get('template_name') or 'Insignia Digital'
-    text = f'🎓 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n{share_url}'
+    text = f'🎓 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n{verify_url}'
     return f"https://www.linkedin.com/feed/?shareActive=true&text={urllib.parse.quote(text, safe='')}"
 
 
@@ -258,23 +267,26 @@ class TestFacebookSharing:
         assert url.startswith('https://www.facebook.com/sharer/sharer.php?u=')
 
     def test_10c_facebook_includes_share_preview_url(self):
-        """La URL de Facebook incluye la URL de share-preview (/s/)."""
+        """El parámetro u de Facebook incluye la URL de share-preview (/s/) para OG card."""
         url = build_facebook_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
         assert '/s/BDABC1234567' in decoded
 
     def test_10d_facebook_url_is_encoded(self):
-        """El parámetro u de Facebook está URL-encoded (sin espacios)."""
+        """Los parámetros de Facebook están URL-encoded (sin espacios)."""
         url = build_facebook_url(BADGE_WITH_NAME)
-        query = url.split('?u=', 1)[1]
+        query = url.split('?', 1)[1]
         assert ' ' not in query
 
     def test_10e_facebook_uses_share_preview(self):
-        """Facebook usa share-preview URL con /s/ (no verify URL)."""
+        """Facebook usa share-preview URL en u= y verify URL en quote= texto."""
         url = build_facebook_url(BADGE_CUSTOM_VERIFY)
         decoded = urllib.parse.unquote(url)
+        # u= tiene share-preview
         assert '/s/BD0000000001' in decoded
-        assert '/verify/' not in decoded
+        # quote= tiene verify URL del frontend
+        assert 'custom-domain.com/verify/BD0000000001' in decoded
+        assert 'Evaluaasi' in decoded
 
 
 class TestInstagramSharing:
@@ -362,8 +374,8 @@ class TestShareUrlIntegrity:
         assert '&body=' in mailto
 
     def test_17_custom_verify_url_used_in_verify_channels(self):
-        """Canales que usan verify URL (WhatsApp, Instagram, Email) respetan custom verify_url.
-        LinkedIn, Twitter y Facebook usan share-preview URL (/s/)."""
+        """Canales que usan verify URL (WhatsApp, Instagram, Email, LinkedIn, Facebook quote).
+        Twitter usa share-preview URL. Facebook u= usa share-preview para OG card."""
         wa = urllib.parse.unquote(build_whatsapp_url(BADGE_CUSTOM_VERIFY))
         ig = build_instagram_share_info(BADGE_CUSTOM_VERIFY)
         _, email_body = build_email_parts(BADGE_CUSTOM_VERIFY)
@@ -373,13 +385,19 @@ class TestShareUrlIntegrity:
         assert custom_url in ig['clipboard_text']
         assert custom_url in email_body
 
-        # LinkedIn, Twitter, Facebook usan share-preview (/s/) no verify URL
+        # LinkedIn texto usa verify URL (frontend)
         li = urllib.parse.unquote(build_linkedin_share_url(BADGE_CUSTOM_VERIFY))
+        assert custom_url in li
+        assert '/s/BD0000000001' not in li
+
+        # Twitter usa share-preview (/s/)
         tw = urllib.parse.unquote(build_twitter_url(BADGE_CUSTOM_VERIFY))
-        fb = urllib.parse.unquote(build_facebook_url(BADGE_CUSTOM_VERIFY))
-        assert '/s/BD0000000001' in li
         assert '/s/BD0000000001' in tw
+
+        # Facebook u= tiene share-preview, quote= tiene verify URL
+        fb = urllib.parse.unquote(build_facebook_url(BADGE_CUSTOM_VERIFY))
         assert '/s/BD0000000001' in fb
+        assert custom_url in fb
 
     def test_18_special_characters_in_badge_name(self):
         """Nombres con caracteres especiales (acentos, ñ) se codifican correctamente."""
@@ -417,16 +435,17 @@ class TestLinkedInSharing:
         assert 'Certificación Python Avanzado' in decoded
         assert 'Evaluaasi' in decoded
 
-    def test_21_linkedin_includes_share_preview_url(self):
-        """LinkedIn texto incluye la URL de share-preview con ruta /s/."""
+    def test_21_linkedin_includes_verify_url(self):
+        """LinkedIn texto incluye la URL de verificación del frontend."""
         url = build_linkedin_share_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
-        assert '/s/BDABC1234567' in decoded
+        assert '/verify/BDABC1234567' in decoded
 
-    def test_21b_linkedin_share_url_uses_short_path(self):
-        """La URL de share-preview no contiene /api/badges/share-preview/."""
+    def test_21b_linkedin_uses_frontend_url_not_backend(self):
+        """LinkedIn texto NO contiene la URL del backend (/s/ ni /api/)."""
         url = build_linkedin_share_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
+        assert '/s/BDABC1234567' not in decoded
         assert '/api/badges/share-preview/' not in decoded
 
     def test_22_linkedin_fallback_name(self):
@@ -475,23 +494,30 @@ class TestSharePreviewUrl:
         assert '/api/' not in url
         assert url.endswith('/s/BDABC1234567')
 
-    def test_25c_linkedin_uses_share_preview_not_verify(self):
-        """LinkedIn y Twitter usan share-preview URL; WhatsApp y Email usan verify URL.
+    def test_25c_linkedin_and_facebook_use_frontend_urls(self):
+        """LinkedIn usa verify URL (frontend). Facebook quote usa verify URL.
+        Twitter usa share-preview URL. WhatsApp y Email usan verify URL.
         Todos los canales incluyen 'Evaluaasi' en el texto."""
         li_url = urllib.parse.unquote(build_linkedin_share_url(BADGE_WITH_NAME))
         wa_url = urllib.parse.unquote(build_whatsapp_url(BADGE_WITH_NAME))
         tw_url = urllib.parse.unquote(build_twitter_url(BADGE_WITH_NAME))
+        fb_url = urllib.parse.unquote(build_facebook_url(BADGE_WITH_NAME))
         _, email_body = build_email_parts(BADGE_WITH_NAME)
         ig = build_instagram_share_info(BADGE_WITH_NAME)
-        # LinkedIn debe tener /s/ (share-preview)
-        assert '/s/BDABC1234567' in li_url
-        # WhatsApp debe tener /verify/ (no /s/)
+        # LinkedIn usa verify URL (frontend), no /s/
+        assert '/verify/BDABC1234567' in li_url
+        assert '/s/BDABC1234567' not in li_url
+        # Facebook tiene /s/ en u= y /verify/ en quote
+        assert '/s/BDABC1234567' in fb_url
+        assert '/verify/BDABC1234567' in fb_url
+        # WhatsApp usa verify URL
         assert '/verify/BDABC1234567' in wa_url
         assert '/s/' not in wa_url
         # Todos mencionan Evaluaasi
         assert 'Evaluaasi' in li_url
         assert 'Evaluaasi' in wa_url
         assert 'Evaluaasi' in tw_url
+        assert 'Evaluaasi' in fb_url
         assert 'Evaluaasi' in email_body
         assert 'Evaluaasi' in ig['clipboard_text']
 
