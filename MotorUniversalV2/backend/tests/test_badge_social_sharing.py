@@ -70,7 +70,7 @@ def build_whatsapp_url(badge: dict) -> str:
     """Replica handleShareWhatsApp del frontend."""
     url = get_verify_url(badge)
     name = badge.get('template_name') or 'Insignia Digital'
-    text = f'\U0001f3c5 ¡He obtenido la insignia digital "{name}"! Verifica mi credencial aquí: {url}'
+    text = f'\U0001f393 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n{url}'
     return f"https://wa.me/?text={urllib.parse.quote(text, safe='')}"
 
 
@@ -78,7 +78,7 @@ def build_twitter_url(badge: dict, api_url: str = None) -> str:
     """Replica handleShareTwitter del frontend."""
     share_url = get_share_preview_url(badge, api_url or API_URL_PROD)
     name = badge.get('template_name') or 'Insignia Digital'
-    text = f'\U0001f3c5 ¡He obtenido la insignia digital "{name}"! #OpenBadges #Credenciales'
+    text = f'\U0001f393 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales.\n\n#OpenBadges #CredencialesDigitales #Evaluaasi'
     return (
         f"https://twitter.com/intent/tweet"
         f"?text={urllib.parse.quote(text, safe='')}"
@@ -90,11 +90,12 @@ def build_email_parts(badge: dict) -> tuple:
     """Replica handleShareEmail del frontend. Retorna (subject, body)."""
     url = get_verify_url(badge)
     name = badge.get('template_name') or 'Insignia Digital'
-    subject = f'Mi insignia digital: {name}'
+    subject = f'\U0001f393 He obtenido la insignia digital "{name}" en Evaluaasi'
     body = (
         f'¡Hola!\n\n'
-        f'He obtenido la insignia digital "{name}".\n\n'
-        f'Puedes verificar mi credencial en el siguiente enlace:\n'
+        f'Me complace compartir que he obtenido la insignia digital "{name}" en Evaluaasi.\n\n'
+        f'Esta credencial valida mis competencias y habilidades profesionales. '
+        f'Puedes verificar su autenticidad en el siguiente enlace:\n\n'
         f'{url}\n\n'
         f'Saludos.'
     )
@@ -112,7 +113,7 @@ def build_instagram_share_info(badge: dict) -> dict:
     Retorna la info que se usaría: texto para copiar al portapapeles y verify URL."""
     url = get_verify_url(badge)
     name = badge.get('template_name') or 'Insignia Digital'
-    text = f'\U0001f3c5 ¡He obtenido la insignia digital "{name}"!\n\nVerifica mi credencial: {url}\n\n#OpenBadges #Credenciales'
+    text = f'\U0001f393 ¡He obtenido la insignia digital "{name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Verifica su autenticidad aquí:\n\n{url}\n\n#OpenBadges #CredencialesDigitales #Evaluaasi #InsigniaDigital'
     return {
         'clipboard_text': text,
         'verify_url': url,
@@ -180,10 +181,11 @@ class TestWhatsAppSharing:
         assert url.startswith('https://wa.me/?text=')
 
     def test_02_whatsapp_includes_badge_name(self):
-        """El texto de WhatsApp incluye el nombre de la insignia."""
+        """El texto de WhatsApp incluye el nombre de la insignia y Evaluaasi."""
         url = build_whatsapp_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
         assert 'Certificación Python Avanzado' in decoded
+        assert 'Evaluaasi' in decoded
 
     def test_03_whatsapp_includes_verify_url(self):
         """El texto de WhatsApp incluye la URL de verificación."""
@@ -209,26 +211,30 @@ class TestTwitterSharing:
         assert 'url=' in url
 
     def test_06_twitter_includes_hashtags(self):
-        """El texto de Twitter incluye hashtags #OpenBadges #Credenciales."""
+        """El texto de Twitter incluye hashtags #OpenBadges #CredencialesDigitales #Evaluaasi."""
         url = build_twitter_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
         assert '#OpenBadges' in decoded
-        assert '#Credenciales' in decoded
+        assert '#CredencialesDigitales' in decoded
+        assert '#Evaluaasi' in decoded
 
     def test_07_twitter_includes_badge_name(self):
-        """El texto de Twitter incluye el nombre de la insignia."""
+        """El texto de Twitter incluye el nombre de la insignia y Evaluaasi."""
         url = build_twitter_url(BADGE_WITH_NAME)
         decoded = urllib.parse.unquote(url)
         assert 'Certificación Python Avanzado' in decoded
+        assert 'Evaluaasi' in decoded
 
 
 class TestEmailSharing:
 
     def test_08_email_subject_and_body(self):
-        """Email genera subject con nombre de la insignia y body con URL de verificación."""
+        """Email genera subject con nombre de la insignia y Evaluaasi, body con URL de verificación."""
         subject, body = build_email_parts(BADGE_WITH_NAME)
         assert 'Certificación Python Avanzado' in subject
+        assert 'Evaluaasi' in subject
         assert '/verify/BDABC1234567' in body
+        assert 'Evaluaasi' in body
 
     def test_09_email_body_has_verify_url(self):
         """El body del email contiene la URL de verificación completa."""
@@ -287,7 +293,9 @@ class TestInstagramSharing:
         """Instagram copia texto con hashtags."""
         info = build_instagram_share_info(BADGE_WITH_NAME)
         assert '#OpenBadges' in info['clipboard_text']
-        assert '#Credenciales' in info['clipboard_text']
+        assert '#CredencialesDigitales' in info['clipboard_text']
+        assert '#Evaluaasi' in info['clipboard_text']
+        assert '#InsigniaDigital' in info['clipboard_text']
 
     def test_10i_instagram_fallback_name(self):
         """Si no hay template_name, usa 'Insignia Digital' como fallback."""
@@ -468,14 +476,24 @@ class TestSharePreviewUrl:
         assert url.endswith('/s/BDABC1234567')
 
     def test_25c_linkedin_uses_share_preview_not_verify(self):
-        """LinkedIn y Twitter usan share-preview URL; WhatsApp y Email usan verify URL."""
+        """LinkedIn y Twitter usan share-preview URL; WhatsApp y Email usan verify URL.
+        Todos los canales incluyen 'Evaluaasi' en el texto."""
         li_url = urllib.parse.unquote(build_linkedin_share_url(BADGE_WITH_NAME))
         wa_url = urllib.parse.unquote(build_whatsapp_url(BADGE_WITH_NAME))
+        tw_url = urllib.parse.unquote(build_twitter_url(BADGE_WITH_NAME))
+        _, email_body = build_email_parts(BADGE_WITH_NAME)
+        ig = build_instagram_share_info(BADGE_WITH_NAME)
         # LinkedIn debe tener /s/ (share-preview)
         assert '/s/BDABC1234567' in li_url
         # WhatsApp debe tener /verify/ (no /s/)
         assert '/verify/BDABC1234567' in wa_url
         assert '/s/' not in wa_url
+        # Todos mencionan Evaluaasi
+        assert 'Evaluaasi' in li_url
+        assert 'Evaluaasi' in wa_url
+        assert 'Evaluaasi' in tw_url
+        assert 'Evaluaasi' in email_body
+        assert 'Evaluaasi' in ig['clipboard_text']
 
 
 # ============================================================

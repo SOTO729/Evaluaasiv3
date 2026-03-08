@@ -610,7 +610,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
-    const text = `🏅 ¡He obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}"! Verifica mi credencial aquí: ${url}`
+    const name = badge.template_name || 'Insignia Digital'
+    const text = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${url}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
   }
 
@@ -620,7 +621,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
     const shareUrl = getSharePreviewUrl(badge)
-    const text = `🏅 ¡He obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}"! #OpenBadges #Credenciales`
+    const name = badge.template_name || 'Insignia Digital'
+    const text = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales.\n\n#OpenBadges #CredencialesDigitales #Evaluaasi`
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener')
   }
 
@@ -630,8 +632,9 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
-    const subject = `Mi insignia digital: ${badge.template_name || 'Insignia Digital'}`
-    const body = `¡Hola!\n\nHe obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}".\n\nPuedes verificar mi credencial en el siguiente enlace:\n${url}\n\nSaludos.`
+    const name = badge.template_name || 'Insignia Digital'
+    const subject = `🎓 He obtenido la insignia digital "${name}" en Evaluaasi`
+    const body = `¡Hola!\n\nMe complace compartir que he obtenido la insignia digital "${name}" en Evaluaasi.\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad en el siguiente enlace:\n\n${url}\n\nSaludos.`
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   }
 
@@ -651,7 +654,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
-    const text = `🏅 ¡He obtenido la insignia digital "${name}"!\n\nVerifica mi credencial: ${url}\n\n#OpenBadges #Credenciales`
+    const text = `� ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Verifica su autenticidad aquí:\n\n${url}\n\n#OpenBadges #CredencialesDigitales #Evaluaasi #InsigniaDigital`
     let copied = false
     if (navigator.clipboard) {
       try {
