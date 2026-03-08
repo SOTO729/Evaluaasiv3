@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight, Share2, UserPlus } from 'lucide-react'
+import { FileText, BadgeCheck, Download, Eye, Search, Calendar, CheckCircle, Clock, ExternalLink, Award, ChevronRight, Share2, UserPlus, MessageCircle, Mail } from 'lucide-react'
 import { dashboardService } from '../../services/dashboardService'
 import { useAuthStore } from '../../store/authStore'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -670,6 +670,40 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     }
   }
 
+  const getVerifyUrl = (badge: any) =>
+    badge.verify_url || `${window.location.origin}/verify/${badge.badge_code}`
+
+  const handleShareWhatsApp = async (badge: any) => {
+    try {
+      const { default: badgeService } = await import('../../services/badgeService')
+      await badgeService.trackShare(badge.id)
+    } catch { /* best effort */ }
+    const url = getVerifyUrl(badge)
+    const text = `🏅 ¡He obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}"! Verifica mi credencial aquí: ${url}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+  }
+
+  const handleShareTwitter = async (badge: any) => {
+    try {
+      const { default: badgeService } = await import('../../services/badgeService')
+      await badgeService.trackShare(badge.id)
+    } catch { /* best effort */ }
+    const url = getVerifyUrl(badge)
+    const text = `🏅 ¡He obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}"! #OpenBadges #Credenciales`
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'noopener')
+  }
+
+  const handleShareEmail = async (badge: any) => {
+    try {
+      const { default: badgeService } = await import('../../services/badgeService')
+      await badgeService.trackShare(badge.id)
+    } catch { /* best effort */ }
+    const url = getVerifyUrl(badge)
+    const subject = `Mi insignia digital: ${badge.template_name || 'Insignia Digital'}`
+    const body = `¡Hola!\n\nHe obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}".\n\nPuedes verificar mi credencial en el siguiente enlace:\n${url}\n\nSaludos.`
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+  }
+
   if (badgesLoading) {
     return (
       <div className="flex justify-center fluid-py-12">
@@ -766,6 +800,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               </span>
             </div>
 
+            {/* Botones principales */}
             <div className="flex fluid-gap-2 relative z-10">   
               <button
                 onClick={() => handleDownload(badge)}
@@ -789,6 +824,34 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
                 title="Agregar al perfil de LinkedIn"
               >
                 <UserPlus className="fluid-icon-xs" />
+              </button>
+            </div>
+
+            {/* Compartir: WhatsApp · Twitter/X · Email */}
+            <div className="flex fluid-gap-2 relative z-10 mt-2">
+              <button
+                onClick={() => handleShareWhatsApp(badge)}
+                className="flex-1 flex items-center justify-center fluid-gap-1 fluid-px-3 fluid-py-2 border border-green-300 text-green-600 rounded-fluid-lg fluid-text-xs font-medium hover:bg-green-50 hover:border-green-400 transition-all duration-200 hover:scale-105 active:scale-95"
+                title="Compartir por WhatsApp"
+              >
+                <MessageCircle className="fluid-icon-xs" />
+                WhatsApp
+              </button>
+              <button
+                onClick={() => handleShareTwitter(badge)}
+                className="flex-1 flex items-center justify-center fluid-gap-1 fluid-px-3 fluid-py-2 border border-sky-300 text-sky-600 rounded-fluid-lg fluid-text-xs font-medium hover:bg-sky-50 hover:border-sky-400 transition-all duration-200 hover:scale-105 active:scale-95"
+                title="Compartir en Twitter/X"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                X
+              </button>
+              <button
+                onClick={() => handleShareEmail(badge)}
+                className="flex-1 flex items-center justify-center fluid-gap-1 fluid-px-3 fluid-py-2 border border-orange-300 text-orange-600 rounded-fluid-lg fluid-text-xs font-medium hover:bg-orange-50 hover:border-orange-400 transition-all duration-200 hover:scale-105 active:scale-95"
+                title="Compartir por correo electrónico"
+              >
+                <Mail className="fluid-icon-xs" />
+                Email
               </button>
             </div>
           </div>
