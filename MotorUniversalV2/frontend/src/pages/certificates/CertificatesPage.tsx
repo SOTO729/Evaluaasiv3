@@ -631,10 +631,9 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const url = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
     const subject = `He obtenido la insignia digital "${name}" en Evaluaasi`
-    const body = `¡Hola!\n\nMe complace compartir que he obtenido la insignia digital "${name}" en Evaluaasi.\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad en el siguiente enlace:\n\n${url}\n\nSaludos.`
+    const body = `Hola!\n\nMe complace compartir que he obtenido la insignia digital "${name}" en Evaluaasi.\n\nEsta credencial valida mis competencias y habilidades profesionales.\n\nSaludos.`
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   }
 

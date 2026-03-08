@@ -88,15 +88,12 @@ def build_twitter_url(badge: dict, api_url: str = None) -> str:
 
 def build_email_parts(badge: dict) -> tuple:
     """Replica handleShareEmail del frontend. Retorna (subject, body)."""
-    url = get_verify_url(badge)
     name = badge.get('template_name') or 'Insignia Digital'
     subject = f'He obtenido la insignia digital "{name}" en Evaluaasi'
     body = (
-        f'¡Hola!\n\n'
+        f'Hola!\n\n'
         f'Me complace compartir que he obtenido la insignia digital "{name}" en Evaluaasi.\n\n'
-        f'Esta credencial valida mis competencias y habilidades profesionales. '
-        f'Puedes verificar su autenticidad en el siguiente enlace:\n\n'
-        f'{url}\n\n'
+        f'Esta credencial valida mis competencias y habilidades profesionales.\n\n'
         f'Saludos.'
     )
     return subject, body
@@ -238,17 +235,21 @@ class TestTwitterSharing:
 class TestEmailSharing:
 
     def test_08_email_subject_and_body(self):
-        """Email genera subject con nombre de la insignia y Evaluaasi, body con URL de verificación."""
+        """Email genera subject con nombre de la insignia y Evaluaasi, body sin código ECM."""
         subject, body = build_email_parts(BADGE_WITH_NAME)
         assert 'Certificación Python Avanzado' in subject
         assert 'Evaluaasi' in subject
-        assert '/verify/BDABC1234567' in body
         assert 'Evaluaasi' in body
+        assert 'Hola!' in body
+        assert '/verify/' not in body
+        assert 'BDABC1234567' not in body
 
-    def test_09_email_body_has_verify_url(self):
-        """El body del email contiene la URL de verificación completa."""
+    def test_09_email_body_no_code(self):
+        """El body del email no contiene códigos ni URLs de verificación."""
         _, body = build_email_parts(BADGE_WITH_NAME)
-        assert BADGE_WITH_NAME['verify_url'] in body
+        assert 'BD' not in body
+        assert '/verify/' not in body
+        assert '/s/' not in body
 
     def test_10_email_fallback_name(self):
         """Si no hay template_name, email usa 'Insignia Digital'."""
@@ -383,7 +384,8 @@ class TestShareUrlIntegrity:
         custom_url = BADGE_CUSTOM_VERIFY['verify_url']
         assert custom_url in wa
         assert custom_url in ig['clipboard_text']
-        assert custom_url in email_body
+
+        # Email ya no incluye URLs ni códigos
 
         # LinkedIn texto usa verify URL (frontend)
         li = urllib.parse.unquote(build_linkedin_share_url(BADGE_CUSTOM_VERIFY))
@@ -513,13 +515,16 @@ class TestSharePreviewUrl:
         # WhatsApp usa verify URL
         assert '/verify/BDABC1234567' in wa_url
         assert '/s/' not in wa_url
-        # Todos mencionan Evaluaasi
+        # Todos mencionan Evaluaasi (email ya no tiene URL pero sí Evaluaasi)
         assert 'Evaluaasi' in li_url
         assert 'Evaluaasi' in wa_url
         assert 'Evaluaasi' in tw_url
         assert 'Evaluaasi' in fb_url
         assert 'Evaluaasi' in email_body
         assert 'Evaluaasi' in ig['clipboard_text']
+        # Email no tiene códigos ni URLs
+        assert '/verify/' not in email_body
+        assert '/s/' not in email_body
 
 
 # ============================================================
