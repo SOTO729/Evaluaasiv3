@@ -585,10 +585,11 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const url = getSharePreviewUrl(badge)
+    const shareUrl = getSharePreviewUrl(badge)
+    const verifyUrl = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
-    const text = `🎓 ¡He obtenido la insignia digital "${name}" en EvaluaaSi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${url}`
-    window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank', 'noopener,width=600,height=600')
+    const text = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${verifyUrl}`
+    window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener,width=600,height=600')
   }
 
   const handleAddToProfile = async (badge: any) => {
@@ -598,7 +599,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
-    const profileUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(name)}&certUrl=${encodeURIComponent(url)}&organizationName=${encodeURIComponent('EvaluaaSi')}`
+    const profileUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(name)}&certUrl=${encodeURIComponent(url)}&organizationName=${encodeURIComponent('Evaluaasi')}`
     window.open(profileUrl, '_blank', 'noopener')
   }
 
