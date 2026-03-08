@@ -90,7 +90,7 @@ def build_email_parts(badge: dict) -> tuple:
     """Replica handleShareEmail del frontend. Retorna (subject, body)."""
     url = get_verify_url(badge)
     name = badge.get('template_name') or 'Insignia Digital'
-    subject = f'\U0001f393 He obtenido la insignia digital "{name}" en Evaluaasi'
+    subject = f'He obtenido la insignia digital "{name}" en Evaluaasi'
     body = (
         f'¡Hola!\n\n'
         f'Me complace compartir que he obtenido la insignia digital "{name}" en Evaluaasi.\n\n'
