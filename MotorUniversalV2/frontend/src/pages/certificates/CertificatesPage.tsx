@@ -572,12 +572,20 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     window.open(url, '_blank', 'noopener')
   }
 
+  const getVerifyUrl = (badge: any) =>
+    badge.verify_url || `${window.location.origin}/verify/${badge.badge_code}`
+
+  const getSharePreviewUrl = (badge: any) => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api'
+    return `${apiUrl}/badges/share-preview/${badge.badge_code}`
+  }
+
   const handleShare = async (badge: any) => {
     try {
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const url = getVerifyUrl(badge)
+    const url = getSharePreviewUrl(badge)
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,width=600,height=500')
   }
 
@@ -591,9 +599,6 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     const profileUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(name)}&certUrl=${encodeURIComponent(url)}&organizationName=${encodeURIComponent('EvaluaaSi')}`
     window.open(profileUrl, '_blank', 'noopener')
   }
-
-  const getVerifyUrl = (badge: any) =>
-    badge.verify_url || `${window.location.origin}/verify/${badge.badge_code}`
 
   const handleShareWhatsApp = async (badge: any) => {
     try {
@@ -610,9 +615,9 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const url = getVerifyUrl(badge)
+    const shareUrl = getSharePreviewUrl(badge)
     const text = `🏅 ¡He obtenido la insignia digital "${badge.template_name || 'Insignia Digital'}"! #OpenBadges #Credenciales`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'noopener')
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener')
   }
 
   const handleShareEmail = async (badge: any) => {
@@ -631,8 +636,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const url = getVerifyUrl(badge)
-    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'noopener,width=600,height=400')
+    const shareUrl = getSharePreviewUrl(badge)
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener,width=600,height=400')
   }
 
   const handleShareInstagram = async (badge: any) => {
