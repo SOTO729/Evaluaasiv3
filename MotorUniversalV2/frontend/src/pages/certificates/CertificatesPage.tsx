@@ -551,7 +551,6 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
 const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
   const [badges, setBadges] = useState<any[]>([])
   const [badgesLoading, setBadgesLoading] = useState(true)
-  const [sharingId, setSharingId] = useState<number | null>(null)
 
   useEffect(() => {
     const loadBadges = async () => {
@@ -559,33 +558,6 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
         const { default: badgeService } = await import('../../services/badgeService')
         const data = await badgeService.getMyBadges()
         setBadges(data.badges)
-
-        // Handle LinkedIn OAuth2 callback — auto-share if returning from auth
-        const params = new URLSearchParams(window.location.search)
-        const shareBadgeId = params.get('share_badge')
-        const linkedinConnected = params.get('linkedin_connected')
-        const linkedinError = params.get('linkedin_error')
-
-        if (linkedinError) {
-          alert(`Error al conectar con LinkedIn: ${linkedinError}`)
-          window.history.replaceState({}, '', window.location.pathname)
-        } else if (linkedinConnected && shareBadgeId) {
-          // Clean URL params immediately
-          window.history.replaceState({}, '', window.location.pathname)
-          // Auto-share the badge after successful OAuth2
-          try {
-            const result = await badgeService.linkedinShareViaApi(Number(shareBadgeId))
-            if (result.success) {
-              alert('✅ Insignia publicada en LinkedIn exitosamente')
-            } else if (result.share_post_url) {
-              window.open(result.share_post_url, '_blank', 'noopener')
-            }
-          } catch {
-            console.error('Auto-share after OAuth2 failed')
-          }
-        } else if (linkedinConnected) {
-          window.history.replaceState({}, '', window.location.pathname)
-        }
       } catch (err) {
         console.error('Error loading badges:', err)
       } finally {
@@ -601,72 +573,23 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
   }
 
   const handleShare = async (badge: any) => {
-    setSharingId(badge.id)
     try {
       const { default: badgeService } = await import('../../services/badgeService')
-      const data = await badgeService.getLinkedInUrl(badge.id)
-
-      // If LinkedIn API is available and user is connected → share via API
-      if (data.linkedin_api_available && data.linkedin_connected) {
-        try {
-          const result = await badgeService.linkedinShareViaApi(badge.id)
-          if (result.success) {
-            alert('✅ Insignia publicada en LinkedIn exitosamente')
-            return
-          }
-          // API failed — fallback to URL sharing
-          if (result.share_post_url) {
-            window.open(result.share_post_url, '_blank', 'noopener')
-            return
-          }
-        } catch {
-          // Fall through to URL sharing
-        }
-      }
-
-      // If LinkedIn API is available but user not connected → start OAuth2 flow
-      if (data.linkedin_api_available && !data.linkedin_connected) {
-        try {
-          const auth = await badgeService.linkedinAuthorize(badge.id)
-          if (auth.authorize_url) {
-            window.open(auth.authorize_url, '_blank', 'noopener')
-            return
-          }
-        } catch {
-          // Fall through to URL sharing
-        }
-      }
-
-      // URL-based fallback
       await badgeService.trackShare(badge.id)
-      const shareUrl = typeof data === 'string' ? data : (data.share_post_url || data.linkedin_url)
-      window.open(shareUrl, '_blank', 'noopener')
-    } catch (err) {
-      const verifyUrl = badge.verify_url || `https://thankful-stone-07fbe5410.6.azurestaticapps.net/verify/${badge.badge_code}`
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(verifyUrl)
-        alert('URL de verificación copiada al portapapeles')
-      }
-    } finally {
-      setSharingId(null)
-    }
+    } catch { /* best effort */ }
+    const url = getVerifyUrl(badge)
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'noopener,width=600,height=500')
   }
 
   const handleAddToProfile = async (badge: any) => {
-    setSharingId(badge.id)
     try {
       const { default: badgeService } = await import('../../services/badgeService')
-      const data = await badgeService.getLinkedInUrl(badge.id)
       await badgeService.trackShare(badge.id)
-      const profileUrl = typeof data === 'string' ? data : data.add_profile_url
-      if (profileUrl) {
-        window.open(profileUrl, '_blank', 'noopener')
-      }
-    } catch (err) {
-      console.error('Error adding to profile:', err)
-    } finally {
-      setSharingId(null)
-    }
+    } catch { /* best effort */ }
+    const url = getVerifyUrl(badge)
+    const name = badge.template_name || 'Insignia Digital'
+    const profileUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(name)}&certUrl=${encodeURIComponent(url)}&organizationName=${encodeURIComponent('EvaluaaSi')}`
+    window.open(profileUrl, '_blank', 'noopener')
   }
 
   const getVerifyUrl = (badge: any) =>
@@ -856,8 +779,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               </button>
               <button
                 onClick={() => handleAddToProfile(badge)}
-                disabled={sharingId === badge.id}
-                className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95"
                 title="Agregar al perfil de LinkedIn"
               >
                 <UserPlus className="fluid-icon-xs" />
@@ -868,8 +790,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
             <div className="grid grid-cols-3 fluid-gap-2 relative z-10 mt-2">
               <button
                 onClick={() => handleShare(badge)}
-                disabled={sharingId === badge.id}
-                className="flex items-center justify-center fluid-gap-1 fluid-px-2 fluid-py-2 border border-[#0A66C2] text-[#0A66C2] rounded-fluid-lg fluid-text-xs font-medium hover:bg-[#0A66C2]/10 hover:border-[#0A66C2] transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                className="flex items-center justify-center fluid-gap-1 fluid-px-2 fluid-py-2 border border-[#0A66C2] text-[#0A66C2] rounded-fluid-lg fluid-text-xs font-medium hover:bg-[#0A66C2]/10 hover:border-[#0A66C2] transition-all duration-200 hover:scale-105 active:scale-95"
                 title="Compartir en LinkedIn"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
