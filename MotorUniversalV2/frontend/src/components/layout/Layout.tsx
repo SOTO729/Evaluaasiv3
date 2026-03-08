@@ -92,6 +92,10 @@ const Layout = ({ children }: LayoutProps) => {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
+      // clearAllCache se invoca dentro de logout() del store,
+      // pero llamamos explícitamente para garantizar limpieza total
+      const { clearAllCache } = await import('../../store/authStore')
+      clearAllCache()
       logout()
       navigate('/login')
     }

@@ -15,6 +15,10 @@ const queryClient = new QueryClient({
   },
 })
 
+// Exponer queryClient para limpieza desde clearAllCache
+export const getQueryClient = () => queryClient;
+(window as any).__queryClient = queryClient
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
