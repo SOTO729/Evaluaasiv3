@@ -1,5 +1,5 @@
 """
-Test de compartir insignias por WhatsApp, Twitter/X, Email y Facebook
+Test de compartir insignias por WhatsApp, Twitter/X, Email, Facebook e Instagram
 
 Verifica:
   PARTE A — Construcción de URLs de compartir (unitario, sin red)
@@ -16,6 +16,10 @@ Verifica:
    10b. Facebook URL usa facebook.com/sharer/sharer.php con la URL de verificación
    10c. Facebook incluye la URL de verificación correcta
    10d. Facebook URL está URL-encoded correctamente
+   10f. Instagram abre instagram.com
+   10g. Instagram genera nombre de archivo correcto para descarga
+   10h. Instagram usa fallback "digital" si no hay template_name
+   10i. Instagram incluye URL de verificación para copiar al portapapeles
 
   PARTE B — getVerifyUrl (lógica de URL de verificación)
    11. Si badge tiene verify_url, lo usa directamente
@@ -89,6 +93,19 @@ def build_facebook_url(badge: dict) -> str:
     return f"https://www.facebook.com/sharer/sharer.php?u={urllib.parse.quote(url, safe='')}"
 
 
+def build_instagram_share_info(badge: dict) -> dict:
+    """Replica handleShareInstagram del frontend.
+    Retorna la info que se usaría: URL de Instagram, nombre de archivo, y verify URL."""
+    url = get_verify_url(badge)
+    name = badge.get('template_name') or 'digital'
+    filename = f"insignia-{name}.png"
+    return {
+        'instagram_url': 'https://www.instagram.com/',
+        'download_filename': filename,
+        'verify_url_to_copy': url,
+    }
+
+
 # ──────────────────────────────────────────────────────────────
 # Fixtures
 # ──────────────────────────────────────────────────────────────
@@ -97,6 +114,7 @@ BADGE_WITH_NAME = {
     'badge_code': 'BDABC1234567',
     'template_name': 'Certificación Python Avanzado',
     'verify_url': f'{ORIGIN}/verify/BDABC1234567',
+    'badge_image_url': f'{ORIGIN}/badges/BDABC1234567/image.png',
 }
 
 BADGE_NO_NAME = {
@@ -104,6 +122,7 @@ BADGE_NO_NAME = {
     'badge_code': 'BDXYZ9876543',
     'template_name': None,
     'verify_url': None,
+    'badge_image_url': None,
 }
 
 BADGE_CUSTOM_VERIFY = {
@@ -111,6 +130,7 @@ BADGE_CUSTOM_VERIFY = {
     'badge_code': 'BD0000000001',
     'template_name': 'Liderazgo Empresarial',
     'verify_url': 'https://custom-domain.com/verify/BD0000000001',
+    'badge_image_url': 'https://custom-domain.com/badges/BD0000000001/image.png',
 }
 
 
@@ -216,6 +236,35 @@ class TestFacebookSharing:
         assert 'https://custom-domain.com/verify/BD0000000001' in decoded
 
 
+class TestInstagramSharing:
+
+    def test_10f_instagram_opens_instagram(self):
+        """Instagram abre https://www.instagram.com/"""
+        info = build_instagram_share_info(BADGE_WITH_NAME)
+        assert info['instagram_url'] == 'https://www.instagram.com/'
+
+    def test_10g_instagram_download_filename(self):
+        """Instagram genera nombre de archivo con el nombre de la insignia."""
+        info = build_instagram_share_info(BADGE_WITH_NAME)
+        assert info['download_filename'] == 'insignia-Certificación Python Avanzado.png'
+
+    def test_10h_instagram_fallback_filename(self):
+        """Si no hay template_name, usa 'digital' como fallback en el nombre de archivo."""
+        info = build_instagram_share_info(BADGE_NO_NAME)
+        assert info['download_filename'] == 'insignia-digital.png'
+        assert 'None' not in info['download_filename']
+
+    def test_10i_instagram_verify_url_for_clipboard(self):
+        """Instagram incluye la URL de verificación para copiar al portapapeles."""
+        info = build_instagram_share_info(BADGE_WITH_NAME)
+        assert '/verify/BDABC1234567' in info['verify_url_to_copy']
+
+    def test_10j_instagram_custom_verify_url(self):
+        """Si badge tiene verify_url custom, Instagram lo usa."""
+        info = build_instagram_share_info(BADGE_CUSTOM_VERIFY)
+        assert 'https://custom-domain.com/verify/BD0000000001' in info['verify_url_to_copy']
+
+
 # ============================================================
 # PARTE B — getVerifyUrl
 # ============================================================
@@ -273,12 +322,14 @@ class TestShareUrlIntegrity:
         wa = urllib.parse.unquote(build_whatsapp_url(BADGE_CUSTOM_VERIFY))
         tw = urllib.parse.unquote(build_twitter_url(BADGE_CUSTOM_VERIFY))
         fb = urllib.parse.unquote(build_facebook_url(BADGE_CUSTOM_VERIFY))
+        ig = build_instagram_share_info(BADGE_CUSTOM_VERIFY)
         _, email_body = build_email_parts(BADGE_CUSTOM_VERIFY)
 
         custom_url = BADGE_CUSTOM_VERIFY['verify_url']
         assert custom_url in wa
         assert custom_url in tw
         assert custom_url in fb
+        assert custom_url in ig['verify_url_to_copy']
         assert custom_url in email_body
 
     def test_18_special_characters_in_badge_name(self):
