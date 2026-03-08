@@ -718,21 +718,27 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
-    // Copy verify URL to clipboard so user can paste it in their caption/story
+    const name = badge.template_name || 'Insignia Digital'
+    const text = `🏅 ¡He obtenido la insignia digital "${name}"!\n\nVerifica mi credencial: ${url}\n\n#OpenBadges #Credenciales`
+    let copied = false
     if (navigator.clipboard) {
-      await navigator.clipboard.writeText(url).catch(() => {})
+      try {
+        await navigator.clipboard.writeText(text)
+        copied = true
+      } catch { /* fallback below */ }
     }
-    // Download the badge image so user can upload it to Instagram
-    if (badge.badge_image_url) {
-      const link = document.createElement('a')
-      link.href = badge.badge_image_url
-      link.download = `insignia-${badge.template_name || 'digital'}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+    if (!copied) {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
     }
-    window.open('https://www.instagram.com/', '_blank', 'noopener')
-    alert('📸 La imagen de tu insignia se ha descargado y el enlace de verificación se copió al portapapeles. Súbela a Instagram y pega el enlace en tu descripción.')
+    alert('📋 Texto e enlace copiados al portapapeles.\n\nAbre Instagram, crea una nueva publicación o historia, y pega el texto en la descripción.')
   }
 
   if (badgesLoading) {

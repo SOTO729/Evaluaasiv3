@@ -95,14 +95,13 @@ def build_facebook_url(badge: dict) -> str:
 
 def build_instagram_share_info(badge: dict) -> dict:
     """Replica handleShareInstagram del frontend.
-    Retorna la info que se usaría: URL de Instagram, nombre de archivo, y verify URL."""
+    Retorna la info que se usaría: texto para copiar al portapapeles y verify URL."""
     url = get_verify_url(badge)
-    name = badge.get('template_name') or 'digital'
-    filename = f"insignia-{name}.png"
+    name = badge.get('template_name') or 'Insignia Digital'
+    text = f'\U0001f3c5 ¡He obtenido la insignia digital "{name}"!\n\nVerifica mi credencial: {url}\n\n#OpenBadges #Credenciales'
     return {
-        'instagram_url': 'https://www.instagram.com/',
-        'download_filename': filename,
-        'verify_url_to_copy': url,
+        'clipboard_text': text,
+        'verify_url': url,
     }
 
 
@@ -238,31 +237,32 @@ class TestFacebookSharing:
 
 class TestInstagramSharing:
 
-    def test_10f_instagram_opens_instagram(self):
-        """Instagram abre https://www.instagram.com/"""
+    def test_10f_instagram_clipboard_has_badge_name(self):
+        """Instagram copia texto con el nombre de la insignia."""
         info = build_instagram_share_info(BADGE_WITH_NAME)
-        assert info['instagram_url'] == 'https://www.instagram.com/'
+        assert 'Certificación Python Avanzado' in info['clipboard_text']
 
-    def test_10g_instagram_download_filename(self):
-        """Instagram genera nombre de archivo con el nombre de la insignia."""
+    def test_10g_instagram_clipboard_has_verify_url(self):
+        """Instagram copia texto con la URL de verificación."""
         info = build_instagram_share_info(BADGE_WITH_NAME)
-        assert info['download_filename'] == 'insignia-Certificación Python Avanzado.png'
+        assert '/verify/BDABC1234567' in info['clipboard_text']
 
-    def test_10h_instagram_fallback_filename(self):
-        """Si no hay template_name, usa 'digital' como fallback en el nombre de archivo."""
+    def test_10h_instagram_clipboard_has_hashtags(self):
+        """Instagram copia texto con hashtags."""
+        info = build_instagram_share_info(BADGE_WITH_NAME)
+        assert '#OpenBadges' in info['clipboard_text']
+        assert '#Credenciales' in info['clipboard_text']
+
+    def test_10i_instagram_fallback_name(self):
+        """Si no hay template_name, usa 'Insignia Digital' como fallback."""
         info = build_instagram_share_info(BADGE_NO_NAME)
-        assert info['download_filename'] == 'insignia-digital.png'
-        assert 'None' not in info['download_filename']
-
-    def test_10i_instagram_verify_url_for_clipboard(self):
-        """Instagram incluye la URL de verificación para copiar al portapapeles."""
-        info = build_instagram_share_info(BADGE_WITH_NAME)
-        assert '/verify/BDABC1234567' in info['verify_url_to_copy']
+        assert 'Insignia Digital' in info['clipboard_text']
+        assert 'None' not in info['clipboard_text']
 
     def test_10j_instagram_custom_verify_url(self):
         """Si badge tiene verify_url custom, Instagram lo usa."""
         info = build_instagram_share_info(BADGE_CUSTOM_VERIFY)
-        assert 'https://custom-domain.com/verify/BD0000000001' in info['verify_url_to_copy']
+        assert 'https://custom-domain.com/verify/BD0000000001' in info['clipboard_text']
 
 
 # ============================================================
@@ -329,7 +329,7 @@ class TestShareUrlIntegrity:
         assert custom_url in wa
         assert custom_url in tw
         assert custom_url in fb
-        assert custom_url in ig['verify_url_to_copy']
+        assert custom_url in ig['clipboard_text']
         assert custom_url in email_body
 
     def test_18_special_characters_in_badge_name(self):
