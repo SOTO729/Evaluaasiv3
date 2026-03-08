@@ -21,6 +21,59 @@ from app.models.badge import BadgeTemplate, IssuedBadge
 SWA_BASE = "https://app.evaluaasi.com"
 
 
+def _get_ed25519_private_key():
+    """Carga la clave privada Ed25519 desde config. Retorna None si no está configurada."""
+    from flask import current_app
+    pem = current_app.config.get('ED25519_PRIVATE_KEY_PEM', '')
+    if not pem:
+        return None
+    try:
+        # Handle escaped newlines from env vars
+        pem = pem.replace('\\n', '\n')
+        from cryptography.hazmat.primitives.serialization import load_pem_private_key
+        return load_pem_private_key(pem.encode(), password=None)
+    except Exception as e:
+        print(f'[BADGE] Error loading Ed25519 private key: {e}')
+        return None
+
+
+def sign_credential(credential: dict) -> dict:
+    """
+    Firma un OpenBadgeCredential con Ed25519 y agrega el campo `proof`
+    conforme a Data Integrity Ed25519Signature2020.
+
+    Si la clave privada no está configurada, retorna el credential sin firmar.
+    """
+    import base64
+    import hashlib
+    from flask import current_app
+
+    private_key = _get_ed25519_private_key()
+    if not private_key:
+        return credential
+
+    try:
+        # Canonical JSON serialization (sorted keys, no spaces)
+        canonical = json.dumps(credential, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
+        signature_bytes = private_key.sign(canonical.encode('utf-8'))
+        signature_b64 = base64.b64encode(signature_bytes).decode('ascii')
+
+        key_id = current_app.config.get('ED25519_KEY_ID', 'evaluaasi-ed25519-2026')
+        now = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        credential['proof'] = {
+            'type': 'Ed25519Signature2020',
+            'created': now,
+            'verificationMethod': f'{SWA_BASE}/api/badges/issuer#key-{key_id}',
+            'proofPurpose': 'assertionMethod',
+            'proofValue': signature_b64,
+        }
+        return credential
+    except Exception as e:
+        print(f'[BADGE] Error signing credential: {e}')
+        return credential
+
+
 def generate_badge_code():
     """Genera código único BD + 10 caracteres alfanuméricos"""
     chars = string.ascii_uppercase + string.digits
@@ -411,8 +464,9 @@ def issue_badge_for_result(result, user, exam, force=False):
         db.session.add(issued)
         db.session.flush()  # Get ID before building credential
 
-        # Build OB3 credential JSON-LD
+        # Build OB3 credential JSON-LD and sign with Ed25519
         credential = build_ob3_credential(issued, template, user, result)
+        credential = sign_credential(credential)
         issued.credential_json = json.dumps(credential, ensure_ascii=False)
 
         # Generate baked badge image (WebP)

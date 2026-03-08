@@ -40,6 +40,8 @@ interface VerificationData {
     ecm_logo_url?: string | null
     skills?: string | null
     criteria_narrative?: string | null
+    cryptographically_signed?: boolean
+    proof_type?: string
   }
 }
 
@@ -300,6 +302,19 @@ const VerifyPage = () => {
                     >
                       🔗 Ver Credencial Open Badges 3.0 (JSON-LD)
                     </a>
+                  </div>
+                )}
+
+                {/* Ed25519 cryptographic signature indicator */}
+                {data.badge.cryptographically_signed && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <svg className="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                      <span className="text-sm font-semibold text-emerald-700">Firma Criptográfica Verificada</span>
+                    </div>
+                    <p className="text-xs text-emerald-600">
+                      {data.badge.proof_type || 'Ed25519Signature2020'} — Esta credencial es verificable sin conexión al servidor emisor
+                    </p>
                   </div>
                 )}
               </>

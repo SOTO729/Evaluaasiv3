@@ -790,6 +790,14 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               </p>
             )}
 
+            {/* Ed25519 signature indicator */}
+            {(badge as any).is_signed && (
+              <div className="flex items-center justify-center fluid-gap-1 fluid-mb-2 relative z-10">
+                <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                <span className="fluid-text-xs text-emerald-600 font-medium">Firmada criptográficamente</span>
+              </div>
+            )}
+
             {/* Stats */}
             <div className="flex justify-center fluid-gap-4 fluid-mb-3 relative z-10">
               <span className="fluid-text-xs text-gray-400" title="Verificaciones">

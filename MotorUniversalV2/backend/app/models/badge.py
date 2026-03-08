@@ -121,10 +121,22 @@ class IssuedBadge(db.Model):
             'template_name': self.template.name if self.template else None,
             'verify_url': self.verify_url,
             'credential_url': self.credential_url,
+            'is_signed': self._has_proof(),
         }
         if include_credential:
             data['credential_json'] = self.credential_json
         return data
+
+    def _has_proof(self):
+        """Verifica si el credential_json contiene firma Ed25519."""
+        if not self.credential_json:
+            return False
+        try:
+            import json
+            cred = json.loads(self.credential_json)
+            return cred.get('proof', {}).get('type') == 'Ed25519Signature2020'
+        except Exception:
+            return False
 
     @property
     def verify_url(self):

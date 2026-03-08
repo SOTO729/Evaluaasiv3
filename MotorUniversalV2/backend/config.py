@@ -48,6 +48,11 @@ class Config:
     CACHE_REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     CACHE_DEFAULT_TIMEOUT = 300
     
+    # Ed25519 Signing (Open Badges 3.0 proof)
+    ED25519_PRIVATE_KEY_PEM = os.getenv('ED25519_PRIVATE_KEY_PEM', '')
+    ED25519_PUBLIC_KEY_PEM = os.getenv('ED25519_PUBLIC_KEY_PEM', '')
+    ED25519_KEY_ID = os.getenv('ED25519_KEY_ID', 'evaluaasi-ed25519-2026')
+
     # Azure Storage
     AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING', '')
     AZURE_STORAGE_CONTAINER = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')

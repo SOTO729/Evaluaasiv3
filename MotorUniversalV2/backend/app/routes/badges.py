@@ -413,14 +413,45 @@ def public_credential(badge_uuid):
 @bp.route('/issuer', methods=['GET'])
 def issuer_profile():
     """Perfil del emisor (Issuer) conforme a OB3"""
-    return jsonify({
+    import os, base64
+
+    key_id = os.getenv('ED25519_KEY_ID', 'evaluaasi-ed25519-2026')
+    pub_pem = os.getenv('ED25519_PUBLIC_KEY_PEM', '')
+
+    profile = {
         'id': request.url_root.rstrip('/') + '/api/badges/issuer',
         'type': ['Profile'],
         'name': 'Grupo Eduit',
         'url': 'https://www.grupoeduit.com',
         'description': 'Plataforma de evaluación y certificación de competencias laborales.',
         'email': 'soporte@evaluaasi.com',
-    })
+    }
+
+    # Expose Ed25519 public key for remote verification
+    if pub_pem:
+        try:
+            from cryptography.hazmat.primitives.serialization import load_pem_public_key
+            from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+            pub_pem_clean = pub_pem.replace('\\n', '\n')
+            pub_key = load_pem_public_key(pub_pem_clean.encode())
+            pub_raw = pub_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
+            pub_b64url = base64.urlsafe_b64encode(pub_raw).rstrip(b'=').decode()
+            profile['verificationMethod'] = [{
+                'id': f"{profile['id']}#key-{key_id}",
+                'type': 'Ed25519VerificationKey2020',
+                'controller': profile['id'],
+                'publicKeyJwk': {
+                    'kty': 'OKP',
+                    'crv': 'Ed25519',
+                    'x': pub_b64url,
+                },
+            }]
+        except Exception as e:
+            print(f'[BADGE] Error exposing public key: {e}', flush=True)
+    else:
+        print(f'[BADGE] No ED25519_PUBLIC_KEY_PEM env var found (length={len(pub_pem)})', flush=True)
+
+    return jsonify(profile)
 
 
 @bp.route('/verify/<code>', methods=['GET'])
@@ -482,6 +513,18 @@ def verify_badge(code):
             'skills': template.skills if template else None,
         }
     }
+
+    # Check if credential has cryptographic proof
+    if badge.credential_json:
+        try:
+            import json as _json
+            cred = _json.loads(badge.credential_json)
+            if 'proof' in cred and cred['proof'].get('type') == 'Ed25519Signature2020':
+                resp['badge']['cryptographically_signed'] = True
+                resp['badge']['proof_type'] = 'Ed25519Signature2020'
+        except Exception:
+            pass
+
     return jsonify(resp)
 
 
