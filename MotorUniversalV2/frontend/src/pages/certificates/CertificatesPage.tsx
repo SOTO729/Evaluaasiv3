@@ -702,25 +702,39 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
             style={{ animationDelay: `${index * 75}ms` }}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-primary-50/0 via-transparent to-primary-100/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-            
-            {/* Badge Image or Visual */}
-            <div className="relative mx-auto w-24 h-24 fluid-mb-4 z-10">
-              {badge.badge_image_url ? (
-                <img src={badge.badge_image_url} alt={badge.template_name || 'Insignia'} className="w-full h-full object-contain rounded-fluid-xl" />
-              ) : (
-                <>
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full" />
-                  <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
-                    <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center">
-                      <BadgeCheck className="fluid-icon-xl text-white" />
+
+            {/* Template Image — imagen de la plantilla de la insignia (snapshot inmutable) */}
+            {(badge as any).template_image_url ? (
+              <div className="relative mx-auto fluid-mb-4 z-10">
+                <div className="absolute -inset-2 bg-gradient-to-br from-primary-100 via-blue-50 to-primary-200 rounded-2xl opacity-0 group-hover:opacity-60 blur-md transition-opacity duration-500" />
+                <img
+                  src={(badge as any).template_image_url}
+                  alt={badge.template_name || 'Insignia'}
+                  className="relative w-full max-h-48 object-contain rounded-fluid-xl ring-1 ring-gray-100 group-hover:ring-primary-200 transition-all duration-300"
+                />
+                <div className="absolute -bottom-2 -right-2 w-7 h-7 bg-green-500 rounded-full flex items-center justify-center shadow-md ring-2 ring-white z-20">
+                  <BadgeCheck className="w-4 h-4 text-white" />
+                </div>
+              </div>
+            ) : (
+              <div className="relative mx-auto w-24 h-24 fluid-mb-4 z-10">
+                {badge.badge_image_url ? (
+                  <img src={badge.badge_image_url} alt={badge.template_name || 'Insignia'} className="w-full h-full object-contain rounded-fluid-xl" />
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full" />
+                    <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
+                      <div className="w-full h-full bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center">
+                        <BadgeCheck className="fluid-icon-xl text-white" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="absolute -top-1 -right-1 fluid-icon-sm bg-primary-400 rounded-full flex items-center justify-center shadow-md">
-                    <span className="text-white fluid-text-xs">★</span>
-                  </div>
-                </>
-              )}
-            </div>
+                    <div className="absolute -top-1 -right-1 fluid-icon-sm bg-primary-400 rounded-full flex items-center justify-center shadow-md">
+                      <span className="text-white fluid-text-xs">★</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <h3 className="font-bold text-gray-900 mb-1 relative z-10 group-hover:text-primary-700 transition-colors">
               {badge.template_name || 'Insignia Digital'}

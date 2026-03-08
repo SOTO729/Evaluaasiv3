@@ -376,10 +376,25 @@ def issue_badge_for_result(result, user, exam, force=False):
         if template.expiry_months:
             expires_at = now + relativedelta(months=template.expiry_months)
 
-        # Snapshot de la imagen del template al momento de emisión
-        display_image = (template.badge_image_url
-                         or template.issuer_image_url
-                         or (template.competency_standard.logo_url if template.competency_standard else None))
+        # Snapshot INMUTABLE de la imagen del template al momento de emisión
+        # Copiamos el blob a una ruta propia para que cambios futuros
+        # en la plantilla no afecten insignias ya emitidas.
+        source_image_url = (template.badge_image_url
+                            or template.issuer_image_url
+                            or (template.competency_standard.logo_url if template.competency_standard else None))
+        snapshot_image_url = source_image_url  # fallback: URL original
+        if source_image_url:
+            try:
+                from app.utils.azure_storage import AzureStorageService
+                _storage = AzureStorageService()
+                img_bytes = _storage.download_file(source_image_url)
+                if img_bytes:
+                    snap_blob = f"badge-snapshots/{badge_uuid}_template.webp"
+                    snap_url = _storage.upload_bytes(img_bytes, snap_blob, content_type='image/webp')
+                    if snap_url:
+                        snapshot_image_url = snap_url
+            except Exception as snap_err:
+                print(f"[BADGE] Snapshot copy failed, using original URL: {snap_err}")
 
         issued = IssuedBadge(
             badge_uuid=badge_uuid,
@@ -391,7 +406,7 @@ def issue_badge_for_result(result, user, exam, force=False):
             valid_from=now,
             expires_at=expires_at,
             status='active',
-            template_image_url=display_image,
+            template_image_url=snapshot_image_url,
         )
         db.session.add(issued)
         db.session.flush()  # Get ID before building credential
