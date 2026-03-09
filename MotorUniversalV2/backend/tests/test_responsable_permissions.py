@@ -386,6 +386,14 @@ class TestContext:
         }
         if campus_id:
             payload["campus_id"] = campus_id
+        # Responsable requires additional fields
+        if role == 'responsable':
+            payload["curp"] = f"TEST{uuid.uuid4().hex[:12].upper()}01"[:18]
+            payload["date_of_birth"] = "1990-01-15"
+            if not campus_id:
+                # For responsable without campus (N1/N2 tests), we still need
+                # campus_id for creation validation. We'll set it then remove via DB.
+                payload["campus_id"] = self.campus_a_id
         r = safe_request("POST", f"{self.api}/user-management/users",
                          headers=auth(self.admin_token), json=payload)
         if r is not None and r.status_code in (200, 201):
@@ -396,6 +404,15 @@ class TestContext:
             auto_username = user_data.get("username")
             if uid:
                 self.created_user_ids.append(uid)
+                # If we need a responsable without campus, remove campus_id via DB
+                if role == 'responsable' and not campus_id and self.conn:
+                    try:
+                        db_exec(self.conn,
+                            "UPDATE users SET campus_id=NULL WHERE id=%s", (uid,))
+                        self.conn.commit()
+                        log(f"Removed campus_id from responsable {uid}")
+                    except Exception as e:
+                        log(f"Error removing campus_id: {e}")
                 return uid, temp_pwd, auto_username
             else:
                 log(f"Create user response no ID: {data}")
@@ -405,17 +422,32 @@ class TestContext:
         return None, None, None
 
     def _create_campus(self, name):
+        curp_suffix = uuid.uuid4().hex[:8].upper()
+        payload = {
+            "name": name,
+            "cct": f"T{uuid.uuid4().hex[:7].upper()}",
+            "state_name": "Jalisco",
+            "director_name": "Test",
+            "director_first_surname": "Director",
+            "director_second_surname": "Campus",
+            "director_email": f"{name.lower()}@test.evaluaasi.com",
+            "director_phone": "3312345678",
+            "director_gender": "M",
+            "director_curp": f"DITE900115H{curp_suffix}"[:18],
+            "director_date_of_birth": "1990-01-15",
+        }
         r = safe_request("POST",
             f"{self.api}/partners/{self.partner_id}/campuses",
             headers=auth(self.admin_token),
-            json={"name": name, "cct": f"T{uuid.uuid4().hex[:7].upper()}"})
+            json=payload)
         if r is not None and r.status_code in (200, 201):
             data = get_json(r)
             cid = data.get("id") or data.get("campus", {}).get("id")
             if cid:
                 self.created_campus_ids.append(cid)
                 return cid
-        log(f"Create campus failed: {r.status_code if r is not None else 'N/A'}")
+        log(f"Create campus failed: {r.status_code if r is not None else 'N/A'} "
+            f"{r.text[:500] if r is not None else ''}")
         return None
 
     def _create_group(self, token, campus_id, name):
@@ -604,7 +636,7 @@ def test_user_management(ctx: TestContext):
 
     # U6. NO puede toggle-active
     print("\n  [U6] Toggle active")
-    r = safe_request("PATCH", f"{ctx.api}/user-management/users/{ctx.candidato_a_id}/toggle-active",
+    r = safe_request("POST", f"{ctx.api}/user-management/users/{ctx.candidato_a_id}/toggle-active",
                      headers=auth(ctx.resp_token))
     test("U6 NO puede toggle-active (403)",
          r is not None and r.status_code == 403,
