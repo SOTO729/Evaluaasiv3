@@ -141,7 +141,7 @@ export default function CampusFormPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
-    enable_candidate_certificates: false,
+    enable_candidate_certificates: true,
     require_exam_pin: false,
     enable_session_calendar: false,
     session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
