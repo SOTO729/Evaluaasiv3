@@ -586,7 +586,7 @@ const Layout = ({ children }: LayoutProps) => {
 
                   {/* Opciones del menú */}
                   <div className="fluid-py-2">
-                    {user?.role === 'candidato' && (
+                    {(user?.role === 'candidato' || user?.role === 'responsable') && (
                       <Link
                         to="/chat-soporte"
                         onClick={() => setIsDropdownOpen(false)}
@@ -651,7 +651,7 @@ const Layout = ({ children }: LayoutProps) => {
               </Link>
               {!isSupportRole && (
                 <>
-              {user?.role === 'candidato' && (
+              {(user?.role === 'candidato' || user?.role === 'responsable') && (
                 <Link
                   to="/chat-soporte"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

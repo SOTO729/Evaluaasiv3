@@ -131,7 +131,7 @@ def chat_user_required(func_handler):
         user = db.session.get(User, user_id)
         if not user or not user.is_active:
             return jsonify({"error": "No autorizado"}), 401
-        if user.role not in SUPPORT_ROLES and user.role != "candidato":
+        if user.role not in SUPPORT_ROLES and user.role not in ("candidato", "responsable"):
             return jsonify({"error": "Rol no permitido para chat"}), 403
         g.current_user = user
         return func_handler(*args, **kwargs)
@@ -164,7 +164,7 @@ def create_conversation():
         candidate_user_id = current_user.id
 
     candidate = db.session.get(User, candidate_user_id)
-    if not candidate or candidate.role != "candidato":
+    if not candidate or candidate.role not in ("candidato", "responsable"):
         return jsonify({"error": "candidate_user_id inválido"}), 400
 
     assigned_support_user_id = data.get("assigned_support_user_id")
