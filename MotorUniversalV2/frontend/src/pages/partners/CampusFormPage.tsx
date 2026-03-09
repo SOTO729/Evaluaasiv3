@@ -232,7 +232,7 @@ export default function CampusFormPage() {
           assignment_validity_months: campus.assignment_validity_months || 12,
           certification_cost: campus.certification_cost || 0,
           retake_cost: campus.retake_cost || 0,
-          max_retakes: (campus as any).max_retakes ?? 0,
+          max_retakes: campus.max_retakes ?? 0,
         });
         
         // Cargar ECMs disponibles y asignados

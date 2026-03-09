@@ -25,6 +25,12 @@ ACCESO A PARTNERS/CAMPUS:
   P1. Puede acceder a su campus
   P2. NO puede acceder a campus de otro plantel (403)
 
+BLOQUEO DE CONFIGURACIÓN DE CAMPUS:
+  C1. NO puede editar campus (PUT update_campus → 403)
+  C2. NO puede configurar campus (POST configure_campus → 403)
+  C3. NO puede activar campus (POST activate_campus → 403)
+  C4. NO puede actualizar ECMs (PUT update_campus_competency_standards → 403)
+
 RESPONSABLE SIN CAMPUS:
   N1. Responsable sin campus_id recibe 403 en user-management
   N2. Responsable sin campus_id recibe 403 en partners
@@ -757,6 +763,51 @@ def test_campus_access(ctx: TestContext):
 
 
 # ══════════════════════════════════════════════════════════
+#  TESTS — BLOQUEO CONFIG CAMPUS (C1-C4)
+# ══════════════════════════════════════════════════════════
+
+def test_campus_config_blocked(ctx: TestContext):
+    print(f"\n{'─'*60}")
+    print(f"  BLOQUEO DE CONFIG CAMPUS — {ctx.env_name.upper()}")
+    print(f"{'─'*60}")
+
+    # C1. NO puede editar campus (PUT)
+    print("\n  [C1] Editar campus (PUT update_campus)")
+    r = safe_request("PUT", f"{ctx.api}/partners/campuses/{ctx.campus_a_id}",
+                     headers=auth(ctx.resp_token),
+                     json={"name": "NuevoNombre"})
+    test("C1 NO puede editar campus (403)",
+         r is not None and r.status_code == 403,
+         f"Status: {r.status_code if r is not None else 'N/A'}")
+
+    # C2. NO puede configurar campus (POST)
+    print("\n  [C2] Configurar campus (POST configure_campus)")
+    r = safe_request("POST", f"{ctx.api}/partners/campuses/{ctx.campus_a_id}/configure",
+                     headers=auth(ctx.resp_token),
+                     json={"enable_partial_evaluations": True})
+    test("C2 NO puede configurar campus (403)",
+         r is not None and r.status_code == 403,
+         f"Status: {r.status_code if r is not None else 'N/A'}")
+
+    # C3. NO puede activar campus (POST)
+    print("\n  [C3] Activar campus (POST activate_campus)")
+    r = safe_request("POST", f"{ctx.api}/partners/campuses/{ctx.campus_a_id}/activate",
+                     headers=auth(ctx.resp_token))
+    test("C3 NO puede activar/desactivar campus (403)",
+         r is not None and r.status_code == 403,
+         f"Status: {r.status_code if r is not None else 'N/A'}")
+
+    # C4. NO puede actualizar ECMs del campus (PUT)
+    print("\n  [C4] Actualizar ECMs (PUT competency-standards)")
+    r = safe_request("PUT", f"{ctx.api}/partners/campuses/{ctx.campus_a_id}/competency-standards",
+                     headers=auth(ctx.resp_token),
+                     json={"competency_standard_ids": []})
+    test("C4 NO puede actualizar ECMs del campus (403)",
+         r is not None and r.status_code == 403,
+         f"Status: {r.status_code if r is not None else 'N/A'}")
+
+
+# ══════════════════════════════════════════════════════════
 #     TESTS — RESPONSABLE SIN CAMPUS (N1-N2)
 # ══════════════════════════════════════════════════════════
 
@@ -803,6 +854,7 @@ def run_env(env_name):
         test_user_management(ctx)
         test_groups(ctx)
         test_campus_access(ctx)
+        test_campus_config_blocked(ctx)
         test_no_campus(ctx)
 
     finally:
