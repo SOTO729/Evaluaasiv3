@@ -28,6 +28,7 @@ import {
   Target,
   ChevronDown,
   ChevronUp,
+  Settings,
 } from 'lucide-react'
 
 interface GroupInfo {
@@ -63,6 +64,40 @@ interface UserProfile {
   subsystem_id?: number
   pending_email?: string
   group_info?: GroupInfo | null
+  can_bulk_create_candidates?: boolean
+  can_manage_groups?: boolean
+  can_view_reports?: boolean
+  campus_info?: {
+    id: number
+    name: string
+    code: string
+    state_name?: string
+    city?: string
+    activation_status: string
+    is_active: boolean
+    office_version: string
+    enable_tier_basic: boolean
+    enable_tier_standard: boolean
+    enable_tier_advanced: boolean
+    enable_digital_badge: boolean
+    enable_partial_evaluations: boolean
+    enable_unscheduled_partials: boolean
+    enable_virtual_machines: boolean
+    enable_online_payments: boolean
+    enable_candidate_certificates: boolean
+    require_exam_pin: boolean
+    enable_session_calendar: boolean
+    session_scheduling_mode: string
+    assignment_validity_months: number
+    max_retakes: number
+  } | null
+  partner_info?: {
+    id: number
+    name: string
+    legal_name?: string
+    country: string
+    is_active: boolean
+  } | null
 }
 
 interface AssignmentConfig {
@@ -351,6 +386,7 @@ const ProfilePage = () => {
       editor_invitado: { label: 'Editor Invitado', color: 'bg-teal-500' },
       soporte: { label: 'Soporte', color: 'bg-purple-500' },
       candidato: { label: 'Candidato', color: 'bg-green-500' },
+      responsable: { label: 'Responsable', color: 'bg-cyan-500' },
       auxiliar: { label: 'Auxiliar', color: 'bg-amber-500' }
     }
     return roles[role] || { label: role, color: 'bg-gray-500' }
@@ -669,6 +705,146 @@ const ProfilePage = () => {
               </div>
             </div>
           </div>
+
+          {/* Permisos del Responsable */}
+          {profile?.role === 'responsable' && (profile?.campus_info || profile?.partner_info) && (
+            <div className="bg-white rounded-fluid-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden lg:col-span-2">
+              <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 bg-gradient-to-r from-teal-50 to-transparent">
+                <div className="flex items-center fluid-gap-3">
+                  <div className="w-9 h-9 rounded-fluid-md bg-teal-100 flex items-center justify-center">
+                    <Settings className="fluid-icon-sm text-teal-600" />
+                  </div>
+                  <div>
+                    <h2 className="fluid-text-base font-semibold text-gray-900">Permisos y Configuración</h2>
+                    <p className="fluid-text-xs text-gray-500">Permisos asignados a tu cuenta, partner y plantel</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="fluid-p-5 flex flex-col fluid-gap-6">
+                {/* Info Partner */}
+                {profile.partner_info && (
+                  <div>
+                    <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3 flex items-center fluid-gap-2">
+                      <Building2 className="w-4 h-4 text-blue-500" />
+                      Partner: {profile.partner_info.name}
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 fluid-gap-3">
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">Razón Social</p>
+                        <p className="fluid-text-sm text-gray-800 font-medium">{profile.partner_info.legal_name || '-'}</p>
+                      </div>
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">País</p>
+                        <p className="fluid-text-sm text-gray-800 font-medium">{profile.partner_info.country}</p>
+                      </div>
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">Estado</p>
+                        <span className={`inline-flex fluid-px-2 fluid-py-0.5 fluid-text-xs font-medium rounded-full ${
+                          profile.partner_info.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>{profile.partner_info.is_active ? 'Activo' : 'Inactivo'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Info Plantel */}
+                {profile.campus_info && (
+                  <div>
+                    <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-3 flex items-center fluid-gap-2">
+                      <MapPin className="w-4 h-4 text-green-500" />
+                      Plantel: {profile.campus_info.name}
+                      <span className="fluid-text-xs font-normal text-gray-400">({profile.campus_info.code})</span>
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 fluid-gap-3 fluid-mb-4">
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">Ubicación</p>
+                        <p className="fluid-text-sm text-gray-800 font-medium">
+                          {[profile.campus_info.city, profile.campus_info.state_name].filter(Boolean).join(', ') || '-'}
+                        </p>
+                      </div>
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">Estado</p>
+                        <span className={`inline-flex fluid-px-2 fluid-py-0.5 fluid-text-xs font-medium rounded-full ${
+                          profile.campus_info.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>{profile.campus_info.is_active ? 'Activo' : 'Inactivo'}</span>
+                      </div>
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">Versión Office</p>
+                        <p className="fluid-text-sm text-gray-800 font-medium">
+                          {profile.campus_info.office_version === 'office_365' ? 'Office 365' : profile.campus_info.office_version === 'office_2019' ? 'Office 2019' : 'Office 2016'}
+                        </p>
+                      </div>
+                      <div className="fluid-p-3 rounded-fluid-md bg-gray-50 border border-gray-100">
+                        <p className="fluid-text-xs text-gray-500 font-medium">Vigencia Asignación</p>
+                        <p className="fluid-text-sm text-gray-800 font-medium">{profile.campus_info.assignment_validity_months} meses</p>
+                      </div>
+                    </div>
+
+                    {/* Funcionalidades del plantel */}
+                    <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wide fluid-mb-2">Funcionalidades del Plantel</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 fluid-gap-2">
+                      {[
+                        { label: 'Constancia Eduit', enabled: profile.campus_info.enable_tier_basic },
+                        { label: 'Certificado Eduit', enabled: profile.campus_info.enable_tier_standard },
+                        { label: 'Certificado CONOCER', enabled: profile.campus_info.enable_tier_advanced },
+                        { label: 'Insignia Digital', enabled: profile.campus_info.enable_digital_badge },
+                        { label: 'Evaluaciones Parciales', enabled: profile.campus_info.enable_partial_evaluations },
+                        { label: 'Parciales sin Agendar', enabled: profile.campus_info.enable_unscheduled_partials },
+                        { label: 'Máquinas Virtuales', enabled: profile.campus_info.enable_virtual_machines },
+                        { label: 'Pagos en Línea', enabled: profile.campus_info.enable_online_payments },
+                        { label: 'Certificados Candidato', enabled: profile.campus_info.enable_candidate_certificates },
+                        { label: 'PIN de Examen', enabled: profile.campus_info.require_exam_pin },
+                        { label: 'Calendario Sesiones', enabled: profile.campus_info.enable_session_calendar },
+                      ].map((feat) => (
+                        <div key={feat.label} className={`flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 rounded-fluid-md border fluid-text-xs font-medium ${
+                          feat.enabled
+                            ? 'bg-green-50 border-green-200 text-green-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-400'
+                        }`}>
+                          {feat.enabled
+                            ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                            : <X className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                          }
+                          {feat.label}
+                        </div>
+                      ))}
+                      {profile.campus_info.max_retakes > 0 && (
+                        <div className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 rounded-fluid-md border bg-blue-50 border-blue-200 text-blue-700 fluid-text-xs font-medium">
+                          <Target className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                          Máx. Retomas: {profile.campus_info.max_retakes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Permisos del usuario responsable */}
+                <div>
+                  <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wide fluid-mb-2">Tus Permisos como Responsable</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 fluid-gap-2">
+                    {[
+                      { label: 'Altas masivas de candidatos', enabled: !!profile.can_bulk_create_candidates },
+                      { label: 'Gestión de grupos', enabled: !!profile.can_manage_groups },
+                      { label: 'Ver reportes', enabled: !!profile.can_view_reports },
+                    ].map((perm) => (
+                      <div key={perm.label} className={`flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 rounded-fluid-md border fluid-text-xs font-medium ${
+                        perm.enabled
+                          ? 'bg-green-50 border-green-200 text-green-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-400'
+                      }`}>
+                        {perm.enabled
+                          ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
+                          : <X className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                        }
+                        {perm.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Información del Grupo - Solo para candidatos y responsables */}
           {(profile?.role === 'candidato' || profile?.role === 'responsable') && (

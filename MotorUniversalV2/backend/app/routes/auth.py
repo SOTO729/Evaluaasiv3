@@ -13,7 +13,7 @@ from flask_jwt_extended import (
 from sqlalchemy import func
 from app import db, cache
 from app.models.user import User
-from app.models.partner import GroupMember, GroupExam, GroupExamMember, CandidateGroup, Campus
+from app.models.partner import GroupMember, GroupExam, GroupExamMember, CandidateGroup, Campus, Partner
 from app.models.result import Result
 from app.models.exam import Exam
 from sqlalchemy import and_
@@ -329,6 +329,44 @@ def get_current_user():
         else:
             user_data['group_info'] = None
     
+    # Si es responsable, incluir info de campus y partner con permisos
+    if user.role == 'responsable' and user.campus_id:
+        campus = Campus.query.get(user.campus_id)
+        if campus:
+            partner = Partner.query.get(campus.partner_id)
+            user_data['campus_info'] = {
+                'id': campus.id,
+                'name': campus.name,
+                'code': campus.code,
+                'state_name': campus.state_name,
+                'city': campus.city,
+                'activation_status': campus.activation_status,
+                'is_active': campus.is_active,
+                'office_version': campus.office_version or 'office_365',
+                'enable_tier_basic': bool(campus.enable_tier_basic),
+                'enable_tier_standard': bool(campus.enable_tier_standard),
+                'enable_tier_advanced': bool(campus.enable_tier_advanced),
+                'enable_digital_badge': bool(campus.enable_digital_badge),
+                'enable_partial_evaluations': bool(campus.enable_partial_evaluations),
+                'enable_unscheduled_partials': bool(campus.enable_unscheduled_partials),
+                'enable_virtual_machines': bool(campus.enable_virtual_machines),
+                'enable_online_payments': bool(campus.enable_online_payments),
+                'enable_candidate_certificates': bool(campus.enable_candidate_certificates),
+                'require_exam_pin': bool(campus.require_exam_pin),
+                'enable_session_calendar': bool(campus.enable_session_calendar),
+                'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
+                'assignment_validity_months': campus.assignment_validity_months or 12,
+                'max_retakes': campus.max_retakes or 0,
+            }
+            if partner:
+                user_data['partner_info'] = {
+                    'id': partner.id,
+                    'name': partner.name,
+                    'legal_name': partner.legal_name,
+                    'country': partner.country or 'México',
+                    'is_active': partner.is_active,
+                }
+
     return jsonify(user_data), 200
 
 
