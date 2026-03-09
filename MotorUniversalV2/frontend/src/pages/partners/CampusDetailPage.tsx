@@ -45,6 +45,7 @@ import {
   getCampus,
   getSchoolCycles,
   createSchoolCycle,
+  createMiPlantelCycle,
   permanentDeleteCampus,
   permanentDeleteCycle,
   getCampusCompetencyStandards,
@@ -296,7 +297,9 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       setIsCreatingCycle(true);
       setCycleFormError(null);
       const cycleData = { ...newCycleForm, name: cycleName };
-      const newCycle = await createSchoolCycle(Number(campusId), cycleData);
+      const newCycle = isResponsable
+        ? await createMiPlantelCycle(cycleData)
+        : await createSchoolCycle(Number(campusId), cycleData);
       setCycles(prev => [newCycle, ...prev]);
       setSelectedCycleId(newCycle.id);
       setCreatedCycleName(cycleName);
@@ -1004,7 +1007,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                         </button>
                       )}
                     </div>
-                    {!isResponsable && (
+                    {(!isResponsable || user?.can_manage_groups) && (
                       <button
                         onClick={() => setShowNewCycleModal(true)}
                         className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
@@ -1045,8 +1048,8 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                         {filteredCycles.map((cycle) => (
                       <div
                         key={cycle.id}
-                        onClick={() => !isResponsable && navigate(`/partners/cycles/${cycle.id}`)}
-                        className={`fluid-p-4 ${!isResponsable ? 'cursor-pointer' : ''} transition-all duration-200 hover:bg-blue-50 border-l-4 border-transparent hover:border-blue-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
+                        onClick={() => navigate(isResponsable ? `/mi-plantel/ciclos/${cycle.id}` : `/partners/cycles/${cycle.id}`)}
+                        className={`fluid-p-4 cursor-pointer transition-all duration-200 hover:bg-blue-50 border-l-4 border-transparent hover:border-blue-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">

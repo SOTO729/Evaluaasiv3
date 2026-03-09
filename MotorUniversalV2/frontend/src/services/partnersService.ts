@@ -2364,6 +2364,33 @@ export async function exportMiPlantelEvaluations(params?: {
 }
 
 /**
+ * Obtener ciclos escolares del plantel del responsable
+ */
+export async function getMiPlantelCycles(params?: { active_only?: boolean }): Promise<{ cycles: SchoolCycle[]; total: number }> {
+  const response = await api.get('/partners/mi-plantel/cycles', { params: { active_only: params?.active_only ?? true } });
+  return response.data;
+}
+
+/**
+ * Obtener detalle de un ciclo escolar del plantel del responsable
+ */
+export async function getMiPlantelCycleDetail(cycleId: number): Promise<SchoolCycle> {
+  const response = await api.get(`/partners/mi-plantel/cycles/${cycleId}`);
+  return response.data.cycle;
+}
+
+/**
+ * Crear un ciclo escolar en el plantel del responsable (requiere can_manage_groups)
+ */
+export async function createMiPlantelCycle(data: {
+  name: string; cycle_type: 'annual' | 'semester';
+  start_date: string; end_date: string; is_current?: boolean;
+}): Promise<SchoolCycle> {
+  const response = await api.post('/partners/mi-plantel/cycles', data);
+  return response.data.cycle;
+}
+
+/**
  * Obtener grupos del plantel del responsable
  */
 export async function getMiPlantelGroups(): Promise<{ groups: CandidateGroup[] }> {
@@ -2423,7 +2450,7 @@ export async function updateMiPlantelCampus(data: {
  * Crear un nuevo grupo en el plantel del responsable
  */
 export async function createMiPlantelGroup(data: {
-  name: string; description?: string;
+  name: string; description?: string; school_cycle_id?: number; start_date?: string; end_date?: string;
 }): Promise<any> {
   const response = await api.post('/partners/mi-plantel/groups', data);
   return response.data;

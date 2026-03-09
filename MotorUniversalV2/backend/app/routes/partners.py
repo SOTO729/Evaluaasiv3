@@ -10090,6 +10090,120 @@ def export_mi_plantel_evaluations():
         return jsonify({'error': str(e)}), 500
 
 
+# ============== MI-PLANTEL: CICLOS ESCOLARES ==============
+
+@bp.route('/mi-plantel/cycles', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_cycles():
+    """Listar ciclos escolares del plantel del responsable"""
+    try:
+        user = g.current_user
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+
+        active_only = request.args.get('active_only', 'true').lower() == 'true'
+
+        query = campus.school_cycles
+        if active_only:
+            query = query.filter_by(is_active=True)
+
+        cycles = query.order_by(SchoolCycle.start_date.desc()).all()
+
+        return jsonify({
+            'cycles': [c.to_dict(include_groups=True) for c in cycles],
+            'total': len(cycles)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/cycles/<int:cycle_id>', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_cycle_detail(cycle_id):
+    """Obtener detalle de un ciclo escolar del plantel"""
+    try:
+        user = g.current_user
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+
+        cycle = SchoolCycle.query.get(cycle_id)
+        if not cycle or cycle.campus_id != campus.id:
+            return jsonify({'error': 'Ciclo escolar no encontrado en tu plantel'}), 404
+
+        return jsonify({
+            'cycle': cycle.to_dict(include_groups=True, include_campus=True)
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/cycles', methods=['POST'])
+@jwt_required()
+@responsable_required
+def create_mi_plantel_cycle():
+    """Crear ciclo escolar en el plantel (requiere can_manage_groups)"""
+    try:
+        user = g.current_user
+        if not user.can_manage_groups:
+            return jsonify({'error': 'No tienes permisos para gestionar grupos y ciclos'}), 403
+
+        campus, err = _validate_responsable_campus(user)
+        if err:
+            return err
+
+        if not campus.is_active:
+            return jsonify({'error': 'No se pueden crear ciclos en un plantel inactivo'}), 400
+
+        data = request.get_json()
+        if not data.get('name'):
+            return jsonify({'error': 'El nombre del ciclo es requerido'}), 400
+        if not data.get('cycle_type') or data['cycle_type'] not in ['annual', 'semester']:
+            return jsonify({'error': 'El tipo de ciclo debe ser "annual" o "semester"'}), 400
+        if not data.get('start_date') or not data.get('end_date'):
+            return jsonify({'error': 'Las fechas de inicio y fin son requeridas'}), 400
+
+        from datetime import datetime as dt
+        start_date = dt.strptime(data['start_date'], '%Y-%m-%d').date()
+        end_date = dt.strptime(data['end_date'], '%Y-%m-%d').date()
+
+        if end_date <= start_date:
+            return jsonify({'error': 'La fecha de fin debe ser posterior a la fecha de inicio'}), 400
+
+        if data.get('is_current', False):
+            campus.school_cycles.filter_by(is_current=True).update({'is_current': False})
+
+        cycle = SchoolCycle(
+            campus_id=campus.id,
+            name=data['name'],
+            cycle_type=data['cycle_type'],
+            start_date=start_date,
+            end_date=end_date,
+            is_current=data.get('is_current', False)
+        )
+        db.session.add(cycle)
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Ciclo escolar creado exitosamente',
+            'cycle': cycle.to_dict()
+        }), 201
+    except ValueError as ve:
+        return jsonify({'error': f'Formato de fecha inválido: {str(ve)}'}), 400
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/mi-plantel/groups', methods=['GET'])
 @jwt_required()
 @responsable_required

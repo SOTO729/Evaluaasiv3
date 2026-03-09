@@ -166,6 +166,8 @@ const ConocerContactsPage = lazy(() => import('./pages/partners/ConocerContactsP
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
 const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
 const MiPlantelGrupoDetailPage = lazy(() => import('./pages/responsable/MiPlantelGrupoDetailPage'))
+const MiPlantelCicloDetailPage = lazy(() => import('./pages/responsable/MiPlantelCicloDetailPage'))
+const MiPlantelGrupoNuevoPage = lazy(() => import('./pages/responsable/MiPlantelGrupoNuevoPage'))
 
 // Responsable de Partner
 const ResponsablePartnerDashboard = lazy(() => import('./pages/responsable_partner/ResponsablePartnerDashboard'))
@@ -402,6 +404,8 @@ function App() {
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
               <Route path="/mi-plantel/reportes" element={<MiPlantelReportesPage />} />
+              <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
+              <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />
               <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />
               
               {/* Responsable de Partner */}
