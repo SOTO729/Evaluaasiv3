@@ -611,7 +611,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
-    const text = `🎓 ¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${url}`
+    const text = `¡He obtenido la insignia digital "${name}" en Evaluaasi!\n\nEsta credencial valida mis competencias y habilidades profesionales. Puedes verificar su autenticidad aquí:\n\n${url}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
   }
 
