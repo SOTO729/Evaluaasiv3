@@ -58,12 +58,18 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { getCampusBalanceSummary, CampusBalanceSummary } from '../../services/balanceService';
 
-export default function CampusDetailPage() {
-  const { campusId } = useParams();
+interface CampusDetailPageProps {
+  campusIdProp?: number;
+  isResponsable?: boolean;
+}
+
+export default function CampusDetailPage({ campusIdProp, isResponsable }: CampusDetailPageProps = {}) {
+  const params = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin';
+  const campusId = campusIdProp ?? params.campusId;
   
   // Modal de cambios guardados (viene de CampusFormPage)
   const [showSavedModal, setShowSavedModal] = useState(false);
@@ -407,7 +413,7 @@ export default function CampusDetailPage() {
             <p className="fluid-text-lg font-semibold text-red-800">Error</p>
             <p className="fluid-text-base text-red-700">{error || 'Plantel no encontrado'}</p>
           </div>
-          <Link to="/partners" className="fluid-px-4 fluid-py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-fluid-xl fluid-text-base font-medium transition-colors">
+          <Link to={isResponsable ? '/' : '/partners'} className="fluid-px-4 fluid-py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-fluid-xl fluid-text-base font-medium transition-colors">
             Volver
           </Link>
         </div>
@@ -427,28 +433,34 @@ export default function CampusDetailPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb 
-        items={[
-          { label: campus.partner?.name || 'Partner', path: `/partners/${campus.partner_id}` },
-          { label: campus.name }
-        ]} 
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb 
+          items={[
+            { label: campus.partner?.name || 'Partner', path: `/partners/${campus.partner_id}` },
+            { label: campus.name }
+          ]} 
+        />
+      )}
       
       {/* Header con Gradiente */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg">
         <div className="flex items-center fluid-gap-5 flex-wrap">
-          <Link
-            to={`/partners/${campus.partner_id}`}
-            className="fluid-p-3 bg-white/20 hover:bg-white/30 rounded-fluid-xl transition-all duration-300 hover:scale-105"
-          >
-            <ArrowLeft className="fluid-icon-lg text-white" />
-          </Link>
+          {!isResponsable && (
+            <Link
+              to={`/partners/${campus.partner_id}`}
+              className="fluid-p-3 bg-white/20 hover:bg-white/30 rounded-fluid-xl transition-all duration-300 hover:scale-105"
+            >
+              <ArrowLeft className="fluid-icon-lg text-white" />
+            </Link>
+          )}
           
           <div className="flex-1 min-w-0">
-            <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
-              <Building2 className="fluid-icon-sm" />
-              <Link to={`/partners/${campus.partner_id}`} className="hover:text-white transition-colors">{campus.partner?.name}</Link>
-            </div>
+            {!isResponsable && (
+              <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
+                <Building2 className="fluid-icon-sm" />
+                <Link to={`/partners/${campus.partner_id}`} className="hover:text-white transition-colors">{campus.partner?.name}</Link>
+              </div>
+            )}
             <div className="flex items-center fluid-gap-3 flex-wrap">
               <h1 className="fluid-text-3xl font-bold text-white flex items-center fluid-gap-3">
                 <MapPin className="fluid-icon-xl" />
@@ -480,13 +492,15 @@ export default function CampusDetailPage() {
               {exportingReport ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-base" />}
               <span className="hidden sm:inline">Reporte del Plantel</span>
             </button>
-            <Link
-              to={`/partners/campuses/${campusId}/edit`}
-              className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
-            >
-              <Edit className="fluid-icon-base" />
-              Editar
-            </Link>
+            {!isResponsable && (
+              <Link
+                to={`/partners/campuses/${campusId}/edit`}
+                className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                <Edit className="fluid-icon-base" />
+                Editar
+              </Link>
+            )}
             {!campus.is_active && campus.configuration_completed && (
               <button
                 onClick={handleReactivateCampus}
@@ -542,12 +556,14 @@ export default function CampusDetailPage() {
               <p className="fluid-text-base text-gray-600">Completa el proceso de activación para gestionar ciclos escolares, grupos y exámenes.</p>
             </div>
           </div>
-          <Link
-            to={`/partners/campuses/${campus.id}/activate`}
-            className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl font-semibold fluid-text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-          >
-            <Zap className="fluid-icon-lg" />Iniciar Activación
-          </Link>
+          {!isResponsable && (
+            <Link
+              to={`/partners/campuses/${campus.id}/activate`}
+              className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl font-semibold fluid-text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+            >
+              <Zap className="fluid-icon-lg" />Iniciar Activación
+            </Link>
+          )}
         </div>
       )}
 
@@ -880,9 +896,11 @@ export default function CampusDetailPage() {
             <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-xl fluid-p-6 text-center border border-amber-200">
               <AlertCircle className="fluid-icon-xl text-amber-400 mx-auto fluid-mb-4" />
               <p className="fluid-text-sm font-bold text-amber-800">Sin responsable asignado</p>
-              <Link to={`/partners/campuses/${campus.id}/assign-responsable`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-4 font-semibold hover:underline">
-                <Plus className="fluid-icon-sm" />Asignar responsable
-              </Link>
+              {!isResponsable && (
+                <Link to={`/partners/campuses/${campus.id}/assign-responsable`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-4 font-semibold hover:underline">
+                  <Plus className="fluid-icon-sm" />Asignar responsable
+                </Link>
+              )}
             </div>
           )}
           {campus.activated_at && (
@@ -992,12 +1010,14 @@ export default function CampusDetailPage() {
                         </button>
                       )}
                     </div>
-                    <button
-                      onClick={() => setShowNewCycleModal(true)}
-                      className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
-                    >
-                      <Plus className="fluid-icon-sm" />Nuevo
-                    </button>
+                    {!isResponsable && (
+                      <button
+                        onClick={() => setShowNewCycleModal(true)}
+                        className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                      >
+                        <Plus className="fluid-icon-sm" />Nuevo
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1031,8 +1051,8 @@ export default function CampusDetailPage() {
                         {filteredCycles.map((cycle) => (
                       <div
                         key={cycle.id}
-                        onClick={() => navigate(`/partners/cycles/${cycle.id}`)}
-                        className={`fluid-p-4 cursor-pointer transition-all duration-200 hover:bg-blue-50 border-l-4 border-transparent hover:border-blue-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
+                        onClick={() => !isResponsable && navigate(`/partners/cycles/${cycle.id}`)}
+                        className={`fluid-p-4 ${!isResponsable ? 'cursor-pointer' : ''} transition-all duration-200 hover:bg-blue-50 border-l-4 border-transparent hover:border-blue-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
@@ -1264,12 +1284,14 @@ export default function CampusDetailPage() {
               </p>
               <p className="fluid-text-sm text-gray-500 fluid-mb-6">Ya puedes agregar grupos a este ciclo escolar.</p>
               <div className="flex flex-col fluid-gap-3">
-                <Link
-                  to={`/partners/campuses/${campusId}/groups/new?cycleId=${selectedCycleId}`}
-                  className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center fluid-gap-2"
-                >
-                  <Plus className="fluid-icon-sm" />Crear Primer Grupo
-                </Link>
+                {!isResponsable && (
+                  <Link
+                    to={`/partners/campuses/${campusId}/groups/new?cycleId=${selectedCycleId}`}
+                    className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center fluid-gap-2"
+                  >
+                    <Plus className="fluid-icon-sm" />Crear Primer Grupo
+                  </Link>
+                )}
                 <button
                   onClick={() => setShowCycleSuccessModal(false)}
                   className="fluid-px-6 fluid-py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-fluid-xl transition-all fluid-text-sm font-bold"
