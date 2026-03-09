@@ -246,7 +246,7 @@ def list_conversations():
             conversation_id=conv.id,
             user_id=current_user.id,
         ).first()
-        last_message = conv.messages.order_by(SupportMessage.id.desc()).first()
+        last_message = conv.messages.first()
         unread = _unread_count(conv.id, current_user.id, participant.last_read_at if participant else None)
 
         items.append(
