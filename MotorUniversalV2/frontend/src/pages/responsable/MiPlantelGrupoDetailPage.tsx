@@ -7,11 +7,12 @@ import { useParams, Link } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import {
   getMiPlantelGroupDetail, getMiPlantelGroupMembers, getMiPlantelGroupExams,
-  addMiPlantelGroupMember, removeMiPlantelGroupMember, searchMiPlantelCandidates
+  addMiPlantelGroupMember, removeMiPlantelGroupMember, searchMiPlantelCandidates,
+  exportGroupMembersToExcel, exportGroupCertifications
 } from '../../services/partnersService'
 import {
   Users, ArrowLeft, GraduationCap, FileText, Plus, Trash2,
-  Search, BookOpen, Calendar, CheckCircle2, XCircle
+  Search, BookOpen, Calendar, CheckCircle2, XCircle, Download
 } from 'lucide-react'
 
 interface Member {
@@ -46,7 +47,12 @@ const MiPlantelGrupoDetailPage = () => {
   const [addingMember, setAddingMember] = useState(false)
 
   const canManage = user?.can_manage_groups || false
+  const canViewReports = user?.can_view_reports || false
   const gid = parseInt(groupId || '0')
+  
+  // Export state
+  const [exportingMembers, setExportingMembers] = useState(false)
+  const [exportingCerts, setExportingCerts] = useState(false)
 
   useEffect(() => { if (gid) loadData() }, [gid])
 
@@ -105,6 +111,44 @@ const MiPlantelGrupoDetailPage = () => {
     }
   }
 
+  const handleExportMembers = async () => {
+    try {
+      setExportingMembers(true)
+      const blob = await exportGroupMembersToExcel(gid)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Miembros_${group?.name || 'grupo'}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error exporting members:', err)
+    } finally {
+      setExportingMembers(false)
+    }
+  }
+
+  const handleExportCertifications = async () => {
+    try {
+      setExportingCerts(true)
+      const blob = await exportGroupCertifications(gid)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Certificaciones_${group?.name || 'grupo'}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Error exporting certifications:', err)
+    } finally {
+      setExportingCerts(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -130,17 +174,39 @@ const MiPlantelGrupoDetailPage = () => {
         <Link to="/mi-plantel" className="inline-flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm mb-3">
           <ArrowLeft className="w-4 h-4" /> Volver a Mi Plantel
         </Link>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
-            <GraduationCap className="w-6 h-6 text-indigo-600" />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+              <GraduationCap className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div>
+              <h1 className="fluid-text-2xl font-bold text-gray-900">{group?.name}</h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {members.length} candidatos — {exams.length} exámenes asignados
+                {group?.description && ` — ${group.description}`}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="fluid-text-2xl font-bold text-gray-900">{group?.name}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {members.length} candidatos — {exams.length} exámenes asignados
-              {group?.description && ` — ${group.description}`}
-            </p>
-          </div>
+          {canViewReports && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportMembers}
+                disabled={exportingMembers}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {exportingMembers ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="w-4 h-4" />}
+                Reporte Miembros
+              </button>
+              <button
+                onClick={handleExportCertifications}
+                disabled={exportingCerts}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {exportingCerts ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="w-4 h-4" />}
+                Reporte Certificaciones
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

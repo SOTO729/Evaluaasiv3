@@ -34,12 +34,15 @@ import {
   searchGroupsPaginated,
   SearchGroupsResult,
 } from '../../services/partnersService';
+import { useAuthStore } from '../../store/authStore';
 
 type SortField = 'name' | 'member_count' | 'campus_name' | 'campus_state' | 'partner_name' | 'school_cycle' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 export default function GruposListPage() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
+  const isResponsable = currentUser?.role === 'responsable';
 
   // Datos de grupos
   const [groups, setGroups] = useState<SearchGroupsResult['groups']>([]);
@@ -567,7 +570,7 @@ export default function GruposListPage() {
                     <tr
                       key={group.id}
                       className="hover:bg-blue-50/50 transition-colors cursor-pointer group/row"
-                      onClick={() => navigate(`/partners/groups/${group.id}`)}
+                      onClick={() => navigate(isResponsable ? `/mi-plantel/grupos/${group.id}` : `/partners/groups/${group.id}`)}
                     >
                       {/* Nombre del grupo */}
                       <td className="fluid-px-4 fluid-py-3">
@@ -595,11 +598,13 @@ export default function GruposListPage() {
                         <div className="flex items-center fluid-gap-2 min-w-0">
                           <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                           <span
-                            className="fluid-text-sm text-gray-700 truncate max-w-[160px] hover:text-blue-600"
+                            className={`fluid-text-sm text-gray-700 truncate max-w-[160px] ${!isResponsable ? 'hover:text-blue-600' : ''}`}
                             title={group.partner_name}
                             onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/partners/${group.partner_id}`);
+                              if (!isResponsable) {
+                                e.stopPropagation();
+                                navigate(`/partners/${group.partner_id}`);
+                              }
                             }}
                           >
                             {group.partner_name}
@@ -610,11 +615,13 @@ export default function GruposListPage() {
                       {/* Plantel */}
                       <td className="fluid-px-4 fluid-py-3">
                         <span
-                          className="fluid-text-sm text-gray-600 truncate block max-w-[160px] hover:text-blue-600"
+                          className={`fluid-text-sm text-gray-600 truncate block max-w-[160px] ${!isResponsable ? 'hover:text-blue-600' : ''}`}
                           title={group.campus_name}
                           onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/partners/campuses/${group.campus_id}`);
+                            if (!isResponsable) {
+                              e.stopPropagation();
+                              navigate(`/partners/campuses/${group.campus_id}`);
+                            }
                           }}
                         >
                           {group.campus_name}

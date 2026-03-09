@@ -484,14 +484,16 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
           </div>
           
           <div className="flex items-center fluid-gap-3">
-            <button
-              onClick={handleExportReport}
-              disabled={exportingReport}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300 disabled:opacity-50"
-            >
-              {exportingReport ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-base" />}
-              <span className="hidden sm:inline">Reporte del Plantel</span>
-            </button>
+            {!(isResponsable && !user?.can_view_reports) && (
+              <button
+                onClick={handleExportReport}
+                disabled={exportingReport}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300 disabled:opacity-50"
+              >
+                {exportingReport ? <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" /> : <Download className="fluid-icon-base" />}
+                <span className="hidden sm:inline">Reporte del Plantel</span>
+              </button>
+            )}
             {!isResponsable && (
               <Link
                 to={`/partners/campuses/${campusId}/edit`}

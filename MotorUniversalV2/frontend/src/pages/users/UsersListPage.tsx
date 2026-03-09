@@ -100,7 +100,9 @@ export default function UsersListPage() {
   
   const isAdmin = currentUser?.role === 'admin';
   const isCoordinator = currentUser?.role === 'coordinator';
-  const canManageUsers = isAdmin || isCoordinator;
+  const isResponsable = currentUser?.role === 'responsable';
+  const canManageUsers = isAdmin || isCoordinator || isResponsable;
+  const canAssignToGroup = isAdmin || isCoordinator || (isResponsable && currentUser?.can_manage_groups);
   
   // Animación: primera carga anima todo, recargas solo la tabla
   const isFirstLoad = useRef(true);
@@ -349,12 +351,17 @@ export default function UsersListPage() {
     setSelectedGroupId(null);
     setGroups([]);
     
-    // Cargar campus disponibles
-    try {
-      const data = await getAvailableCampuses();
-      setCampuses(data.campuses);
-    } catch (err: any) {
-      setError('Error al cargar los planteles disponibles');
+    // Responsable: auto-cargar grupos de su plantel (sin selector de campus)
+    if (isResponsable && currentUser?.campus_id) {
+      loadGroupsForCampus(currentUser.campus_id);
+    } else {
+      // Cargar campus disponibles para coordinador/admin
+      try {
+        const data = await getAvailableCampuses();
+        setCampuses(data.campuses);
+      } catch (err: any) {
+        setError('Error al cargar los planteles disponibles');
+      }
     }
   };
   
@@ -451,9 +458,11 @@ export default function UsersListPage() {
                 Gestión de Usuarios
               </h1>
               <p className="fluid-text-sm text-blue-100 fluid-mt-1">
-                {currentUser?.role === 'coordinator' 
-                  ? 'Administra los candidatos del sistema'
-                  : 'Administra todos los usuarios del sistema'
+                {isResponsable
+                  ? 'Administra los candidatos de tu plantel'
+                  : currentUser?.role === 'coordinator' 
+                    ? 'Administra los candidatos del sistema'
+                    : 'Administra todos los usuarios del sistema'
                 }
               </p>
             </div>
@@ -694,15 +703,17 @@ export default function UsersListPage() {
                 )}
               </button>
               
-              <button
-                onClick={openAssignModal}
-                disabled={selectedUsers.size === 0 || isExporting}
-                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-                title="Asignar candidatos seleccionados a un grupo"
-              >
-                <UsersRound className="fluid-icon-sm" />
-                Asignar a Grupo
-              </button>
+              {canAssignToGroup && (
+                <button
+                  onClick={openAssignModal}
+                  disabled={selectedUsers.size === 0 || isExporting}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                  title="Asignar candidatos seleccionados a un grupo"
+                >
+                  <UsersRound className="fluid-icon-sm" />
+                  Asignar a Grupo
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -964,29 +975,31 @@ export default function UsersListPage() {
                 Solo los candidatos serán agregados al grupo.
               </p>
               
-              {/* Selector de Campus */}
-              <div>
-                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                  1. Selecciona un plantel
-                </label>
-                <StyledSelect
-                  value={selectedCampusId?.toString() || ''}
-                  onChange={(value) => value && loadGroupsForCampus(Number(value))}
-                  options={campuses.map(campus => ({
-                    value: campus.id.toString(),
-                    label: `${campus.name} (${campus.partner_name})`
-                  }))}
-                  placeholder="-- Selecciona plantel --"
-                  icon={Building2}
-                  colorScheme="blue"
-                />
-              </div>
-              
-              {/* Selector de Grupo */}
-              {selectedCampusId && (
+              {/* Selector de Campus (no se muestra para responsable) */}
+              {!isResponsable && (
                 <div>
                   <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                    2. Selecciona un grupo
+                    1. Selecciona un plantel
+                  </label>
+                  <StyledSelect
+                    value={selectedCampusId?.toString() || ''}
+                    onChange={(value) => value && loadGroupsForCampus(Number(value))}
+                    options={campuses.map(campus => ({
+                      value: campus.id.toString(),
+                      label: `${campus.name} (${campus.partner_name})`
+                    }))}
+                    placeholder="-- Selecciona plantel --"
+                    icon={Building2}
+                    colorScheme="blue"
+                  />
+                </div>
+              )}
+              
+              {/* Selector de Grupo */}
+              {(selectedCampusId || isResponsable) && (
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                    {isResponsable ? '1. Selecciona un grupo' : '2. Selecciona un grupo'}
                   </label>
                   {isLoadingGroups ? (
                     <div className="flex items-center justify-center fluid-py-4">

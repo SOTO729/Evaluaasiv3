@@ -385,6 +385,30 @@ const Layout = ({ children }: LayoutProps) => {
                     Mi Plantel
                   </Link>
                 )}
+                {user?.role === 'responsable' && (
+                  <Link 
+                    to="/user-management" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/user-management') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Usuarios
+                  </Link>
+                )}
+                {user?.role === 'responsable' && user?.can_manage_groups && (
+                  <Link 
+                    to="/grupos" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/grupos') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Grupos
+                  </Link>
+                )}
                 {/* ── Bloque responsable: exams, materiales y certificados al final ── */}
                 {user?.role === 'responsable' && (
                   <>
@@ -879,6 +903,42 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                     </svg>
                     Mi Plantel
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'responsable' && (
+                <Link 
+                  to="/user-management" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/user-management') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Usuarios
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'responsable' && user?.can_manage_groups && (
+                <Link 
+                  to="/grupos" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/grupos') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Grupos
                   </div>
                 </Link>
               )}

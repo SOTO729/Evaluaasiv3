@@ -29,15 +29,17 @@ bp = Blueprint('partners', __name__)
 
 
 def coordinator_required(f):
-    """Decorador que requiere rol de coordinador, auxiliar, developer o admin"""
+    """Decorador que requiere rol de coordinador, auxiliar, developer, admin o responsable"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar']:
+        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar', 'responsable']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de coordinador'}), 403
+        if user.role == 'responsable' and not user.campus_id:
+            return jsonify({'error': 'No tienes un plantel asignado'}), 403
         g.current_user = user
         return f(*args, **kwargs)
     return decorated
@@ -167,23 +169,30 @@ def _verify_partner_access(partner_id, user, require_admin_for_delete=False):
 def _verify_campus_access(campus_id, user, require_admin_for_delete=False):
     """Verifica acceso al campus.
     Campuses son compartidos: todos los coordinadores pueden VER, CREAR y EDITAR.
+    Responsable solo puede acceder a su propio campus.
     Solo admin puede ELIMINAR (require_admin_for_delete=True)."""
     from app.models.partner import Campus
     campus = Campus.query.get_or_404(campus_id)
     if require_admin_for_delete and not _is_admin_role(user):
         return None, (jsonify({'error': 'Solo administradores pueden eliminar planteles'}), 403)
+    if user.role == 'responsable' and campus_id != user.campus_id:
+        return None, (jsonify({'error': 'No tienes acceso a este plantel'}), 403)
     return campus, None
 
 
 def _verify_group_access(group_id, user):
     """Verifica acceso al grupo.
     Grupos están aislados por coordinator_id directo en el grupo.
-    Cada coordinador solo ve/gestiona sus propios grupos."""
+    Cada coordinador solo ve/gestiona sus propios grupos.
+    Responsable solo accede a grupos de su plantel."""
     from app.models.partner import Campus
     group = CandidateGroup.query.get_or_404(group_id)
     coord_id = _get_coordinator_filter(user)
     if coord_id:
         if group.coordinator_id != coord_id:
+            return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
+    if user.role == 'responsable':
+        if group.campus_id != user.campus_id:
             return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
     return group, None
 
@@ -2714,6 +2723,10 @@ def search_groups_paginated():
         if coord_id:
             query = query.filter(CandidateGroup.coordinator_id == coord_id)
 
+        # Responsable: forzar filtro por su campus
+        if g.current_user.role == 'responsable':
+            query = query.filter(CandidateGroup.campus_id == g.current_user.campus_id)
+
         # Filtro por partner
         if partner_id:
             query = query.filter(Partner.id == partner_id)
@@ -2780,6 +2793,8 @@ def search_groups_paginated():
         )
         if coord_id:
             cycle_names_q = cycle_names_q.filter(CandidateGroup.coordinator_id == coord_id)
+        if g.current_user.role == 'responsable':
+            cycle_names_q = cycle_names_q.filter(CandidateGroup.campus_id == g.current_user.campus_id)
         cycle_names = sorted(set(r[0] for r in cycle_names_q.distinct().all() if r[0]))
 
         groups = [{
@@ -2806,6 +2821,8 @@ def search_groups_paginated():
         )
         if coord_id:
             partners_q = partners_q.filter(CandidateGroup.coordinator_id == coord_id)
+        if g.current_user.role == 'responsable':
+            partners_q = partners_q.filter(CandidateGroup.campus_id == g.current_user.campus_id)
         available_partners = sorted(
             [{'id': r[0], 'name': r[1]} for r in partners_q.distinct().all()],
             key=lambda x: x['name']

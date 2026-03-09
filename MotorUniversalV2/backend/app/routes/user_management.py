@@ -26,7 +26,8 @@ AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'edi
 ROLE_CREATE_PERMISSIONS = {
     'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
     'developer': ['gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
-    'coordinator': ['responsable', 'responsable_partner', 'candidato', 'auxiliar']  # Responsables, Responsables del Partner, candidatos y auxiliares
+    'coordinator': ['responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Responsables, Responsables del Partner, candidatos y auxiliares
+    'responsable': ['candidato']  # Solo candidatos
 }
 
 
@@ -47,15 +48,17 @@ def _get_effective_coordinator_id(user):
 
 
 def management_required(f):
-    """Decorador que requiere rol de admin, developer, coordinator o auxiliar"""
+    """Decorador que requiere rol de admin, developer, coordinator, auxiliar o responsable"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar']:
+        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar', 'responsable']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador, desarrollador o coordinador'}), 403
+        if user.role == 'responsable' and not user.campus_id:
+            return jsonify({'error': 'No tienes un plantel asignado'}), 403
         g.current_user = user
         return f(*args, **kwargs)
     return decorated
@@ -174,6 +177,16 @@ def list_users():
         if _is_coordinator_role(current_user.role):
             query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
         
+        # Responsables solo ven candidatos de su plantel (a través de group_members → candidate_groups)
+        if current_user.role == 'responsable':
+            from app.models.partner import GroupMember, CandidateGroup
+            campus_user_ids = db.session.query(GroupMember.user_id).join(
+                CandidateGroup, GroupMember.group_id == CandidateGroup.id
+            ).filter(
+                CandidateGroup.campus_id == current_user.campus_id
+            ).distinct().subquery()
+            query = query.filter(User.role == 'candidato', User.id.in_(campus_user_ids))
+        
         # Filtros
         if role_filter:
             roles = [r.strip() for r in role_filter.split(',') if r.strip()]
@@ -270,7 +283,7 @@ def list_users():
         # Contar total solo si no usamos cursor (es costoso)
         if use_cursor:
             # Con cursor, estimamos el total o lo cacheamos
-            total = _get_cached_user_count(current_user.role, role_filter, active_filter, coordinator_id=_get_effective_coordinator_id(current_user))
+            total = _get_cached_user_count(current_user.role, role_filter, active_filter, coordinator_id=_get_effective_coordinator_id(current_user), campus_id=current_user.campus_id if current_user.role == 'responsable' else None)
             users_data = query.limit(per_page + 1).all()  # +1 para saber si hay más
             has_more = len(users_data) > per_page
             users_data = users_data[:per_page]
@@ -344,12 +357,12 @@ def list_users():
         return jsonify({'error': str(e)}), 500
 
 
-def _get_cached_user_count(user_role, role_filter='', active_filter='', coordinator_id=None):
+def _get_cached_user_count(user_role, role_filter='', active_filter='', coordinator_id=None, campus_id=None):
     """
     Obtener conteo de usuarios con caché.
     El conteo exacto es costoso, así que lo cacheamos por 5 minutos.
     """
-    cache_key = f'user_count_{user_role}_{role_filter}_{active_filter}_{coordinator_id or "all"}'
+    cache_key = f'user_count_{user_role}_{role_filter}_{active_filter}_{coordinator_id or "all"}_{campus_id or "all"}'
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -358,6 +371,14 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     if _is_coordinator_role(user_role):
         query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
         # Usuarios compartidos: sin filtro por coordinator_id
+    if user_role == 'responsable' and campus_id:
+        from app.models.partner import GroupMember, CandidateGroup
+        campus_user_ids = db.session.query(GroupMember.user_id).join(
+            CandidateGroup, GroupMember.group_id == CandidateGroup.id
+        ).filter(
+            CandidateGroup.campus_id == campus_id
+        ).distinct().subquery()
+        query = query.filter(User.role == 'candidato', User.id.in_(campus_user_ids))
     if role_filter:
         roles = [r.strip() for r in role_filter.split(',') if r.strip()]
         query = query.filter(User.role.in_(roles))
@@ -384,6 +405,20 @@ def get_user_detail(user_id):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
             # Usuarios son compartidos: sin filtro por coordinator_id
+        
+        # Responsable solo puede ver candidatos de su plantel
+        if current_user.role == 'responsable':
+            if user.role != 'candidato':
+                return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
+            from app.models.partner import GroupMember, CandidateGroup
+            is_in_campus = db.session.query(GroupMember.id).join(
+                CandidateGroup, GroupMember.group_id == CandidateGroup.id
+            ).filter(
+                GroupMember.user_id == user.id,
+                CandidateGroup.campus_id == current_user.campus_id
+            ).first()
+            if not is_in_campus:
+                return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
         
         return jsonify({
             'user': user.to_dict(include_private=True, include_partners=True)
@@ -775,7 +810,7 @@ def update_user(user_id):
         data = request.get_json()
         
         # Solo admin/developer puede editar usuarios (recursos compartidos)
-        if current_user.role == 'coordinator':
+        if current_user.role in ('coordinator', 'responsable'):
             return jsonify({'error': 'Solo administradores pueden editar usuarios'}), 403
         
         # No se puede editar a uno mismo por esta ruta (usar perfil)
@@ -945,6 +980,20 @@ def get_user_password(user_id):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'Solo puedes ver contraseñas de candidatos y responsables'}), 403
         
+        # Responsable solo puede ver contraseñas de candidatos de su plantel
+        if current_user.role == 'responsable':
+            if user.role != 'candidato':
+                return jsonify({'error': 'Solo puedes ver contraseñas de candidatos'}), 403
+            from app.models.partner import GroupMember, CandidateGroup
+            in_campus = db.session.query(GroupMember.id).join(
+                CandidateGroup, GroupMember.group_id == CandidateGroup.id
+            ).filter(
+                GroupMember.user_id == user_id,
+                CandidateGroup.campus_id == current_user.campus_id
+            ).first()
+            if not in_campus:
+                return jsonify({'error': 'Este candidato no pertenece a tu plantel'}), 403
+        
         # Desencriptar la contraseña
         decrypted_password = user.get_decrypted_password()
         
@@ -984,7 +1033,7 @@ def toggle_user_active(user_id):
         user = User.query.get_or_404(user_id)
         
         # Solo admin puede activar/desactivar usuarios (recursos compartidos)
-        if current_user.role == 'coordinator':
+        if current_user.role in ('coordinator', 'responsable'):
             return jsonify({'error': 'Solo administradores pueden activar/desactivar usuarios'}), 403
         
         # No se puede desactivar a uno mismo
@@ -1022,7 +1071,7 @@ def update_user_document_options(user_id):
         user = User.query.get_or_404(user_id)
         
         # Solo admin/developer puede modificar opciones de documentos (recursos compartidos)
-        if current_user.role == 'coordinator':
+        if current_user.role in ('coordinator', 'responsable'):
             return jsonify({'error': 'Solo administradores pueden modificar opciones de documentos'}), 403
         
         data = request.get_json()
@@ -1193,7 +1242,7 @@ def get_user_stats():
         current_user = g.current_user
         
         # Intentar obtener del caché primero
-        cache_key = f'user_stats_{current_user.role}_{current_user.id if current_user.role == "coordinator" else "all"}'
+        cache_key = f'user_stats_{current_user.role}_{current_user.id if current_user.role in ("coordinator", "responsable") else "all"}'
         cached_stats = cache.get(cache_key)
         if cached_stats is not None:
             return jsonify(cached_stats)
@@ -1201,6 +1250,8 @@ def get_user_stats():
         # Query optimizada: obtener todos los conteos en una sola consulta
         if current_user.role == 'coordinator':
             allowed_roles = ['candidato', 'responsable', 'responsable_partner']
+        elif current_user.role == 'responsable':
+            allowed_roles = ['candidato']
         else:
             allowed_roles = AVAILABLE_ROLES
         
@@ -1215,6 +1266,14 @@ def get_user_stats():
         if current_user.role == 'coordinator':
             stats_query = stats_query.filter(User.role.in_(allowed_roles))
             # Usuarios compartidos: sin filtro por coordinator_id
+        elif current_user.role == 'responsable':
+            from app.models.partner import GroupMember, CandidateGroup
+            campus_user_ids = db.session.query(GroupMember.user_id).join(
+                CandidateGroup, GroupMember.group_id == CandidateGroup.id
+            ).filter(
+                CandidateGroup.campus_id == current_user.campus_id
+            ).distinct().subquery()
+            stats_query = stats_query.filter(User.role == 'candidato', User.id.in_(campus_user_ids))
         
         stats_query = stats_query.group_by(User.role)
         role_stats = stats_query.all()
@@ -1238,7 +1297,7 @@ def get_user_stats():
             for role in AVAILABLE_ROLES:
                 if role not in role_counts:
                     users_by_role.append({'role': role, 'count': 0})
-        elif current_user.role == 'coordinator':
+        elif current_user.role in ('coordinator', 'responsable'):
             for role in allowed_roles:
                 if role not in role_counts:
                     users_by_role.append({'role': role, 'count': 0})
@@ -1706,6 +1765,10 @@ def _validate_target_group(group_id, current_user):
         # Verificar acceso: grupo debe pertenecer al coordinador (aislado)
         if group.coordinator_id != current_user.id:
             return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
+    if current_user.role == 'responsable':
+        # Verificar que el grupo pertenece al plantel del responsable
+        if group.campus_id != current_user.campus_id:
+            return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
     return group, None
 
 
@@ -1969,6 +2032,22 @@ def bulk_upload_candidates():
             valid_rows, existing_by_email, existing_by_curp,
             target_group.id if target_group else None
         )
+
+        # Responsable: auto-incluir todos los usuarios existentes (asignación silenciosa)
+        if current_user.role == 'responsable' and target_group:
+            new_skipped = []
+            for s in skipped:
+                if s.get('is_existing_user') and s.get('user_id'):
+                    existing_assigned.append({
+                        'row': s['row'],
+                        'email': s.get('email', ''),
+                        'name': s.get('name', ''),
+                        'username': s.get('username', ''),
+                        'user_id': s['user_id'],
+                    })
+                else:
+                    new_skipped.append(s)
+            skipped = new_skipped
 
         # Handle include_existing_ids — skipped users the admin opted to add to group
         include_existing_ids_raw = request.form.get('include_existing_ids', '')
