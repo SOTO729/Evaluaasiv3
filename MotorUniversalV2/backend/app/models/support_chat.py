@@ -12,19 +12,19 @@ class SupportConversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     candidate_user_id = db.Column(
         db.String(36),
-        db.ForeignKey("users.id", ondelete="CASCADE"),
+        db.ForeignKey("users.id", ondelete="NO ACTION"),
         nullable=False,
         index=True,
     )
     created_by_user_id = db.Column(
         db.String(36),
-        db.ForeignKey("users.id", ondelete="SET NULL"),
+        db.ForeignKey("users.id", ondelete="NO ACTION"),
         nullable=True,
         index=True,
     )
     assigned_support_user_id = db.Column(
         db.String(36),
-        db.ForeignKey("users.id", ondelete="SET NULL"),
+        db.ForeignKey("users.id", ondelete="NO ACTION"),
         nullable=True,
         index=True,
     )
@@ -69,7 +69,7 @@ class SupportConversationParticipant(db.Model):
     )
     user_id = db.Column(
         db.String(36),
-        db.ForeignKey("users.id", ondelete="CASCADE"),
+        db.ForeignKey("users.id", ondelete="NO ACTION"),
         nullable=False,
         index=True,
     )
@@ -79,7 +79,7 @@ class SupportConversationParticipant(db.Model):
     last_read_at = db.Column(db.DateTime, nullable=True)
     last_read_message_id = db.Column(
         db.Integer,
-        db.ForeignKey("support_messages.id", ondelete="SET NULL"),
+        db.ForeignKey("support_messages.id", ondelete="NO ACTION"),
         nullable=True,
     )
 
@@ -103,7 +103,7 @@ class SupportMessage(db.Model):
     )
     sender_user_id = db.Column(
         db.String(36),
-        db.ForeignKey("users.id", ondelete="SET NULL"),
+        db.ForeignKey("users.id", ondelete="NO ACTION"),
         nullable=True,
         index=True,
     )

@@ -1379,17 +1379,126 @@ def check_and_create_support_chat_tables():
             "support_messages",
         }
 
-        if required_tables.issubset(existing_tables):
+        missing = required_tables - existing_tables
+        if not missing:
             print("  ✓ Tablas support chat ya existen")
             return
 
-        print("  📝 Creando tablas support chat faltantes...")
-        SupportConversation.__table__.create(bind=db.engine, checkfirst=True)
-        SupportMessage.__table__.create(bind=db.engine, checkfirst=True)
-        SupportConversationParticipant.__table__.create(bind=db.engine, checkfirst=True)
-        db.session.commit()
-        print("  ✅ Tablas support chat listas")
+        print(f"  📝 Tablas faltantes: {missing}")
+
+        # Crear en orden de dependencia (conversations → messages → participants)
+        table_order = [
+            ("support_conversations", SupportConversation),
+            ("support_messages", SupportMessage),
+            ("support_conversation_participants", SupportConversationParticipant),
+        ]
+
+        for table_name, model_cls in table_order:
+            if table_name not in existing_tables:
+                try:
+                    print(f"  📝 Creando tabla {table_name}...")
+                    model_cls.__table__.create(bind=db.engine, checkfirst=True)
+                    db.session.commit()
+                    print(f"  ✅ Tabla {table_name} creada")
+                except Exception as table_err:
+                    db.session.rollback()
+                    print(f"  ⚠️  ORM create falló para {table_name}: {table_err}")
+                    print(f"  📝 Intentando con SQL raw para {table_name}...")
+                    _create_support_table_raw(table_name)
+
+        # Verificar resultado
+        inspector = inspect(db.engine)
+        final_tables = set(inspector.get_table_names())
+        still_missing = required_tables - final_tables
+        if still_missing:
+            print(f"  ❌ Tablas aún faltantes después de migración: {still_missing}")
+        else:
+            print("  ✅ Tablas support chat listas")
 
     except Exception as e:
         print(f"❌ Error creando tablas support chat: {e}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
+
+
+def _create_support_table_raw(table_name: str):
+    """Crear tabla de support chat con SQL raw (fallback MSSQL/PostgreSQL)."""
+    db_type = get_db_type()
+
+    sql_map = {
+        "support_conversations": """
+            CREATE TABLE support_conversations (
+                id INTEGER {identity} PRIMARY KEY,
+                candidate_user_id VARCHAR(36) NOT NULL,
+                created_by_user_id VARCHAR(36) NULL,
+                assigned_support_user_id VARCHAR(36) NULL,
+                subject VARCHAR(255) NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'open',
+                priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+                created_at {datetime_type} NOT NULL DEFAULT {now},
+                updated_at {datetime_type} NOT NULL DEFAULT {now},
+                last_message_at {datetime_type} NOT NULL DEFAULT {now},
+                FOREIGN KEY (candidate_user_id) REFERENCES users(id),
+                FOREIGN KEY (created_by_user_id) REFERENCES users(id),
+                FOREIGN KEY (assigned_support_user_id) REFERENCES users(id)
+            )
+        """,
+        "support_messages": """
+            CREATE TABLE support_messages (
+                id INTEGER {identity} PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                sender_user_id VARCHAR(36) NULL,
+                content TEXT NULL,
+                message_type VARCHAR(20) NOT NULL DEFAULT 'text',
+                attachment_url VARCHAR(500) NULL,
+                attachment_name VARCHAR(255) NULL,
+                attachment_mime_type VARCHAR(120) NULL,
+                attachment_size_bytes BIGINT NULL,
+                created_at {datetime_type} NOT NULL DEFAULT {now},
+                edited_at {datetime_type} NULL,
+                FOREIGN KEY (conversation_id) REFERENCES support_conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (sender_user_id) REFERENCES users(id)
+            )
+        """,
+        "support_conversation_participants": """
+            CREATE TABLE support_conversation_participants (
+                id INTEGER {identity} PRIMARY KEY,
+                conversation_id INTEGER NOT NULL,
+                user_id VARCHAR(36) NOT NULL,
+                participant_role VARCHAR(20) NOT NULL,
+                joined_at {datetime_type} NOT NULL DEFAULT {now},
+                last_read_at {datetime_type} NULL,
+                last_read_message_id INTEGER NULL,
+                FOREIGN KEY (conversation_id) REFERENCES support_conversations(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (last_read_message_id) REFERENCES support_messages(id),
+                UNIQUE (conversation_id, user_id)
+            )
+        """,
+    }
+
+    if db_type == 'mssql':
+        params = {"identity": "IDENTITY(1,1)", "datetime_type": "DATETIME2", "now": "GETUTCDATE()"}
+    elif db_type == 'postgresql':
+        params = {"identity": "GENERATED BY DEFAULT AS IDENTITY", "datetime_type": "TIMESTAMP", "now": "(NOW() AT TIME ZONE 'UTC')"}
+    else:
+        params = {"identity": "AUTOINCREMENT", "datetime_type": "DATETIME", "now": "CURRENT_TIMESTAMP"}
+
+    raw_sql = sql_map.get(table_name)
+    if not raw_sql:
+        print(f"  ❌ No hay SQL raw para tabla {table_name}")
+        return
+
+    try:
+        formatted = raw_sql.format(**params)
+        db.session.execute(text(formatted))
+        db.session.commit()
+        print(f"  ✅ Tabla {table_name} creada con SQL raw ({db_type})")
+    except Exception as raw_err:
+        db.session.rollback()
+        err_str = str(raw_err).lower()
+        if "already exists" in err_str or "there is already" in err_str:
+            print(f"  ✓ Tabla {table_name} ya existe (detectado en SQL raw)")
+        else:
+            print(f"  ❌ SQL raw falló para {table_name}: {raw_err}")
