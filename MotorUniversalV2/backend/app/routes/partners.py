@@ -758,6 +758,8 @@ def get_campus(campus_id):
 def update_campus(campus_id):
     """Actualizar un plantel"""
     try:
+        if g.current_user.role == 'responsable':
+            return jsonify({'error': 'Los responsables no pueden editar la configuración del plantel'}), 403
         campus, error = _verify_campus_access(campus_id, g.current_user)
         if error:
             return error
@@ -1790,6 +1792,8 @@ def remove_campus_responsable(campus_id, user_id):
 def activate_campus(campus_id):
     """Activar un plantel después de completar el proceso de configuración, o reactivar uno previamente configurado"""
     try:
+        if g.current_user.role == 'responsable':
+            return jsonify({'error': 'Los responsables no pueden activar/desactivar planteles'}), 403
         campus = Campus.query.get_or_404(campus_id)
         
         # Verificar que el plantel no esté ya activo
@@ -1850,6 +1854,8 @@ def activate_campus(campus_id):
 def configure_campus(campus_id):
     """Configurar un plantel (paso 2 del proceso de activación)"""
     try:
+        if g.current_user.role == 'responsable':
+            return jsonify({'error': 'Los responsables no pueden editar la configuración del plantel'}), 403
         campus = Campus.query.get_or_404(campus_id)
         
         # Verificar que el plantel tenga un responsable asignado
@@ -2124,6 +2130,8 @@ def get_campus_competency_standards(campus_id):
 def update_campus_competency_standards(campus_id):
     """Actualizar los ECM asignados a un plantel (reemplaza todos)"""
     try:
+        if g.current_user.role == 'responsable':
+            return jsonify({'error': 'Los responsables no pueden editar la configuración del plantel'}), 403
         from app.models.partner import CampusCompetencyStandard
         from app.models.competency_standard import CompetencyStandard
         
