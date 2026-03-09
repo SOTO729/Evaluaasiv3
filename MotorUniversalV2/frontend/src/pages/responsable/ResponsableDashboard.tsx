@@ -123,7 +123,7 @@ const ResponsableDashboard = () => {
                 Gestionar Plantel
               </button>
               <button
-                onClick={() => navigate('/mi-plantel/certificados')}
+                onClick={() => navigate('/certificates')}
                 className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 bg-white/10 hover:bg-white/20 rounded-fluid-lg font-medium fluid-text-sm transition-all border border-white/20"
               >
                 <Award className="fluid-icon" />
@@ -320,7 +320,7 @@ const ResponsableDashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 fluid-gap-4">
         {[
           { label: 'Gestionar Plantel', route: '/mi-plantel', icon: Building2, color: 'blue', desc: 'Grupos, candidatos y configuración' },
-          { label: 'Certificados', route: '/mi-plantel/certificados', icon: Award, color: 'amber', desc: 'Certificados por grupo' },
+          { label: 'Certificados', route: '/certificates', icon: Award, color: 'amber', desc: 'Certificados por grupo' },
           { label: 'Reportes', route: '/mi-plantel/reportes', icon: FileText, color: 'green', desc: 'Evaluaciones y exportaciones' },
           { label: 'Materiales', route: '/study-contents', icon: BookOpen, color: 'purple', desc: 'Material de estudio' },
         ].map(action => (
