@@ -1698,13 +1698,14 @@ export default function CampusActivationPage() {
                                       </div>
                                     </div>
 
-                                    {/* Toggle */}
-                                    <ToggleSwitch
-                                      checked={isSelected}
-                                      onChange={() => toggleEcmSelection(ecm.id)}
-                                      colorScheme="indigo"
-                                      size="sm"
-                                    />
+                                    {/* Checkmark */}
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                                      isSelected
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'border-2 border-gray-300'
+                                    }`}>
+                                      {isSelected && <Check className="w-4 h-4" />}
+                                    </div>
                                   </div>
                                 );
                               })}
