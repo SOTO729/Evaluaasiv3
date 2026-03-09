@@ -31,7 +31,6 @@ import {
   DollarSign,
   FileText,
   Clock,
-  Globe,
   AlertTriangle,
   Search,
   X,
@@ -684,13 +683,6 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   </div>
                   {campus.enable_partial_evaluations && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
                 </div>
-                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_virtual_machines ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
-                  <div className="flex items-center fluid-gap-2">
-                    <Globe className="fluid-icon-sm" />
-                    <span className="fluid-text-xs font-semibold">Sesiones</span>
-                  </div>
-                  {campus.enable_virtual_machines && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
-                </div>
                 <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_unscheduled_partials ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                   <div className="flex items-center fluid-gap-2">
                     <Calendar className="fluid-icon-sm" />
@@ -705,12 +697,12 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   </div>
                   {campus.enable_online_payments && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
                 </div>
-                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${(campus as any).enable_candidate_certificates ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
+                <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.enable_candidate_certificates ? 'bg-green-100 text-green-800 border-2 border-green-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                   <div className="flex items-center fluid-gap-2">
                     <Award className="fluid-icon-sm" />
                     <span className="fluid-text-xs font-semibold">Certificados</span>
                   </div>
-                  {(campus as any).enable_candidate_certificates && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
+                  {campus.enable_candidate_certificates && <CheckCircle2 className="fluid-icon-sm text-green-600" />}
                 </div>
                 <div className={`flex items-center justify-between fluid-gap-2 fluid-p-2.5 rounded-fluid-lg transition-all duration-200 ${campus.require_exam_pin ? 'bg-amber-100 text-amber-800 border-2 border-amber-400' : 'bg-gray-100 text-gray-400 border border-gray-200'}`}>
                   <div className="flex items-center fluid-gap-2">
@@ -788,7 +780,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                 <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Retoma</p>
               </div>
               <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-2.5 text-center border border-purple-100">
-                <p className="text-lg font-bold text-purple-700 leading-tight">{(campus as any).max_retakes === 0 || (campus as any).max_retakes == null ? '∞' : (campus as any).max_retakes}</p>
+                <p className="text-lg font-bold text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
                 <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
               </div>
             </div>

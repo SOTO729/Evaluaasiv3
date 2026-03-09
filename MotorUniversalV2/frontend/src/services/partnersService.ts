@@ -119,6 +119,7 @@ export interface Campus {
   assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
+  max_retakes?: number;
   configuration_completed?: boolean;
   configuration_completed_at?: string;
   // Relaciones

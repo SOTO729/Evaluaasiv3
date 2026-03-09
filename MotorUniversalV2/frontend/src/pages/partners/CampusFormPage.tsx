@@ -25,6 +25,7 @@ import {
   Calendar,
   CreditCard,
   DollarSign,
+  Lock,
   Info,
   Power,
   Home,
@@ -140,9 +141,14 @@ export default function CampusFormPage() {
     enable_unscheduled_partials: false,
     enable_virtual_machines: false,
     enable_online_payments: false,
+    enable_candidate_certificates: false,
+    require_exam_pin: false,
+    enable_session_calendar: false,
+    session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
     assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
+    max_retakes: 0,
   });
 
   // Auto-fill CURP del director para planteles extranjeros
@@ -219,9 +225,14 @@ export default function CampusFormPage() {
           enable_unscheduled_partials: campus.enable_unscheduled_partials ?? false,
           enable_virtual_machines: campus.enable_virtual_machines ?? false,
           enable_online_payments: campus.enable_online_payments ?? false,
+          enable_candidate_certificates: campus.enable_candidate_certificates ?? false,
+          require_exam_pin: campus.require_exam_pin ?? false,
+          enable_session_calendar: campus.enable_session_calendar ?? false,
+          session_scheduling_mode: campus.session_scheduling_mode ?? 'leader_only',
           assignment_validity_months: campus.assignment_validity_months || 12,
           certification_cost: campus.certification_cost || 0,
           retake_cost: campus.retake_cost || 0,
+          max_retakes: (campus as any).max_retakes ?? 0,
         });
         
         // Cargar ECMs disponibles y asignados
@@ -453,9 +464,14 @@ export default function CampusFormPage() {
         enable_unscheduled_partials: configData.enable_unscheduled_partials,
         enable_virtual_machines: configData.enable_virtual_machines,
         enable_online_payments: configData.enable_online_payments,
+        enable_candidate_certificates: configData.enable_candidate_certificates,
+        require_exam_pin: configData.require_exam_pin,
+        enable_session_calendar: configData.enable_session_calendar,
+        session_scheduling_mode: configData.session_scheduling_mode,
         assignment_validity_months: configData.assignment_validity_months || 12,
         certification_cost: configData.certification_cost,
         retake_cost: configData.retake_cost,
+        max_retakes: configData.max_retakes,
         competency_standard_ids: selectedEcmIds,
       });
       
@@ -1000,7 +1016,7 @@ export default function CampusFormPage() {
               <div className="fluid-space-y-6">
                 
                 {/* Fila 1: Versión Office, Costos y Vigencia */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 fluid-gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 fluid-gap-5">
                   {/* Versión de Office */}
                   <div className="bg-white fluid-p-5 rounded-fluid-xl border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-blue-300">
                     <div className="flex items-center fluid-gap-3 fluid-mb-4">
@@ -1062,6 +1078,30 @@ export default function CampusFormPage() {
                         placeholder="0.00"
                       />
                     </div>
+                  </div>
+
+                  {/* Máx. Retomas */}
+                  <div className="bg-white fluid-p-5 rounded-fluid-xl border border-gray-200 hover:shadow-lg transition-all duration-300 hover:border-red-300">
+                    <div className="flex items-center fluid-gap-3 fluid-mb-4">
+                      <div className="fluid-p-2.5 rounded-fluid-lg bg-red-100 text-red-600">
+                        <Shield className="fluid-icon-base" />
+                      </div>
+                      <span className="font-semibold text-gray-800 fluid-text-sm">Máx. Retomas</span>
+                    </div>
+                    <select
+                      value={configData.max_retakes ?? 0}
+                      onChange={(e) => handleConfigChange('max_retakes', parseInt(e.target.value, 10))}
+                      className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-base focus:ring-2 focus:ring-red-500 transition-all duration-200"
+                    >
+                      <option value={0}>Ilimitado</option>
+                      <option value={1}>1</option>
+                      <option value={2}>2</option>
+                      <option value={3}>3</option>
+                      <option value={4}>4</option>
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                    </select>
+                    <p className="fluid-text-xs text-gray-500 fluid-mt-2">Por asignación ECM</p>
                   </div>
 
                   {/* Vigencia de Asignaciones */}
@@ -1162,34 +1202,96 @@ export default function CampusFormPage() {
                       Funcionalidades Disponibles
                     </h3>
                     <div className="fluid-space-y-4">
+                      {/* Evaluaciones Parciales */}
                       <ConfigToggle 
                         field="enable_partial_evaluations" 
                         label="Evaluaciones Parciales" 
                         icon={FileText}
-                        description="Permite evaluar por partes"
+                        description="El profesor programa fecha, grupo y unidad para evaluar"
                         colorClass="blue"
                       />
-                      <ConfigToggle 
-                        field="enable_unscheduled_partials" 
-                        label="Parciales Sin Agendar" 
-                        icon={Calendar}
-                        description="El alumno elige cuándo presentar"
-                        colorClass="green"
-                      />
-                      <ConfigToggle 
-                        field="enable_virtual_machines" 
-                        label="Calendario de Sesiones" 
-                        icon={Calendar}
-                        description="Agendar sesiones de práctica"
-                        colorClass="purple"
-                      />
+                      {configData.enable_partial_evaluations && (
+                        <div className="ml-6">
+                          <ConfigToggle 
+                            field="enable_unscheduled_partials" 
+                            label="Parciales Sin Agendar" 
+                            icon={Calendar}
+                            description="El alumno puede seleccionar la unidad a evaluar sin programación previa"
+                            colorClass="green"
+                          />
+                        </div>
+                      )}
+                      {/* Pagos en Línea */}
                       <ConfigToggle 
                         field="enable_online_payments" 
                         label="Pagos en Línea" 
                         icon={CreditCard}
-                        description="Aceptar pagos electrónicos"
+                        description="Permite pagos de certificación en línea"
                         colorClass="orange"
                       />
+                      {/* Certificados Visibles */}
+                      <ConfigToggle 
+                        field="enable_candidate_certificates" 
+                        label="Certificados Visibles" 
+                        icon={Award}
+                        description="Los candidatos pueden ver y descargar sus propios certificados"
+                        colorClass="green"
+                      />
+                      {/* PIN de Examen */}
+                      <ConfigToggle 
+                        field="require_exam_pin" 
+                        label="PIN de Examen" 
+                        icon={Lock}
+                        description="PIN de 4 dígitos generado diariamente para iniciar exámenes"
+                        colorClass="orange"
+                      />
+                      {/* Calendario de Sesiones */}
+                      <ConfigToggle 
+                        field="enable_session_calendar" 
+                        label="Calendario de Sesiones" 
+                        icon={Calendar}
+                        description="Permite agendar sesiones de capacitación o evaluación"
+                        colorClass="purple"
+                      />
+                      {configData.enable_session_calendar && (
+                        <div className="ml-6 fluid-p-4 bg-gray-50 rounded-fluid-xl border border-gray-200">
+                          <p className="fluid-text-xs text-gray-600 mb-3 font-medium">¿Quién puede agendar sesiones?</p>
+                          <div className="space-y-2">
+                            <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                              configData.session_scheduling_mode === 'leader_only' ? 'border-purple-400 bg-white shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="session_scheduling_mode_edit"
+                                value="leader_only"
+                                checked={configData.session_scheduling_mode === 'leader_only'}
+                                onChange={() => handleConfigChange('session_scheduling_mode', 'leader_only')}
+                                className="text-purple-600 focus:ring-purple-500"
+                              />
+                              <div>
+                                <span className="text-sm font-medium text-gray-800">Solo el líder agenda</span>
+                                <p className="text-xs text-gray-500">El coordinador o responsable agenda las sesiones para los candidatos</p>
+                              </div>
+                            </label>
+                            <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                              configData.session_scheduling_mode === 'candidate_self' ? 'border-purple-400 bg-white shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                              <input
+                                type="radio"
+                                name="session_scheduling_mode_edit"
+                                value="candidate_self"
+                                checked={configData.session_scheduling_mode === 'candidate_self'}
+                                onChange={() => handleConfigChange('session_scheduling_mode', 'candidate_self')}
+                                className="text-purple-600 focus:ring-purple-500"
+                              />
+                              <div>
+                                <span className="text-sm font-medium text-gray-800">El candidato agenda</span>
+                                <p className="text-xs text-gray-500">Cada candidato puede agendar sus propias sesiones</p>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
