@@ -633,7 +633,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     } catch { /* best effort */ }
     const name = badge.template_name || 'Insignia Digital'
     const subject = `He obtenido la insignia digital "${name}" en Evaluaasi`
-    const body = `Hola!\n\nMe complace compartir que he obtenido la insignia digital "${name}" en Evaluaasi.\n\nEsta credencial valida mis competencias y habilidades profesionales.\n\nSaludos.`
+    const body = `Hola,\n\nMe complace compartir que he obtenido una insignia digital en Evaluaasi.\n\nEsta credencial valida mis competencias y habilidades profesionales.\n\nSaludos.`
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
   }
 

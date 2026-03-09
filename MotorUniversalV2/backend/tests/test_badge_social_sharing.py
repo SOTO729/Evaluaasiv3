@@ -91,8 +91,8 @@ def build_email_parts(badge: dict) -> tuple:
     name = badge.get('template_name') or 'Insignia Digital'
     subject = f'He obtenido la insignia digital "{name}" en Evaluaasi'
     body = (
-        f'Hola!\n\n'
-        f'Me complace compartir que he obtenido la insignia digital "{name}" en Evaluaasi.\n\n'
+        f'Hola,\n\n'
+        f'Me complace compartir que he obtenido una insignia digital en Evaluaasi.\n\n'
         f'Esta credencial valida mis competencias y habilidades profesionales.\n\n'
         f'Saludos.'
     )
@@ -235,14 +235,15 @@ class TestTwitterSharing:
 class TestEmailSharing:
 
     def test_08_email_subject_and_body(self):
-        """Email genera subject con nombre de la insignia y Evaluaasi, body sin código ECM."""
+        """Email genera subject con nombre de la insignia y Evaluaasi, body sin nombre ni código."""
         subject, body = build_email_parts(BADGE_WITH_NAME)
         assert 'Certificación Python Avanzado' in subject
         assert 'Evaluaasi' in subject
         assert 'Evaluaasi' in body
-        assert 'Hola!' in body
+        assert 'Hola,' in body
         assert '/verify/' not in body
         assert 'BDABC1234567' not in body
+        assert 'Certificación Python Avanzado' not in body
 
     def test_09_email_body_no_code(self):
         """El body del email no contiene códigos ni URLs de verificación."""
@@ -252,10 +253,10 @@ class TestEmailSharing:
         assert '/s/' not in body
 
     def test_10_email_fallback_name(self):
-        """Si no hay template_name, email usa 'Insignia Digital'."""
+        """Si no hay template_name, email usa 'Insignia Digital' en subject pero no en body."""
         subject, body = build_email_parts(BADGE_NO_NAME)
         assert 'Insignia Digital' in subject
-        assert 'Insignia Digital' in body
+        assert 'Insignia Digital' not in body
         assert 'None' not in subject
         assert 'None' not in body
 
