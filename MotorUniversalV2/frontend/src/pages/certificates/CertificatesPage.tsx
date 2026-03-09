@@ -631,7 +631,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
       const { default: badgeService } = await import('../../services/badgeService')
       await badgeService.trackShare(badge.id)
     } catch { /* best effort */ }
-    const name = badge.template_name || 'Insignia Digital'
+    const name = (badge.template_name || 'Insignia Digital').replace(/[\u2014\u2013]/g, '-')
     const subject = `He obtenido la insignia digital "${name}" en Evaluaasi`
     const body = `Hola,\n\nMe complace compartir que he obtenido una insignia digital en Evaluaasi.\n\nEsta credencial valida mis competencias y habilidades profesionales.\n\nSaludos.`
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
