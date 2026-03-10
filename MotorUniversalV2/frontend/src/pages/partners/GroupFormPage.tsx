@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import StyledSelect from '../../components/StyledSelect';
 import {
   getCampus,
@@ -47,6 +48,7 @@ export default function GroupFormPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEditing = Boolean(groupId);
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
   
   // Obtener el ciclo desde la URL si viene desde un ciclo específico
   const defaultCycleId = searchParams.get('cycleId') || searchParams.get('cycle');
@@ -217,7 +219,7 @@ export default function GroupFormPage() {
       
       if (isEditing && groupId) {
         await updateGroup(Number(groupId), formData);
-        navigate(`/partners/groups/${groupId}`);
+        navigate(basePath);
       } else if (campusId) {
         const newGroup = await createGroup(Number(campusId), formData);
         navigate(`/partners/groups/${newGroup.id}?created=true`);
@@ -376,27 +378,29 @@ export default function GroupFormPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb 
-        items={isEditing 
-          ? [
-              { label: campus?.partner?.name || 'Partner', path: `/partners/${campus?.partner_id}` },
-              { label: campus?.name || 'Plantel', path: `/partners/campuses/${campusId}` },
-              { label: formData.name || 'Grupo', path: `/partners/groups/${groupId}` },
-              { label: 'Editar' }
-            ]
-          : [
-              { label: campus?.partner?.name || 'Partner', path: `/partners/${campus?.partner_id}` },
-              { label: campus?.name || 'Plantel', path: `/partners/campuses/${campusId}` },
-              { label: 'Nuevo Grupo' }
-            ]
-        } 
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb 
+          items={isEditing 
+            ? [
+                { label: campus?.partner?.name || 'Partner', path: `/partners/${campus?.partner_id}` },
+                { label: campus?.name || 'Plantel', path: `/partners/campuses/${campusId}` },
+                { label: formData.name || 'Grupo', path: basePath },
+                { label: 'Editar' }
+              ]
+            : [
+                { label: campus?.partner?.name || 'Partner', path: `/partners/${campus?.partner_id}` },
+                { label: campus?.name || 'Plantel', path: `/partners/campuses/${campusId}` },
+                { label: 'Nuevo Grupo' }
+              ]
+          } 
+        />
+      )}
       
       {/* Header con Gradiente */}
       <div className={`bg-gradient-to-r ${isEditing ? 'from-indigo-600 via-purple-600 to-blue-600' : 'from-blue-600 via-indigo-600 to-purple-600'} rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg`}>
         <div className="flex items-center fluid-gap-5 flex-wrap">
           <Link
-            to={isEditing ? `/partners/groups/${groupId}` : `/partners/campuses/${campusId}`}
+            to={isEditing ? basePath : (isResponsable ? '/mi-plantel' : `/partners/campuses/${campusId}`)}
             className="fluid-p-3 bg-white/20 hover:bg-white/30 rounded-fluid-xl transition-all duration-300 hover:scale-105"
           >
             <ArrowLeft className="fluid-icon-lg text-white" />
@@ -406,7 +410,7 @@ export default function GroupFormPage() {
             {campus && (
               <div className="flex items-center fluid-gap-2 fluid-text-sm text-white/80 fluid-mb-1">
                 <Building2 className="fluid-icon-sm" />
-                <Link to={`/partners/campuses/${campusId}`} className="hover:text-white transition-colors">{campus.name}</Link>
+                <Link to={isResponsable ? '/mi-plantel' : `/partners/campuses/${campusId}`} className="hover:text-white transition-colors">{campus.name}</Link>
               </div>
             )}
             <h1 className="fluid-text-3xl font-bold text-white flex items-center fluid-gap-3">
@@ -417,7 +421,7 @@ export default function GroupFormPage() {
 
           <div className="flex items-center fluid-gap-3">
             <Link
-              to={isEditing ? `/partners/groups/${groupId}` : `/partners/campuses/${campusId}`}
+              to={isEditing ? basePath : (isResponsable ? '/mi-plantel' : `/partners/campuses/${campusId}`)}
               className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium fluid-text-base transition-all duration-300"
             >
               Cancelar

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import {
   getGroup,
   getExamMembersDetail,
@@ -57,6 +58,7 @@ export default function GroupEditAssignmentMembersPage() {
   const { groupId, assignmentId } = useParams();
   const [searchParams] = useSearchParams();
   const assignmentName = searchParams.get('name') || '';
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [detailData, setDetailData] = useState<ExamMembersDetailResponse | null>(null);
@@ -468,7 +470,7 @@ export default function GroupEditAssignmentMembersPage() {
         <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
           <AlertCircle className="fluid-icon-lg text-red-600" />
           <p className="text-red-700 fluid-text-base">{error || 'Datos no encontrados'}</p>
-          <Link to={`/partners/groups/${groupId}`} className="ml-auto text-red-700 underline">Volver</Link>
+          <Link to={basePath} className="ml-auto text-red-700 underline">Volver</Link>
         </div>
       </div>
     );
@@ -477,14 +479,16 @@ export default function GroupEditAssignmentMembersPage() {
   return (
     <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb
-        items={[
-          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-          { label: group.name, path: `/partners/groups/${groupId}` },
-          { label: 'Candidatos Asignados' },
-        ]}
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb
+          items={[
+            { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+            { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+            { label: group.name, path: basePath },
+            { label: 'Candidatos Asignados' },
+          ]}
+        />
+      )}
 
       {/* ===== HEADER CON GRADIENTE ===== */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
@@ -495,7 +499,7 @@ export default function GroupEditAssignmentMembersPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
             <div className="flex items-center fluid-gap-4">
               <Link
-                to={`/partners/groups/${groupId}`}
+                to={basePath}
                 className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
               >
                 <ArrowLeft className="fluid-icon-lg" />
@@ -572,7 +576,7 @@ export default function GroupEditAssignmentMembersPage() {
           </p>
         </div>
         <Link
-          to={`/partners/groups/${groupId}/assignments/${assignmentId}/swap-history?name=${encodeURIComponent(assignmentName)}`}
+          to={`${basePath}/assignments/${assignmentId}/swap-history?name=${encodeURIComponent(assignmentName)}`}
           className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
         >
           <ClipboardList className="w-3.5 h-3.5" />

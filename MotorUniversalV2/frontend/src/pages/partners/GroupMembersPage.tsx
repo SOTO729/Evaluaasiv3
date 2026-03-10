@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import {
   getGroup,
   getGroupMembers,
@@ -47,6 +48,7 @@ import {
 export default function GroupMembersPage() {
   const { groupId } = useParams();
   const location = useLocation();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -287,7 +289,7 @@ export default function GroupMembersPage() {
         <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
           <AlertCircle className="fluid-icon-lg text-red-600" />
           <p className="text-red-700 fluid-text-base">{error}</p>
-          <Link to={`/partners/groups/${groupId}`} className="ml-auto text-red-700 underline">Volver</Link>
+          <Link to={basePath} className="ml-auto text-red-700 underline">Volver</Link>
         </div>
       </div>
     );
@@ -296,14 +298,16 @@ export default function GroupMembersPage() {
   return (
     <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb
-        items={[
-          { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
-          { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
-          { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
-          { label: 'Miembros' },
-        ]}
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb
+          items={[
+            { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
+            { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
+            { label: group?.name || 'Grupo', path: basePath },
+            { label: 'Miembros' },
+          ]}
+        />
+      )}
 
       {/* ===== HEADER CON GRADIENTE ===== */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
@@ -314,7 +318,7 @@ export default function GroupMembersPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
             <div className="flex items-center fluid-gap-4">
               <Link
-                to={`/partners/groups/${groupId}`}
+                to={basePath}
                 className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
               >
                 <ArrowLeft className="fluid-icon-lg" />
@@ -344,7 +348,7 @@ export default function GroupMembersPage() {
               )}
               {group?.is_active && (
                 <Link
-                  to={`/partners/groups/${groupId}/assign-candidates`}
+                  to={`${basePath}/assign-candidates`}
                   className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-purple-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg"
                 >
                   <UserPlus className="fluid-icon-sm" />
@@ -533,7 +537,7 @@ export default function GroupMembersPage() {
           </p>
           {group?.is_active && (
             <Link
-              to={`/partners/groups/${groupId}/assign-candidates`}
+              to={`${basePath}/assign-candidates`}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
             >
               <UserPlus className="w-5 h-5" />

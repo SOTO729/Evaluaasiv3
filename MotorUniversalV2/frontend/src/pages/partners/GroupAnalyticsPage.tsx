@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import {
   getGroup,
   getGroupAnalytics,
@@ -31,6 +32,7 @@ const PIE_COLORS = { certified: '#10b981', in_progress: '#3b82f6', failed: '#ef4
 
 export default function GroupAnalyticsPage() {
   const { groupId } = useParams();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [analytics, setAnalytics] = useState<GroupAnalytics | null>(null);
@@ -117,7 +119,7 @@ export default function GroupAnalyticsPage() {
         <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
           <AlertCircle className="fluid-icon-lg text-red-600" />
           <p className="text-red-700">{error}</p>
-          <Link to={`/partners/groups/${groupId}`} className="ml-auto text-red-700 underline">Volver</Link>
+          <Link to={basePath} className="ml-auto text-red-700 underline">Volver</Link>
         </div>
       </div>
     );
@@ -153,21 +155,23 @@ export default function GroupAnalyticsPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb
-        items={[
-          { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
-          { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
-          { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
-          { label: 'Analítica' },
-        ]}
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb
+          items={[
+            { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
+            { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
+            { label: group?.name || 'Grupo', path: basePath },
+            { label: 'Analítica' },
+          ]}
+        />
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
             <Link
-              to={`/partners/groups/${groupId}`}
+              to={basePath}
               className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
             >
               <ArrowLeft className="fluid-icon-lg" />

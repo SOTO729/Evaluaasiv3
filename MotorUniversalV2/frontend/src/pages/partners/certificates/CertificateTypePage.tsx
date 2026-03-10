@@ -20,6 +20,7 @@ import {
 import CandidateCertDetailModal from './CandidateCertDetailModal';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../../hooks/useGroupBasePath';
 import {
   getGroup,
   getGroupCertificatesStats,
@@ -61,6 +62,7 @@ export default function CertificateTypePage({
   customTableContent,
 }: CertificateTypePageProps) {
   const { groupId } = useParams();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   // Initial data (group + summary)
   const [group, setGroup] = useState<CandidateGroup | null>(null);
@@ -378,7 +380,7 @@ export default function CertificateTypePage({
         <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-center fluid-gap-3">
           <AlertCircle className="fluid-icon-lg text-red-600" />
           <p className="text-red-700">{error}</p>
-          <Link to={`/partners/groups/${groupId}/documents`} className="ml-auto text-red-700 underline">Volver</Link>
+          <Link to={`${basePath}/documents`} className="ml-auto text-red-700 underline">Volver</Link>
         </div>
       </div>
     );
@@ -454,22 +456,24 @@ export default function CertificateTypePage({
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb
-        items={[
-          { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
-          { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
-          { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
-          { label: 'Documentos', path: `/partners/groups/${groupId}/documents` },
-          { label: title },
-        ]}
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb
+          items={[
+            { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
+            { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
+            { label: group?.name || 'Grupo', path: basePath },
+            { label: 'Documentos', path: `${basePath}/documents` },
+            { label: title },
+          ]}
+        />
+      )}
 
       {/* Header */}
       <div className={`${headerGradient} rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl`}>
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
             <Link
-              to={`/partners/groups/${groupId}/documents`}
+              to={`${basePath}/documents`}
               className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
             >
               <ArrowLeft className="fluid-icon-lg" />

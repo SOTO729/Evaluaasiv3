@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import {
   getGroup,
   getGroupMembers,
@@ -46,6 +47,7 @@ type Step = 'select-materials' | 'assign-members';
 export default function GroupAssignMaterialsPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   // Estado del grupo y miembros
   const [group, setGroup] = useState<CandidateGroup | null>(null);
@@ -221,7 +223,7 @@ export default function GroupAssignMaterialsPage() {
       await assignStudyMaterialsToGroup(Number(groupId), config);
 
       // Redirigir directamente
-      navigate(`/partners/groups/${groupId}`);
+      navigate(basePath);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al asignar los materiales');
       setSaving(false);
@@ -296,19 +298,21 @@ export default function GroupAssignMaterialsPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb 
-        items={[
-          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-          { label: group.name, path: `/partners/groups/${groupId}` },
-          { label: 'Asignar Materiales' }
-        ]} 
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb 
+          items={[
+            { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+            { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+            { label: group.name, path: basePath },
+            { label: 'Asignar Materiales' }
+          ]} 
+        />
+      )}
       
       {/* Header */}
       <div className="mb-6">
         <Link
-          to={`/partners/groups/${groupId}`}
+          to={basePath}
           className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -830,7 +834,7 @@ export default function GroupAssignMaterialsPage() {
               
               {attemptedMaterial.is_in_assigned_exam && attemptedMaterial.assigned_exam_info ? (
                 <Link
-                  to={`/partners/groups/${groupId}/assignments/${attemptedMaterial.assigned_exam_info.exam_id}/edit-members?type=exam&name=${encodeURIComponent(attemptedMaterial.assigned_exam_info.exam_name)}`}
+                  to={`${basePath}/assignments/${attemptedMaterial.assigned_exam_info.exam_id}/edit-members?type=exam&name=${encodeURIComponent(attemptedMaterial.assigned_exam_info.exam_name)}`}
                   className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors font-medium flex items-center gap-2"
                 >
                   <Edit3 className="w-4 h-4" />
@@ -838,7 +842,7 @@ export default function GroupAssignMaterialsPage() {
                 </Link>
               ) : (
                 <Link
-                  to={`/partners/groups/${groupId}/assignments/${attemptedMaterial.id}/edit-members?type=material&name=${encodeURIComponent(attemptedMaterial.title)}`}
+                  to={`${basePath}/assignments/${attemptedMaterial.id}/edit-members?type=material&name=${encodeURIComponent(attemptedMaterial.title)}`}
                   className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center gap-2"
                 >
                   <Edit3 className="w-4 h-4" />

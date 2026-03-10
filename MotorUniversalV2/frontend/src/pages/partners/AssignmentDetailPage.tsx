@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import {
   getGroupExamDetail,
   AssignmentDetailResponse,
@@ -78,6 +79,7 @@ function ConfigRow({ icon: Icon, label, value, color = 'gray' }: { icon: React.C
 
 export default function AssignmentDetailPage() {
   const { groupId, examId } = useParams();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
   const [data, setData] = useState<AssignmentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,12 +142,14 @@ export default function AssignmentDetailPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up fluid-space-y-6">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb items={[
-        { label: 'Planteles', path: '/partners' },
-        { label: campus_config.name, path: `/partners/campuses/${campus_config.id}` },
-        { label: group.name, path: `/partners/groups/${groupId}` },
-        { label: exam?.name || 'Asignación' },
-      ]} />
+      {!isResponsable && (
+        <PartnersBreadcrumb items={[
+          { label: 'Planteles', path: '/partners' },
+          { label: campus_config.name, path: `/partners/campuses/${campus_config.id}` },
+          { label: group.name, path: basePath },
+          { label: exam?.name || 'Asignación' },
+        ]} />
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-violet-600 rounded-2xl p-6 text-white shadow-xl">
@@ -178,13 +182,13 @@ export default function AssignmentDetailPage() {
           </div>
           <div className="flex gap-2">
             <Link
-              to={`/partners/groups/${groupId}`}
+              to={basePath}
               className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition-colors flex items-center gap-2 backdrop-blur-sm"
             >
               <ArrowLeft className="w-4 h-4" /> Volver al Grupo
             </Link>
             <Link
-              to={`/partners/groups/${groupId}/assignments/${examId}/edit-members?type=exam&name=${encodeURIComponent(exam?.name || 'Examen')}`}
+              to={`${basePath}/assignments/${examId}/edit-members?type=exam&name=${encodeURIComponent(exam?.name || 'Examen')}`}
               className="px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
             >
               <Users className="w-4 h-4" /> Ver Miembros
@@ -433,7 +437,7 @@ export default function AssignmentDetailPage() {
                 <span className="px-2 py-0.5 bg-sky-100 text-sky-700 text-xs font-bold rounded-full">{assignment.assigned_members.length}</span>
               </h2>
               <Link
-                to={`/partners/groups/${groupId}/assignments/${examId}/edit-members?type=exam&name=${encodeURIComponent(exam?.name || 'Examen')}`}
+                to={`${basePath}/assignments/${examId}/edit-members?type=exam&name=${encodeURIComponent(exam?.name || 'Examen')}`}
                 className="text-sm text-sky-600 hover:text-sky-800 font-medium flex items-center gap-1"
               >
                 Ver detalle completo <ChevronRight className="w-4 h-4" />

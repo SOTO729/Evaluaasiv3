@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../../hooks/useGroupBasePath';
 import {
   getGroup, assignExamToGroup, bulkAssignExamsByECM,
   CandidateGroup, ExamAssignmentConfig,
@@ -28,6 +29,7 @@ export default function ExamAssignmentReviewPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const prevState = location.state as AssignMembersState | undefined;
 
@@ -48,7 +50,7 @@ export default function ExamAssignmentReviewPage() {
   // Redirect if no state
   useEffect(() => {
     if (!prevState?.selectedExam) {
-      navigate(`/partners/groups/${groupId}/assign-exam`, { replace: true });
+      navigate(`${basePath}/assign-exam`, { replace: true });
     }
   }, []);
 
@@ -154,12 +156,14 @@ export default function ExamAssignmentReviewPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      <PartnersBreadcrumb items={[
-        { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-        { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-        { label: group.name, path: `/partners/groups/${groupId}` },
-        { label: 'Confirmar Asignación' },
-      ]} />
+      {!isResponsable && (
+        <PartnersBreadcrumb items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name, path: basePath },
+          { label: 'Confirmar Asignación' },
+        ]} />
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
@@ -329,13 +333,13 @@ export default function ExamAssignmentReviewPage() {
       {/* Success Modal */}
       <AssignmentSuccessModal
         open={showSuccessModal}
-        onClose={() => navigate(`/partners/groups/${groupId}`)}
+        onClose={() => navigate(basePath)}
         examName={selectedExam.name}
         groupName={group.name}
         newAssignments={modalNewAssignments}
         alreadyAssigned={modalAlreadyAssigned}
         bulkResult={modalBulkResult || undefined}
-        onNavigateToGroup={() => navigate(`/partners/groups/${groupId}`)}
+        onNavigateToGroup={() => navigate(basePath)}
       />
     </div>
   );

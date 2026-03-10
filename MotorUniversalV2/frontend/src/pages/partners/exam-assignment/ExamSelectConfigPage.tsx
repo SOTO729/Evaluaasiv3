@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../../hooks/useGroupBasePath';
 import {
   getGroup, getAvailableExams, getAvailableEcms,
   CandidateGroup, AvailableExam, AvailableEcm, ExamContentType,
@@ -27,6 +28,7 @@ const EXAMS_PER_PAGE = 500;
 export default function ExamSelectConfigPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,7 +175,7 @@ export default function ExamSelectConfigPage() {
     const materialIds = selectedExam.linked_material_ids || [];
     const state: SelectMaterialsState = { selectedExam, config, selectedMaterialIds: materialIds };
     // Saltar directamente al paso 3 (candidatos)
-    navigate(`/partners/groups/${groupId}/assign-exam/members`, { state });
+    navigate(`${basePath}/assign-exam/members`, { state });
   };
 
   /** Ir a la sub-página de configuración manual */
@@ -217,7 +219,7 @@ export default function ExamSelectConfigPage() {
       useAllSimulatorQuestions, useAllSimulatorExercises,
     };
     const state: SelectExamState = { selectedExam, config };
-    navigate(`/partners/groups/${groupId}/assign-exam/materials`, { state });
+    navigate(`${basePath}/assign-exam/materials`, { state });
   };
 
   if (loading) return <LoadingSpinner message="Cargando..." fullScreen />;
@@ -230,17 +232,19 @@ export default function ExamSelectConfigPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      <PartnersBreadcrumb items={[
-        { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-        { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-        { label: group.name, path: `/partners/groups/${groupId}` },
-        { label: 'Asignar Examen' },
-      ]} />
+      {!isResponsable && (
+        <PartnersBreadcrumb items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name, path: basePath },
+          { label: 'Asignar Examen' },
+        ]} />
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center fluid-gap-4">
-          <Link to={`/partners/groups/${groupId}`} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
+          <Link to={basePath} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
             <ArrowLeft className="fluid-icon-lg" />
           </Link>
           <div>
@@ -840,7 +844,7 @@ export default function ExamSelectConfigPage() {
             </div>
             <div className="bg-gray-50 fluid-px-5 fluid-py-3 flex flex-wrap justify-end fluid-gap-3">
               <button onClick={() => setShowAlreadyAssignedModal(false)} className="fluid-px-4 fluid-py-2 bg-gray-200 text-gray-700 rounded-fluid-xl hover:bg-gray-300 transition-all font-medium fluid-text-sm">Entendido</button>
-              <Link to={`/partners/groups/${groupId}/assignments/${attemptedExam.id}/edit-members?type=exam&name=${encodeURIComponent(attemptedExam.name)}`}
+              <Link to={`${basePath}/assignments/${attemptedExam.id}/edit-members?type=exam&name=${encodeURIComponent(attemptedExam.name)}`}
                 className="fluid-px-4 fluid-py-2 bg-orange-500 text-white rounded-fluid-xl hover:bg-orange-600 transition-all font-medium flex items-center fluid-gap-2 fluid-text-sm shadow-lg">
                 <Users className="fluid-icon-sm" />Editar candidatos
               </Link>

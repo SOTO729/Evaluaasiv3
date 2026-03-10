@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import {
   getGroup,
   getSwapHistory,
@@ -39,6 +40,7 @@ export default function SwapHistoryPage() {
   const { groupId, assignmentId } = useParams();
   const [searchParams] = useSearchParams();
   const assignmentName = searchParams.get('name') || '';
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,14 +143,16 @@ export default function SwapHistoryPage() {
   return (
     <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Breadcrumb */}
-      <PartnersBreadcrumb
-        items={[
-          { label: 'Socios', path: '/partners' },
-          ...(group ? [{ label: group.name, path: `/partners/groups/${gId}` }] : []),
-          { label: assignmentName || 'Examen', path: `/partners/groups/${gId}/assignments/${examId}/detail` },
-          { label: 'Historial de Reasignaciones' },
-        ]}
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb
+          items={[
+            { label: 'Socios', path: '/partners' },
+            ...(group ? [{ label: group.name, path: basePath }] : []),
+            { label: assignmentName || 'Examen', path: `${basePath}/assignments/${examId}/detail` },
+            { label: 'Historial de Reasignaciones' },
+          ]}
+        />
+      )}
 
       {/* ===== HEADER CON GRADIENTE ===== */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
@@ -159,7 +163,7 @@ export default function SwapHistoryPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
             <div className="flex items-center fluid-gap-4">
               <Link
-                to={`/partners/groups/${gId}/assignments/${examId}/edit-members?name=${encodeURIComponent(assignmentName)}`}
+                to={`${basePath}/assignments/${examId}/edit-members?name=${encodeURIComponent(assignmentName)}`}
                 className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
                 title="Volver a miembros"
               >

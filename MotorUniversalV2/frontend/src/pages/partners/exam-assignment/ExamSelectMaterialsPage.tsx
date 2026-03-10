@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../../hooks/useGroupBasePath';
 import {
   getGroup, getExamMaterialsForAssignment,
   CandidateGroup, ExamMaterialForAssignment,
@@ -21,6 +22,7 @@ export default function ExamSelectMaterialsPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const prevState = location.state as SelectExamState | undefined;
 
@@ -39,7 +41,7 @@ export default function ExamSelectMaterialsPage() {
   // Redirect if no state
   useEffect(() => {
     if (!prevState?.selectedExam) {
-      navigate(`/partners/groups/${groupId}/assign-exam`, { replace: true });
+      navigate(`${basePath}/assign-exam`, { replace: true });
     }
   }, []);
 
@@ -81,7 +83,7 @@ export default function ExamSelectMaterialsPage() {
       ...prevState,
       selectedMaterialIds,
     };
-    navigate(`/partners/groups/${groupId}/assign-exam/members`, { state });
+    navigate(`${basePath}/assign-exam/members`, { state });
   };
 
   const filteredMaterials = availableMaterials.filter(m => {
@@ -100,17 +102,19 @@ export default function ExamSelectMaterialsPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      <PartnersBreadcrumb items={[
-        { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-        { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-        { label: group.name, path: `/partners/groups/${groupId}` },
-        { label: 'Materiales de Estudio' },
-      ]} />
+      {!isResponsable && (
+        <PartnersBreadcrumb items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name, path: basePath },
+          { label: 'Materiales de Estudio' },
+        ]} />
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center fluid-gap-4">
-          <button onClick={() => navigate(`/partners/groups/${groupId}/assign-exam`)} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
+          <button onClick={() => navigate(`${basePath}/assign-exam`)} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
             <ArrowLeft className="fluid-icon-lg" />
           </button>
           <div>
@@ -211,7 +215,7 @@ export default function ExamSelectMaterialsPage() {
 
         {/* Navigation */}
         <div className="flex justify-between pt-4 border-t mt-6">
-          <button onClick={() => navigate(`/partners/groups/${groupId}/assign-exam`)} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
+          <button onClick={() => navigate(`${basePath}/assign-exam`)} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
           <button onClick={handleContinue} className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 fluid-text-sm font-medium shadow-lg transition-all">
             Continuar: Candidatos →
           </button>

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../../hooks/useGroupBasePath';
 import {
   getGroup, getGroupMembers,
   downloadBulkExamAssignTemplate, bulkAssignExamsByECM,
@@ -27,6 +28,7 @@ export default function ExamAssignMembersPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
 
   const prevState = location.state as SelectMaterialsState | undefined;
 
@@ -80,7 +82,7 @@ export default function ExamAssignMembersPage() {
   // Redirect if no state
   useEffect(() => {
     if (!prevState?.selectedExam) {
-      navigate(`/partners/groups/${groupId}/assign-exam`, { replace: true });
+      navigate(`${basePath}/assign-exam`, { replace: true });
     }
   }, []);
 
@@ -221,7 +223,7 @@ export default function ExamAssignMembersPage() {
         bulkEcmCode: ecmCode || '',
         bulkPreview,
       };
-      navigate(`/partners/groups/${groupId}/assign-exam/review`, { state });
+      navigate(`${basePath}/assign-exam/review`, { state });
       return;
     }
     const state: AssignMembersState = {
@@ -229,7 +231,7 @@ export default function ExamAssignMembersPage() {
       assignmentType: assignmentType as 'all' | 'selected',
       selectedMemberIds: assignmentType === 'selected' ? selectedMemberIds : undefined,
     };
-    navigate(`/partners/groups/${groupId}/assign-exam/review`, { state });
+    navigate(`${basePath}/assign-exam/review`, { state });
   };
 
   // Bulk functions
@@ -359,12 +361,14 @@ export default function ExamAssignMembersPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      <PartnersBreadcrumb items={[
-        { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-        { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-        { label: group.name, path: `/partners/groups/${groupId}` },
-        { label: 'Asignar Candidatos' },
-      ]} />
+      {!isResponsable && (
+        <PartnersBreadcrumb items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name, path: basePath },
+          { label: 'Asignar Candidatos' },
+        ]} />
+      )}
 
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">

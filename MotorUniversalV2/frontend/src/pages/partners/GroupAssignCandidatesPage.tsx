@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import { useGroupBasePath } from '../../hooks/useGroupBasePath';
 import CandidateAssignmentSuccessModal from './CandidateAssignmentSuccessModal';
 import type { AddedCandidateInfo } from './CandidateAssignmentSuccessModal';
 import {
@@ -73,6 +74,7 @@ const MAX_PAGE_SIZE = 1000;
 export default function GroupAssignCandidatesPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
+  const { isResponsable, basePath } = useGroupBasePath(groupId);
   
   // Estado del grupo
   const [group, setGroup] = useState<CandidateGroup | null>(null);
@@ -573,14 +575,16 @@ export default function GroupAssignCandidatesPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* ===== BREADCRUMB ===== */}
-      <PartnersBreadcrumb 
-        items={[
-          { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
-          { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
-          { label: group?.name || 'Grupo', path: `/partners/groups/${groupId}` },
-          { label: 'Asignar Candidatos' }
-        ]} 
-      />
+      {!isResponsable && (
+        <PartnersBreadcrumb 
+          items={[
+            { label: group?.campus?.partner?.name || 'Partner', path: `/partners/${group?.campus?.partner_id}` },
+            { label: group?.campus?.name || 'Plantel', path: `/partners/campuses/${group?.campus_id}` },
+            { label: group?.name || 'Grupo', path: basePath },
+            { label: 'Asignar Candidatos' }
+          ]} 
+        />
+      )}
 
       {/* ===== HEADER CON GRADIENTE ===== */}
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
@@ -592,7 +596,7 @@ export default function GroupAssignCandidatesPage() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
             <div className="flex items-center fluid-gap-4">
               <Link
-                to={`/partners/groups/${groupId}`}
+                to={basePath}
                 className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"
               >
                 <ArrowLeft className="fluid-icon-lg" />
@@ -606,7 +610,7 @@ export default function GroupAssignCandidatesPage() {
               </div>
             </div>
             <button
-              onClick={() => navigate(`/partners/groups/${groupId}/bulk-upload`)}
+              onClick={() => navigate(`${basePath}/bulk-upload`)}
               className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium transition-colors fluid-text-sm backdrop-blur-sm"
             >
               <FileSpreadsheet className="fluid-icon-sm" />
@@ -1419,7 +1423,7 @@ export default function GroupAssignCandidatesPage() {
         addErrors={successModalData.addErrors}
         autoAssignedExams={successModalData.autoAssignedExams}
         criteriaResult={successModalData.criteriaResult}
-        onNavigateToGroup={() => navigate(`/partners/groups/${groupId}`)}
+        onNavigateToGroup={() => navigate(basePath)}
       />
     </div>
   );
