@@ -809,9 +809,24 @@ def update_user(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Solo admin/developer puede editar usuarios (recursos compartidos)
-        if current_user.role in ('coordinator', 'responsable'):
-            return jsonify({'error': 'Solo administradores pueden editar usuarios'}), 403
+        # Coordinadores solo pueden editar candidatos, responsables y responsables del partner
+        if _is_coordinator_role(current_user.role):
+            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+                return jsonify({'error': 'Solo puedes editar candidatos, responsables y responsables del partner'}), 403
+        
+        # Responsable solo puede editar candidatos de su plantel
+        if current_user.role == 'responsable':
+            if user.role != 'candidato':
+                return jsonify({'error': 'Solo puedes editar candidatos'}), 403
+            from app.models.partner import GroupMember, CandidateGroup
+            is_in_campus = db.session.query(GroupMember.id).join(
+                CandidateGroup, GroupMember.group_id == CandidateGroup.id
+            ).filter(
+                GroupMember.user_id == user_id,
+                CandidateGroup.campus_id == current_user.campus_id
+            ).first()
+            if not is_in_campus:
+                return jsonify({'error': 'Este candidato no pertenece a tu plantel'}), 403
         
         # No se puede editar a uno mismo por esta ruta (usar perfil)
         if user_id == current_user.id:
@@ -845,6 +860,38 @@ def update_user(user_id):
             if existing:
                 return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
             user.email = email
+        
+        # Campos de responsable (editables por admin, developer y coordinator)
+        if user.role == 'responsable' and current_user.role in ['admin', 'developer', 'coordinator']:
+            if 'date_of_birth' in data:
+                if data['date_of_birth']:
+                    user.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
+                else:
+                    user.date_of_birth = None
+            if 'campus_id' in data and data['campus_id']:
+                from app.models.partner import Campus
+                campus = Campus.query.get(data['campus_id'])
+                if not campus:
+                    return jsonify({'error': 'Plantel no encontrado'}), 400
+                user.campus_id = data['campus_id']
+            if 'can_bulk_create_candidates' in data:
+                user.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
+            if 'can_manage_groups' in data:
+                user.can_manage_groups = bool(data['can_manage_groups'])
+            if 'can_view_reports' in data:
+                user.can_view_reports = bool(data['can_view_reports'])
+        
+        # Campos de responsable_partner (editables por admin, developer y coordinator)
+        if user.role == 'responsable_partner' and current_user.role in ['admin', 'developer', 'coordinator']:
+            if 'partner_id' in data and data['partner_id']:
+                from app.models.partner import Partner, user_partners
+                partner = Partner.query.get(data['partner_id'])
+                if not partner:
+                    return jsonify({'error': 'Partner no encontrado'}), 400
+                # Eliminar relaciones anteriores
+                db.session.execute(user_partners.delete().where(user_partners.c.user_id == user.id))
+                # Crear nueva relación
+                db.session.execute(user_partners.insert().values(user_id=user.id, partner_id=data['partner_id']))
         
         # Campos que solo admin puede cambiar
         if current_user.role in ['admin', 'developer']:

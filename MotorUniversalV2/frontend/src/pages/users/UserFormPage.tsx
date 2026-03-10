@@ -281,13 +281,20 @@ export default function UserFormPage() {
         role: data.role || 'candidato',
         is_active: data.is_active ?? true,
         gender: data.gender || '',
-        date_of_birth: '',
-        campus_id: 0,
-        can_bulk_create_candidates: false,
-        can_manage_groups: false,
-        can_view_reports: true,
-        partner_id: 0,
+        date_of_birth: data.date_of_birth || '',
+        campus_id: data.campus_id || 0,
+        can_bulk_create_candidates: data.can_bulk_create_candidates ?? false,
+        can_manage_groups: data.can_manage_groups ?? false,
+        can_view_reports: data.can_view_reports ?? true,
+        partner_id: data.partners?.[0]?.id || 0,
       });
+      // Load campuses/partners if editing responsable/responsable_partner
+      if (data.role === 'responsable') {
+        loadCampuses();
+      }
+      if (data.role === 'responsable_partner') {
+        loadPartners();
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar usuario');
     } finally {
@@ -419,6 +426,20 @@ export default function UserFormPage() {
 
         if (currentUser?.role === 'admin') {
           updateData.role = formData.role;
+        }
+
+        // Campos adicionales para responsables
+        if (formData.role === 'responsable') {
+          updateData.date_of_birth = formData.date_of_birth || undefined;
+          updateData.campus_id = formData.campus_id || undefined;
+          updateData.can_bulk_create_candidates = formData.can_bulk_create_candidates;
+          updateData.can_manage_groups = formData.can_manage_groups;
+          updateData.can_view_reports = formData.can_view_reports;
+        }
+
+        // Campos adicionales para responsable_partner
+        if (formData.role === 'responsable_partner') {
+          updateData.partner_id = formData.partner_id || undefined;
         }
 
         await updateUser(userId!, updateData);
@@ -1006,7 +1027,7 @@ export default function UserFormPage() {
             </div>
 
             {/* ── Configuración del responsable ── */}
-            {formData.role === 'responsable' && !isEditing && (
+            {formData.role === 'responsable' && (
               <div className="border-t border-blue-200 bg-blue-50/50 fluid-p-6">
                 <h2 className="flex items-center fluid-gap-2 font-semibold text-blue-800 fluid-text-lg fluid-mb-5">
                   <Building2 className="fluid-icon-sm text-blue-500" />
@@ -1101,7 +1122,7 @@ export default function UserFormPage() {
             )}
 
             {/* ── Asignación de partner ── */}
-            {formData.role === 'responsable_partner' && !isEditing && (
+            {formData.role === 'responsable_partner' && (
               <div className="border-t border-violet-200 bg-violet-50/50 fluid-p-6">
                 <h2 className="flex items-center fluid-gap-2 font-semibold text-violet-800 fluid-text-lg fluid-mb-5">
                   <Briefcase className="fluid-icon-sm text-violet-500" />

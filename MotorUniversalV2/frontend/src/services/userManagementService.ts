@@ -21,6 +21,12 @@ export interface ManagedUser {
   phone?: string;
   created_at: string;
   last_login?: string;
+  // Campos de responsable
+  date_of_birth?: string;
+  campus_id?: number;
+  can_bulk_create_candidates?: boolean;
+  can_manage_groups?: boolean;
+  can_view_reports?: boolean;
   document_options?: {
     evaluation_report: boolean;
     certificate: boolean;
@@ -62,6 +68,14 @@ export interface UpdateUserData {
   role?: string;
   is_active?: boolean;
   is_verified?: boolean;
+  // Campos adicionales para responsables
+  date_of_birth?: string;
+  campus_id?: number;
+  can_bulk_create_candidates?: boolean;
+  can_manage_groups?: boolean;
+  can_view_reports?: boolean;
+  // Campos adicionales para responsable_partner
+  partner_id?: number;
 }
 
 export interface RoleOption {
