@@ -442,7 +442,6 @@ export default function UserFormPage() {
 
         await updateUser(userId!, updateData);
         setSuccess('Usuario actualizado correctamente');
-        setTimeout(() => navigate('/user-management'), 1500);
       } else {
         const createData: CreateUserData = {
           email: formData.email,
@@ -479,7 +478,6 @@ export default function UserFormPage() {
           setSuccess('Usuario creado exitosamente. Guarda las credenciales de acceso.');
         } else {
           setSuccess('Usuario creado correctamente');
-          setTimeout(() => navigate('/user-management'), 1500);
         }
       }
     } catch (err: any) {
@@ -592,17 +590,55 @@ export default function UserFormPage() {
         </div>
       </div>
 
-      {/* ── Alertas ── */}
+      {/* ── Modal de Error ── */}
       {error && (
-        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3 text-red-700">
-          <AlertCircle className="fluid-icon-sm flex-shrink-0" />
-          {error}
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-red-50 border-b border-red-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-800 fluid-text-lg">Error</h3>
+                <p className="fluid-text-sm text-red-700 fluid-mt-1">{error}</p>
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="fluid-px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
         </div>
       )}
-      {success && (
-        <div className="fluid-mb-6 bg-green-50 border border-green-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3 text-green-700">
-          <CheckCircle className="fluid-icon-sm flex-shrink-0" />
-          {success}
+
+      {/* ── Modal de Éxito ── */}
+      {success && !createdCredentials && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-green-50 border-b border-green-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-green-800 fluid-text-lg">¡Listo!</h3>
+                <p className="fluid-text-sm text-green-700 fluid-mt-1">{success}</p>
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => navigate('/user-management')}
+                className="fluid-px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
