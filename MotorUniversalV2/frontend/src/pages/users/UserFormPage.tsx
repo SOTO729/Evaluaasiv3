@@ -315,12 +315,12 @@ export default function UserFormPage() {
     setError(null);
     setSuccess(null);
 
-    // Email es requerido para todos excepto candidatos
-    if (formData.role !== 'candidato' && !formData.email.trim()) {
+    // Email es requerido para todos excepto candidatos (solo al crear)
+    if (!isEditing && formData.role !== 'candidato' && !formData.email.trim()) {
       setError('El email es requerido');
       return;
     }
-    // Si se proporciona email, validar formato
+    // Al editar: email es opcional, pero si se proporciona debe ser válido
     if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
       setError('El formato del email es inválido');
       return;
@@ -334,58 +334,56 @@ export default function UserFormPage() {
       return;
     }
     
-    // Para candidatos: CURP y email son opcionales
-    // - Sin email: no puede recibir insignia digital
-    // - Sin CURP: no puede recibir certificado CONOCER
-    if (formData.role === 'candidato') {
-      if (!formData.second_surname.trim()) {
-        setError('El segundo apellido es requerido para candidatos');
-        return;
-      }
-      // CURP es opcional, pero si se proporciona debe tener 18 caracteres
-      if (formData.curp.trim() && formData.curp.trim().length !== 18) {
-        setError('El CURP debe tener exactamente 18 caracteres');
-        return;
-      }
-      if (!formData.gender) {
-        setError('El género es requerido para candidatos');
-        return;
-      }
+    // CURP: si se proporciona, debe tener 18 caracteres (aplica siempre)
+    if (formData.curp.trim() && formData.curp.trim().length !== 18) {
+      setError('El CURP debe tener exactamente 18 caracteres');
+      return;
     }
 
-    // Para responsables, campos adicionales son obligatorios
-    if (formData.role === 'responsable') {
-      if (!formData.second_surname.trim()) {
-        setError('El segundo apellido es requerido para responsables');
-        return;
+    // Validaciones específicas solo al CREAR (no al editar)
+    if (!isEditing) {
+      // Para candidatos: CURP y email son opcionales
+      if (formData.role === 'candidato') {
+        if (!formData.second_surname.trim()) {
+          setError('El segundo apellido es requerido para candidatos');
+          return;
+        }
+        if (!formData.gender) {
+          setError('El género es requerido para candidatos');
+          return;
+        }
       }
-      if (!formData.curp.trim()) {
-        setError('El CURP es requerido para responsables');
-        return;
-      }
-      if (formData.curp.trim().length !== 18) {
-        setError('El CURP debe tener exactamente 18 caracteres');
-        return;
-      }
-      if (!formData.gender) {
-        setError('El género es requerido para responsables');
-        return;
-      }
-      if (!formData.date_of_birth) {
-        setError('La fecha de nacimiento es requerida para responsables');
-        return;
-      }
-      if (!formData.campus_id || formData.campus_id === 0) {
-        setError('Debe seleccionar un plantel para el responsable');
-        return;
-      }
-    }
 
-    // Para responsable_partner, partner_id es obligatorio
-    if (formData.role === 'responsable_partner') {
-      if (!formData.partner_id || formData.partner_id === 0) {
-        setError('Debe seleccionar un partner para el responsable del partner');
-        return;
+      // Para responsables, campos adicionales son obligatorios al crear
+      if (formData.role === 'responsable') {
+        if (!formData.second_surname.trim()) {
+          setError('El segundo apellido es requerido para responsables');
+          return;
+        }
+        if (!formData.curp.trim()) {
+          setError('El CURP es requerido para responsables');
+          return;
+        }
+        if (!formData.gender) {
+          setError('El género es requerido para responsables');
+          return;
+        }
+        if (!formData.date_of_birth) {
+          setError('La fecha de nacimiento es requerida para responsables');
+          return;
+        }
+        if (!formData.campus_id || formData.campus_id === 0) {
+          setError('Debe seleccionar un plantel para el responsable');
+          return;
+        }
+      }
+
+      // Para responsable_partner, partner_id es obligatorio al crear
+      if (formData.role === 'responsable_partner') {
+        if (!formData.partner_id || formData.partner_id === 0) {
+          setError('Debe seleccionar un partner para el responsable del partner');
+          return;
+        }
       }
     }
 
@@ -525,7 +523,7 @@ export default function UserFormPage() {
   const needsGender = ['candidato', 'responsable'].includes(formData.role);
   const needsSecondSurname = ['candidato', 'responsable'].includes(formData.role);
   const needsEmail = formData.role !== 'candidato';
-  const isEmailOptional = formData.role === 'candidato';
+  const isEmailOptional = formData.role === 'candidato' || isEditing;
 
   if (loading) {
     return (
@@ -871,8 +869,8 @@ export default function UserFormPage() {
                   <div>
                     <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Email{' '}
-                      {needsEmail && <span className="text-red-500">*</span>}
-                      {isEmailOptional && (
+                      {needsEmail && !isEditing && <span className="text-red-500">*</span>}
+                      {(isEmailOptional) && (
                         <span className="text-gray-400 text-xs ml-1">(opcional)</span>
                       )}
                     </label>
@@ -936,7 +934,7 @@ export default function UserFormPage() {
                 <div>
                   <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                     Segundo Apellido{' '}
-                    {needsSecondSurname && <span className="text-red-500">*</span>}
+                    {needsSecondSurname && !isEditing && <span className="text-red-500">*</span>}
                   </label>
                   <input
                     type="text"
@@ -952,7 +950,8 @@ export default function UserFormPage() {
                 {needsGender && (
                   <div>
                     <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                      Género <span className="text-red-500">*</span>
+                      Género{' '}
+                      {!isEditing && <span className="text-red-500">*</span>}
                     </label>
                     <StyledSelect
                       value={formData.gender}
@@ -965,7 +964,6 @@ export default function UserFormPage() {
                       placeholder="Seleccionar género..."
                       icon={User}
                       colorScheme="purple"
-                      required
                     />
                   </div>
                 )}
@@ -975,8 +973,8 @@ export default function UserFormPage() {
                   <div>
                     <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       CURP{' '}
-                      {formData.role === 'responsable' && <span className="text-red-500">*</span>}
-                      {formData.role === 'candidato' && (
+                      {formData.role === 'responsable' && !isEditing && <span className="text-red-500">*</span>}
+                      {(formData.role === 'candidato' || isEditing) && (
                         <span className="text-gray-400 text-xs ml-1">(opcional)</span>
                       )}
                     </label>
@@ -1036,7 +1034,8 @@ export default function UserFormPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-5">
                   <div>
                     <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                      Fecha de Nacimiento <span className="text-red-500">*</span>
+                      Fecha de Nacimiento{' '}
+                      {!isEditing && <span className="text-red-500">*</span>}
                     </label>
                     <DatePickerInput
                       value={formData.date_of_birth ? new Date(formData.date_of_birth) : null}
@@ -1053,7 +1052,8 @@ export default function UserFormPage() {
                   </div>
                   <div>
                     <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                      Plantel <span className="text-red-500">*</span>
+                      Plantel{' '}
+                      {!isEditing && <span className="text-red-500">*</span>}
                     </label>
                     {loadingCampuses ? (
                       <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
@@ -1130,7 +1130,8 @@ export default function UserFormPage() {
                 </h2>
                 <div>
                   <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
-                    Partner <span className="text-red-500">*</span>
+                    Partner{' '}
+                    {!isEditing && <span className="text-red-500">*</span>}
                   </label>
                   {loadingPartners ? (
                     <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">

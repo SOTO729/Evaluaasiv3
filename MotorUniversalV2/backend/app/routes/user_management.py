@@ -851,8 +851,8 @@ def update_user(user_id):
                     return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
             user.curp = curp
         
-        # Email - verificar unicidad
-        if 'email' in data:
+        # Email - verificar unicidad (solo si se proporciona un valor no vacío)
+        if 'email' in data and data['email'] and data['email'].strip():
             email = data['email'].strip().lower()
             if not validate_email(email):
                 return jsonify({'error': 'Formato de email inválido'}), 400
