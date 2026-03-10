@@ -407,6 +407,24 @@ function App() {
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
               <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />
               <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/members" element={<GroupMembersPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/documents" element={<GroupDocumentsPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/documents/reporte" element={<GroupCertReportePage />} />
+              <Route path="/mi-plantel/grupos/:groupId/documents/eduit" element={<GroupCertEduitPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/documents/conocer" element={<GroupCertConocerPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/documents/insignia" element={<GroupCertInsigniaPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/analytics" element={<GroupAnalyticsPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/edit" element={<GroupFormPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/bulk-upload" element={<GroupBulkUploadPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assign-exam" element={<ExamSelectConfigPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assign-exam/materials" element={<ExamSelectMaterialsPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assign-exam/members" element={<ExamAssignMembersPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assign-exam/review" element={<ExamAssignmentReviewPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assign-materials" element={<GroupAssignMaterialsPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assignments/:examId/detail" element={<AssignmentDetailPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
+              <Route path="/mi-plantel/grupos/:groupId/assignments/:assignmentId/swap-history" element={<SwapHistoryPage />} />
               
               {/* Responsable de Partner */}
               <Route path="/mi-partner" element={<ResponsablePartnerDashboard />} />

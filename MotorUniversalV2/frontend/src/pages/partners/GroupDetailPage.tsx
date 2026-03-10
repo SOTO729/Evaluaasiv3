@@ -45,9 +45,17 @@ import {
   EligibilitySummary,
 } from '../../services/partnersService';
 import { getMyBalance, CoordinatorBalance, formatCurrency } from '../../services/balanceService';
+import { useAuthStore } from '../../store/authStore';
 
-export default function GroupDetailPage() {
+interface GroupDetailPageProps {
+  isResponsable?: boolean;
+}
+
+export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps = {}) {
   const { groupId } = useParams();
+  const { user } = useAuthStore();
+  const canManage = !isResponsable || user?.can_manage_groups;
+  const basePath = isResponsable ? `/mi-plantel/grupos/${groupId}` : `/partners/groups/${groupId}`;
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
   const justCreated = searchParams.get('created') === 'true';
@@ -174,11 +182,11 @@ export default function GroupDetailPage() {
 
   // Workflow contextual
   const getWorkflowStatus = () => {
-    if (stats.totalMembers === 0) return { step: 0, color: 'purple' as const, message: 'Agrega miembros para comenzar', desc: 'El primer paso es agregar los miembros que participarán', btn: 'Agregar Miembros', link: `/partners/groups/${groupId}/assign-candidates` };
-    if (stats.totalExams === 0) return { step: 1, color: 'blue' as const, message: 'Asigna una certificación', desc: `${stats.totalMembers} miembros listos. Asigna un examen para evaluarlos`, btn: 'Asignar Examen', link: `/partners/groups/${groupId}/assign-exam` };
-    if (stats.certified > 0) return { step: 3, color: 'emerald' as const, message: `¡${stats.certified} certificados disponibles!`, desc: 'Descarga certificados e insignias digitales', btn: 'Ver Documentos', link: `/partners/groups/${groupId}/documents` };
-    if (stats.inProgress > 0) return { step: 2, color: 'sky' as const, message: `${stats.inProgress} evaluaciones en curso`, desc: 'Los miembros están presentando sus exámenes', btn: 'Ver Progreso', link: `/partners/groups/${groupId}/members` };
-    return { step: 2, color: 'amber' as const, message: 'Esperando evaluaciones', desc: 'Los miembros ya pueden presentar sus exámenes', btn: 'Ver Miembros', link: `/partners/groups/${groupId}/members` };
+    if (stats.totalMembers === 0) return { step: 0, color: 'purple' as const, message: 'Agrega miembros para comenzar', desc: 'El primer paso es agregar los miembros que participarán', btn: 'Agregar Miembros', link: `${basePath}/assign-candidates` };
+    if (stats.totalExams === 0) return { step: 1, color: 'blue' as const, message: 'Asigna una certificación', desc: `${stats.totalMembers} miembros listos. Asigna un examen para evaluarlos`, btn: 'Asignar Examen', link: `${basePath}/assign-exam` };
+    if (stats.certified > 0) return { step: 3, color: 'emerald' as const, message: `¡${stats.certified} certificados disponibles!`, desc: 'Descarga certificados e insignias digitales', btn: 'Ver Documentos', link: `${basePath}/documents` };
+    if (stats.inProgress > 0) return { step: 2, color: 'sky' as const, message: `${stats.inProgress} evaluaciones en curso`, desc: 'Los miembros están presentando sus exámenes', btn: 'Ver Progreso', link: `${basePath}/members` };
+    return { step: 2, color: 'amber' as const, message: 'Esperando evaluaciones', desc: 'Los miembros ya pueden presentar sus exámenes', btn: 'Ver Miembros', link: `${basePath}/members` };
   };
   const wf = getWorkflowStatus();
 
@@ -207,11 +215,13 @@ export default function GroupDetailPage() {
 
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      <PartnersBreadcrumb items={[
-        { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
-        { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
-        { label: group.name },
-      ]} />
+      {!isResponsable && (
+        <PartnersBreadcrumb items={[
+          { label: group.campus?.partner?.name || 'Partner', path: `/partners/${group.campus?.partner_id}` },
+          { label: group.campus?.name || 'Plantel', path: `/partners/campuses/${group.campus_id}` },
+          { label: group.name },
+        ]} />
+      )}
 
       {/* ===== HEADER ===== */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl relative overflow-hidden">
@@ -221,7 +231,7 @@ export default function GroupDetailPage() {
         
         <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
-            <Link to={`/partners/campuses/${group.campus_id}`} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
+            <Link to={isResponsable ? '/mi-plantel' : `/partners/campuses/${group.campus_id}`} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
               <ArrowLeft className="fluid-icon-lg" />
             </Link>
             <div>
@@ -273,10 +283,12 @@ export default function GroupDetailPage() {
                 )}
               </div>
             )}
-            <Link to={`/partners/groups/${groupId}/edit`}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg">
-              <Settings className="fluid-icon-sm" /><span className="hidden sm:inline">Configurar</span>
-            </Link>
+            {canManage && (
+              <Link to={`${basePath}/edit`}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg">
+                <Settings className="fluid-icon-sm" /><span className="hidden sm:inline">Configurar</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -357,7 +369,7 @@ export default function GroupDetailPage() {
               <h4 className="font-semibold text-amber-800 fluid-text-sm fluid-mb-1">Datos incompletos</h4>
               <p className="fluid-text-sm text-amber-700">{eligibilitySummary?.members_without_curp || 0} sin CURP • {eligibilitySummary?.members_without_email || 0} sin email</p>
             </div>
-            <Link to={`/partners/groups/${groupId}/members`} className="inline-flex items-center fluid-gap-1 fluid-text-sm text-amber-800 font-medium hover:underline whitespace-nowrap">
+            <Link to={`${basePath}/members`} className="inline-flex items-center fluid-gap-1 fluid-text-sm text-amber-800 font-medium hover:underline whitespace-nowrap">
               Ver detalles <ChevronRight className="fluid-icon-xs" />
             </Link>
           </div>
@@ -367,7 +379,7 @@ export default function GroupDetailPage() {
       {/* ===== SECCIONES DEL GRUPO — Grid horizontal ===== */}
       <div className="grid grid-cols-3 fluid-gap-4 fluid-mb-6">
         {/* Miembros */}
-        <Link to={`/partners/groups/${groupId}/members`}
+        <Link to={`${basePath}/members`}
           className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-blue-300 transition-all duration-200 group">
           <div className="fluid-p-4">
             <div className="flex items-center fluid-gap-3 fluid-mb-3">
@@ -389,7 +401,7 @@ export default function GroupDetailPage() {
         </Link>
 
         {/* Analítica */}
-        <Link to={`/partners/groups/${groupId}/analytics`}
+        <Link to={`${basePath}/analytics`}
           className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-purple-300 transition-all duration-200 group">
           <div className="fluid-p-4">
             <div className="flex items-center fluid-gap-3 fluid-mb-3">
@@ -410,7 +422,7 @@ export default function GroupDetailPage() {
         </Link>
 
         {/* Certificados */}
-        <Link to={`/partners/groups/${groupId}/documents`}
+        <Link to={`${basePath}/documents`}
           className="block bg-white rounded-fluid-xl border border-gray-200 hover:shadow-lg hover:border-emerald-300 transition-all duration-200 group">
           <div className="fluid-p-4">
             <div className="flex items-center fluid-gap-3 fluid-mb-3">
@@ -442,7 +454,7 @@ export default function GroupDetailPage() {
                 <span className="fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-full">{assignedExams.length}</span>
               </div>
               {stats.totalMembers > 0 && group.is_active && (
-                <Link to={`/partners/groups/${groupId}/assign-exam`}
+                <Link to={`${basePath}/assign-exam`}
                   className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-xl font-semibold fluid-text-sm transition-all shadow-sm hover:shadow-md">
                   <Layers className="fluid-icon-sm" />Asignar Nueva Certificación
                 </Link>
@@ -452,7 +464,7 @@ export default function GroupDetailPage() {
 
           <div className="divide-y divide-gray-100 max-h-[420px] overflow-y-auto">
             {assignedExams.map((assignment) => (
-              <Link key={assignment.id} to={`/partners/groups/${groupId}/assignments/${assignment.exam_id}/detail`}
+              <Link key={assignment.id} to={`${basePath}/assignments/${assignment.exam_id}/detail`}
                 className="fluid-px-6 fluid-py-4 flex items-center justify-between hover:bg-purple-50/50 transition-colors block group">
                 <div className="flex items-center fluid-gap-4 flex-1 min-w-0">
                   {assignment.exam?.ecm?.logo_url ? (
@@ -512,7 +524,7 @@ export default function GroupDetailPage() {
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-2">¡Grupo listo para comenzar!</h3>
           <p className="fluid-text-base text-gray-500 max-w-md mx-auto fluid-mb-6">El primer paso es agregar miembros al grupo para luego asignarles certificaciones</p>
           {group.is_active && (
-            <Link to={`/partners/groups/${groupId}/assign-candidates`}
+            <Link to={`${basePath}/assign-candidates`}
               className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-semibold transition-colors shadow-lg">
               <UserPlus className="fluid-icon-base" />Agregar Miembros
             </Link>
