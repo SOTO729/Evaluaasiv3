@@ -432,6 +432,145 @@ def get_user_detail(user_id):
         return jsonify({'error': str(e)}), 500
 
 
+# ============== HISTORIAL DE GRUPOS DE UN CANDIDATO ==============
+
+@bp.route('/users/<string:user_id>/group-history', methods=['GET'])
+@jwt_required()
+@management_required
+def get_user_group_history(user_id):
+    """Obtener historial completo de grupos de un candidato con asignaciones y resultados"""
+    try:
+        current_user = g.current_user
+        user = User.query.get_or_404(user_id)
+
+        if user.role != 'candidato':
+            return jsonify({'error': 'El historial de grupos solo está disponible para candidatos'}), 400
+
+        # Permisos: misma lógica que get_user_detail
+        if _is_coordinator_role(current_user.role):
+            pass  # coordinadores pueden ver candidatos
+        elif current_user.role == 'responsable':
+            from app.models.partner import GroupMember as GM2, CandidateGroup as CG2
+            is_in_campus = db.session.query(GM2.id).join(
+                CG2, GM2.group_id == CG2.id
+            ).filter(GM2.user_id == user.id, CG2.campus_id == current_user.campus_id).first()
+            if not is_in_campus:
+                return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
+
+        from app.models.partner import (
+            GroupMember, CandidateGroup, GroupExam, GroupExamMember,
+            EcmCandidateAssignment, Campus, SchoolCycle
+        )
+        from app.models.result import Result
+        from app.models.exam import Exam
+        from app.models.competency_standard import CompetencyStandard
+
+        # 1) Obtener todas las membresías del candidato
+        memberships = GroupMember.query.filter_by(user_id=user_id).order_by(GroupMember.joined_at.desc()).all()
+
+        groups_data = []
+        for membership in memberships:
+            group = membership.group
+            if not group:
+                continue
+
+            campus = Campus.query.get(group.campus_id) if group.campus_id else None
+            cycle = SchoolCycle.query.get(group.school_cycle_id) if group.school_cycle_id else None
+
+            # 2) Exámenes asignados en este grupo para este candidato
+            group_exams = GroupExam.query.filter_by(group_id=group.id).all()
+            exams_data = []
+            for ge in group_exams:
+                # Verificar si el candidato tiene acceso a este examen
+                if ge.assignment_type == 'selected':
+                    is_assigned = GroupExamMember.query.filter_by(
+                        group_exam_id=ge.id, user_id=user_id
+                    ).first()
+                    if not is_assigned:
+                        continue
+
+                exam = Exam.query.get(ge.exam_id)
+                cs = CompetencyStandard.query.get(exam.competency_standard_id) if exam and exam.competency_standard_id else None
+
+                # 3) Asignación ECM para este candidato en este grupo+examen
+                ecm = EcmCandidateAssignment.query.filter_by(
+                    user_id=user_id, group_id=group.id, exam_id=ge.exam_id
+                ).first()
+
+                # 4) Resultados del candidato en este grupo+examen
+                results = Result.query.filter_by(
+                    user_id=user_id, group_id=group.id, group_exam_id=ge.id
+                ).order_by(Result.start_date.desc()).all()
+
+                exams_data.append({
+                    'group_exam_id': ge.id,
+                    'exam_id': ge.exam_id,
+                    'exam_name': exam.name if exam else None,
+                    'exam_version': exam.version if exam else None,
+                    'competency_standard': {
+                        'id': cs.id, 'code': cs.code, 'name': cs.name
+                    } if cs else None,
+                    'assignment_type': ge.assignment_type,
+                    'assigned_at': ge.assigned_at.isoformat() if ge.assigned_at else None,
+                    'max_attempts': ge.max_attempts,
+                    'passing_score': ge.passing_score,
+                    'is_active': ge.is_active,
+                    'expires_at': ge.effective_expires_at.isoformat() if ge.effective_expires_at else None,
+                    'is_expired': ge.is_expired,
+                    'ecm_assignment': {
+                        'id': ecm.id,
+                        'assignment_number': ecm.assignment_number,
+                        'tramite_status': ecm.tramite_status,
+                        'assigned_at': ecm.assigned_at.isoformat() if ecm.assigned_at else None,
+                        'expires_at': ecm.effective_expires_at.isoformat() if ecm.effective_expires_at else None,
+                        'is_expired': ecm.is_expired,
+                    } if ecm else None,
+                    'results': [{
+                        'id': r.id,
+                        'score': r.score,
+                        'status': r.status,
+                        'result': r.result,
+                        'start_date': r.start_date.isoformat() + 'Z' if r.start_date else None,
+                        'end_date': r.end_date.isoformat() + 'Z' if r.end_date else None,
+                        'duration_seconds': r.duration_seconds,
+                        'certificate_code': r.certificate_code,
+                        'eduit_certificate_code': r.eduit_certificate_code,
+                    } for r in results],
+                    'attempts_used': len([r for r in results if r.status == 1]),
+                })
+
+            groups_data.append({
+                'group_id': group.id,
+                'group_name': group.name,
+                'group_code': group.code,
+                'is_active': group.is_active,
+                'start_date': group.start_date.isoformat() if group.start_date else None,
+                'end_date': group.end_date.isoformat() if group.end_date else None,
+                'campus': {
+                    'id': campus.id, 'name': campus.name,
+                    'city': campus.city if hasattr(campus, 'city') else None,
+                } if campus else None,
+                'cycle': {
+                    'id': cycle.id, 'name': cycle.name,
+                } if cycle else None,
+                'membership_status': membership.status,
+                'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
+                'exams': exams_data,
+            })
+
+        return jsonify({
+            'user_id': user_id,
+            'user_name': user.full_name,
+            'groups': groups_data,
+            'total_groups': len(groups_data),
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ============== VERIFICACIÓN DE SIMILITUD DE NOMBRE ==============
 
 @bp.route('/users/check-name-similarity', methods=['POST'])

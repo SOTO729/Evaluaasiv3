@@ -614,3 +614,71 @@ export async function exportBulkUploadBatch(batchId: number, groupName?: string)
     throw error;
   }
 }
+
+
+// ============== HISTORIAL DE GRUPOS ==============
+
+export interface GroupHistoryResult {
+  id: string;
+  score: number;
+  status: number;       // 0=en proceso, 1=completado, 2=abandonado
+  result: number;       // 0=reprobado, 1=aprobado
+  start_date: string | null;
+  end_date: string | null;
+  duration_seconds: number | null;
+  certificate_code: string | null;
+  eduit_certificate_code: string | null;
+}
+
+export interface GroupHistoryEcmAssignment {
+  id: number;
+  assignment_number: string;
+  tramite_status: string;
+  assigned_at: string | null;
+  expires_at: string | null;
+  is_expired: boolean;
+}
+
+export interface GroupHistoryExam {
+  group_exam_id: number;
+  exam_id: number;
+  exam_name: string | null;
+  exam_version: string | null;
+  competency_standard: { id: number; code: string; name: string } | null;
+  assignment_type: string;
+  assigned_at: string | null;
+  max_attempts: number;
+  passing_score: number | null;
+  is_active: boolean;
+  expires_at: string | null;
+  is_expired: boolean;
+  ecm_assignment: GroupHistoryEcmAssignment | null;
+  results: GroupHistoryResult[];
+  attempts_used: number;
+}
+
+export interface GroupHistoryEntry {
+  group_id: number;
+  group_name: string;
+  group_code: string | null;
+  is_active: boolean;
+  start_date: string | null;
+  end_date: string | null;
+  campus: { id: number; name: string; city: string | null } | null;
+  cycle: { id: number; name: string } | null;
+  membership_status: string;
+  joined_at: string | null;
+  exams: GroupHistoryExam[];
+}
+
+export interface GroupHistoryResponse {
+  user_id: string;
+  user_name: string;
+  groups: GroupHistoryEntry[];
+  total_groups: number;
+}
+
+export async function getUserGroupHistory(userId: string): Promise<GroupHistoryResponse> {
+  const response = await api.get(`/api/user-management/users/${userId}/group-history`);
+  return response.data;
+}

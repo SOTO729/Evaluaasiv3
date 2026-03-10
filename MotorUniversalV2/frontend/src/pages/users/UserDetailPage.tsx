@@ -21,6 +21,13 @@ import {
   EyeOff,
   FileText,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  BookOpen,
+  Award,
+  Clock,
+  Hash,
+  Calendar,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -30,7 +37,9 @@ import {
   generateTempPassword,
   getUserPassword,
   deleteUser,
+  getUserGroupHistory,
   ManagedUser,
+  GroupHistoryEntry,
   ROLE_LABELS,
   ROLE_COLORS,
 } from '../../services/userManagementService';
@@ -63,6 +72,12 @@ export default function UserDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Estados para historial de grupos
+  const [groupHistory, setGroupHistory] = useState<GroupHistoryEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+  const [expandedExams, setExpandedExams] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     loadUser();
   }, [userId]);
@@ -72,11 +87,55 @@ export default function UserDetailPage() {
       setLoading(true);
       const data = await getUser(userId!);
       setUser(data);
+      if (data.role === 'candidato') {
+        loadGroupHistory();
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar usuario');
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadGroupHistory = async () => {
+    if (!userId) return;
+    try {
+      setLoadingHistory(true);
+      const data = await getUserGroupHistory(userId);
+      setGroupHistory(data.groups);
+      if (data.groups.length > 0) {
+        setExpandedGroups(new Set([data.groups[0].group_id]));
+      }
+    } catch {
+      // silently fail - section just won't show data
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const toggleGroup = (groupId: number) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+  };
+
+  const toggleExam = (key: string) => {
+    setExpandedExams(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '—';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
   };
 
   const handleToggleActive = async () => {
@@ -361,6 +420,220 @@ export default function UserDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Historial de Grupos (solo candidatos) ── */}
+          {user.role === 'candidato' && (
+            <div className="fluid-mt-8 fluid-pt-6 border-t border-gray-200">
+              <h3 className="fluid-text-sm font-semibold text-gray-500 uppercase fluid-mb-4 flex items-center fluid-gap-2">
+                <BookOpen className="fluid-icon-sm" />
+                Historial de Grupos
+              </h3>
+
+              {loadingHistory ? (
+                <div className="flex items-center justify-center fluid-py-8">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  <span className="ml-3 text-gray-500 fluid-text-sm">Cargando historial...</span>
+                </div>
+              ) : groupHistory.length === 0 ? (
+                <p className="text-gray-400 fluid-text-sm italic fluid-py-4">Este candidato no ha sido asignado a ningún grupo.</p>
+              ) : (
+                <div className="space-y-3">
+                  {groupHistory.map(group => {
+                    const isGroupExpanded = expandedGroups.has(group.group_id);
+                    return (
+                      <div key={group.group_id} className="border border-gray-200 rounded-fluid-xl overflow-hidden">
+                        {/* Group header */}
+                        <button
+                          onClick={() => toggleGroup(group.group_id)}
+                          className="w-full flex items-center justify-between fluid-px-4 fluid-py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                        >
+                          <div className="flex items-center fluid-gap-3 min-w-0">
+                            {isGroupExpanded ? <ChevronDown className="fluid-icon-sm text-gray-500 flex-shrink-0" /> : <ChevronRight className="fluid-icon-sm text-gray-500 flex-shrink-0" />}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 truncate">{group.group_name}</p>
+                              <div className="flex flex-wrap items-center fluid-gap-2 fluid-text-xs text-gray-500">
+                                {group.campus && <span>{group.campus.name}</span>}
+                                {group.cycle && <span>• {group.cycle.name}</span>}
+                                {group.joined_at && <span>• Ingreso: {new Date(group.joined_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center fluid-gap-2 flex-shrink-0 ml-2">
+                            <span className={`fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-medium ${
+                              group.membership_status === 'active' ? 'bg-green-100 text-green-700'
+                              : group.membership_status === 'completed' ? 'bg-blue-100 text-blue-700'
+                              : group.membership_status === 'withdrawn' ? 'bg-orange-100 text-orange-700'
+                              : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {group.membership_status === 'active' ? 'Activo' : group.membership_status === 'completed' ? 'Completado' : group.membership_status === 'withdrawn' ? 'Retirado' : 'Inactivo'}
+                            </span>
+                            <span className="fluid-text-xs text-gray-400">{group.exams.length} {group.exams.length === 1 ? 'examen' : 'exámenes'}</span>
+                          </div>
+                        </button>
+
+                        {/* Group content - exams */}
+                        {isGroupExpanded && (
+                          <div className="fluid-px-4 fluid-py-3 space-y-3">
+                            {group.exams.length === 0 ? (
+                              <p className="text-gray-400 fluid-text-sm italic">Sin exámenes asignados en este grupo.</p>
+                            ) : group.exams.map(exam => {
+                              const examKey = `${group.group_id}-${exam.group_exam_id}`;
+                              const isExamExpanded = expandedExams.has(examKey);
+                              const bestResult = exam.results.find(r => r.status === 1 && r.result === 1) || exam.results.find(r => r.status === 1) || exam.results[0];
+                              return (
+                                <div key={exam.group_exam_id} className="border border-gray-100 rounded-fluid-lg overflow-hidden">
+                                  {/* Exam header */}
+                                  <button
+                                    onClick={() => toggleExam(examKey)}
+                                    className="w-full flex items-center justify-between fluid-px-3 fluid-py-2 hover:bg-blue-50/50 transition-colors text-left"
+                                  >
+                                    <div className="flex items-center fluid-gap-2 min-w-0">
+                                      {isExamExpanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />}
+                                      <div className="min-w-0">
+                                        <p className="font-medium text-gray-800 fluid-text-sm truncate">{exam.exam_name || `Examen #${exam.exam_id}`}</p>
+                                        {exam.competency_standard && (
+                                          <p className="fluid-text-xs text-gray-500">{exam.competency_standard.code} — {exam.competency_standard.name}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center fluid-gap-2 flex-shrink-0 ml-2">
+                                      {bestResult ? (
+                                        <span className={`fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-medium ${
+                                          bestResult.result === 1 ? 'bg-green-100 text-green-700' : bestResult.status === 1 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                        }`}>
+                                          {bestResult.result === 1 ? `Aprobado (${bestResult.score}%)` : bestResult.status === 1 ? `Reprobado (${bestResult.score}%)` : 'En proceso'}
+                                        </span>
+                                      ) : (
+                                        <span className="fluid-px-2 fluid-py-0.5 rounded-full fluid-text-xs font-medium bg-gray-100 text-gray-500">Sin intentos</span>
+                                      )}
+                                      <span className="fluid-text-xs text-gray-400">{exam.attempts_used}/{exam.max_attempts}</span>
+                                    </div>
+                                  </button>
+
+                                  {/* Exam detail */}
+                                  {isExamExpanded && (
+                                    <div className="fluid-px-4 fluid-py-3 bg-gray-50/50 border-t border-gray-100 space-y-4">
+                                      {/* Exam info row */}
+                                      <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-3 fluid-text-xs">
+                                        <div>
+                                          <p className="text-gray-400">Asignado</p>
+                                          <p className="font-medium text-gray-700">{exam.assigned_at ? new Date(exam.assigned_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-gray-400">Puntaje mínimo</p>
+                                          <p className="font-medium text-gray-700">{exam.passing_score ?? '—'}%</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-gray-400">Intentos</p>
+                                          <p className="font-medium text-gray-700">{exam.attempts_used} de {exam.max_attempts}</p>
+                                        </div>
+                                        <div>
+                                          <p className="text-gray-400">Vigencia</p>
+                                          <p className={`font-medium ${exam.is_expired ? 'text-red-600' : 'text-gray-700'}`}>
+                                            {exam.expires_at ? (exam.is_expired ? 'Expirado' : new Date(exam.expires_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })) : 'Sin expiración'}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* ECM Assignment */}
+                                      {exam.ecm_assignment && (
+                                        <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-lg fluid-p-3">
+                                          <div className="flex items-center fluid-gap-2 fluid-mb-2">
+                                            <Hash className="w-3.5 h-3.5 text-indigo-600" />
+                                            <p className="font-semibold text-indigo-800 fluid-text-xs">Asignación ECM</p>
+                                          </div>
+                                          <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-3 fluid-text-xs">
+                                            <div>
+                                              <p className="text-indigo-400">No. Asignación</p>
+                                              <p className="font-mono font-bold text-indigo-800">{exam.ecm_assignment.assignment_number}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-indigo-400">Estado trámite</p>
+                                              <p className="font-medium text-indigo-700 capitalize">{exam.ecm_assignment.tramite_status}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-indigo-400">Fecha asignación</p>
+                                              <p className="font-medium text-indigo-700">{exam.ecm_assignment.assigned_at ? new Date(exam.ecm_assignment.assigned_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</p>
+                                            </div>
+                                            <div>
+                                              <p className="text-indigo-400">Vigencia ECM</p>
+                                              <p className={`font-medium ${exam.ecm_assignment.is_expired ? 'text-red-600' : 'text-indigo-700'}`}>
+                                                {exam.ecm_assignment.expires_at ? (exam.ecm_assignment.is_expired ? 'Expirado' : new Date(exam.ecm_assignment.expires_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })) : 'Sin expiración'}
+                                              </p>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Results table */}
+                                      {exam.results.length > 0 && (
+                                        <div>
+                                          <p className="font-semibold text-gray-600 fluid-text-xs fluid-mb-2 flex items-center fluid-gap-1">
+                                            <Award className="w-3.5 h-3.5" /> Resultados ({exam.results.length})
+                                          </p>
+                                          <div className="overflow-x-auto">
+                                            <table className="w-full fluid-text-xs">
+                                              <thead>
+                                                <tr className="border-b border-gray-200">
+                                                  <th className="text-left fluid-py-1.5 fluid-px-2 text-gray-400 font-medium">#</th>
+                                                  <th className="text-left fluid-py-1.5 fluid-px-2 text-gray-400 font-medium">Fecha</th>
+                                                  <th className="text-center fluid-py-1.5 fluid-px-2 text-gray-400 font-medium">Puntaje</th>
+                                                  <th className="text-center fluid-py-1.5 fluid-px-2 text-gray-400 font-medium">Resultado</th>
+                                                  <th className="text-center fluid-py-1.5 fluid-px-2 text-gray-400 font-medium">Duración</th>
+                                                  <th className="text-left fluid-py-1.5 fluid-px-2 text-gray-400 font-medium">Certificado</th>
+                                                </tr>
+                                              </thead>
+                                              <tbody>
+                                                {exam.results.map((r, idx) => (
+                                                  <tr key={r.id} className="border-b border-gray-100 last:border-0">
+                                                    <td className="fluid-py-1.5 fluid-px-2 text-gray-500">{exam.results.length - idx}</td>
+                                                    <td className="fluid-py-1.5 fluid-px-2 text-gray-700">
+                                                      <div className="flex items-center fluid-gap-1">
+                                                        <Calendar className="w-3 h-3 text-gray-400" />
+                                                        {r.start_date ? new Date(r.start_date).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                      </div>
+                                                    </td>
+                                                    <td className="fluid-py-1.5 fluid-px-2 text-center font-bold">{r.score}%</td>
+                                                    <td className="fluid-py-1.5 fluid-px-2 text-center">
+                                                      <span className={`fluid-px-2 fluid-py-0.5 rounded-full font-medium ${
+                                                        r.status === 0 ? 'bg-yellow-100 text-yellow-700'
+                                                        : r.result === 1 ? 'bg-green-100 text-green-700'
+                                                        : r.status === 2 ? 'bg-orange-100 text-orange-700'
+                                                        : 'bg-red-100 text-red-700'
+                                                      }`}>
+                                                        {r.status === 0 ? 'En proceso' : r.result === 1 ? 'Aprobado' : r.status === 2 ? 'Abandonado' : 'Reprobado'}
+                                                      </span>
+                                                    </td>
+                                                    <td className="fluid-py-1.5 fluid-px-2 text-center text-gray-600">
+                                                      <div className="flex items-center justify-center fluid-gap-1">
+                                                        <Clock className="w-3 h-3 text-gray-400" />
+                                                        {formatDuration(r.duration_seconds)}
+                                                      </div>
+                                                    </td>
+                                                    <td className="fluid-py-1.5 fluid-px-2 text-gray-600 font-mono">
+                                                      {r.certificate_code || r.eduit_certificate_code || '—'}
+                                                    </td>
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="fluid-mt-8 fluid-pt-6 border-t border-gray-200 flex flex-wrap fluid-gap-3">
             <Link
