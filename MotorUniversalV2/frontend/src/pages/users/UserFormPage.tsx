@@ -413,7 +413,7 @@ export default function UserFormPage() {
 
       if (isEditing) {
         const updateData: UpdateUserData = {
-          email: formData.email,
+          email: formData.email.trim() || undefined,
           name: formData.name,
           first_surname: formData.first_surname,
           second_surname: formData.second_surname || undefined,
