@@ -3,13 +3,18 @@
  * Tabla unificada de candidatos con info de insignias emitidas.
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { BadgeCheck, FileSpreadsheet, Image as ImageIcon, Code, X } from 'lucide-react';
 import CertificateTypePage, { type CandidateCertificateStats } from './CertificateTypePage';
 import { badgeService, type IssuedBadge } from '../../../services/badgeService';
+import { useAuthStore } from '../../../store/authStore';
 
 export default function GroupCertInsigniaPage() {
   const { groupId } = useParams<{ groupId: string }>();
+  const { pathname } = useLocation();
+  const { user } = useAuthStore();
+  const isResponsable = pathname.startsWith('/mi-plantel');
+  const canViewReports = !isResponsable || !!user?.can_view_reports;
   const [badges, setBadges] = useState<IssuedBadge[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -232,7 +237,7 @@ export default function GroupCertInsigniaPage() {
         accentColor="amber"
         downloadEnabled={false}
         canGenerate={false}
-        extraHeaderActions={
+        extraHeaderActions={canViewReports ? (
           <button
             onClick={handleExportExcel}
             disabled={exporting || badges.length === 0}
@@ -245,7 +250,7 @@ export default function GroupCertInsigniaPage() {
             )}
             {exporting ? 'Exportando…' : 'Exportar Excel'}
           </button>
-        }
+        ) : undefined}
         customTableContent={{
           renderHeaders,
           renderRow,

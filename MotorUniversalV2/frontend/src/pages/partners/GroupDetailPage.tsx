@@ -55,6 +55,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
   const { groupId } = useParams();
   const { user } = useAuthStore();
   const canManage = !isResponsable || user?.can_manage_groups;
+  const canViewReports = !isResponsable || user?.can_view_reports;
   const basePath = isResponsable ? `/mi-plantel/grupos/${groupId}` : `/partners/groups/${groupId}`;
   const [searchParams, setSearchParams] = useSearchParams();
   const location = useLocation();
@@ -251,7 +252,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
           </div>
           
           <div className="flex items-center fluid-gap-2">
-            {members.length > 0 && (
+            {canViewReports && members.length > 0 && (
               <div className="relative" ref={reportMenuRef}>
                 <button ref={reportBtnRef} onClick={toggleReportMenu} disabled={exportingExcel}
                   className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 text-white rounded-fluid-xl font-medium fluid-text-sm transition-all border border-white/20 disabled:opacity-50">

@@ -321,9 +321,9 @@ const ResponsableDashboard = () => {
         {[
           { label: 'Gestionar Plantel', route: '/mi-plantel', icon: Building2, color: 'blue', desc: 'Grupos, candidatos y configuración' },
           { label: 'Certificados', route: '/certificates', icon: Award, color: 'amber', desc: 'Certificados por grupo' },
-          { label: 'Reportes', route: '/mi-plantel/reportes', icon: FileText, color: 'green', desc: 'Evaluaciones y exportaciones' },
+          { label: 'Reportes', route: '/mi-plantel/reportes', icon: FileText, color: 'green', desc: 'Evaluaciones y exportaciones', requiresReports: true },
           { label: 'Materiales', route: '/study-contents', icon: BookOpen, color: 'purple', desc: 'Material de estudio' },
-        ].map(action => (
+        ].filter((a: any) => !a.requiresReports || user?.can_view_reports).map(action => (
           <div
             key={action.route}
             onClick={() => navigate(action.route)}

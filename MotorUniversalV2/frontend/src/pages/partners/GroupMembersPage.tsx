@@ -48,7 +48,7 @@ import {
 export default function GroupMembersPage() {
   const { groupId } = useParams();
   const location = useLocation();
-  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, canViewReports, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -332,7 +332,7 @@ export default function GroupMembersPage() {
               </div>
             </div>
             <div className="flex items-center fluid-gap-2">
-              {members.length > 0 && (
+              {canViewReports && members.length > 0 && (
                 <button
                   onClick={handleExportExcel}
                   disabled={exportingExcel}

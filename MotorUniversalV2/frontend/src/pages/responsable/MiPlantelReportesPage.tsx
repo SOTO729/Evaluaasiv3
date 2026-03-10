@@ -3,7 +3,7 @@
  * Muestra tabla de evaluaciones con filtros y exportación a Excel
  */
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   getMiPlantelEvaluations, 
   getMiPlantelExams,
@@ -11,8 +11,15 @@ import {
   PlantelEvaluation
 } from '../../services/partnersService';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useAuthStore } from '../../store/authStore';
 
 const MiPlantelReportesPage = () => {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (!user?.can_view_reports) navigate('/mi-plantel', { replace: true });
+  }, [user, navigate]);
   const [evaluations, setEvaluations] = useState<PlantelEvaluation[]>([]);
   const [exams, setExams] = useState<{ id: number; name: string; version: string }[]>([]);
   const [loading, setLoading] = useState(true);
