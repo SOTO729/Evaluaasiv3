@@ -679,6 +679,6 @@ export interface GroupHistoryResponse {
 }
 
 export async function getUserGroupHistory(userId: string): Promise<GroupHistoryResponse> {
-  const response = await api.get(`/api/user-management/users/${userId}/group-history`);
+  const response = await api.get(`/user-management/users/${userId}/group-history`);
   return response.data;
 }
