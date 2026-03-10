@@ -1,8 +1,13 @@
 """
 Rutas para flujo de soporte.
 """
-from flask import Blueprint, jsonify, request
+from functools import wraps
 
+from flask import Blueprint, jsonify, request, g
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from app import db
+from app.models import User
 from app.services.support_service import (
     get_support_calendar_sessions,
     create_support_campus,
@@ -13,6 +18,23 @@ from app.services.support_service import (
 )
 
 bp = Blueprint("support", __name__, url_prefix="/api/support")
+SUPPORT_ROLES = {"soporte", "admin", "developer"}
+
+
+def support_user_required(func_handler):
+    @wraps(func_handler)
+    @jwt_required()
+    def wrapper(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = db.session.get(User, user_id)
+        if not user or not user.is_active:
+            return jsonify({"error": "No autorizado"}), 401
+        if user.role not in SUPPORT_ROLES:
+            return jsonify({"error": "Insufficient permissions"}), 403
+        g.current_user = user
+        return func_handler(*args, **kwargs)
+
+    return wrapper
 
 
 def _parse_active_only(value: str | None) -> bool | None:
@@ -28,6 +50,7 @@ def _parse_active_only(value: str | None) -> bool | None:
 
 
 @bp.route("/campuses", methods=["GET"])
+@support_user_required
 def list_support_campuses():
     """
     Obtener campuses para la vista de soporte.
@@ -46,6 +69,7 @@ def list_support_campuses():
 
 
 @bp.route("/partners", methods=["GET"])
+@support_user_required
 def list_support_partners():
     """Obtener partners activos para el formulario de soporte."""
     try:
@@ -55,6 +79,7 @@ def list_support_partners():
 
 
 @bp.route("/users", methods=["GET"])
+@support_user_required
 def list_support_users():
     """Obtener usuarios para el módulo de soporte."""
     try:
@@ -68,6 +93,7 @@ def list_support_users():
 
 
 @bp.route("/calendar/sessions", methods=["GET"])
+@support_user_required
 def list_support_calendar_sessions():
     """Obtener sesiones para calendario de soporte."""
     try:
@@ -88,6 +114,7 @@ def list_support_calendar_sessions():
 
 
 @bp.route("/campuses", methods=["POST"])
+@support_user_required
 def create_campus():
     """
     Crear campus desde flujo de soporte.
@@ -103,6 +130,7 @@ def create_campus():
 
 
 @bp.route("/users/send-email", methods=["POST"])
+@support_user_required
 def send_support_email():
     """
     Enviar correo de soporte a un usuario.

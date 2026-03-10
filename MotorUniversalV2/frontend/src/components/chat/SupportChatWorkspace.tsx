@@ -11,6 +11,7 @@ import {
   CheckCheck,
   Lock,
   RotateCcw,
+  Star,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import {
@@ -54,6 +55,14 @@ const statusColor: Record<string, string> = {
   closed: 'bg-slate-100 text-slate-700 border-slate-200',
 }
 
+const satisfactionLabel: Record<number, string> = {
+  1: 'Muy mala',
+  2: 'Mala',
+  3: 'Regular',
+  4: 'Buena',
+  5: 'Excelente',
+}
+
 const SupportChatWorkspace = ({ mode }: Props) => {
   const { user } = useAuthStore()
 
@@ -68,12 +77,20 @@ const SupportChatWorkspace = ({ mode }: Props) => {
   const [messages, setMessages] = useState<SupportChatMessage[]>([])
   const [messageText, setMessageText] = useState('')
 
-  const [statusFilter, setStatusFilter] = useState<SupportConversationStatus | 'all'>('open')
+  const [statusFilter, setStatusFilter] = useState<SupportConversationStatus | 'all'>(
+    mode === 'support' ? 'open' : 'all'
+  )
 
   const [newSubject, setNewSubject] = useState('')
   const [candidateSearch, setCandidateSearch] = useState('')
   const [candidateResults, setCandidateResults] = useState<SupportDirectoryUser[]>([])
   const [selectedCandidateId, setSelectedCandidateId] = useState('')
+  const [surveyOpen, setSurveyOpen] = useState(false)
+  const [surveyRating, setSurveyRating] = useState<number>(5)
+  const [surveyComment, setSurveyComment] = useState('')
+  const [submittingSurvey, setSubmittingSurvey] = useState(false)
+  const [dismissedSurveyConversationIds, setDismissedSurveyConversationIds] = useState<number[]>([])
+  const [surveyInitializedForConversationId, setSurveyInitializedForConversationId] = useState<number | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
@@ -86,6 +103,7 @@ const SupportChatWorkspace = ({ mode }: Props) => {
     () => conversations.reduce((acc, conv) => acc + Number(conv.unread_count || 0), 0),
     [conversations]
   )
+  const isSupportMode = mode === 'support'
   const isSupportLike = ['soporte', 'admin', 'developer'].includes(String(user?.role || '').toLowerCase())
   const canResolve = selectedConversation && selectedConversation.status === 'open'
   const canClose = selectedConversation && isSupportLike && selectedConversation.status !== 'closed'
@@ -93,6 +111,14 @@ const SupportChatWorkspace = ({ mode }: Props) => {
     selectedConversation &&
     ((isSupportLike && selectedConversation.status !== 'open') ||
       (!isSupportLike && selectedConversation.status === 'resolved'))
+  const surveyPendingForCandidate =
+    !isSupportMode &&
+    Boolean(selectedConversation?.survey_pending) &&
+    !selectedConversation?.satisfaction
+
+  const ratingSummary = selectedConversation?.satisfaction
+    ? `${selectedConversation.satisfaction.rating}/5 ${satisfactionLabel[selectedConversation.satisfaction.rating]}`
+    : null
 
   const loadConversations = async (keepSelection = true) => {
     try {
@@ -145,6 +171,10 @@ const SupportChatWorkspace = ({ mode }: Props) => {
   }, [selectedConversationId])
 
   useEffect(() => {
+    setStatusFilter(mode === 'support' ? 'open' : 'all')
+  }, [mode])
+
+  useEffect(() => {
     const interval = window.setInterval(async () => {
       await loadConversations(true)
       if (selectedConversationId) await loadMessages(selectedConversationId)
@@ -156,6 +186,30 @@ const SupportChatWorkspace = ({ mode }: Props) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length, selectedConversationId])
+
+  useEffect(() => {
+    if (!selectedConversation || isSupportMode || !surveyPendingForCandidate) {
+      setSurveyOpen(false)
+      setSurveyInitializedForConversationId(null)
+      return
+    }
+
+    if (dismissedSurveyConversationIds.includes(selectedConversation.id)) return
+
+    if (surveyInitializedForConversationId !== selectedConversation.id) {
+      setSurveyRating(selectedConversation.satisfaction?.rating || 5)
+      setSurveyComment(selectedConversation.satisfaction?.comment || '')
+      setSurveyInitializedForConversationId(selectedConversation.id)
+    }
+
+    setSurveyOpen(true)
+  }, [
+    dismissedSurveyConversationIds,
+    isSupportMode,
+    selectedConversation,
+    surveyInitializedForConversationId,
+    surveyPendingForCandidate,
+  ])
 
   const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault()
@@ -236,7 +290,29 @@ const SupportChatWorkspace = ({ mode }: Props) => {
     }
   }
 
-  const isSupportMode = mode === 'support'
+  const handleSubmitSurvey = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedConversationId) return
+
+    try {
+      setSubmittingSurvey(true)
+      setError(null)
+      await supportChatService.submitConversationSatisfaction(selectedConversationId, {
+        rating: surveyRating,
+        comment: surveyComment.trim() || undefined,
+      })
+      setSurveyOpen(false)
+      setSurveyInitializedForConversationId(null)
+      setDismissedSurveyConversationIds((prev) =>
+        selectedConversationId ? prev.filter((item) => item !== selectedConversationId) : prev,
+      )
+      await loadConversations(true)
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'No se pudo guardar la encuesta')
+    } finally {
+      setSubmittingSurvey(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -400,7 +476,15 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                     <span className={`rounded-full border px-2 py-0.5 ${statusColor[conversation.status] || 'bg-gray-100'}`}>
                       {conversation.status}
                     </span>
-                    <span>{formatDateTime(conversation.last_message_at)}</span>
+                    <div className="flex items-center gap-2">
+                      {conversation.satisfaction && (
+                        <span className="inline-flex items-center gap-1 text-amber-600">
+                          <Star className="h-3 w-3 fill-current" />
+                          {conversation.satisfaction.rating}
+                        </span>
+                      )}
+                      <span>{formatDateTime(conversation.last_message_at)}</span>
+                    </div>
                   </div>
                 </button>
               )
@@ -466,6 +550,24 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                       <RotateCcw className="h-3.5 w-3.5" />
                       Reabrir
                     </button>
+                  )}
+                </div>
+                <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                  {selectedConversation.satisfaction ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 font-semibold text-amber-600">
+                        <Star className="h-3.5 w-3.5 fill-current" />
+                        {ratingSummary}
+                      </span>
+                      <span>Encuesta respondida el {formatDateTime(selectedConversation.satisfaction.submitted_at)}</span>
+                      {selectedConversation.satisfaction.comment && (
+                        <span className="text-gray-700">"{selectedConversation.satisfaction.comment}"</span>
+                      )}
+                    </div>
+                  ) : selectedConversation.survey_pending ? (
+                    <p>Encuesta pendiente de respuesta del cliente.</p>
+                  ) : (
+                    <p>Sin encuesta de satisfacción todavía.</p>
                   )}
                 </div>
               </div>
@@ -540,6 +642,84 @@ const SupportChatWorkspace = ({ mode }: Props) => {
           )}
         </section>
       </div>
+
+      {surveyOpen && selectedConversation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Encuesta</p>
+                <h3 className="mt-1 text-lg font-semibold text-gray-900">Califica la atención recibida</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  La conversación ya fue {selectedConversation.status === 'closed' ? 'cerrada' : 'resuelta'}.
+                  Cuéntanos cómo fue tu experiencia.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSurveyOpen(false)
+                  setSurveyInitializedForConversationId(null)
+                  setDismissedSurveyConversationIds((prev) =>
+                    selectedConversationId && !prev.includes(selectedConversationId)
+                      ? [...prev, selectedConversationId]
+                      : prev,
+                  )
+                }}
+                className="text-sm font-medium text-gray-400 hover:text-gray-600"
+              >
+                Después
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitSurvey} className="mt-5 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Nivel de satisfacción</p>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  {[1, 2, 3, 4, 5].map((value) => {
+                    const active = value <= surveyRating
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setSurveyRating(value)}
+                        className={`flex flex-1 flex-col items-center rounded-xl border px-2 py-3 text-xs font-semibold transition ${
+                          active
+                            ? 'border-amber-300 bg-amber-50 text-amber-700'
+                            : 'border-gray-200 bg-white text-gray-400 hover:border-gray-300'
+                        }`}
+                      >
+                        <Star className={`mb-1 h-5 w-5 ${active ? 'fill-current' : ''}`} />
+                        {value}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-xs text-gray-500">{satisfactionLabel[surveyRating]}</p>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Comentario opcional</label>
+                <textarea
+                  value={surveyComment}
+                  onChange={(e) => setSurveyComment(e.target.value)}
+                  rows={4}
+                  placeholder="¿Qué salió bien o qué podríamos mejorar?"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingSurvey}
+                className="w-full rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+              >
+                {submittingSurvey ? 'Guardando...' : 'Enviar encuesta'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

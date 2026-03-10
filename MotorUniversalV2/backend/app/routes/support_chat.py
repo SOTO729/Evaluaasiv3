@@ -12,6 +12,7 @@ from app.models import User
 from app.models.support_chat import (
     SupportConversation,
     SupportConversationParticipant,
+    SupportConversationSatisfaction,
     SupportMessage,
 )
 
@@ -21,6 +22,7 @@ bp = Blueprint("support_chat", __name__, url_prefix="/api/support/chat")
 SUPPORT_ROLES = {"soporte", "admin", "developer"}
 ALLOWED_CONVERSATION_STATUSES = {"open", "resolved", "closed"}
 ALLOWED_PRIORITIES = {"low", "normal", "high"}
+ALLOWED_SATISFACTION_RATINGS = {1, 2, 3, 4, 5}
 
 MAX_MESSAGE_LENGTH = int(os.getenv("SUPPORT_CHAT_MAX_MESSAGE_LENGTH", "4000"))
 MAX_SUBJECT_LENGTH = int(os.getenv("SUPPORT_CHAT_MAX_SUBJECT_LENGTH", "255"))
@@ -56,6 +58,21 @@ def _serialize_message(message: SupportMessage) -> dict:
         else None,
         "created_at": message.created_at.isoformat() if message.created_at else None,
         "edited_at": message.edited_at.isoformat() if message.edited_at else None,
+    }
+
+
+def _serialize_satisfaction(satisfaction: SupportConversationSatisfaction | None) -> dict | None:
+    if not satisfaction:
+        return None
+
+    return {
+        "id": satisfaction.id,
+        "conversation_id": satisfaction.conversation_id,
+        "submitted_by_user_id": satisfaction.submitted_by_user_id,
+        "rating": satisfaction.rating,
+        "comment": satisfaction.comment,
+        "submitted_at": satisfaction.submitted_at.isoformat() if satisfaction.submitted_at else None,
+        "updated_at": satisfaction.updated_at.isoformat() if satisfaction.updated_at else None,
     }
 
 
@@ -110,6 +127,8 @@ def _unread_count(conversation_id: int, current_user_id: str, last_read_at):
 
 
 def _serialize_conversation_basic(conversation: SupportConversation) -> dict:
+    has_satisfaction = conversation.satisfaction is not None
+    survey_pending = conversation.status in {"resolved", "closed"} and not has_satisfaction
     return {
         "id": conversation.id,
         "candidate_user_id": conversation.candidate_user_id,
@@ -120,6 +139,8 @@ def _serialize_conversation_basic(conversation: SupportConversation) -> dict:
         "created_at": conversation.created_at.isoformat() if conversation.created_at else None,
         "updated_at": conversation.updated_at.isoformat() if conversation.updated_at else None,
         "last_message_at": conversation.last_message_at.isoformat() if conversation.last_message_at else None,
+        "satisfaction": _serialize_satisfaction(conversation.satisfaction),
+        "survey_pending": survey_pending,
     }
 
 
@@ -249,21 +270,10 @@ def list_conversations():
         last_message = conv.messages.order_by(SupportMessage.id.desc()).first()
         unread = _unread_count(conv.id, current_user.id, participant.last_read_at if participant else None)
 
-        items.append(
-            {
-                "id": conv.id,
-                "candidate_user_id": conv.candidate_user_id,
-                "assigned_support_user_id": conv.assigned_support_user_id,
-                "subject": conv.subject,
-                "status": conv.status,
-                "priority": conv.priority,
-                "created_at": conv.created_at.isoformat() if conv.created_at else None,
-                "updated_at": conv.updated_at.isoformat() if conv.updated_at else None,
-                "last_message_at": conv.last_message_at.isoformat() if conv.last_message_at else None,
-                "last_message": _serialize_message(last_message) if last_message else None,
-                "unread_count": unread,
-            }
-        )
+        item = _serialize_conversation_basic(conv)
+        item["last_message"] = _serialize_message(last_message) if last_message else None
+        item["unread_count"] = unread
+        items.append(item)
 
     return jsonify(
         {
@@ -465,3 +475,78 @@ def update_conversation_status(conversation_id: int):
     db.session.commit()
 
     return jsonify({"conversation": _serialize_conversation_basic(conversation)}), 200
+
+
+@bp.route("/conversations/<int:conversation_id>/satisfaction", methods=["GET"])
+@chat_user_required
+def get_conversation_satisfaction(conversation_id: int):
+    current_user = g.current_user
+    conversation, error_response = _conversation_for_user_or_403(conversation_id, current_user)
+    if error_response:
+        return error_response
+
+    return jsonify(
+        {
+            "conversation_id": conversation.id,
+            "survey_pending": conversation.status in {"resolved", "closed"} and conversation.satisfaction is None,
+            "satisfaction": _serialize_satisfaction(conversation.satisfaction),
+        }
+    ), 200
+
+
+@bp.route("/conversations/<int:conversation_id>/satisfaction", methods=["POST"])
+@chat_user_required
+def submit_conversation_satisfaction(conversation_id: int):
+    current_user = g.current_user
+    conversation, error_response = _conversation_for_user_or_403(conversation_id, current_user)
+    if error_response:
+        return error_response
+
+    if _is_support_like(current_user):
+        return jsonify({"error": "Solo el candidato puede responder la encuesta"}), 403
+
+    if conversation.candidate_user_id != current_user.id:
+        return jsonify({"error": "Solo el candidato de la conversación puede responder"}), 403
+
+    if conversation.status not in {"resolved", "closed"}:
+        return jsonify({"error": "La encuesta solo se habilita cuando la conversación está resuelta o cerrada"}), 409
+
+    data = request.get_json(silent=True) or {}
+    rating = data.get("rating")
+    comment = (data.get("comment") or "").strip() or None
+
+    try:
+        rating = int(rating)
+    except (TypeError, ValueError):
+        return jsonify({"error": "rating inválido"}), 400
+
+    if rating not in ALLOWED_SATISFACTION_RATINGS:
+        return jsonify({"error": "rating debe estar entre 1 y 5"}), 400
+
+    satisfaction = conversation.satisfaction
+    now = datetime.utcnow()
+
+    if satisfaction is None:
+        satisfaction = SupportConversationSatisfaction(
+            conversation_id=conversation.id,
+            submitted_by_user_id=current_user.id,
+            rating=rating,
+            comment=comment,
+            submitted_at=now,
+        )
+        db.session.add(satisfaction)
+    else:
+        satisfaction.rating = rating
+        satisfaction.comment = comment
+        satisfaction.submitted_by_user_id = current_user.id
+        satisfaction.updated_at = now
+
+    conversation.updated_at = now
+    db.session.commit()
+
+    return jsonify(
+        {
+            "conversation": _serialize_conversation_basic(conversation),
+            "satisfaction": _serialize_satisfaction(satisfaction),
+        }
+    ), 200

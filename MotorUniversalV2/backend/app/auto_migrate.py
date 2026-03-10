@@ -1230,6 +1230,7 @@ def check_and_create_support_chat_tables():
         from app.models.support_chat import (
             SupportConversation,
             SupportConversationParticipant,
+            SupportConversationSatisfaction,
             SupportMessage,
         )
 
@@ -1238,6 +1239,7 @@ def check_and_create_support_chat_tables():
         required_tables = {
             "support_conversations",
             "support_conversation_participants",
+            "support_conversation_satisfaction",
             "support_messages",
         }
 
@@ -1249,6 +1251,7 @@ def check_and_create_support_chat_tables():
         SupportConversation.__table__.create(bind=db.engine, checkfirst=True)
         SupportMessage.__table__.create(bind=db.engine, checkfirst=True)
         SupportConversationParticipant.__table__.create(bind=db.engine, checkfirst=True)
+        SupportConversationSatisfaction.__table__.create(bind=db.engine, checkfirst=True)
         db.session.commit()
         print("  ✅ Tablas support chat listas")
 

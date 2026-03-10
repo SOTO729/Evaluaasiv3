@@ -49,6 +49,13 @@ class SupportConversation(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
+    satisfaction = db.relationship(
+        "SupportConversationSatisfaction",
+        backref="conversation",
+        uselist=False,
+        lazy="joined",
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         db.Index("ix_support_conversations_candidate_status", "candidate_user_id", "status"),
@@ -121,4 +128,33 @@ class SupportMessage(db.Model):
 
     __table_args__ = (
         db.Index("ix_support_messages_conversation_created", "conversation_id", "created_at"),
+    )
+
+
+class SupportConversationSatisfaction(db.Model):
+    """Encuesta de satisfacción enviada por el candidato al cerrar una conversación."""
+
+    __tablename__ = "support_conversation_satisfaction"
+
+    id = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(
+        db.Integer,
+        db.ForeignKey("support_conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    submitted_by_user_id = db.Column(
+        db.String(36),
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint("rating >= 1 AND rating <= 5", name="ck_support_satisfaction_rating"),
     )
