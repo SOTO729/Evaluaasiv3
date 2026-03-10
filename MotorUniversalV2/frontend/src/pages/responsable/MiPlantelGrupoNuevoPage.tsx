@@ -17,10 +17,17 @@ import {
   SchoolCycle,
 } from '../../services/partnersService';
 
+import { useAuthStore } from '../../store/authStore';
+
 export default function MiPlantelGrupoNuevoPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const preselectedCycleId = searchParams.get('cycleId');
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (!user?.can_manage_groups) navigate('/mi-plantel', { replace: true });
+  }, [user, navigate]);
 
   const [cycles, setCycles] = useState<SchoolCycle[]>([]);
   const [loadingCycles, setLoadingCycles] = useState(true);

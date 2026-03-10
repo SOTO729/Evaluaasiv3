@@ -48,8 +48,12 @@ export default function GroupFormPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEditing = Boolean(groupId);
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
-  
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+
+  useEffect(() => {
+    if (isResponsable && !canManage) navigate(basePath || '/mi-plantel', { replace: true });
+  }, [isResponsable, canManage, navigate, basePath]);
+
   // Obtener el ciclo desde la URL si viene desde un ciclo específico
   const defaultCycleId = searchParams.get('cycleId') || searchParams.get('cycle');
   

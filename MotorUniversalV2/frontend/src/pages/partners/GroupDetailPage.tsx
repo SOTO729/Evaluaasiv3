@@ -352,10 +352,12 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
                 <p className={`fluid-text-sm fluid-mt-1 ${c.text}`}>{wf.desc}</p>
               </div>
             </div>
-            <Link to={wf.link}
-              className={`inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 rounded-fluid-xl font-semibold fluid-text-sm shadow-lg transition-all whitespace-nowrap text-white ${c.btn}`}>
-              {wf.btn}<ArrowRight className="fluid-icon-sm" />
-            </Link>
+            {(canManage || wf.step >= 2) && (
+              <Link to={wf.link}
+                className={`inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 rounded-fluid-xl font-semibold fluid-text-sm shadow-lg transition-all whitespace-nowrap text-white ${c.btn}`}>
+                {wf.btn}<ArrowRight className="fluid-icon-sm" />
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -453,7 +455,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
                 <h3 className="font-semibold text-gray-900">Certificaciones Activas</h3>
                 <span className="fluid-px-2 fluid-py-0.5 bg-purple-100 text-purple-700 fluid-text-xs font-bold rounded-full">{assignedExams.length}</span>
               </div>
-              {stats.totalMembers > 0 && group.is_active && (
+              {canManage && stats.totalMembers > 0 && group.is_active && (
                 <Link to={`${basePath}/assign-exam`}
                   className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-xl font-semibold fluid-text-sm transition-all shadow-sm hover:shadow-md">
                   <Layers className="fluid-icon-sm" />Asignar Nueva Certificación
@@ -523,7 +525,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
           </div>
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-2">¡Grupo listo para comenzar!</h3>
           <p className="fluid-text-base text-gray-500 max-w-md mx-auto fluid-mb-6">El primer paso es agregar miembros al grupo para luego asignarles certificaciones</p>
-          {group.is_active && (
+          {canManage && group.is_active && (
             <Link to={`${basePath}/assign-candidates`}
               className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-semibold transition-colors shadow-lg">
               <UserPlus className="fluid-icon-base" />Agregar Miembros

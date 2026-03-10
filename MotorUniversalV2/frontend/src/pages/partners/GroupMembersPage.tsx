@@ -48,7 +48,7 @@ import {
 export default function GroupMembersPage() {
   const { groupId } = useParams();
   const location = useLocation();
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
@@ -346,7 +346,7 @@ export default function GroupMembersPage() {
                   Exportar Excel
                 </button>
               )}
-              {group?.is_active && (
+              {canManage && group?.is_active && (
                 <Link
                   to={`${basePath}/assign-candidates`}
                   className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-purple-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg"
@@ -535,7 +535,7 @@ export default function GroupMembersPage() {
           <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
             Agrega miembros a este grupo para comenzar
           </p>
-          {group?.is_active && (
+          {canManage && group?.is_active && (
             <Link
               to={`${basePath}/assign-candidates`}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
@@ -686,6 +686,7 @@ export default function GroupMembersPage() {
                       {renderEligibilityBadges(member.user?.email, member.user?.curp)}
                     </td>
                     <td className="fluid-px-4 fluid-py-3 text-center">
+                      {canManage && (
                       <button
                         onClick={() => handleInitRemove(member)}
                         disabled={removing}
@@ -695,6 +696,7 @@ export default function GroupMembersPage() {
                         <UserMinus className="h-3.5 w-3.5" />
                         <span className="hidden xl:inline">Retirar</span>
                       </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -28,7 +28,11 @@ const EXAMS_PER_PAGE = 500;
 export default function ExamSelectConfigPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+
+  useEffect(() => {
+    if (isResponsable && !canManage) navigate(basePath, { replace: true });
+  }, [isResponsable, canManage, navigate, basePath]);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [loading, setLoading] = useState(true);

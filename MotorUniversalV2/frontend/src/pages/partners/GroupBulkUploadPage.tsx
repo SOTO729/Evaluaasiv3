@@ -40,7 +40,11 @@ import {
 export default function GroupBulkUploadPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+
+  useEffect(() => {
+    if (isResponsable && !canManage) navigate(basePath, { replace: true });
+  }, [isResponsable, canManage, navigate, basePath]);
 
   // Estado del grupo
   const [group, setGroup] = useState<CandidateGroup | null>(null);

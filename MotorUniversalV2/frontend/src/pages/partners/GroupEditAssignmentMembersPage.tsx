@@ -5,7 +5,7 @@
  * Paginación, búsqueda, filtros y ordenamiento server-side idénticos a GroupMembersPage.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Users,
@@ -58,7 +58,12 @@ export default function GroupEditAssignmentMembersPage() {
   const { groupId, assignmentId } = useParams();
   const [searchParams] = useSearchParams();
   const assignmentName = searchParams.get('name') || '';
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isResponsable && !canManage) navigate(basePath, { replace: true });
+  }, [isResponsable, canManage, navigate, basePath]);
 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [detailData, setDetailData] = useState<ExamMembersDetailResponse | null>(null);

@@ -47,7 +47,11 @@ type Step = 'select-materials' | 'assign-members';
 export default function GroupAssignMaterialsPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+
+  useEffect(() => {
+    if (isResponsable && !canManage) navigate(basePath, { replace: true });
+  }, [isResponsable, canManage, navigate, basePath]);
 
   // Estado del grupo y miembros
   const [group, setGroup] = useState<CandidateGroup | null>(null);

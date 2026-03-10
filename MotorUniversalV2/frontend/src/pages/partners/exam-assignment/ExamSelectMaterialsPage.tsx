@@ -22,7 +22,11 @@ export default function ExamSelectMaterialsPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+
+  useEffect(() => {
+    if (isResponsable && !canManage) navigate(basePath, { replace: true });
+  }, [isResponsable, canManage, navigate, basePath]);
 
   const prevState = location.state as SelectExamState | undefined;
 
