@@ -196,6 +196,7 @@ const HistorialAsignacionesPage = lazy(() => import('./pages/coordinador/Histori
 
 // VM Sessions (Máquinas Virtuales)
 const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage'))
+const MiPlantelSesionesPage = lazy(() => import('./pages/responsable/MiPlantelSesionesPage'))
 
 // Grupos (gestión de grupos por plantel)
 const GruposListPage = lazy(() => import('./pages/grupos/GruposListPage'))
@@ -453,6 +454,7 @@ function App() {
               
               {/* Máquinas Virtuales - Calendario de sesiones */}
               <Route path="/vm-sessions" element={<VmSchedulingPage />} />
+              <Route path="/mi-plantel/sesiones" element={<MiPlantelSesionesPage />} />
               
               {/* Grupos - Gestión de grupos por plantel */}
               <Route path="/grupos" element={<GruposListPage />} />

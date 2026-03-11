@@ -2,9 +2,11 @@
 Endpoints para gestión de sesiones de máquinas virtuales.
 
 Roles permitidos:
-  - candidato: solo ve/crea/cancela sesiones propias (si su grupo tiene VMs habilitadas)
-  - admin: ve/crea/cancela sesiones de cualquier campus
-  - coordinator: ve/crea/cancela sesiones de sus campuses
+  - candidato: solo ve/crea/cancela sesiones propias (si su grupo lo permite)
+  - responsable: ve/crea sesiones de candidatos en su plantel (según modo del grupo)
+  - admin/coordinator: ve/crea/cancela sesiones de cualquier campus
+
+LÍMITE GLOBAL: máximo 4 sesiones simultáneas en el mismo (date, hour) en toda la plataforma.
 """
 from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify
@@ -13,35 +15,60 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User
 from app.models.vm_session import VmSession
-from app.models.partner import CandidateGroup, GroupMember, Campus
+from app.models.partner import CandidateGroup, GroupMember, Campus, GroupExam
 
 bp = Blueprint('vm_sessions', __name__)
 
+MAX_CONCURRENT_SESSIONS = 4
 
 def get_candidate_vm_context(user_id):
-    """Obtener campus_id y group_id del candidato, y verificar que VMs estén habilitadas."""
+    """Obtener campus_id, group_id, y config de sesiones del candidato."""
     membership = GroupMember.query.filter_by(
         user_id=str(user_id),
         status='active'
     ).first()
     
     if not membership:
-        return None, None, False
+        return None, None, False, 'leader_only'
     
     group = CandidateGroup.query.get(membership.group_id)
     if not group or not group.campus:
-        return None, None, False
+        return None, None, False, 'leader_only'
     
     campus = group.campus
     
-    # Verificar config efectiva: grupo override → campus
+    # Config efectiva: grupo override → campus
     vm_enabled = False
     if group.enable_virtual_machines_override is not None:
         vm_enabled = group.enable_virtual_machines_override
     elif campus.enable_virtual_machines is not None:
         vm_enabled = campus.enable_virtual_machines
     
-    return campus.id, group.id, vm_enabled
+    session_calendar = False
+    if group.enable_session_calendar_override is not None:
+        session_calendar = group.enable_session_calendar_override
+    elif campus.enable_session_calendar is not None:
+        session_calendar = campus.enable_session_calendar
+
+    scheduling_mode = (
+        group.session_scheduling_mode_override
+        if group.session_scheduling_mode_override
+        else (campus.session_scheduling_mode or 'leader_only')
+    )
+    
+    # El candidato puede agendar si VMs o calendario están habilitados
+    enabled = vm_enabled or session_calendar
+    
+    return campus.id, group.id, enabled, scheduling_mode
+
+
+def _get_global_slot_count(session_date, start_hour):
+    """Contar sesiones agendadas globalmente en un slot (date + hour)."""
+    return VmSession.query.filter_by(
+        session_date=session_date,
+        start_hour=start_hour,
+        status='scheduled'
+    ).count()
 
 
 @bp.route('/check-access', methods=['GET'])
@@ -86,22 +113,25 @@ def check_vm_access():
         })
     
     if user.role == 'candidato':
-        campus_id, group_id, vm_enabled = get_candidate_vm_context(user_id)
+        campus_id, group_id, enabled, scheduling_mode = get_candidate_vm_context(user_id)
         return jsonify({
-            'has_access': vm_enabled,
+            'has_access': enabled,
             'role': user.role,
             'scope': 'self',
             'campus_id': campus_id,
             'group_id': group_id,
+            'scheduling_mode': scheduling_mode,
+            'can_self_schedule': scheduling_mode == 'candidate_self',
         })
     
     if user.role == 'responsable' and user.campus_id:
         campus = Campus.query.get(user.campus_id)
         vm_enabled = campus.enable_virtual_machines if campus else False
+        session_calendar = campus.enable_session_calendar if campus else False
         return jsonify({
-            'has_access': vm_enabled,
+            'has_access': vm_enabled or session_calendar,
             'role': user.role,
-            'scope': 'self',
+            'scope': 'campus',
             'campus_id': user.campus_id,
         })
     
@@ -176,15 +206,20 @@ def get_sessions():
         else:
             return jsonify({'sessions': [], 'total': 0})
     elif user.role == 'candidato':
-        campus_id, group_id, vm_enabled = get_candidate_vm_context(user_id)
-        if not vm_enabled:
-            return jsonify({'error': 'Máquinas virtuales no habilitadas para tu grupo'}), 403
-        query = query.filter(VmSession.campus_id == campus_id)
+        campus_id, group_id, enabled, scheduling_mode = get_candidate_vm_context(user_id)
+        if not enabled:
+            return jsonify({'error': 'Sesiones no habilitadas para tu grupo'}), 403
+        query = query.filter(VmSession.user_id == str(user_id))
     elif user.role == 'responsable' and user.campus_id:
         campus = Campus.query.get(user.campus_id)
-        if not campus or not campus.enable_virtual_machines:
-            return jsonify({'error': 'Máquinas virtuales no habilitadas para tu plantel'}), 403
-        query = query.filter(VmSession.campus_id == user.campus_id)
+        if not campus:
+            return jsonify({'error': 'Plantel no encontrado'}), 404
+        # Responsable ve sesiones de su plantel
+        group_id_filter = request.args.get('group_id', type=int)
+        if group_id_filter:
+            query = query.filter(VmSession.group_id == group_id_filter)
+        else:
+            query = query.filter(VmSession.campus_id == user.campus_id)
     else:
         return jsonify({'error': 'Acceso denegado'}), 403
     
@@ -194,7 +229,7 @@ def get_sessions():
     ).all()
     
     return jsonify({
-        'sessions': [s.to_dict(include_user=user.role in ['admin', 'coordinator']) for s in sessions],
+        'sessions': [s.to_dict(include_user=user.role in ['admin', 'coordinator', 'responsable']) for s in sessions],
         'total': len(sessions),
         'date_from': date_from.isoformat(),
         'date_to': date_to.isoformat(),
@@ -245,21 +280,39 @@ def create_session():
     
     # Determinar target_user y campus según rol
     if user.role == 'candidato':
-        campus_id, group_id, vm_enabled = get_candidate_vm_context(user_id)
-        if not vm_enabled:
-            return jsonify({'error': 'Máquinas virtuales no habilitadas para tu grupo'}), 403
+        campus_id, group_id, enabled, scheduling_mode = get_candidate_vm_context(user_id)
+        if not enabled:
+            return jsonify({'error': 'Sesiones no habilitadas para tu grupo'}), 403
+        if scheduling_mode == 'leader_only':
+            return jsonify({'error': 'En tu grupo, solo el responsable del plantel puede agendar sesiones.'}), 403
         target_user_id = user_id
         target_campus_id = campus_id
         target_group_id = group_id
     
     elif user.role == 'responsable' and user.campus_id:
-        campus = Campus.query.get(user.campus_id)
-        if not campus or not campus.enable_virtual_machines:
-            return jsonify({'error': 'Máquinas virtuales no habilitadas para tu plantel'}), 403
-        target_user_id = user_id
-        target_campus_id = user.campus_id
-        membership = GroupMember.query.filter_by(user_id=str(user_id), status='active').first()
-        target_group_id = membership.group_id if membership else None
+        # Responsable puede agendar para candidatos de su plantel
+        candidate_user_id = data.get('user_id')
+        target_group_id = data.get('group_id')
+        
+        if candidate_user_id:
+            # Agendar para un candidato específico
+            candidate = User.query.get(candidate_user_id)
+            if not candidate or candidate.role != 'candidato':
+                return jsonify({'error': 'Usuario candidato no encontrado'}), 404
+            # Verificar que el candidato pertenece a un grupo del plantel del responsable
+            membership = GroupMember.query.filter_by(
+                user_id=str(candidate_user_id), status='active'
+            ).first()
+            if not membership:
+                return jsonify({'error': 'El candidato no pertenece a ningún grupo activo'}), 400
+            group = CandidateGroup.query.get(membership.group_id)
+            if not group or group.campus_id != user.campus_id:
+                return jsonify({'error': 'El candidato no pertenece a tu plantel'}), 403
+            target_user_id = candidate_user_id
+            target_campus_id = user.campus_id
+            target_group_id = target_group_id or membership.group_id
+        else:
+            return jsonify({'error': 'user_id del candidato es requerido'}), 400
         
     elif user.role in ['admin', 'coordinator']:
         target_user_id = data.get('user_id', user_id)
@@ -280,18 +333,11 @@ def create_session():
     else:
         return jsonify({'error': 'Acceso denegado'}), 403
     
-    # --- Validación anti-empalme ---
-    existing = VmSession.query.filter_by(
-        campus_id=target_campus_id,
-        session_date=session_date,
-        start_hour=start_hour,
-        status='scheduled'
-    ).first()
-    
-    if existing:
+    # --- Validación: límite global de 4 sesiones simultáneas ---
+    global_count = _get_global_slot_count(session_date, start_hour)
+    if global_count >= MAX_CONCURRENT_SESSIONS:
         return jsonify({
-            'error': 'Este horario ya está reservado. Selecciona otro horario disponible.',
-            'conflict': existing.to_dict()
+            'error': f'Se alcanzó el límite de {MAX_CONCURRENT_SESSIONS} sesiones simultáneas en este horario. Selecciona otro horario.',
         }), 409
     
     # Verificar que el usuario no tenga otra sesión en la misma fecha y hora
@@ -330,9 +376,9 @@ def create_session():
         raise
     except Exception as e:
         db.session.rollback()
-        if 'uq_vm_session_slot' in str(e).lower() or 'unique' in str(e).lower():
+        if 'unique' in str(e).lower():
             return jsonify({
-                'error': 'Este horario ya fue reservado por otro usuario.'
+                'error': 'Este horario ya fue reservado.'
             }), 409
         return jsonify({'error': str(e)}), 500
 
@@ -357,6 +403,8 @@ def cancel_session(session_id):
     # Verificar permisos
     if user.role == 'candidato' and session.user_id != str(user_id):
         return jsonify({'error': 'Solo puedes cancelar tus propias sesiones'}), 403
+    elif user.role == 'responsable' and session.campus_id != user.campus_id:
+        return jsonify({'error': 'Solo puedes cancelar sesiones de tu plantel'}), 403
     
     data = request.get_json() or {}
     
@@ -430,97 +478,366 @@ def update_session_status(session_id):
 @jwt_required()
 def get_available_slots():
     """
-    Obtener horarios disponibles para un campus y fecha.
-    
+    Obtener disponibilidad global de horarios para una fecha.
+    Límite global: MAX_CONCURRENT_SESSIONS sesiones simultáneas.
+
     Query params:
-      - campus_id (required)
       - date (YYYY-MM-DD, required)
       - operating_hours_start (default: 8)
       - operating_hours_end (default: 20)
-    
-    Retorna las horas del día que NO están ocupadas.
     """
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    
+
     if not user:
         return jsonify({'error': 'Usuario no encontrado'}), 404
-    
-    campus_id = request.args.get('campus_id', type=int)
+
     date_str = request.args.get('date')
     hours_start = request.args.get('operating_hours_start', 8, type=int)
     hours_end = request.args.get('operating_hours_end', 20, type=int)
-    
-    if not campus_id or not date_str:
-        return jsonify({'error': 'campus_id y date son requeridos'}), 400
-    
+
+    if not date_str:
+        return jsonify({'error': 'date es requerido'}), 400
+
     try:
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
         return jsonify({'error': 'Formato de fecha inválido'}), 400
-    
-    # Para candidatos, verificar acceso
+
     if user.role == 'candidato':
-        c_campus_id, _, vm_enabled = get_candidate_vm_context(user_id)
-        if not vm_enabled or c_campus_id != campus_id:
-            return jsonify({'error': 'Sin acceso a este campus'}), 403
-    
-    # Obtener horas ocupadas (con detalles para admin/coordinator)
-    show_details = user.role in ['admin', 'developer', 'coordinator']
-    
-    if show_details:
-        occupied_sessions = VmSession.query.filter(
-            VmSession.campus_id == campus_id,
-            VmSession.session_date == target_date,
-            VmSession.status == 'scheduled',
-        ).all()
-        occupied_hours = {s.start_hour for s in occupied_sessions}
-        occupied_details = {}
-        for s in occupied_sessions:
-            occupied_details[s.start_hour] = {
+        c_campus_id, _, enabled, _ = get_candidate_vm_context(user_id)
+        if not enabled:
+            return jsonify({'error': 'Sesiones no habilitadas'}), 403
+
+    # Todas las sesiones scheduled en esa fecha (global)
+    all_sessions = VmSession.query.filter(
+        VmSession.session_date == target_date,
+        VmSession.status == 'scheduled',
+    ).all()
+
+    hour_counts = {}
+    hour_details = {}
+    for s in all_sessions:
+        hour_counts[s.start_hour] = hour_counts.get(s.start_hour, 0) + 1
+        if user.role in ['admin', 'developer', 'coordinator', 'responsable']:
+            hour_details.setdefault(s.start_hour, []).append({
                 'session_id': s.id,
+                'user_id': s.user_id,
                 'user_name': s.user.full_name if s.user else 'Desconocido',
-                'user_email': s.user.email if s.user else '',
-                'user_role': s.user.role if s.user else '',
+                'group_id': s.group_id,
                 'group_name': s.group.name if s.group else None,
+                'campus_id': s.campus_id,
                 'campus_name': s.campus.name if s.campus else None,
-                'notes': s.notes,
-                'created_at': s.created_at.isoformat() if s.created_at else None,
-            }
-    else:
-        occupied = db.session.query(VmSession.start_hour).filter(
-            VmSession.campus_id == campus_id,
-            VmSession.session_date == target_date,
-            VmSession.status == 'scheduled',
-        ).all()
-        occupied_hours = {row.start_hour for row in occupied}
-        occupied_details = {}
-    
-    # Generar slots disponibles
+            })
+
     now = datetime.utcnow()
     slots = []
     for hour in range(hours_start, hours_end):
         is_past = (target_date < now.date()) or (target_date == now.date() and hour <= now.hour)
-        is_occupied = hour in occupied_hours
-        
+        count = hour_counts.get(hour, 0)
+
         slot_data = {
             'hour': hour,
             'label': f'{hour:02d}:00 - {hour + 1:02d}:00',
-            'available': not is_occupied and not is_past,
+            'available': count < MAX_CONCURRENT_SESSIONS and not is_past,
             'is_past': is_past,
-            'is_occupied': is_occupied,
+            'global_count': count,
+            'max_sessions': MAX_CONCURRENT_SESSIONS,
+            'remaining': max(0, MAX_CONCURRENT_SESSIONS - count),
         }
-        
-        # Incluir detalles de quién ocupa el slot para admin/coordinator
-        if is_occupied and hour in occupied_details:
-            slot_data['occupied_by'] = occupied_details[hour]
-        
+
+        if hour in hour_details:
+            slot_data['sessions'] = hour_details[hour]
+
         slots.append(slot_data)
-    
+
     return jsonify({
-        'campus_id': campus_id,
         'date': target_date.isoformat(),
         'slots': slots,
         'total_available': sum(1 for s in slots if s['available']),
-        'total_occupied': len(occupied_hours),
     })
+
+
+# ─── Endpoints exclusivos para responsable ──────────────────────────
+
+@bp.route('/responsable-groups', methods=['GET'])
+@jwt_required()
+def get_responsable_groups():
+    """Grupos con calendario de sesiones habilitado en el plantel del responsable."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role != 'responsable' or not user.campus_id:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    campus = Campus.query.get(user.campus_id)
+    if not campus:
+        return jsonify({'error': 'Plantel no encontrado'}), 404
+
+    groups = CandidateGroup.query.filter_by(campus_id=user.campus_id).all()
+    result = []
+    for g in groups:
+        session_enabled = (
+            g.enable_session_calendar_override
+            if g.enable_session_calendar_override is not None
+            else (campus.enable_session_calendar or False)
+        )
+        scheduling_mode = (
+            g.session_scheduling_mode_override
+            if g.session_scheduling_mode_override
+            else (campus.session_scheduling_mode or 'leader_only')
+        )
+        if not session_enabled:
+            continue
+
+        member_count = GroupMember.query.filter_by(
+            group_id=g.id, status='active'
+        ).count()
+
+        result.append({
+            'id': g.id,
+            'name': g.name,
+            'scheduling_mode': scheduling_mode,
+            'member_count': member_count,
+        })
+
+    return jsonify({
+        'campus_id': user.campus_id,
+        'campus_name': campus.name,
+        'groups': result,
+    })
+
+
+@bp.route('/group-candidates', methods=['GET'])
+@jwt_required()
+def get_group_candidates():
+    """Candidatos activos de un grupo (para asignar sesiones)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role != 'responsable' or not user.campus_id:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    group_id = request.args.get('group_id', type=int)
+    if not group_id:
+        return jsonify({'error': 'group_id es requerido'}), 400
+
+    group = CandidateGroup.query.get(group_id)
+    if not group or group.campus_id != user.campus_id:
+        return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404
+
+    members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+    candidates = []
+    for m in members:
+        u = User.query.get(m.user_id)
+        if u and u.role == 'candidato':
+            scheduled = VmSession.query.filter_by(
+                user_id=str(m.user_id), group_id=group_id, status='scheduled'
+            ).first()
+            candidates.append({
+                'user_id': m.user_id,
+                'name': u.full_name or u.email,
+                'email': u.email,
+                'has_scheduled_session': scheduled is not None,
+            })
+
+    return jsonify({'candidates': candidates})
+
+
+@bp.route('/auto-distribute', methods=['POST'])
+@jwt_required()
+def auto_distribute():
+    """
+    Auto-distribuir sesiones para candidatos de un grupo (solo propuesta).
+    Solo disponible para responsable en modo leader_only.
+
+    Body:
+      - group_id (required)
+      - date_from (YYYY-MM-DD, default: mañana)
+      - date_to (YYYY-MM-DD, default: date_from + 6 days)
+      - hours_start (default: 8)
+      - hours_end (default: 20)
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role != 'responsable' or not user.campus_id:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    data = request.get_json()
+    group_id = data.get('group_id')
+    if not group_id:
+        return jsonify({'error': 'group_id es requerido'}), 400
+
+    group = CandidateGroup.query.get(group_id)
+    if not group or group.campus_id != user.campus_id:
+        return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404
+
+    campus = Campus.query.get(user.campus_id)
+    scheduling_mode = (
+        group.session_scheduling_mode_override
+        if group.session_scheduling_mode_override
+        else (campus.session_scheduling_mode or 'leader_only')
+    )
+    if scheduling_mode != 'leader_only':
+        return jsonify({'error': 'Auto-distribución solo disponible en modo líder'}), 400
+
+    tomorrow = date.today() + timedelta(days=1)
+    date_from_str = data.get('date_from')
+    date_to_str = data.get('date_to')
+    hours_start = data.get('hours_start', 8)
+    hours_end = data.get('hours_end', 20)
+
+    try:
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else tomorrow
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else date_from + timedelta(days=6)
+    except ValueError:
+        return jsonify({'error': 'Formato de fecha inválido'}), 400
+
+    if date_from < date.today():
+        return jsonify({'error': 'La fecha de inicio no puede ser en el pasado'}), 400
+
+    # Candidatos sin sesión agendada en este grupo
+    members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
+    candidates = []
+    for m in members:
+        existing = VmSession.query.filter_by(
+            user_id=str(m.user_id), group_id=group_id, status='scheduled'
+        ).first()
+        if not existing:
+            u = User.query.get(m.user_id)
+            if u:
+                candidates.append({'user_id': m.user_id, 'name': u.full_name or u.email})
+
+    if not candidates:
+        return jsonify({'message': 'Todos los candidatos ya tienen sesión agendada', 'proposal': []})
+
+    # Slots disponibles en el rango (lunes-viernes)
+    available_slots = []
+    cur = date_from
+    now = datetime.utcnow()
+    while cur <= date_to:
+        if cur.weekday() < 5:
+            for h in range(hours_start, hours_end):
+                if cur > now.date() or (cur == now.date() and h > now.hour):
+                    remaining = MAX_CONCURRENT_SESSIONS - _get_global_slot_count(cur, h)
+                    if remaining > 0:
+                        available_slots.append({'date': cur, 'hour': h, 'remaining': remaining})
+        cur += timedelta(days=1)
+
+    proposal = []
+    slot_idx = 0
+    slot_usage = {}
+
+    for cand in candidates:
+        placed = False
+        while slot_idx < len(available_slots) and not placed:
+            s = available_slots[slot_idx]
+            key = (s['date'], s['hour'])
+            used = slot_usage.get(key, 0)
+            if used < s['remaining']:
+                proposal.append({
+                    'user_id': cand['user_id'],
+                    'user_name': cand['name'],
+                    'session_date': s['date'].isoformat(),
+                    'start_hour': s['hour'],
+                    'hour_label': f"{s['hour']:02d}:00 - {s['hour']+1:02d}:00",
+                })
+                slot_usage[key] = used + 1
+                placed = True
+            else:
+                slot_idx += 1
+        if not placed:
+            proposal.append({
+                'user_id': cand['user_id'],
+                'user_name': cand['name'],
+                'session_date': None,
+                'start_hour': None,
+                'hour_label': 'Sin horario disponible',
+                'error': True,
+            })
+
+    return jsonify({
+        'group_id': group_id,
+        'group_name': group.name,
+        'proposal': proposal,
+        'total_candidates': len(candidates),
+        'total_assigned': sum(1 for p in proposal if p.get('session_date')),
+        'total_unassigned': sum(1 for p in proposal if not p.get('session_date')),
+    })
+
+
+@bp.route('/bulk-create', methods=['POST'])
+@jwt_required()
+def bulk_create_sessions():
+    """
+    Crear múltiples sesiones de una propuesta aceptada.
+    Solo para responsable.
+
+    Body:
+      - group_id
+      - sessions: [{user_id, session_date, start_hour}, ...]
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role != 'responsable' or not user.campus_id:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    data = request.get_json()
+    group_id = data.get('group_id')
+    sessions_data = data.get('sessions', [])
+
+    if not group_id or not sessions_data:
+        return jsonify({'error': 'group_id y sessions son requeridos'}), 400
+
+    group = CandidateGroup.query.get(group_id)
+    if not group or group.campus_id != user.campus_id:
+        return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 403
+
+    created = []
+    errors = []
+
+    for s in sessions_data:
+        try:
+            s_date = datetime.strptime(s['session_date'], '%Y-%m-%d').date()
+            s_hour = int(s['start_hour'])
+            s_user_id = s['user_id']
+
+            if _get_global_slot_count(s_date, s_hour) >= MAX_CONCURRENT_SESSIONS:
+                errors.append({'user_id': s_user_id, 'error': f'Slot {s_date} {s_hour}:00 lleno'})
+                continue
+
+            existing = VmSession.query.filter_by(
+                user_id=str(s_user_id), session_date=s_date,
+                start_hour=s_hour, status='scheduled'
+            ).first()
+            if existing:
+                errors.append({'user_id': s_user_id, 'error': f'Ya tiene sesión en {s_date} {s_hour}:00'})
+                continue
+
+            session = VmSession(
+                user_id=str(s_user_id),
+                campus_id=user.campus_id,
+                group_id=group_id,
+                session_date=s_date,
+                start_hour=s_hour,
+                status='scheduled',
+                notes=s.get('notes', 'Auto-distribuido'),
+                created_by_id=str(user_id),
+            )
+            db.session.add(session)
+            created.append(session)
+        except (KeyError, ValueError, TypeError) as e:
+            errors.append({'user_id': s.get('user_id'), 'error': str(e)})
+
+    try:
+        db.session.commit()
+        return jsonify({
+            'message': f'{len(created)} sesiones creadas',
+            'created': [ses.to_dict() for ses in created],
+            'errors': errors,
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500

@@ -125,16 +125,13 @@ export default function VmSchedulingPage() {
 
   // Load week slots sequentially to avoid connection exhaustion
   const loadWeekSlots = useCallback(async () => {
-    if (!campusId && !isAdminOrCoord) return;
-    if (isCoordinator && !campusId) return; // Esperar selección de campus
-    const targetCampusId = campusId || 1;
     const days = getWeekDays(currentDate);
     setSlotsLoading(true);
     try {
       const results: WeekSlotsMap = {};
       for (const day of days) {
         const dateStr = formatDateStr(day);
-        const res = await getAvailableSlots({ campus_id: targetCampusId, date: dateStr });
+        const res = await getAvailableSlots({ date: dateStr });
         results[dateStr] = res.slots;
       }
       setWeekSlots(results);
@@ -144,7 +141,7 @@ export default function VmSchedulingPage() {
       setSlotsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [campusId, weekKey, isAdminOrCoord, isCoordinator]);
+  }, [weekKey]);
 
   // Load my sessions
   const loadMySessions = useCallback(async () => {
@@ -252,6 +249,32 @@ export default function VmSchedulingPage() {
           <p className="fluid-text-base text-amber-600">
             El calendario de sesiones no está habilitado para tu grupo. Contacta a tu coordinador si necesitas acceso.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Candidato en modo leader_only: no puede agendar
+  const isLeaderOnly = access?.scheduling_mode === 'leader_only' && user?.role === 'candidato';
+  if (isLeaderOnly) {
+    return (
+      <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+        <div className="bg-blue-50 border border-blue-200 rounded-fluid-2xl fluid-p-8 text-center max-w-lg mx-auto">
+          <Calendar className="fluid-icon-xl text-blue-500 mx-auto fluid-mb-4" />
+          <h2 className="fluid-text-xl font-bold text-blue-800 fluid-mb-2">Sesiones Gestionadas por tu Responsable</h2>
+          <p className="fluid-text-base text-blue-600">
+            En tu grupo, el responsable del plantel es quien agenda las sesiones. Tu sesión será asignada pronto.
+          </p>
+          {mySessions.length > 0 && (
+            <div className="fluid-mt-6 space-y-2">
+              <h3 className="fluid-text-sm font-semibold text-blue-700">Tu sesión asignada:</h3>
+              {mySessions.map(s => (
+                <div key={s.id} className="bg-white border border-blue-200 rounded-fluid-lg fluid-px-4 fluid-py-3 fluid-text-sm text-blue-700 font-medium">
+                  📅 {s.session_date} · {s.start_hour_label}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -568,7 +591,7 @@ export default function VmSchedulingPage() {
                           const isMine = !!mySession;
                           const isAvailable = slot?.available ?? false;
                           const isPast = slot?.is_past ?? false;
-                          const isOccupied = slot?.is_occupied ?? false;
+                          const isOccupied = !isMine && (slot?.global_count ?? 0) > 0 && (slot?.remaining ?? 0) === 0;
                           const isTodayCol = isToday(day);
 
                           return (
@@ -612,14 +635,14 @@ export default function VmSchedulingPage() {
                                 <div
                                   className="absolute inset-0.5 bg-purple-50 border border-purple-200 rounded-md flex items-center justify-center overflow-hidden"
                                   title={slot?.occupied_by
-                                    ? `${slot.occupied_by.user_name}${slot.occupied_by.group_name ? ` · ${slot.occupied_by.group_name}` : ''} · ${hour}:00 – ${hour + 1}:00`
+                                    ? `${String(slot.occupied_by.user_name ?? '')}${slot.occupied_by.group_name ? ` · ${slot.occupied_by.group_name}` : ''} · ${hour}:00 – ${hour + 1}:00`
                                     : `Ocupado · ${hour}:00 – ${hour + 1}:00`}
                                 >
                                   {slot?.occupied_by ? (
                                     <div className="text-center px-1">
                                       <UserIcon className="w-3 h-3 text-purple-500 mx-auto" />
                                       <span className="text-[8px] text-purple-700 font-medium block truncate leading-tight mt-0.5" style={{ maxWidth: '80px' }}>
-                                        {slot.occupied_by.user_name.split(' ').slice(0, 2).join(' ')}
+                                        {String(slot.occupied_by.user_name ?? '').split(' ').slice(0, 2).join(' ')}
                                       </span>
                                     </div>
                                   ) : (

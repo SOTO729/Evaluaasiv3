@@ -301,11 +301,23 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {['candidato', 'admin', 'developer', 'responsable'].includes(user?.role ?? '') && (
+                {['candidato', 'admin', 'developer'].includes(user?.role ?? '') && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/vm-sessions') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Sesiones
+                  </Link>
+                )}
+                {user?.role === 'responsable' && (
+                  <Link 
+                    to="/mi-plantel/sesiones" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/mi-plantel/sesiones') 
                         ? 'text-primary-600 font-semibold bg-primary-50' 
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
@@ -786,7 +798,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['candidato', 'admin', 'developer', 'responsable'].includes(user?.role ?? '') && (
+              {['candidato', 'admin', 'developer'].includes(user?.role ?? '') && (
                 <Link 
                   to="/vm-sessions" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -801,6 +813,24 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     Calendario de Sesiones
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'responsable' && (
+                <Link 
+                  to="/mi-plantel/sesiones" 
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/mi-plantel/sesiones') 
+                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    Sesiones del Plantel
                   </div>
                 </Link>
               )}

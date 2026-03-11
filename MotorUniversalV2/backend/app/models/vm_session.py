@@ -48,13 +48,14 @@ class VmSession(db.Model):
     created_by = db.relationship('User', foreign_keys=[created_by_id])
     cancelled_by = db.relationship('User', foreign_keys=[cancelled_by_id])
     
-    # Constraint: un solo slot por campus + fecha + hora (sin empalme)
+    # Constraint: un usuario no puede tener dos sesiones en el mismo slot de hora
     __table_args__ = (
-        db.UniqueConstraint('campus_id', 'session_date', 'start_hour',
-                           name='uq_vm_session_slot'),
+        db.UniqueConstraint('user_id', 'session_date', 'start_hour',
+                           name='uq_vm_session_user_slot'),
         db.Index('ix_vm_session_user', 'user_id'),
         db.Index('ix_vm_session_campus_date', 'campus_id', 'session_date'),
         db.Index('ix_vm_session_status', 'status'),
+        db.Index('ix_vm_session_date_hour', 'session_date', 'start_hour'),
     )
     
     def to_dict(self, include_user=False):
