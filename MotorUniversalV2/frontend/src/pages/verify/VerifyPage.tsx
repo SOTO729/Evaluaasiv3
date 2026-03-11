@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap, FileText } from 'lucide-react'
 
 interface VerificationData {
   valid: boolean
@@ -333,6 +333,19 @@ const VerifyPage = () => {
                 <p className="font-semibold text-gray-900 text-lg">{data.candidate?.full_name}</p>
               </div>
             </div>
+
+            {/* Tipo de documento (solo para certificado Eduit) */}
+            {data.document_type === 'eduit_certificate' && data.document_name && (
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Tipo de Documento</p>
+                  <p className="font-semibold text-gray-900">{data.document_name}</p>
+                </div>
+              </div>
+            )}
 
             {/* Certificación */}
             <div className="flex items-start gap-3">
