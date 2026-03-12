@@ -1230,6 +1230,7 @@ def check_and_create_support_chat_tables():
         from app.models.support_chat import (
             SupportConversation,
             SupportConversationParticipant,
+            SupportConversationSatisfaction,
             SupportMessage,
         )
 
@@ -1238,17 +1239,57 @@ def check_and_create_support_chat_tables():
         required_tables = {
             "support_conversations",
             "support_conversation_participants",
+            "support_conversation_satisfaction",
             "support_messages",
         }
 
         if required_tables.issubset(existing_tables):
             print("  ✓ Tablas support chat ya existen")
+            conversation_columns = {
+                column["name"] for column in inspector.get_columns("support_conversations")
+            }
+
+            if "assigned_coordinator_user_id" not in conversation_columns:
+                try:
+                    db_type = db.engine.url.drivername.lower()
+                    if "mssql" in db_type:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD assigned_coordinator_user_id NVARCHAR(36) NULL"
+                        ))
+                    else:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD COLUMN assigned_coordinator_user_id VARCHAR(36)"
+                        ))
+                    db.session.commit()
+                    print("  ✅ Columna assigned_coordinator_user_id agregada")
+                except Exception as col_err:
+                    print(f"  ⚠️ No se pudo agregar assigned_coordinator_user_id: {col_err}")
+                    db.session.rollback()
+
+            if "current_handler_role" not in conversation_columns:
+                try:
+                    db_type = db.engine.url.drivername.lower()
+                    if "mssql" in db_type:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD current_handler_role NVARCHAR(20) NOT NULL DEFAULT 'support'"
+                        ))
+                    else:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD COLUMN current_handler_role VARCHAR(20) NOT NULL DEFAULT 'support'"
+                        ))
+                    db.session.commit()
+                    print("  ✅ Columna current_handler_role agregada")
+                except Exception as col_err:
+                    print(f"  ⚠️ No se pudo agregar current_handler_role: {col_err}")
+                    db.session.rollback()
+
             return
 
         print("  📝 Creando tablas support chat faltantes...")
         SupportConversation.__table__.create(bind=db.engine, checkfirst=True)
         SupportMessage.__table__.create(bind=db.engine, checkfirst=True)
         SupportConversationParticipant.__table__.create(bind=db.engine, checkfirst=True)
+        SupportConversationSatisfaction.__table__.create(bind=db.engine, checkfirst=True)
         db.session.commit()
         print("  ✅ Tablas support chat listas")
 

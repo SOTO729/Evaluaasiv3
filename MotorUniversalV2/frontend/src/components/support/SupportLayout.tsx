@@ -15,6 +15,7 @@ import Layout from '../layout/Layout'
 import { isSupportPreviewEnabled } from '../../support/supportPreview'
 import { loadSupportSettings, subscribeSupportSettings } from '../../support/supportSettings'
 import { supportChatService } from '../../services/supportChatService'
+import { useAuthStore } from '../../store/authStore'
 
 type SupportNavItem = {
   path: string
@@ -34,12 +35,17 @@ const navItems: SupportNavItem[] = [
 ]
 
 const SupportLayout = () => {
+  const { user } = useAuthStore()
   const previewEnabled = isSupportPreviewEnabled()
   const location = useLocation()
   const queryClient = useQueryClient()
   const basePath = location.pathname.startsWith('/dev/support') ? '/dev/support' : '/support'
   const [settings, setSettings] = useState(loadSupportSettings())
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
+  const isCoordinatorView = String(user?.role || '').toLowerCase() === 'coordinator'
+  const visibleNavItems = isCoordinatorView
+    ? navItems.filter((item) => item.path === 'communication')
+    : navItems
 
   useEffect(() => subscribeSupportSettings(setSettings), [])
 
@@ -63,10 +69,10 @@ const SupportLayout = () => {
           status: 'open',
         })
         if (cancelled) return
-        const total = response.conversations.reduce(
-          (sum, item) => sum + Number(item.unread_count || 0),
-          0
-        )
+        const total = response.conversations.reduce((sum, item) => {
+          if (!isCoordinatorView && item.current_handler_role === 'coordinator') return sum
+          return sum + Number(item.unread_count || 0)
+        }, 0)
         setChatUnreadCount(total)
       } catch {
         if (!cancelled) setChatUnreadCount(0)
@@ -80,7 +86,7 @@ const SupportLayout = () => {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [location.pathname])
+  }, [isCoordinatorView, location.pathname])
 
   return (
     <Layout>
@@ -90,10 +96,12 @@ const SupportLayout = () => {
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-gray-400">Soporte</p>
               <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mt-1">
-                Centro de soporte Evaluassi
+                {isCoordinatorView ? 'Canal de coordinacion de chat' : 'Centro de soporte Evaluassi'}
               </h1>
               <p className="text-sm sm:text-base text-gray-600 mt-2 max-w-2xl">
-                Panel operativo para gestionar tickets, usuarios y comunicación del ecosistema.
+                {isCoordinatorView
+                  ? 'Atiende conversaciones derivadas por soporte y regresa los casos cuando corresponda.'
+                  : 'Panel operativo para gestionar tickets, usuarios y comunicación del ecosistema.'}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -106,25 +114,47 @@ const SupportLayout = () => {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            {navItems.map(({ path, label, icon: Icon }) => (
-              <NavLink
-                key={path}
-                to={`${basePath}/${path}`}
-                className={({ isActive }) =>
-                  `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
-                    isActive
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`
-                }
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-                {path === 'communication' && chatUnreadCount > 0 ? (
-                  <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
-                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                  </span>
-                ) : null}
+            {visibleNavItems.map(({ path, label, icon: Icon }) => (
+              <NavLink key={path} to={`${basePath}/${path}`}>
+                {({ isActive }) => {
+                  const hasUnread = path === 'communication' && chatUnreadCount > 0
+
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                        isActive
+                          ? hasUnread
+                            ? 'bg-gradient-to-r from-primary-600 to-blue-600 text-white shadow-lg shadow-primary-200'
+                            : 'bg-primary-50 text-primary-700'
+                          : hasUnread
+                            ? 'border border-primary-200 bg-gradient-to-r from-primary-50 to-blue-50 text-primary-700 shadow-sm hover:border-primary-300 hover:shadow-md'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                    >
+                      <span className="relative inline-flex items-center">
+                        <Icon className="h-4 w-4" />
+                        {hasUnread && (
+                          <>
+                            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500" />
+                            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-400 animate-ping" />
+                          </>
+                        )}
+                      </span>
+                      {label}
+                      {hasUnread ? (
+                        <span
+                          className={`ml-1 inline-flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${
+                            isActive
+                              ? 'bg-white/20 text-white'
+                              : 'bg-rose-500 text-white shadow-sm'
+                          }`}
+                        >
+                          {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                        </span>
+                      ) : null}
+                    </span>
+                  )
+                }}
               </NavLink>
             ))}
           </div>
