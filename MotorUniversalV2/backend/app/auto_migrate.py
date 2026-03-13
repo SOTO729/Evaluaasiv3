@@ -1368,6 +1368,7 @@ def check_and_create_support_chat_tables():
         from app.models.support_chat import (
             SupportConversation,
             SupportConversationParticipant,
+            SupportConversationSatisfaction,
             SupportMessage,
         )
 
@@ -1376,44 +1377,60 @@ def check_and_create_support_chat_tables():
         required_tables = {
             "support_conversations",
             "support_conversation_participants",
+            "support_conversation_satisfaction",
             "support_messages",
         }
 
         missing = required_tables - existing_tables
         if not missing:
             print("  ✓ Tablas support chat ya existen")
+            conversation_columns = {
+                column["name"] for column in inspector.get_columns("support_conversations")
+            }
+
+            if "assigned_coordinator_user_id" not in conversation_columns:
+                try:
+                    db_type = db.engine.url.drivername.lower()
+                    if "mssql" in db_type:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD assigned_coordinator_user_id NVARCHAR(36) NULL"
+                        ))
+                    else:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD COLUMN assigned_coordinator_user_id VARCHAR(36)"
+                        ))
+                    db.session.commit()
+                    print("  ✅ Columna assigned_coordinator_user_id agregada")
+                except Exception as col_err:
+                    print(f"  ⚠️ No se pudo agregar assigned_coordinator_user_id: {col_err}")
+                    db.session.rollback()
+
+            if "current_handler_role" not in conversation_columns:
+                try:
+                    db_type = db.engine.url.drivername.lower()
+                    if "mssql" in db_type:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD current_handler_role NVARCHAR(20) NOT NULL DEFAULT 'support'"
+                        ))
+                    else:
+                        db.session.execute(text(
+                            "ALTER TABLE support_conversations ADD COLUMN current_handler_role VARCHAR(20) NOT NULL DEFAULT 'support'"
+                        ))
+                    db.session.commit()
+                    print("  ✅ Columna current_handler_role agregada")
+                except Exception as col_err:
+                    print(f"  ⚠️ No se pudo agregar current_handler_role: {col_err}")
+                    db.session.rollback()
+
             return
 
-        print(f"  📝 Tablas faltantes: {missing}")
-
-        # Crear en orden de dependencia (conversations → messages → participants)
-        table_order = [
-            ("support_conversations", SupportConversation),
-            ("support_messages", SupportMessage),
-            ("support_conversation_participants", SupportConversationParticipant),
-        ]
-
-        for table_name, model_cls in table_order:
-            if table_name not in existing_tables:
-                try:
-                    print(f"  📝 Creando tabla {table_name}...")
-                    model_cls.__table__.create(bind=db.engine, checkfirst=True)
-                    db.session.commit()
-                    print(f"  ✅ Tabla {table_name} creada")
-                except Exception as table_err:
-                    db.session.rollback()
-                    print(f"  ⚠️  ORM create falló para {table_name}: {table_err}")
-                    print(f"  📝 Intentando con SQL raw para {table_name}...")
-                    _create_support_table_raw(table_name)
-
-        # Verificar resultado
-        inspector = inspect(db.engine)
-        final_tables = set(inspector.get_table_names())
-        still_missing = required_tables - final_tables
-        if still_missing:
-            print(f"  ❌ Tablas aún faltantes después de migración: {still_missing}")
-        else:
-            print("  ✅ Tablas support chat listas")
+        print("  📝 Creando tablas support chat faltantes...")
+        SupportConversation.__table__.create(bind=db.engine, checkfirst=True)
+        SupportMessage.__table__.create(bind=db.engine, checkfirst=True)
+        SupportConversationParticipant.__table__.create(bind=db.engine, checkfirst=True)
+        SupportConversationSatisfaction.__table__.create(bind=db.engine, checkfirst=True)
+        db.session.commit()
+        print("  ✅ Tablas support chat listas")
 
     except Exception as e:
         print(f"❌ Error creando tablas support chat: {e}")

@@ -76,6 +76,7 @@ from app.models.activity_log import (
 from app.models.support_chat import (
     SupportConversation,
     SupportConversationParticipant,
+    SupportConversationSatisfaction,
     SupportMessage
 )
 
@@ -151,5 +152,6 @@ __all__ = [
     # Support chat models
     'SupportConversation',
     'SupportConversationParticipant',
+    'SupportConversationSatisfaction',
     'SupportMessage'
 ]

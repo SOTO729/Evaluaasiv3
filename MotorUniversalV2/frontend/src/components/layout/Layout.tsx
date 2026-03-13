@@ -598,16 +598,16 @@ const Layout = ({ children }: LayoutProps) => {
 
                   {/* Opciones del menú */}
                   <div className="fluid-py-2">
-                    {(user?.role === 'candidato' || user?.role === 'responsable') && (
+                    {(user?.role === 'candidato' || user?.role === 'coordinator') && (
                       <Link
-                        to="/chat-soporte"
+                        to={user?.role === 'coordinator' ? '/support/communication' : '/chat-soporte'}
                         onClick={() => setIsDropdownOpen(false)}
                         className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m-8 7l-2-2m0 0l2-2m-2 2h12a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v3" />
                         </svg>
-                        Chat con Soporte
+                        {user?.role === 'coordinator' ? 'Chat derivado' : 'Chat con Soporte'}
                       </Link>
                     )}
                     <Link
@@ -663,11 +663,11 @@ const Layout = ({ children }: LayoutProps) => {
               </Link>
               {!isSupportRole && (
                 <>
-              {(user?.role === 'candidato' || user?.role === 'responsable') && (
+              {(user?.role === 'candidato' || user?.role === 'coordinator') && (
                 <Link
-                  to="/chat-soporte"
+                  to={user?.role === 'coordinator' ? '/support/communication' : '/chat-soporte'}
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname.startsWith('/chat-soporte')
+                    (user?.role === 'coordinator' ? location.pathname.startsWith('/support/communication') : location.pathname.startsWith('/chat-soporte'))
                       ? 'bg-primary-50 text-primary-600 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -677,7 +677,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m4-10H7a2 2 0 00-2 2v10l3-3h9a2 2 0 002-2V6a2 2 0 00-2-2z" />
                     </svg>
-                    Chat con Soporte
+                    {user?.role === 'coordinator' ? 'Chat derivado' : 'Chat con Soporte'}
                   </div>
                 </Link>
               )}

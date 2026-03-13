@@ -110,6 +110,13 @@ const DashboardRouter = () => {
   return <HomePage />
 }
 
+const SupportIndexRoute = () => {
+  const { user } = useAuthStore()
+  return String(user?.role || '').trim().toLowerCase() === 'coordinator'
+    ? <Navigate to="communication" replace />
+    : <Navigate to="dashboard" replace />
+}
+
 // Certificates
 const CertificatesPage = lazy(() => import('./pages/certificates/CertificatesPage'))
 const EvaluationReportDetailPage = lazy(() => import('./pages/certificates/EvaluationReportDetailPage'))
@@ -271,9 +278,9 @@ function App() {
             <Route path="/test-exams/:examId/results" element={<ExamTestResultsRouter />} />
 
             {/* Soporte - ventana especial */}
-            <Route element={<SupportGuard />}>
+              <Route element={<SupportGuard />}>
               <Route path="/support" element={<SupportLayout />}>
-                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route index element={<SupportIndexRoute />} />
                 <Route path="dashboard" element={<SupportDashboardPage />} />
                 <Route path="campuses" element={<SupportCampusesPage />} />
                 <Route path="users" element={<SupportUsersPage />} />
@@ -284,7 +291,7 @@ function App() {
               </Route>
 
               <Route path="/dev/support" element={<SupportLayout />}>
-                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route index element={<SupportIndexRoute />} />
                 <Route path="dashboard" element={<SupportDashboardPage />} />
                 <Route path="campuses" element={<SupportCampusesPage />} />
                 <Route path="users" element={<SupportUsersPage />} />

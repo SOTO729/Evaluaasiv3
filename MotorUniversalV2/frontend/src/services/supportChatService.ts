@@ -3,6 +3,26 @@ import { listSupportUsers, type SupportDirectoryUser } from './supportService'
 
 export type SupportConversationStatus = 'open' | 'resolved' | 'closed'
 
+export interface SupportConversationSatisfaction {
+  id: number
+  conversation_id: number
+  submitted_by_user_id?: string | null
+  rating: number
+  comment?: string | null
+  submitted_at: string
+  updated_at?: string | null
+}
+
+export interface SupportChatUserSummary {
+  id: string
+  username: string
+  full_name: string
+  email?: string | null
+  curp?: string | null
+  phone?: string | null
+  role: string
+}
+
 export interface ChatAttachment {
   url: string
   name?: string | null
@@ -15,7 +35,7 @@ export interface SupportChatMessage {
   conversation_id: number
   sender_user_id: string
   content?: string | null
-  message_type: 'text' | 'attachment'
+  message_type: 'text' | 'attachment' | 'system'
   attachment?: ChatAttachment | null
   created_at: string
   edited_at?: string | null
@@ -24,7 +44,12 @@ export interface SupportChatMessage {
 export interface SupportChatConversation {
   id: number
   candidate_user_id: string
+  candidate?: SupportChatUserSummary | null
   assigned_support_user_id?: string | null
+  assigned_support_user?: SupportChatUserSummary | null
+  assigned_coordinator_user_id?: string | null
+  assigned_coordinator_user?: SupportChatUserSummary | null
+  current_handler_role?: 'support' | 'coordinator'
   subject?: string | null
   status: SupportConversationStatus
   priority: 'low' | 'normal' | 'high'
@@ -33,6 +58,8 @@ export interface SupportChatConversation {
   last_message_at?: string | null
   unread_count?: number
   last_message?: SupportChatMessage | null
+  satisfaction?: SupportConversationSatisfaction | null
+  survey_pending?: boolean
 }
 
 export interface SupportChatConversationsResponse {
@@ -50,6 +77,12 @@ export interface SupportChatMessagesResponse {
   per_page: number
   total: number
   pages: number
+}
+
+export interface SupportConversationSatisfactionResponse {
+  conversation_id: number
+  survey_pending: boolean
+  satisfaction?: SupportConversationSatisfaction | null
 }
 
 export const supportChatService = {
@@ -129,9 +162,46 @@ export const supportChatService = {
     return response.data?.conversation
   },
 
+  async getConversationSatisfaction(
+    conversationId: number
+  ): Promise<SupportConversationSatisfactionResponse> {
+    const response = await api.get(`/support/chat/conversations/${conversationId}/satisfaction`)
+    return {
+      conversation_id: Number(response.data?.conversation_id || conversationId),
+      survey_pending: Boolean(response.data?.survey_pending),
+      satisfaction: response.data?.satisfaction || null,
+    }
+  },
+
+  async submitConversationSatisfaction(
+    conversationId: number,
+    payload: { rating: number; comment?: string }
+  ): Promise<SupportChatConversation> {
+    const response = await api.post(`/support/chat/conversations/${conversationId}/satisfaction`, payload)
+    return response.data?.conversation
+  },
+
+  async transferConversation(
+    conversationId: number,
+    payload: { target_role: 'support' | 'coordinator'; target_user_id?: string }
+  ): Promise<SupportChatConversation> {
+    const response = await api.post(`/support/chat/conversations/${conversationId}/transfer`, payload)
+    return response.data?.conversation
+  },
+
   async searchCandidates(search?: string): Promise<SupportDirectoryUser[]> {
     const response = await listSupportUsers({
       role: 'candidato',
+      search: search || undefined,
+      page: 1,
+      per_page: 20,
+    })
+    return response.users
+  },
+
+  async searchCoordinators(search?: string): Promise<SupportDirectoryUser[]> {
+    const response = await listSupportUsers({
+      role: 'coordinator',
       search: search || undefined,
       page: 1,
       per_page: 20,

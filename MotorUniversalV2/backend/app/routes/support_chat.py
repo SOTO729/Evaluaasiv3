@@ -12,6 +12,7 @@ from app.models import User
 from app.models.support_chat import (
     SupportConversation,
     SupportConversationParticipant,
+    SupportConversationSatisfaction,
     SupportMessage,
 )
 
@@ -19,8 +20,11 @@ from app.models.support_chat import (
 bp = Blueprint("support_chat", __name__, url_prefix="/api/support/chat")
 
 SUPPORT_ROLES = {"soporte", "admin", "developer"}
+COORDINATOR_ROLES = {"coordinator"}
 ALLOWED_CONVERSATION_STATUSES = {"open", "resolved", "closed"}
 ALLOWED_PRIORITIES = {"low", "normal", "high"}
+ALLOWED_SATISFACTION_RATINGS = {1, 2, 3, 4, 5}
+ALLOWED_TRANSFER_TARGETS = {"support", "coordinator"}
 
 MAX_MESSAGE_LENGTH = int(os.getenv("SUPPORT_CHAT_MAX_MESSAGE_LENGTH", "4000"))
 MAX_SUBJECT_LENGTH = int(os.getenv("SUPPORT_CHAT_MAX_SUBJECT_LENGTH", "255"))
@@ -37,6 +41,14 @@ ALLOWED_ATTACHMENT_MIMES = {
 
 def _is_support_like(user: User) -> bool:
     return bool(user and user.role in SUPPORT_ROLES)
+
+
+def _is_coordinator_like(user: User) -> bool:
+    return bool(user and user.role in COORDINATOR_ROLES)
+
+
+def _is_staff_like(user: User) -> bool:
+    return _is_support_like(user) or _is_coordinator_like(user)
 
 
 def _serialize_message(message: SupportMessage) -> dict:
@@ -59,6 +71,36 @@ def _serialize_message(message: SupportMessage) -> dict:
     }
 
 
+def _serialize_satisfaction(satisfaction: SupportConversationSatisfaction | None) -> dict | None:
+    if not satisfaction:
+        return None
+
+    return {
+        "id": satisfaction.id,
+        "conversation_id": satisfaction.conversation_id,
+        "submitted_by_user_id": satisfaction.submitted_by_user_id,
+        "rating": satisfaction.rating,
+        "comment": satisfaction.comment,
+        "submitted_at": satisfaction.submitted_at.isoformat() if satisfaction.submitted_at else None,
+        "updated_at": satisfaction.updated_at.isoformat() if satisfaction.updated_at else None,
+    }
+
+
+def _serialize_user_summary(user: User | None) -> dict | None:
+    if not user:
+        return None
+
+    return {
+        "id": user.id,
+        "username": user.username,
+        "full_name": user.full_name,
+        "email": user.email,
+        "curp": user.curp,
+        "phone": user.phone,
+        "role": user.role,
+    }
+
+
 def _ensure_participant(conversation_id: int, user: User, participant_role: str | None = None):
     participant = SupportConversationParticipant.query.filter_by(
         conversation_id=conversation_id,
@@ -67,7 +109,9 @@ def _ensure_participant(conversation_id: int, user: User, participant_role: str 
     if participant:
         return participant
 
-    role = participant_role or ("support" if _is_support_like(user) else "candidate")
+    role = participant_role or (
+        "support" if _is_support_like(user) else "coordinator" if _is_coordinator_like(user) else "candidate"
+    )
     participant = SupportConversationParticipant(
         conversation_id=conversation_id,
         user_id=user.id,
@@ -110,16 +154,36 @@ def _unread_count(conversation_id: int, current_user_id: str, last_read_at):
 
 
 def _serialize_conversation_basic(conversation: SupportConversation) -> dict:
+    has_satisfaction = conversation.satisfaction is not None
+    survey_pending = conversation.status in {"resolved", "closed"} and not has_satisfaction
+    candidate = db.session.get(User, conversation.candidate_user_id)
+    assigned_support_user = (
+        db.session.get(User, conversation.assigned_support_user_id)
+        if conversation.assigned_support_user_id
+        else None
+    )
+    assigned_coordinator_user = (
+        db.session.get(User, conversation.assigned_coordinator_user_id)
+        if conversation.assigned_coordinator_user_id
+        else None
+    )
     return {
         "id": conversation.id,
         "candidate_user_id": conversation.candidate_user_id,
+        "candidate": _serialize_user_summary(candidate),
         "assigned_support_user_id": conversation.assigned_support_user_id,
+        "assigned_support_user": _serialize_user_summary(assigned_support_user),
+        "assigned_coordinator_user_id": conversation.assigned_coordinator_user_id,
+        "assigned_coordinator_user": _serialize_user_summary(assigned_coordinator_user),
+        "current_handler_role": conversation.current_handler_role,
         "subject": conversation.subject,
         "status": conversation.status,
         "priority": conversation.priority,
         "created_at": conversation.created_at.isoformat() if conversation.created_at else None,
         "updated_at": conversation.updated_at.isoformat() if conversation.updated_at else None,
         "last_message_at": conversation.last_message_at.isoformat() if conversation.last_message_at else None,
+        "satisfaction": _serialize_satisfaction(conversation.satisfaction),
+        "survey_pending": survey_pending,
     }
 
 
@@ -131,7 +195,7 @@ def chat_user_required(func_handler):
         user = db.session.get(User, user_id)
         if not user or not user.is_active:
             return jsonify({"error": "No autorizado"}), 401
-        if user.role not in SUPPORT_ROLES and user.role not in ("candidato", "responsable"):
+        if user.role not in SUPPORT_ROLES and user.role not in COORDINATOR_ROLES and user.role != "candidato":
             return jsonify({"error": "Rol no permitido para chat"}), 403
         g.current_user = user
         return func_handler(*args, **kwargs)
@@ -177,6 +241,7 @@ def create_conversation():
         candidate_user_id=candidate_user_id,
         created_by_user_id=current_user.id,
         assigned_support_user_id=assigned_support_user_id,
+        current_handler_role="support",
         subject=subject,
         status=status,
         priority=priority,
@@ -200,7 +265,10 @@ def create_conversation():
             {
                 "id": conversation.id,
                 "candidate_user_id": conversation.candidate_user_id,
+                "candidate": _serialize_user_summary(candidate),
                 "assigned_support_user_id": conversation.assigned_support_user_id,
+                "assigned_coordinator_user_id": conversation.assigned_coordinator_user_id,
+                "current_handler_role": conversation.current_handler_role,
                 "subject": conversation.subject,
                 "status": conversation.status,
                 "priority": conversation.priority,
@@ -231,6 +299,8 @@ def list_conversations():
         assigned_to_me = (request.args.get("assigned_to_me") or "false").lower() in {"1", "true", "yes"}
         if assigned_to_me:
             query = query.filter(SupportConversation.assigned_support_user_id == current_user.id)
+    elif _is_coordinator_like(current_user):
+        query = query.filter(SupportConversation.assigned_coordinator_user_id == current_user.id)
     else:
         query = query.filter(SupportConversation.candidate_user_id == current_user.id)
 
@@ -249,21 +319,10 @@ def list_conversations():
         last_message = conv.messages.first()
         unread = _unread_count(conv.id, current_user.id, participant.last_read_at if participant else None)
 
-        items.append(
-            {
-                "id": conv.id,
-                "candidate_user_id": conv.candidate_user_id,
-                "assigned_support_user_id": conv.assigned_support_user_id,
-                "subject": conv.subject,
-                "status": conv.status,
-                "priority": conv.priority,
-                "created_at": conv.created_at.isoformat() if conv.created_at else None,
-                "updated_at": conv.updated_at.isoformat() if conv.updated_at else None,
-                "last_message_at": conv.last_message_at.isoformat() if conv.last_message_at else None,
-                "last_message": _serialize_message(last_message) if last_message else None,
-                "unread_count": unread,
-            }
-        )
+        item = _serialize_conversation_basic(conv)
+        item["last_message"] = _serialize_message(last_message) if last_message else None
+        item["unread_count"] = unread
+        items.append(item)
 
     return jsonify(
         {
@@ -330,7 +389,7 @@ def send_message(conversation_id: int):
     ).first()
 
     if not participant:
-        if _is_support_like(current_user):
+        if _is_staff_like(current_user):
             participant = _ensure_participant(conversation.id, current_user, "support")
         else:
             return jsonify({"error": "No autorizado para enviar mensajes en esta conversación"}), 403
@@ -353,6 +412,10 @@ def send_message(conversation_id: int):
     conversation.updated_at = now
     if _is_support_like(current_user) and not conversation.assigned_support_user_id:
         conversation.assigned_support_user_id = current_user.id
+        conversation.current_handler_role = "support"
+    if _is_coordinator_like(current_user):
+        conversation.assigned_coordinator_user_id = current_user.id
+        conversation.current_handler_role = "coordinator"
 
     db.session.commit()
 
@@ -400,7 +463,7 @@ def mark_read(conversation_id: int):
         user_id=current_user.id,
     ).first()
 
-    if not participant and _is_support_like(current_user):
+    if not participant and _is_staff_like(current_user):
         participant = _ensure_participant(conversation.id, current_user, "support")
     elif not participant:
         return jsonify({"error": "No autorizado para actualizar lectura"}), 403
@@ -451,7 +514,7 @@ def update_conversation_status(conversation_id: int):
     if target_status not in ALLOWED_CONVERSATION_STATUSES:
         return jsonify({"error": "status inválido"}), 400
 
-    if _is_support_like(current_user):
+    if _is_staff_like(current_user):
         allowed_statuses = ALLOWED_CONVERSATION_STATUSES
     else:
         # El candidato puede resolver o reabrir su conversación, pero no cerrarla.
@@ -465,3 +528,157 @@ def update_conversation_status(conversation_id: int):
     db.session.commit()
 
     return jsonify({"conversation": _serialize_conversation_basic(conversation)}), 200
+
+
+@bp.route("/conversations/<int:conversation_id>/satisfaction", methods=["GET"])
+@chat_user_required
+def get_conversation_satisfaction(conversation_id: int):
+    current_user = g.current_user
+    conversation, error_response = _conversation_for_user_or_403(conversation_id, current_user)
+    if error_response:
+        return error_response
+
+    return jsonify(
+        {
+            "conversation_id": conversation.id,
+            "survey_pending": conversation.status in {"resolved", "closed"} and conversation.satisfaction is None,
+            "satisfaction": _serialize_satisfaction(conversation.satisfaction),
+        }
+    ), 200
+
+
+@bp.route("/conversations/<int:conversation_id>/satisfaction", methods=["POST"])
+@chat_user_required
+def submit_conversation_satisfaction(conversation_id: int):
+    current_user = g.current_user
+    conversation, error_response = _conversation_for_user_or_403(conversation_id, current_user)
+    if error_response:
+        return error_response
+
+    if _is_staff_like(current_user):
+        return jsonify({"error": "Solo el candidato puede responder la encuesta"}), 403
+
+    if conversation.candidate_user_id != current_user.id:
+        return jsonify({"error": "Solo el candidato de la conversación puede responder"}), 403
+
+    if conversation.status not in {"resolved", "closed"}:
+        return jsonify({"error": "La encuesta solo se habilita cuando la conversación está resuelta o cerrada"}), 409
+
+    data = request.get_json(silent=True) or {}
+    rating = data.get("rating")
+    comment = (data.get("comment") or "").strip() or None
+
+    try:
+        rating = int(rating)
+    except (TypeError, ValueError):
+        return jsonify({"error": "rating inválido"}), 400
+
+    if rating not in ALLOWED_SATISFACTION_RATINGS:
+        return jsonify({"error": "rating debe estar entre 1 y 5"}), 400
+
+    satisfaction = conversation.satisfaction
+    now = datetime.utcnow()
+
+    if satisfaction is None:
+        satisfaction = SupportConversationSatisfaction(
+            conversation_id=conversation.id,
+            submitted_by_user_id=current_user.id,
+            rating=rating,
+            comment=comment,
+            submitted_at=now,
+        )
+        db.session.add(satisfaction)
+    else:
+        satisfaction.rating = rating
+        satisfaction.comment = comment
+        satisfaction.submitted_by_user_id = current_user.id
+        satisfaction.updated_at = now
+
+    conversation.updated_at = now
+    db.session.commit()
+
+    return jsonify(
+        {
+            "conversation": _serialize_conversation_basic(conversation),
+            "satisfaction": _serialize_satisfaction(satisfaction),
+        }
+    ), 200
+
+
+@bp.route("/conversations/<int:conversation_id>/transfer", methods=["POST"])
+@chat_user_required
+def transfer_conversation(conversation_id: int):
+    current_user = g.current_user
+    conversation, error_response = _conversation_for_user_or_403(conversation_id, current_user)
+    if error_response:
+        return error_response
+
+    if not _is_staff_like(current_user):
+        return jsonify({"error": "Solo soporte o coordinador pueden transferir conversaciones"}), 403
+
+    data = request.get_json(silent=True) or {}
+    target_role = (data.get("target_role") or "").strip().lower()
+    target_user_id = (data.get("target_user_id") or "").strip() or None
+
+    if target_role not in ALLOWED_TRANSFER_TARGETS:
+        return jsonify({"error": "target_role inválido"}), 400
+
+    now = datetime.utcnow()
+    actor_name = current_user.full_name or current_user.username or "Usuario"
+
+    if target_role == "coordinator":
+        if not _is_support_like(current_user):
+            return jsonify({"error": "Solo soporte puede derivar la conversación a coordinador"}), 403
+        if not target_user_id:
+            return jsonify({"error": "target_user_id es requerido para coordinador"}), 400
+
+        target_user = db.session.get(User, target_user_id)
+        if not target_user or not _is_coordinator_like(target_user):
+            return jsonify({"error": "target_user_id inválido para coordinador"}), 400
+
+        conversation.assigned_coordinator_user_id = target_user.id
+        conversation.current_handler_role = "coordinator"
+        if not conversation.assigned_support_user_id:
+            conversation.assigned_support_user_id = current_user.id
+
+        _ensure_participant(conversation.id, target_user, "coordinator")
+        system_text = (
+            f"El equipo de soporte te dirigio con el coordinador "
+            f"{target_user.full_name or target_user.username or 'Coordinador'}."
+        )
+    else:
+        if not _is_coordinator_like(current_user):
+            return jsonify({"error": "Solo coordinador puede regresar la conversación a soporte"}), 403
+
+        target_user = db.session.get(User, target_user_id) if target_user_id else None
+        if target_user_id and (not target_user or not _is_support_like(target_user)):
+            return jsonify({"error": "target_user_id inválido para soporte"}), 400
+
+        if target_user:
+            conversation.assigned_support_user_id = target_user.id
+            _ensure_participant(conversation.id, target_user, "support")
+
+        conversation.assigned_coordinator_user_id = None
+        conversation.current_handler_role = "support"
+        system_text = (
+            f"El coordinador {actor_name} regreso esta conversación al equipo de soporte."
+        )
+
+    conversation.updated_at = now
+    conversation.last_message_at = now
+
+    system_message = SupportMessage(
+        conversation_id=conversation.id,
+        sender_user_id=current_user.id,
+        content=system_text,
+        message_type="system",
+    )
+    db.session.add(system_message)
+    db.session.commit()
+
+    return jsonify(
+        {
+            "conversation": _serialize_conversation_basic(conversation),
+            "message": _serialize_message(system_message),
+        }
+    ), 200

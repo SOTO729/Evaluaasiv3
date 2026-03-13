@@ -15,7 +15,7 @@ const SupportGuard = () => {
   }
 
   const normalizedRole = String(user?.role || '').trim().toLowerCase()
-  const isSupportUser = ['support', 'soporte', 'admin', 'developer'].includes(normalizedRole)
+  const isSupportUser = ['support', 'soporte', 'admin', 'developer', 'coordinator'].includes(normalizedRole)
 
   if (!isSupportUser) {
     return (
@@ -26,7 +26,7 @@ const SupportGuard = () => {
           </div>
           <h1 className="text-2xl font-semibold text-slate-900 mb-2">No autorizado</h1>
           <p className="text-sm text-slate-600">
-            Esta sección está reservada para el equipo de soporte.
+            Esta sección está reservada para soporte y coordinadores autorizados.
           </p>
         </div>
       </div>

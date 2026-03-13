@@ -2,6 +2,12 @@ export interface SupportSettings {
   criticalNotifications: boolean
   autoRefreshEnabled: boolean
   escalationChannel: string
+  supportAvailabilityEnabled: boolean
+  supportTimezone: string
+  supportWeekdays: number[]
+  supportStartHour: string
+  supportEndHour: string
+  supportOfflineMessage: string
 }
 
 const STORAGE_KEY = 'support-settings'
@@ -11,6 +17,13 @@ const DEFAULT_SETTINGS: SupportSettings = {
   criticalNotifications: true,
   autoRefreshEnabled: false,
   escalationChannel: '',
+  supportAvailabilityEnabled: true,
+  supportTimezone: 'America/Mexico_City',
+  supportWeekdays: [1, 2, 3, 4, 5],
+  supportStartHour: '09:00',
+  supportEndHour: '23:30',
+  supportOfflineMessage:
+    'Horario de atencion de soporte: lunes a viernes de 9:00 a 23:30 hrs (Ciudad de Mexico).',
 }
 
 export const getDefaultSupportSettings = (): SupportSettings => ({ ...DEFAULT_SETTINGS })
@@ -26,6 +39,18 @@ export const loadSupportSettings = (): SupportSettings => {
       criticalNotifications: Boolean(parsed?.criticalNotifications),
       autoRefreshEnabled: Boolean(parsed?.autoRefreshEnabled),
       escalationChannel: String(parsed?.escalationChannel || ''),
+      supportAvailabilityEnabled:
+        parsed?.supportAvailabilityEnabled === undefined ? true : Boolean(parsed?.supportAvailabilityEnabled),
+      supportTimezone: String(parsed?.supportTimezone || 'America/Mexico_City'),
+      supportWeekdays: Array.isArray(parsed?.supportWeekdays)
+        ? parsed.supportWeekdays.filter((day: unknown) => Number.isInteger(day)).map((day: number) => Number(day))
+        : [1, 2, 3, 4, 5],
+      supportStartHour: String(parsed?.supportStartHour || '09:00'),
+      supportEndHour: String(parsed?.supportEndHour || '23:30'),
+      supportOfflineMessage: String(
+        parsed?.supportOfflineMessage ||
+          'Horario de atencion de soporte: lunes a viernes de 9:00 a 23:30 hrs (Ciudad de Mexico).'
+      ),
     }
   } catch (_error) {
     return getDefaultSupportSettings()
@@ -57,4 +82,3 @@ export const subscribeSupportSettings = (onChange: (settings: SupportSettings) =
     window.removeEventListener(SYNC_EVENT, handleCustom)
   }
 }
-

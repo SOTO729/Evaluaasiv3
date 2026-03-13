@@ -32,6 +32,7 @@ const SupportDashboardPage = () => {
   const { user } = useAuthStore()
   const location = useLocation()
   const basePath = location.pathname.startsWith('/dev/support') ? '/dev/support' : '/support'
+  const isSupportLike = ['soporte', 'admin', 'developer'].includes(String(user?.role || '').toLowerCase())
 
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
 
@@ -68,10 +69,10 @@ const SupportDashboardPage = () => {
           per_page: 50,
         })
         if (cancelled) return
-        const total = response.conversations.reduce(
-          (sum, conversation) => sum + Number(conversation.unread_count || 0),
-          0
-        )
+        const total = response.conversations.reduce((sum, conversation) => {
+          if (isSupportLike && conversation.current_handler_role === 'coordinator') return sum
+          return sum + Number(conversation.unread_count || 0)
+        }, 0)
         setChatUnreadCount(total)
       } catch {
         if (!cancelled) setChatUnreadCount(0)
@@ -85,7 +86,7 @@ const SupportDashboardPage = () => {
       cancelled = true
       window.clearInterval(intervalId)
     }
-  }, [])
+  }, [isSupportLike])
 
   const completedCount = useMemo(
     () => todoItems.filter((item) => item.completed).length,
