@@ -252,7 +252,7 @@ class Campus(db.Model):
     # Relación muchos-a-muchos con estándares de competencia (ECM)
     competency_standards = db.relationship('CampusCompetencyStandard', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False, include_ecms=False):
+    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False, include_ecms=False, coordinator_id=None):
         data = {
             'id': self.id,
             'partner_id': self.partner_id,
@@ -284,7 +284,7 @@ class Campus(db.Model):
             'configuration_completed_at': self.configuration_completed_at.isoformat() if self.configuration_completed_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'group_count': self.groups.with_entities(db.func.count()).scalar() if self.groups else 0,
+            'group_count': self.groups.filter_by(coordinator_id=coordinator_id).with_entities(db.func.count()).scalar() if coordinator_id and self.groups else (self.groups.with_entities(db.func.count()).scalar() if self.groups else 0),
             'cycle_count': self.school_cycles.with_entities(db.func.count()).scalar() if self.school_cycles else 0,
             # Campos de configuración siempre incluidos (con valores por defecto si son None)
             'office_version': self.office_version or 'office_365',
@@ -344,13 +344,16 @@ class Campus(db.Model):
             }
         
         if include_groups:
-            data['groups'] = [g.to_dict() for g in self.groups.all()]
+            gq = self.groups
+            if coordinator_id:
+                gq = gq.filter_by(coordinator_id=coordinator_id)
+            data['groups'] = [g.to_dict() for g in gq.all()]
             
         if include_partner:
             data['partner'] = self.partner.to_dict() if self.partner else None
         
         if include_cycles:
-            data['school_cycles'] = [c.to_dict(include_groups=True) for c in self.school_cycles.order_by(SchoolCycle.start_date.desc()).all()]
+            data['school_cycles'] = [c.to_dict(include_groups=True, coordinator_id=coordinator_id) for c in self.school_cycles.order_by(SchoolCycle.start_date.desc()).all()]
         
         if include_ecms:
             data['competency_standards'] = self.get_competency_standards_list()
@@ -460,7 +463,10 @@ class SchoolCycle(db.Model):
     groups = db.relationship('CandidateGroup', backref='school_cycle', lazy='dynamic',
                              passive_deletes=True)
     
-    def to_dict(self, include_groups=False, include_campus=False):
+    def to_dict(self, include_groups=False, include_campus=False, coordinator_id=None):
+        gq = self.groups
+        if coordinator_id:
+            gq = gq.filter_by(coordinator_id=coordinator_id)
         data = {
             'id': self.id,
             'campus_id': self.campus_id,
@@ -472,11 +478,11 @@ class SchoolCycle(db.Model):
             'is_current': self.is_current,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'group_count': self.groups.count() if self.groups else 0,
+            'group_count': gq.count() if gq else 0,
         }
         
         if include_groups:
-            data['groups'] = [g.to_dict() for g in self.groups.filter_by(is_active=True).all()]
+            data['groups'] = [g.to_dict() for g in gq.filter_by(is_active=True).all()]
             
         if include_campus:
             data['campus'] = self.campus.to_dict() if self.campus else None

@@ -503,11 +503,12 @@ def get_campuses(partner_id):
             query = query.filter(Campus.state_name == state_filter)
         
         campuses = query.order_by(Campus.state_name, Campus.name).all()
+        coord_id = _get_coordinator_filter(g.current_user)
         
         return jsonify({
             'partner_id': partner_id,
             'partner_name': partner.name,
-            'campuses': [c.to_dict(include_groups=True) for c in campuses],
+            'campuses': [c.to_dict(include_groups=True, coordinator_id=coord_id) for c in campuses],
             'total': len(campuses)
         })
         
@@ -743,8 +744,9 @@ def get_campus(campus_id):
         campus, error = _verify_campus_access(campus_id, g.current_user)
         if error:
             return error
+        coord_id = _get_coordinator_filter(g.current_user)
         return jsonify({
-            'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True, include_responsable=True)
+            'campus': campus.to_dict(include_groups=True, include_partner=True, include_cycles=True, include_responsable=True, coordinator_id=coord_id)
         })
     except HTTPException:
         raise
@@ -2255,9 +2257,10 @@ def get_school_cycles(campus_id):
             query = query.filter_by(is_active=True)
         
         cycles = query.order_by(SchoolCycle.start_date.desc()).all()
+        coord_id = _get_coordinator_filter(g.current_user)
         
         return jsonify({
-            'cycles': [c.to_dict(include_groups=True) for c in cycles],
+            'cycles': [c.to_dict(include_groups=True, coordinator_id=coord_id) for c in cycles],
             'total': len(cycles)
         })
         
@@ -2339,8 +2342,9 @@ def get_school_cycle(cycle_id):
     """Obtener detalle de un ciclo escolar"""
     try:
         cycle = SchoolCycle.query.get_or_404(cycle_id)
+        coord_id = _get_coordinator_filter(g.current_user)
         return jsonify({
-            'cycle': cycle.to_dict(include_groups=True, include_campus=True)
+            'cycle': cycle.to_dict(include_groups=True, include_campus=True, coordinator_id=coord_id)
         })
     except HTTPException:
         raise
