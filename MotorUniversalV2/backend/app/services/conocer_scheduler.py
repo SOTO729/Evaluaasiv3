@@ -87,7 +87,6 @@ def _send_weekly_solicitud(app):
                 LEFT JOIN campuses c ON c.id = eca.campus_id
                 WHERE eca.tramite_status = 'pendiente'
                   AND eca.assignment_number IS NOT NULL
-                  AND u.enable_conocer_certificate = 1
                   AND (
                       (cg.enable_tier_advanced_override = 1)
                       OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)

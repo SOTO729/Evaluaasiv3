@@ -203,6 +203,34 @@ def chat_user_required(func_handler):
     return wrapper
 
 
+@bp.route("/unread-count", methods=["GET"])
+@chat_user_required
+def get_unread_count():
+    """Devuelve el total de mensajes no leídos del usuario actual."""
+    current_user = g.current_user
+
+    query = SupportConversation.query.filter(
+        SupportConversation.status.in_(["open", "resolved"])
+    )
+
+    if _is_support_like(current_user):
+        pass  # ve todas
+    elif _is_coordinator_like(current_user):
+        query = query.filter(SupportConversation.assigned_coordinator_user_id == current_user.id)
+    else:
+        query = query.filter(SupportConversation.candidate_user_id == current_user.id)
+
+    total_unread = 0
+    for conv in query.all():
+        participant = SupportConversationParticipant.query.filter_by(
+            conversation_id=conv.id,
+            user_id=current_user.id,
+        ).first()
+        total_unread += _unread_count(conv.id, current_user.id, participant.last_read_at if participant else None)
+
+    return jsonify({"unread_count": total_unread})
+
+
 @bp.route("/conversations", methods=["POST"])
 @chat_user_required
 def create_conversation():

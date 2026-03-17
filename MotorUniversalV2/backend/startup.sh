@@ -21,6 +21,12 @@ if [ -f "add_group_config_fields.py" ]; then
     python add_group_config_fields.py || echo "⚠️  Migración de configuración de grupo falló"
 fi
 
+# Agregar campos de verificación CURP RENAPO
+if [ -f "add_curp_verification_fields.py" ]; then
+    echo "🔄 Agregando campos de verificación CURP RENAPO..."
+    python add_curp_verification_fields.py || echo "⚠️  Migración de verificación CURP falló"
+fi
+
 # Ejecutar migraciones de Flask-Migrate si existen
 if [ -d "migrations" ]; then
     echo "🔄 Ejecutando migraciones de Flask-Migrate..."

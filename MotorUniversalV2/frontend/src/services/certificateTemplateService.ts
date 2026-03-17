@@ -96,15 +96,14 @@ export const deleteCertificateTemplate = async (
 };
 
 /**
- * Obtener URL de preview del certificado (retorna PDF)
+ * Descargar vista previa del certificado como blob autenticado
  */
-export const getPreviewUrl = (standardId: number): string => {
-  const baseURL =
-    import.meta.env.VITE_API_URL ||
-    (import.meta.env.MODE === 'production'
-      ? 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api'
-      : '/api');
-  return `${baseURL}/competency-standards/${standardId}/certificate-template/preview`;
+export const downloadPreview = async (standardId: number): Promise<Blob> => {
+  const response = await api.get(
+    `/competency-standards/${standardId}/certificate-template/preview`,
+    { responseType: 'blob' }
+  );
+  return response.data;
 };
 
 /** Formatos aceptados para subir plantillas */

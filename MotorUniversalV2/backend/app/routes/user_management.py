@@ -164,6 +164,7 @@ def list_users():
             User.id, User.email, User.username, User.name, User.first_surname,
             User.second_surname, User.gender, User.role, User.is_active,
             User.is_verified, User.created_at, User.last_login, User.curp,
+            User.curp_verified,
             User.phone, User.campus_id, User.date_of_birth,
             User.can_bulk_create_candidates, User.can_manage_groups, User.can_view_reports,
             User.enable_evaluation_report, User.enable_certificate,
@@ -177,7 +178,7 @@ def list_users():
         if _is_coordinator_role(current_user.role):
             query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
         
-        # Responsables solo ven candidatos de su plantel (a través de group_members → candidate_groups)
+        # Responsables solo ven candidatos de su plantel (por grupo O por campus_id directo)
         if current_user.role == 'responsable':
             from app.models.partner import GroupMember, CandidateGroup
             campus_user_ids = db.session.query(GroupMember.user_id).join(
@@ -185,7 +186,13 @@ def list_users():
             ).filter(
                 CandidateGroup.campus_id == current_user.campus_id
             ).distinct().subquery()
-            query = query.filter(User.role == 'candidato', User.id.in_(campus_user_ids))
+            query = query.filter(
+                User.role == 'candidato',
+                or_(
+                    User.id.in_(campus_user_ids),
+                    User.campus_id == current_user.campus_id
+                )
+            )
         
         # Filtros
         if role_filter:
@@ -315,6 +322,7 @@ def list_users():
                 'created_at': row.created_at.isoformat() if row.created_at else None,
                 'last_login': row.last_login.isoformat() if row.last_login else None,
                 'curp': row.curp,
+                'curp_verified': row.curp_verified,
                 'phone': row.phone,
                 'campus_id': row.campus_id,
                 'date_of_birth': row.date_of_birth.isoformat() if row.date_of_birth else None,
@@ -378,7 +386,13 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
         ).filter(
             CandidateGroup.campus_id == campus_id
         ).distinct().subquery()
-        query = query.filter(User.role == 'candidato', User.id.in_(campus_user_ids))
+        query = query.filter(
+            User.role == 'candidato',
+            or_(
+                User.id.in_(campus_user_ids),
+                User.campus_id == campus_id
+            )
+        )
     if role_filter:
         roles = [r.strip() for r in role_filter.split(',') if r.strip()]
         query = query.filter(User.role.in_(roles))
@@ -417,7 +431,7 @@ def get_user_detail(user_id):
                 GroupMember.user_id == user.id,
                 CandidateGroup.campus_id == current_user.campus_id
             ).first()
-            if not is_in_campus:
+            if not is_in_campus and user.campus_id != current_user.campus_id:
                 return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
         
         return jsonify({
@@ -454,7 +468,7 @@ def get_user_group_history(user_id):
             is_in_campus = db.session.query(GM2.id).join(
                 CG2, GM2.group_id == CG2.id
             ).filter(GM2.user_id == user.id, CG2.campus_id == current_user.campus_id).first()
-            if not is_in_campus:
+            if not is_in_campus and user.campus_id != current_user.campus_id:
                 return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
 
         from app.models.partner import (
@@ -831,6 +845,10 @@ def create_user():
             user_date_of_birth = dt.strptime(data['date_of_birth'], '%Y-%m-%d').date()
             user_campus_id = data['campus_id']
         
+        # Para candidatos creados por responsable, asignar campus_id del responsable
+        if role == 'candidato' and current_user.role == 'responsable' and current_user.campus_id:
+            user_campus_id = current_user.campus_id
+        
         # Crear usuario
         # Determinar coordinator_id para multi-tenancy
         user_coordinator_id = None
@@ -864,13 +882,32 @@ def create_user():
             if coord_row2:
                 user_coordinator_id = coord_row2[0]
         
+        # ── Validación CURP contra RENAPO ──
+        renapo_result = None
+        skip_renapo = data.get('skip_renapo_validation', False)
+        if user_curp and not _is_generic_foreign_curp(user_curp) and not skip_renapo:
+            try:
+                from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user
+                renapo_result = validate_curp_renapo(user_curp)
+                if not renapo_result.valid:
+                    return jsonify({
+                        'error': f'CURP rechazada: {renapo_result.error}',
+                        'renapo_error': True,
+                        'curp': user_curp
+                    }), 400
+            except Exception as renapo_err:
+                import logging
+                logging.getLogger(__name__).warning(f'RENAPO no disponible: {renapo_err}')
+                # Si RENAPO no está disponible, permitir crear sin validación
+                renapo_result = None
+
         new_user = User(
             id=str(uuid.uuid4()),
             email=email,
             username=username,
-            name=data['name'].strip(),
-            first_surname=data['first_surname'].strip(),
-            second_surname=data.get('second_surname', '').strip() or None,
+            name=data['name'].strip().upper(),
+            first_surname=data['first_surname'].strip().upper(),
+            second_surname=data.get('second_surname', '').strip().upper() or None,
             gender=data.get('gender'),
             curp=user_curp,
             phone=user_phone,
@@ -885,6 +922,11 @@ def create_user():
             can_view_reports=data.get('can_view_reports', True) if role == 'responsable' else True
         )
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
+        
+        # Aplicar datos RENAPO si la validación fue exitosa
+        if renapo_result and renapo_result.valid:
+            from app.services.renapo_service import apply_renapo_to_user
+            apply_renapo_to_user(new_user, renapo_result)
         
         db.session.add(new_user)
         db.session.flush()  # Persistir el user para que exista antes de la FK en user_partners
@@ -925,6 +967,11 @@ def create_user():
             'temporary_password': password
         }
         
+        # Incluir info RENAPO si se validó
+        if renapo_result and renapo_result.valid:
+            response_data['renapo_validated'] = True
+            response_data['renapo_data'] = renapo_result.to_dict()
+        
         return jsonify(response_data), 201
         
     except HTTPException:
@@ -964,7 +1011,7 @@ def update_user(user_id):
                 GroupMember.user_id == user_id,
                 CandidateGroup.campus_id == current_user.campus_id
             ).first()
-            if not is_in_campus:
+            if not is_in_campus and user.campus_id != current_user.campus_id:
                 return jsonify({'error': 'Este candidato no pertenece a tu plantel'}), 403
         
         # No se puede editar a uno mismo por esta ruta (usar perfil)
@@ -976,9 +1023,13 @@ def update_user(user_id):
         # Solo actualizar phone si el usuario NO es editor/editor_invitado ni candidato
         if user.role not in ['editor', 'editor_invitado', 'candidato']:
             basic_fields.append('phone')
+        name_fields = {'name', 'first_surname', 'second_surname'}
         for field in basic_fields:
             if field in data:
-                setattr(user, field, data[field].strip() if data[field] else None)
+                val = data[field].strip() if data[field] else None
+                if val and field in name_fields:
+                    val = val.upper()
+                setattr(user, field, val)
         
         # CURP - verificar unicidad (solo si el usuario no es editor/editor_invitado)
         # Los CURPs genéricos de extranjero pueden repetirse
@@ -988,6 +1039,15 @@ def update_user(user_id):
                 existing = User.query.filter(User.curp == curp, User.id != user_id).first()
                 if existing:
                     return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+                
+                # ── Si CURP cambia, resetear verificación (se verifica en segundo plano) ──
+                curp_changed = curp != user.curp
+                if curp_changed:
+                    user.curp_verified = False
+                    user.curp_verified_at = None
+                    user.curp_renapo_name = None
+                    user.curp_renapo_first_surname = None
+                    user.curp_renapo_second_surname = None
             user.curp = curp
         
         # Email - verificar unicidad (solo si se proporciona un valor no vacío)
@@ -1053,10 +1113,74 @@ def update_user(user_id):
             if 'is_verified' in data:
                 user.is_verified = data['is_verified']
         
+        # Coordinadores también pueden activar/desactivar candidatos y responsables
+        if _is_coordinator_role(current_user.role) and 'is_active' in data:
+            user.is_active = data['is_active']
+        
         db.session.commit()
         
+        # ── Verificación CURP en segundo plano (solo si se envió CURP en la petición) ──
+        curp_msg = ''
+        if 'curp' in data and user.curp and not user.curp_verified and not _is_generic_foreign_curp(user.curp):
+            import threading
+            app_obj = current_app._get_current_object()
+            verify_user_id = user.id
+            verify_curp = user.curp
+            
+            def _verify_curp_background(app_obj, uid, curp_val):
+                with app_obj.app_context():
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    try:
+                        from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user, validate_curp_format
+                        
+                        # Primero validar formato
+                        fmt_valid, fmt_error = validate_curp_format(curp_val)
+                        if not fmt_valid:
+                            logger.warning(f'[CURP-BG] Formato inválido para CURP {curp_val} de usuario {uid}: {fmt_error}')
+                            u = User.query.get(uid)
+                            if u and u.curp == curp_val:
+                                u.curp = None
+                                u.curp_verified = False
+                                u.curp_verified_at = None
+                                u.curp_renapo_name = None
+                                u.curp_renapo_first_surname = None
+                                u.curp_renapo_second_surname = None
+                                db.session.commit()
+                            return
+                        
+                        logger.info(f'[CURP-BG] Verificando CURP {curp_val} para usuario {uid}')
+                        renapo_result = validate_curp_renapo(curp_val)
+                        u = User.query.get(uid)
+                        if not u or u.curp != curp_val:
+                            logger.info(f'[CURP-BG] Usuario {uid} ya no tiene CURP {curp_val}, omitiendo')
+                            return
+                        if renapo_result.valid:
+                            apply_renapo_to_user(u, renapo_result)
+                            db.session.commit()
+                            logger.info(f'[CURP-BG] CURP {curp_val} válida - datos RENAPO aplicados a usuario {uid}')
+                        else:
+                            u.curp = None
+                            u.curp_verified = False
+                            u.curp_verified_at = None
+                            u.curp_renapo_name = None
+                            u.curp_renapo_first_surname = None
+                            u.curp_renapo_second_surname = None
+                            db.session.commit()
+                            logger.warning(f'[CURP-BG] CURP {curp_val} rechazada para usuario {uid}: {renapo_result.error}')
+                    except Exception as e:
+                        logger.error(f'[CURP-BG] Error verificando CURP {curp_val}: {e}')
+            
+            thread = threading.Thread(
+                target=_verify_curp_background,
+                args=(app_obj, verify_user_id, verify_curp),
+                daemon=True
+            )
+            thread.start()
+            curp_msg = '. La CURP será verificada en RENAPO en segundo plano'
+        
         return jsonify({
-            'message': 'Usuario actualizado exitosamente',
+            'message': f'Usuario actualizado exitosamente{curp_msg}',
             'user': user.to_dict(include_private=True)
         })
         
@@ -1218,9 +1342,14 @@ def toggle_user_active(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Solo admin puede activar/desactivar usuarios (recursos compartidos)
-        if current_user.role in ('coordinator', 'responsable'):
-            return jsonify({'error': 'Solo administradores pueden activar/desactivar usuarios'}), 403
+        # Solo admin/coordinator pueden activar/desactivar usuarios
+        # Coordinadores solo pueden activar/desactivar candidatos, responsables y responsables_partner
+        if current_user.role == 'responsable':
+            return jsonify({'error': 'Solo administradores o coordinadores pueden activar/desactivar usuarios'}), 403
+        
+        if _is_coordinator_role(current_user.role):
+            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+                return jsonify({'error': 'Solo puedes activar/desactivar candidatos, responsables y responsables del partner'}), 403
         
         # No se puede desactivar a uno mismo
         if user_id == current_user.id:
@@ -1895,12 +2024,12 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
             if target_group_id:
                 if user.id in group_member_ids:
                     skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado y ya es miembro del grupo',
-                                    'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
+                                    'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
                 else:
-                    duplicates.append({'row': r['row'], 'email': email, 'name': user.full_name, 'username': user.username, 'user_id': user.id})
+                    duplicates.append({'row': r['row'], 'email': email, 'name': user.full_name, 'username': user.username, 'user_id': user.id, 'curp': user.curp})
             else:
                 skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado',
-                                'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
+                                'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
             continue
 
         # Duplicado por CURP (excepto CURPs genéricos de extranjero que pueden repetirse)
@@ -1911,12 +2040,12 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
                 if user.id in group_member_ids or already_dup:
                     if not already_dup:
                         skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado y ya es miembro del grupo',
-                                        'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
+                                        'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
                 else:
-                    duplicates.append({'row': r['row'], 'email': user.email or email or '(sin email)', 'name': user.full_name, 'username': user.username, 'user_id': user.id})
+                    duplicates.append({'row': r['row'], 'email': user.email or email or '(sin email)', 'name': user.full_name, 'username': user.username, 'user_id': user.id, 'curp': user.curp})
             else:
                 skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado',
-                                'user_id': user.id, 'name': user.full_name, 'username': user.username, 'is_existing_user': True})
+                                'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
             continue
 
         # Duplicado interno (mismo email/curp repetido en el mismo archivo)
@@ -1956,6 +2085,100 @@ def _validate_target_group(group_id, current_user):
         if group.campus_id != current_user.campus_id:
             return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
     return group, None
+
+
+# ============== VALIDACIÓN CURP RENAPO ==============
+
+@bp.route('/validate-curp', methods=['POST'])
+@jwt_required()
+@management_required
+def validate_curp_renapo_endpoint():
+    """Valida una CURP contra RENAPO (síncrono ~10s).
+    Retorna datos del ciudadano si la CURP es válida.
+    """
+    try:
+        data = request.get_json()
+        curp = (data.get('curp') or '').upper().strip()
+
+        if not curp:
+            return jsonify({'error': 'El campo CURP es requerido'}), 400
+
+        # Validar formato básico
+        curp_pattern = re.compile(r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$')
+        if not curp_pattern.match(curp) and curp not in GENERIC_FOREIGN_CURPS:
+            return jsonify({'error': 'Formato de CURP inválido'}), 400
+
+        # CURPs genéricos de extranjero: no requieren validación
+        if _is_generic_foreign_curp(curp):
+            return jsonify({
+                'valid': True,
+                'curp': curp,
+                'skip_reason': 'CURP genérico de extranjero — no requiere validación RENAPO',
+                'data': None
+            }), 200
+
+        from app.services.renapo_service import validate_curp_renapo
+        result = validate_curp_renapo(curp)
+
+        if result.valid:
+            return jsonify({
+                'valid': True,
+                'curp': result.curp,
+                'data': {
+                    'name': result.name,
+                    'first_surname': result.first_surname,
+                    'second_surname': result.second_surname,
+                    'gender': result.gender,
+                }
+            }), 200
+        else:
+            return jsonify({
+                'valid': False,
+                'curp': result.curp,
+                'error': result.error,
+                'data': None
+            }), 200
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': f'Error validando CURP: {str(e)}'}), 500
+
+
+@bp.route('/validate-curp/batch', methods=['POST'])
+@jwt_required()
+@management_required
+def validate_curp_batch_endpoint():
+    """Valida un lote de CURPs contra RENAPO.
+    Ejecuta de forma síncrona (el frontend puede mostrar spinner).
+    Máximo 50 CURPs por solicitud.
+    """
+    try:
+        data = request.get_json()
+        curps = data.get('curps', [])
+
+        if not curps or not isinstance(curps, list):
+            return jsonify({'error': 'Se requiere una lista de CURPs'}), 400
+
+        if len(curps) > 50:
+            return jsonify({'error': 'Máximo 50 CURPs por solicitud'}), 400
+
+        from app.services.renapo_service import validate_curps_batch
+        results = validate_curps_batch(curps)
+
+        return jsonify({
+            'results': [r.to_dict() for r in results],
+            'summary': {
+                'total': len(results),
+                'valid': sum(1 for r in results if r.valid),
+                'invalid': sum(1 for r in results if not r.valid),
+            }
+        }), 200
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': f'Error validando CURPs: {str(e)}'}), 500
 
 
 # ============== PREVIEW CARGA MASIVA ==============
@@ -2102,7 +2325,8 @@ def preview_bulk_upload_candidates():
                 'status': 'duplicate',
                 'email': d.get('email'),
                 'nombre': d.get('name', ''),
-                'existing_user': {'id': d['user_id'], 'name': d['name'], 'username': d['username']},
+                'curp': d.get('curp'),
+                'existing_user': {'id': d['user_id'], 'name': d['name'], 'username': d['username'], 'curp': d.get('curp')},
                 'error': 'Usuario ya existe — se asignará al grupo' if target_group else 'Usuario ya existe',
             })
         for s in skipped:
@@ -2117,7 +2341,9 @@ def preview_bulk_upload_candidates():
                     'id': s['user_id'],
                     'name': s['name'],
                     'username': s['username'],
+                    'curp': s.get('curp'),
                 }
+                entry['curp'] = s.get('curp')
             preview.append(entry)
         for e in validation_errors:
             preview.append({
@@ -2308,13 +2534,14 @@ def bulk_upload_candidates():
                     id=str(uuid.uuid4()),
                     email=r['email'] if r['email'] else None,
                     username=username,
-                    name=r['nombre'],
-                    first_surname=r['primer_apellido'],
-                    second_surname=r['segundo_apellido'] or None,
+                    name=r['nombre'].upper() if r['nombre'] else r['nombre'],
+                    first_surname=r['primer_apellido'].upper() if r['primer_apellido'] else r['primer_apellido'],
+                    second_surname=r['segundo_apellido'].upper() if r['segundo_apellido'] else None,
                     gender=r['genero'],
                     curp=r['curp'] or None,
                     role='candidato',
                     coordinator_id=current_user.id if current_user.role == 'coordinator' else None,
+                    campus_id=current_user.campus_id if current_user.role == 'responsable' and current_user.campus_id else None,
                     is_active=True,
                     is_verified=False,
                 )
@@ -2589,6 +2816,121 @@ def bulk_upload_candidates():
             response_data['group_assignment'] = group_assignment
         if batch_record_id:
             response_data['batch_id'] = batch_record_id
+
+        # ======= VERIFICACIÓN CURP EN SEGUNDO PLANO =======
+        # Lanzar thread para verificar CURPs de usuarios creados contra RENAPO
+        curp_users_to_verify = [
+            c for c in created
+            if c.get('curp') and c['curp'] not in GENERIC_FOREIGN_CURPS
+        ]
+        if curp_users_to_verify and batch_record_id:
+            import threading
+            from flask import current_app
+            app = current_app._get_current_object()
+
+            def _verify_curps_background(app_obj, users_data, batch_id):
+                """Verifica CURPs contra RENAPO en segundo plano.
+                Si la CURP es inválida → elimina al usuario y registra en el log.
+                Si es válida → aplica datos RENAPO al usuario."""
+                import time
+                import logging
+                _logger = logging.getLogger(__name__)
+                _logger.info(f'[BULK-CURP] Iniciando verificación RENAPO para {len(users_data)} usuarios (batch {batch_id})')
+
+                with app_obj.app_context():
+                    from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user, is_generic_foreign_curp, validate_curp_format
+                    from app.models.partner import BulkUploadMember, GroupMember
+
+                    verified = 0
+                    invalid = 0
+                    format_invalid = 0
+                    errors = 0
+
+                    for i, u_data in enumerate(users_data):
+                        curp = u_data['curp']
+                        username = u_data['username']
+                        try:
+                            # Primero validar formato antes de consultar RENAPO
+                            fmt_valid, fmt_error = validate_curp_format(curp)
+                            if not fmt_valid:
+                                _logger.warning(f'[BULK-CURP] ({i+1}/{len(users_data)}) Formato inválido para CURP {curp} de {username}: {fmt_error}')
+                                user = User.query.filter_by(username=username).first()
+                                if user:
+                                    GroupMember.query.filter_by(user_id=user.id).delete()
+                                    member_rec = BulkUploadMember.query.filter_by(
+                                        batch_id=batch_id, username=username
+                                    ).first()
+                                    if member_rec:
+                                        member_rec.status = 'curp_invalid'
+                                        member_rec.error_message = f'Formato de CURP inválido: {fmt_error}'
+                                    db.session.delete(user)
+                                    db.session.commit()
+                                format_invalid += 1
+                                continue
+                            
+                            result = validate_curp_renapo(curp)
+                            user = User.query.filter_by(username=username).first()
+                            if not user:
+                                _logger.warning(f'[BULK-CURP] Usuario {username} ya no existe, saltando')
+                                continue
+
+                            if result.valid:
+                                apply_renapo_to_user(user, result)
+                                db.session.commit()
+                                verified += 1
+                                _logger.info(f'[BULK-CURP] ({i+1}/{len(users_data)}) CURP {curp} válida - usuario {username}')
+                            else:
+                                # CURP inválida → eliminar usuario
+                                _logger.warning(f'[BULK-CURP] ({i+1}/{len(users_data)}) CURP {curp} inválida: {result.error} - eliminando usuario {username}')
+
+                                # Eliminar membresías de grupo
+                                GroupMember.query.filter_by(user_id=user.id).delete()
+
+                                # Actualizar registro en historial de carga masiva
+                                member_rec = BulkUploadMember.query.filter_by(
+                                    batch_id=batch_id, username=username
+                                ).first()
+                                if member_rec:
+                                    member_rec.status = 'curp_invalid'
+                                    member_rec.error_message = f'CURP rechazada por RENAPO: {(result.error or "no encontrada")[:300]}'
+
+                                # Eliminar usuario
+                                db.session.delete(user)
+                                db.session.commit()
+                                invalid += 1
+
+                        except Exception as e:
+                            _logger.error(f'[BULK-CURP] Error verificando CURP {curp} de {username}: {e}')
+                            errors += 1
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+
+                        # Rate limiting entre consultas RENAPO
+                        if i < len(users_data) - 1:
+                            time.sleep(2)
+
+                    total_rejected = invalid + format_invalid
+                    _logger.info(f'[BULK-CURP] Finalizado batch {batch_id}: {verified} verificados, {format_invalid} formato inválido, {invalid} rechazados RENAPO, {errors} errores')
+
+                    # Actualizar contadores del batch
+                    try:
+                        from app.models.partner import BulkUploadBatch
+                        batch = BulkUploadBatch.query.get(batch_id)
+                        if batch:
+                            batch.total_created = max(0, batch.total_created - total_rejected)
+                            batch.total_errors = batch.total_errors + total_rejected
+                            db.session.commit()
+                    except Exception as e:
+                        _logger.error(f'[BULK-CURP] Error actualizando contadores batch: {e}')
+
+            thread = threading.Thread(
+                target=_verify_curps_background,
+                args=(app, curp_users_to_verify, batch_record_id),
+                daemon=True,
+            )
+            thread.start()
 
         return jsonify(response_data), 200
 

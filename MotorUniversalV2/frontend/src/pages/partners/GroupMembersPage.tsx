@@ -634,6 +634,9 @@ export default function GroupMembersPage() {
                   <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell cursor-pointer hover:bg-gray-100 select-none">
                     CURP{renderSortIcon('curp')}
                   </th>
+                  <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600 uppercase hidden lg:table-cell select-none">
+                    Estándar
+                  </th>
                   <th onClick={() => handleSort('role')} className="fluid-px-4 fluid-py-3 text-center fluid-text-xs font-semibold text-gray-600 uppercase hidden md:table-cell cursor-pointer hover:bg-gray-100 select-none">
                     Tipo{renderSortIcon('role')}
                   </th>
@@ -670,6 +673,19 @@ export default function GroupMembersPage() {
                     </td>
                     <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell font-mono">
                       {member.user?.curp || <span className="text-gray-400">-</span>}
+                    </td>
+                    <td className="fluid-px-4 fluid-py-3 hidden lg:table-cell">
+                      {member.ecm_assignments && member.ecm_assignments.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {member.ecm_assignments.map((ecm: any, idx: number) => (
+                            <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 max-w-[200px] truncate" title={`${ecm.ecm_code} - ${ecm.ecm_name}`}>
+                              {ecm.ecm_code}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 fluid-text-xs">—</span>
+                      )}
                     </td>
                     <td className="fluid-px-4 fluid-py-3 text-center hidden md:table-cell">
                       {member.user?.role === 'responsable' ? (

@@ -29,6 +29,7 @@ import {
   ChevronDown,
   ChevronUp,
   Settings,
+  Search,
 } from 'lucide-react'
 
 interface GroupInfo {
@@ -176,6 +177,12 @@ const ProfilePage = () => {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
 
+  // CURP validation
+  const [curpInput, setCurpInput] = useState('')
+  const [curpValidating, setCurpValidating] = useState(false)
+  const [curpError, setCurpError] = useState<string | null>(null)
+  const [curpSuccess, setCurpSuccess] = useState(false)
+
   // Historial de asignaciones
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [assignmentsLoading, setAssignmentsLoading] = useState(false)
@@ -257,6 +264,43 @@ const ProfilePage = () => {
       setError(err.response?.data?.error || 'Error al actualizar el perfil')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleValidateCurp = async () => {
+    const curp = curpInput.trim().toUpperCase()
+    if (!curp) { setCurpError('Ingresa tu CURP'); return }
+    const curpPattern = /^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/
+    if (!curpPattern.test(curp)) { setCurpError('Formato de CURP inválido (18 caracteres)'); return }
+
+    try {
+      setCurpValidating(true)
+      setCurpError(null)
+      const response = await api.post('/users/my-curp', { curp })
+      const data = response.data
+      if (data.valid) {
+        setCurpSuccess(true)
+        // Update profile with the returned user data
+        if (data.user) {
+          setProfile(data.user as UserProfile)
+          updateUser(data.user)
+          setEditData({
+            name: data.user.name || '',
+            first_surname: data.user.first_surname || '',
+            second_surname: data.user.second_surname || '',
+            phone: data.user.phone || '',
+            gender: data.user.gender || ''
+          })
+        }
+        setSuccess('CURP validada correctamente. Tus datos han sido actualizados con la información de RENAPO.')
+        setTimeout(() => setSuccess(null), 6000)
+      } else {
+        setCurpError(data.error || 'CURP no válida')
+      }
+    } catch (err: any) {
+      setCurpError(err.response?.data?.error || 'Error al validar la CURP')
+    } finally {
+      setCurpValidating(false)
     }
   }
 
@@ -455,7 +499,7 @@ const ProfilePage = () => {
                 <h1 className="fluid-text-3xl font-bold text-white fluid-mb-1 truncate">
                   {profile?.full_name}
                 </h1>
-                <p className="text-blue-200 fluid-text-base fluid-mb-3">@{profile?.username}</p>
+                <p className="text-blue-200 fluid-text-base fluid-mb-3">{profile?.username}</p>
                 
                 <div className="flex flex-wrap items-center justify-center sm:justify-start fluid-gap-2">
                   <span className={`fluid-px-3 fluid-py-1 fluid-text-xs font-semibold rounded-full text-white shadow-sm ${roleBadge.color}`}>
@@ -636,7 +680,7 @@ const ProfilePage = () => {
               
               <div>
                 <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">Usuario</label>
-                <p className="text-gray-900 fluid-text-sm font-medium">@{profile?.username}</p>
+                <p className="text-gray-900 fluid-text-sm font-medium">{profile?.username}</p>
               </div>
               
               {profile?.role !== 'editor' && profile?.role !== 'editor_invitado' && (
@@ -667,7 +711,59 @@ const ProfilePage = () => {
               
               <div className="fluid-p-5">
                 <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">CURP</label>
-                <p className="text-gray-900 font-mono fluid-text-sm font-medium break-all tracking-wide">{profile?.curp || 'No registrado'}</p>
+                {profile?.curp ? (
+                  <div className="flex items-center fluid-gap-2">
+                    <p className="text-gray-900 font-mono fluid-text-sm font-medium break-all tracking-wide">{profile.curp}</p>
+                    {profile.curp && <CheckCircle2 className="fluid-icon-xs text-green-500 flex-shrink-0" />}
+                  </div>
+                ) : (profile?.role === 'candidato' || profile?.role === 'responsable') ? (
+                  <div className="fluid-mt-1">
+                    <p className="fluid-text-xs text-gray-500 fluid-mb-2">
+                      Ingresa tu CURP para validarla con RENAPO. Tus datos personales se actualizarán automáticamente.
+                    </p>
+                    <div className="flex fluid-gap-2">
+                      <input
+                        type="text"
+                        value={curpInput}
+                        onChange={(e) => { setCurpInput(e.target.value.toUpperCase()); setCurpError(null); setCurpSuccess(false) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !curpValidating) handleValidateCurp() }}
+                        maxLength={18}
+                        placeholder="GARL850101HDFRRL09"
+                        disabled={curpValidating || curpSuccess}
+                        className="flex-1 fluid-px-3 fluid-py-2 border border-gray-200 rounded-fluid-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-sm font-mono uppercase tracking-wider bg-gray-50 disabled:opacity-50"
+                      />
+                      <button
+                        onClick={handleValidateCurp}
+                        disabled={curpValidating || curpSuccess || !curpInput.trim()}
+                        className="inline-flex items-center fluid-gap-1 fluid-px-4 fluid-py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-semibold rounded-fluid-md fluid-text-sm transition-colors"
+                      >
+                        {curpValidating ? (
+                          <Loader2 className="fluid-icon-sm animate-spin" />
+                        ) : curpSuccess ? (
+                          <CheckCircle2 className="fluid-icon-sm" />
+                        ) : (
+                          <Search className="fluid-icon-sm" />
+                        )}
+                        {curpValidating ? 'Validando...' : curpSuccess ? 'Validada' : 'Validar'}
+                      </button>
+                    </div>
+                    <p className="fluid-text-xs text-gray-400 fluid-mt-1">{curpInput.length}/18 caracteres</p>
+                    {curpError && (
+                      <div className="fluid-mt-2 flex items-center fluid-gap-1 fluid-text-xs text-red-600">
+                        <AlertCircle className="fluid-icon-xs flex-shrink-0" />
+                        {curpError}
+                      </div>
+                    )}
+                    {curpValidating && (
+                      <div className="fluid-mt-2 flex items-center fluid-gap-2 fluid-text-xs text-amber-700 bg-amber-50 fluid-p-2 rounded-fluid-md">
+                        <Loader2 className="fluid-icon-xs animate-spin flex-shrink-0" />
+                        Consultando RENAPO, esto puede tomar unos segundos...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-gray-900 font-mono fluid-text-sm font-medium">No registrado</p>
+                )}
               </div>
             </div>
           )}

@@ -1,7 +1,7 @@
 /**
  * Página de Carga Masiva de Certificados CONOCER
  *
- * Permite subir un ZIP con PDFs de certificados CONOCER.
+ * Permite subir un PDF o ZIP con certificados CONOCER.
  * Muestra progreso del upload y del procesamiento en segundo plano.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -27,6 +27,7 @@ import {
 } from '../../services/partnersService';
 
 type UploadPhase = 'idle' | 'uploading' | 'processing' | 'completed' | 'failed';
+
 
 export default function ConocerUploadPage() {
   const navigate = useNavigate();
@@ -66,8 +67,9 @@ export default function ConocerUploadPage() {
   }, []);
 
   const handleFileSelect = (selectedFile: File) => {
-    if (!selectedFile.name.toLowerCase().endsWith('.zip')) {
-      setError('Solo se aceptan archivos ZIP');
+    const name = selectedFile.name.toLowerCase();
+    if (!name.endsWith('.zip') && !name.endsWith('.pdf')) {
+      setError('Solo se aceptan archivos ZIP o PDF');
       return;
     }
     setFile(selectedFile);
@@ -137,7 +139,7 @@ export default function ConocerUploadPage() {
           Cargar Certificados CONOCER
         </h1>
         <p className="text-gray-500 fluid-text-sm">
-          Sube un archivo ZIP con los PDFs de certificados CONOCER. El sistema
+          Sube un archivo PDF o ZIP con certificados CONOCER. El sistema
           extraerá automáticamente la CURP y el ECM de cada certificado para
           vincularlos con los candidatos correspondientes.
         </p>
@@ -166,7 +168,7 @@ export default function ConocerUploadPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".zip"
+              accept=".zip,.pdf"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -177,7 +179,10 @@ export default function ConocerUploadPage() {
             {file ? (
               <div className="flex flex-col items-center fluid-gap-3">
                 <div className="fluid-icon-2xl rounded-fluid-xl bg-emerald-100 flex items-center justify-center">
-                  <FileArchive className="fluid-icon-lg text-emerald-600" />
+                  {file.name.toLowerCase().endsWith('.pdf')
+                    ? <FileText className="fluid-icon-lg text-emerald-600" />
+                    : <FileArchive className="fluid-icon-lg text-emerald-600" />
+                  }
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 fluid-text-base">{file.name}</p>
@@ -197,7 +202,7 @@ export default function ConocerUploadPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-700 fluid-text-base">
-                    Arrastra un archivo ZIP aquí
+                    Arrastra un archivo PDF o ZIP aquí
                   </p>
                   <p className="text-gray-500 fluid-text-sm">
                     o haz clic para seleccionarlo
@@ -233,7 +238,7 @@ export default function ConocerUploadPage() {
               <FileText className="fluid-icon-sm text-blue-500 fluid-mb-2" />
               <p className="font-semibold text-blue-900 fluid-text-sm">PDFs de certificados</p>
               <p className="text-blue-700 fluid-text-xs fluid-mt-1">
-                El ZIP debe contener los PDFs originales emitidos por CONOCER
+                Sube un PDF individual o un ZIP con los PDFs originales emitidos por CONOCER
               </p>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-fluid-lg fluid-p-4">
@@ -339,7 +344,7 @@ export default function ConocerUploadPage() {
               className="inline-flex items-center fluid-gap-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold fluid-px-5 fluid-py-2.5 rounded-fluid-lg transition-colors"
             >
               <Upload className="fluid-icon-sm" />
-              Subir otro ZIP
+              Subir otro archivo
             </button>
           </div>
         </div>

@@ -82,7 +82,7 @@ const CERT_CARDS: CertCard[] = [
     statLabel: 'Certificados',
     getReady: s => s.summary.tier_advanced?.count || 0,
     getPending: () => 0,
-    downloadEnabled: false,
+    downloadEnabled: true,
   },
   {
     key: 'digital_badge',

@@ -962,3 +962,72 @@ def send_balance_resolution_email(
         html=_base_template("Resolución de solicitud", body),
         plain_text=f"Tu solicitud de {type_label} por ${amount:,.2f} fue {'aprobada' if approved else 'rechazada'}.",
     )
+
+
+# ─── CURP / RENAPO Notifications ─────────────────────────────────────────
+
+def send_curp_validation_result_email(
+    coordinator_email: str,
+    coordinator_name: str,
+    candidate_name: str,
+    curp: str,
+    valid: bool,
+    renapo_name: str = None,
+    renapo_first_surname: str = None,
+    renapo_second_surname: str = None,
+    error_reason: str = None,
+) -> bool:
+    """Notifica al coordinador sobre el resultado de la validación CURP RENAPO."""
+    if not coordinator_email:
+        return False
+
+    if valid:
+        renapo_full = ' '.join(filter(None, [renapo_name, renapo_first_surname, renapo_second_surname]))
+        body = f"""
+            <h2 style="margin:0 0 8px;color:#059669;font-size:20px;font-weight:700;">
+                ✅ CURP Verificada — RENAPO
+            </h2>
+            <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 16px;">
+                Estimado/a <strong>{coordinator_name}</strong>,
+            </p>
+            <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 16px;">
+                La CURP del candidato <strong>{candidate_name}</strong> ha sido validada exitosamente
+                contra el Registro Nacional de Población (RENAPO).
+            </p>
+            <div style="background:#f0fdf4;border-left:4px solid #059669;border-radius:0 8px 8px 0;padding:16px 20px;margin:16px 0;">
+                <p style="margin:0 0 6px;color:#065f46;font-size:13px;"><strong>CURP:</strong> <code style="font-size:14px;">{curp}</code></p>
+                <p style="margin:0;color:#065f46;font-size:13px;"><strong>Nombre según RENAPO:</strong> {renapo_full}</p>
+            </div>
+            <p style="color:#6b7280;font-size:12px;margin:16px 0 0;">
+                Los datos de nombre se han actualizado con la información oficial de RENAPO.
+            </p>
+        """
+        subject = f"[Evaluaasi] CURP verificada — {candidate_name}"
+    else:
+        body = f"""
+            <h2 style="margin:0 0 8px;color:#dc2626;font-size:20px;font-weight:700;">
+                ❌ CURP Rechazada — RENAPO
+            </h2>
+            <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 16px;">
+                Estimado/a <strong>{coordinator_name}</strong>,
+            </p>
+            <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 16px;">
+                La CURP proporcionada para el candidato <strong>{candidate_name}</strong>
+                <strong>no pudo ser verificada</strong> en el Registro Nacional de Población (RENAPO).
+            </p>
+            <div style="background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;padding:16px 20px;margin:16px 0;">
+                <p style="margin:0 0 6px;color:#991b1b;font-size:13px;"><strong>CURP:</strong> <code style="font-size:14px;">{curp}</code></p>
+                <p style="margin:0;color:#991b1b;font-size:13px;"><strong>Motivo:</strong> {error_reason or 'No encontrada en RENAPO'}</p>
+            </div>
+            <p style="color:#374151;font-size:13px;line-height:1.7;margin:16px 0 0;">
+                El usuario <strong>no fue creado</strong>. Verifica la CURP e intenta nuevamente.
+            </p>
+        """
+        subject = f"[Evaluaasi] CURP rechazada — {candidate_name}"
+
+    return send_email(
+        to=coordinator_email,
+        subject=subject,
+        html=_base_template("Validación CURP RENAPO", body),
+        plain_text=f"CURP {'verificada' if valid else 'rechazada'} para {candidate_name}: {curp}",
+    )

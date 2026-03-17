@@ -425,6 +425,29 @@ export default function CampusFormPage() {
 
       if (isEditing) {
         await updateCampus(Number(campusId), formData);
+        // Si la configuración cambió (incluye ECMs), guardarla también
+        if (configChanged) {
+          await configureCampus(Number(campusId), {
+            office_version: configData.office_version,
+            enable_tier_basic: configData.enable_tier_basic,
+            enable_tier_standard: configData.enable_tier_standard,
+            enable_tier_advanced: configData.enable_tier_advanced,
+            enable_digital_badge: configData.enable_digital_badge,
+            enable_partial_evaluations: configData.enable_partial_evaluations,
+            enable_unscheduled_partials: configData.enable_unscheduled_partials,
+            enable_virtual_machines: configData.enable_virtual_machines,
+            enable_online_payments: configData.enable_online_payments,
+            enable_candidate_certificates: configData.enable_candidate_certificates,
+            require_exam_pin: configData.require_exam_pin,
+            enable_session_calendar: configData.enable_session_calendar,
+            session_scheduling_mode: configData.session_scheduling_mode,
+            assignment_validity_months: configData.assignment_validity_months || 12,
+            certification_cost: configData.certification_cost,
+            retake_cost: configData.retake_cost,
+            max_retakes: configData.max_retakes,
+            competency_standard_ids: selectedEcmIds,
+          });
+        }
         navigate(`/partners/campuses/${campusId}?saved=true`);
         return;
       } else {

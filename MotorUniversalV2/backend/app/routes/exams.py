@@ -3120,6 +3120,21 @@ def check_exam_access(exam_id):
                 if campus and campus.retake_cost is not None:
                     retake_cost = float(campus.retake_cost)
         
+        # Determinar si se requiere PIN:
+        # 1) PIN específico de la asignación (GroupExam.require_security_pin + security_pin)
+        # 2) PIN diario del campus/grupo (Campus.require_exam_pin o CandidateGroup.require_exam_pin_override)
+        pin_required = bool(group_exam.require_security_pin and group_exam.security_pin)
+        if not pin_required:
+            from app.models.partner import Campus
+            campus_pin = False
+            if group and group.require_exam_pin_override is not None:
+                campus_pin = bool(group.require_exam_pin_override)
+            elif group and group.campus_id:
+                campus_obj = Campus.query.get(group.campus_id)
+                if campus_obj:
+                    campus_pin = bool(campus_obj.require_exam_pin)
+            pin_required = campus_pin
+
         return jsonify({
             'can_take': not attempts_exhausted,
             'max_attempts': max_attempts,
@@ -3134,6 +3149,7 @@ def check_exam_access(exam_id):
             'validity_months': group_exam.validity_months,
             'expires_at': group_exam.effective_expires_at.isoformat() if group_exam.effective_expires_at else None,
             'extended_months': group_exam.extended_months or 0,
+            'require_security_pin': pin_required,
         }), 200
         
     except HTTPException:
@@ -3153,6 +3169,66 @@ def options_check_exam_access(exam_id):
     response.headers['Access-Control-Allow-Methods'] = 'GET,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response
+
+
+@bp.route('/<int:exam_id>/verify-pin', methods=['POST'])
+@jwt_required()
+def verify_exam_pin(exam_id):
+    """Verificar PIN de seguridad para iniciar un examen."""
+    try:
+        from app.models.partner import GroupExam
+
+        user_id = get_jwt_identity()
+        data = request.get_json() or {}
+        group_exam_id = data.get('group_exam_id')
+        pin = (data.get('pin') or '').strip()
+
+        if not group_exam_id:
+            return jsonify({'error': 'Se requiere group_exam_id'}), 400
+        if not pin:
+            return jsonify({'error': 'Se requiere el PIN'}), 400
+
+        group_exam = GroupExam.query.get(group_exam_id)
+        if not group_exam or group_exam.exam_id != exam_id:
+            return jsonify({'error': 'Asignación de examen no encontrada'}), 404
+
+        # Primero verificar PIN específico de la asignación
+        if group_exam.require_security_pin and group_exam.security_pin:
+            import hmac
+            if hmac.compare_digest(pin, group_exam.security_pin):
+                return jsonify({'valid': True}), 200
+            else:
+                return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 200
+
+        # Si no tiene PIN de asignación, verificar PIN diario del campus / grupo
+        from app.models.partner import CandidateGroup, Campus
+        group = CandidateGroup.query.get(group_exam.group_id)
+        campus_requires_pin = False
+        campus_obj = None
+        if group:
+            if group.require_exam_pin_override is not None:
+                campus_requires_pin = bool(group.require_exam_pin_override)
+            elif group.campus_id:
+                campus_obj = Campus.query.get(group.campus_id)
+                if campus_obj:
+                    campus_requires_pin = bool(campus_obj.require_exam_pin)
+            if not campus_obj and group.campus_id:
+                campus_obj = Campus.query.get(group.campus_id)
+
+        if not campus_requires_pin:
+            return jsonify({'valid': True}), 200
+
+        if campus_obj:
+            daily_pin = campus_obj.get_daily_pin()
+            if daily_pin and pin == daily_pin:
+                return jsonify({'valid': True}), 200
+
+        return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 
 @bp.route('/<int:exam_id>/save-result', methods=['POST'])

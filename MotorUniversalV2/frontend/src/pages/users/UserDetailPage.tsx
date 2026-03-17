@@ -44,6 +44,7 @@ import {
   ROLE_COLORS,
 } from '../../services/userManagementService';
 import { useAuthStore } from '../../store/authStore';
+import CurpVerificationBadge from '../../components/users/CurpVerificationBadge';
 
 export default function UserDetailPage() {
   const { userId } = useParams();
@@ -145,7 +146,6 @@ export default function UserDetailPage() {
       const result = await toggleUserActive(user.id);
       setUser(result.user);
       setSuccess(result.user.is_active ? 'Usuario activado' : 'Usuario desactivado');
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cambiar estado');
     }
@@ -160,7 +160,6 @@ export default function UserDetailPage() {
       setShowPasswordModal(false);
       setNewPassword('');
       setSuccess('Contraseña actualizada correctamente');
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cambiar contraseña');
     } finally {
@@ -199,7 +198,6 @@ export default function UserDetailPage() {
       setStoredPasswordError(null);
       setShowStoredPassword(false);
       setSuccess('Nueva contraseña generada');
-      setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al generar contraseña');
     } finally {
@@ -262,20 +260,55 @@ export default function UserDetailPage() {
         </Link>
       </div>
 
+      {/* Modal de Error */}
       {error && (
-        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3 text-red-700">
-          <AlertCircle className="fluid-icon-sm flex-shrink-0" />
-          {error}
-          <button onClick={() => setError(null)} className="ml-auto">
-            <X className="fluid-icon-sm" />
-          </button>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-red-50 border-b border-red-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-800 fluid-text-lg">Error</h3>
+                <p className="fluid-text-sm text-red-700 fluid-mt-1">{error}</p>
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="fluid-px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
+      {/* Modal de Éxito */}
       {success && (
-        <div className="fluid-mb-6 bg-green-50 border border-green-200 rounded-fluid-lg fluid-p-4 flex items-center fluid-gap-3 text-green-700">
-          <CheckCircle className="fluid-icon-sm flex-shrink-0" />
-          {success}
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-green-50 border-b border-green-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-green-800 fluid-text-lg">¡Listo!</h3>
+                <p className="fluid-text-sm text-green-700 fluid-mt-1">{success}</p>
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setSuccess(null)}
+                className="fluid-px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -288,7 +321,7 @@ export default function UserDetailPage() {
               </div>
               <div>
                 <h1 className="fluid-text-xl font-bold">{user.full_name}</h1>
-                <p className="text-blue-100">@{user.username}</p>
+                <p className="text-blue-100">{user.username}</p>
                 <div className="flex items-center fluid-gap-2 fluid-mt-2">
                   <span className={`fluid-px-3 fluid-py-1 rounded-full fluid-text-sm font-medium ${
                     user.is_active 
@@ -360,7 +393,22 @@ export default function UserDetailPage() {
               </div>
               <div>
                 <p className="fluid-text-sm text-gray-500 font-medium">CURP</p>
-                <p className="font-medium text-gray-900 font-mono">{user.curp || 'No registrado'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-gray-900 font-mono">{user.curp || 'No registrado'}</p>
+                  {user.curp && (
+                    <CurpVerificationBadge
+                      curp={user.curp}
+                      curpVerified={user.curp_verified}
+                      curpVerifiedAt={user.curp_verified_at}
+                    />
+                  )}
+                </div>
+                {user.curp_verified && user.curp_renapo_name && (
+                  <div className="mt-2 text-xs text-gray-500 bg-green-50 rounded-lg px-3 py-2">
+                    <p className="font-medium text-green-700 mb-1">Datos RENAPO</p>
+                    <p>{user.curp_renapo_name} {user.curp_renapo_first_surname} {user.curp_renapo_second_surname}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -825,7 +873,6 @@ export default function UserDetailPage() {
                         onClick={() => {
                           navigator.clipboard.writeText(generatedPassword);
                           setSuccess('Contraseña copiada al portapapeles');
-                          setTimeout(() => setSuccess(null), 2000);
                         }}
                         className="fluid-px-2 fluid-py-1 bg-blue-600 text-white rounded-fluid text-sm hover:bg-blue-700"
                       >

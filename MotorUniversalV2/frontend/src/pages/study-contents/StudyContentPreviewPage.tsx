@@ -2128,6 +2128,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                 {currentStepIndex < steps.length - 1 ? (
                                   <button
                                     onClick={() => {
+                                      if (!isStepDone) return;
                                       // Forzar blur de cualquier input activo para guardar respuestas parciales
                                       if (document.activeElement instanceof HTMLElement) {
                                         document.activeElement.blur();
@@ -2137,7 +2138,12 @@ const StudyContentPreviewPage: React.FC = () => {
                                         setCurrentStepIndex(currentStepIndex + 1);
                                       }, 50);
                                     }}
-                                    className="fluid-px-4 fluid-py-1 fluid-text-xs font-semibold text-white bg-blue-600 rounded-fluid-md hover:bg-blue-700 flex items-center fluid-gap-1 transition-colors shadow-sm"
+                                    disabled={!isStepDone}
+                                    className={`fluid-px-4 fluid-py-1 fluid-text-xs font-semibold rounded-fluid-md flex items-center fluid-gap-1 transition-colors shadow-sm ${
+                                      isStepDone
+                                        ? 'text-white bg-blue-600 hover:bg-blue-700'
+                                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                                    }`}
                                   >
                                     <span className="hidden xs:inline">Siguiente paso</span>
                                     <span className="xs:hidden">Siguiente</span>
@@ -2146,6 +2152,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                 ) : (
                                   <button
                                     onClick={() => {
+                                      if (!isStepDone) return;
                                       // Forzar blur de cualquier input activo para guardar respuestas parciales
                                       if (document.activeElement instanceof HTMLElement) {
                                         document.activeElement.blur();
@@ -2156,7 +2163,12 @@ const StudyContentPreviewPage: React.FC = () => {
                                         completeExercise();
                                       }, 100);
                                     }}
-                                    className="fluid-px-4 fluid-py-1 fluid-text-xs font-semibold text-white bg-green-600 rounded-fluid-md hover:bg-green-700 flex items-center fluid-gap-1 transition-colors shadow-sm"
+                                    disabled={!isStepDone}
+                                    className={`fluid-px-4 fluid-py-1 fluid-text-xs font-semibold rounded-fluid-md flex items-center fluid-gap-1 transition-colors shadow-sm ${
+                                      isStepDone
+                                        ? 'text-white bg-green-600 hover:bg-green-700'
+                                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
+                                    }`}
                                   >
                                     <Check className="fluid-icon-sm" />
                                     <span className="hidden xs:inline">Finalizar ejercicio</span>

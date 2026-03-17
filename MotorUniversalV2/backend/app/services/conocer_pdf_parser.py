@@ -4,7 +4,19 @@ Extrae CURP, código ECM, folio, nombre, fecha y entidad certificadora
 usando PyMuPDF (fitz) con patrones regex del formato oficial CONOCER.
 """
 import re
+import threading
 from typing import Optional, Dict, Any
+
+# Timeout para extracción de texto (segundos)
+PDF_PARSE_TIMEOUT = 30
+
+
+def _normalize_ecm_code(code: str) -> str:
+    """Normaliza EC0354 → ECM0354, ECM0354 → ECM0354."""
+    code = code.upper()
+    if re.match(r'^EC\d{4}$', code):
+        return 'ECM' + code[2:]
+    return code
 
 
 def parse_conocer_pdf(pdf_bytes: bytes) -> Dict[str, Any]:
@@ -44,16 +56,35 @@ def parse_conocer_pdf(pdf_bytes: bytes) -> Dict[str, Any]:
         return result
     
     try:
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        # Usar thread con timeout para evitar cuelgues en PDFs problemáticos
+        text_holder = {}
+        error_holder = {}
         
-        if doc.page_count == 0:
-            result['parse_error'] = 'El PDF no tiene páginas'
-            doc.close()
+        def _extract():
+            try:
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                if doc.page_count == 0:
+                    error_holder['msg'] = 'El PDF no tiene páginas'
+                    doc.close()
+                    return
+                text_holder['text'] = doc[0].get_text()
+                doc.close()
+            except Exception as e:
+                error_holder['msg'] = f'Error al procesar PDF: {str(e)[:200]}'
+        
+        t = threading.Thread(target=_extract, daemon=True)
+        t.start()
+        t.join(timeout=PDF_PARSE_TIMEOUT)
+        
+        if t.is_alive():
+            result['parse_error'] = f'Timeout al extraer texto del PDF ({PDF_PARSE_TIMEOUT}s)'
             return result
         
-        # Extraer texto de la primera página
-        text = doc[0].get_text()
-        doc.close()
+        if 'msg' in error_holder:
+            result['parse_error'] = error_holder['msg']
+            return result
+        
+        text = text_holder.get('text', '')
         
         if not text or len(text.strip()) < 50:
             result['parse_error'] = 'El PDF no contiene texto extraíble'
@@ -75,15 +106,15 @@ def parse_conocer_pdf(pdf_bytes: bytes) -> Dict[str, Any]:
                 result['curp'] = curp_fallback.group(1).upper()
         
         # === ECM Code ===
-        # Patrón: "con clave: ECM####" o "ECM####" 
-        ecm_match = re.search(r'(?:con clave|clave)\s*:?\s*(ECM\d{4})', text, re.IGNORECASE)
+        # Patrón: "con clave: EC(M)####" - CONOCER oficial usa EC####, BD usa ECM####
+        ecm_match = re.search(r'(?:con clave|clave)\s*:?\s*(ECM?\d{4})', text, re.IGNORECASE)
         if ecm_match:
-            result['ecm_code'] = ecm_match.group(1).upper()
+            result['ecm_code'] = _normalize_ecm_code(ecm_match.group(1))
         else:
-            # Fallback: buscar ECM seguido de 4 dígitos
-            ecm_fallback = re.search(r'\b(ECM\d{4})\b', text)
+            # Fallback: buscar EC o ECM seguido de 4 dígitos
+            ecm_fallback = re.search(r'\b(ECM?\d{4})\b', text)
             if ecm_fallback:
-                result['ecm_code'] = ecm_fallback.group(1).upper()
+                result['ecm_code'] = _normalize_ecm_code(ecm_fallback.group(1))
         
         # === Folio CONOCER ===
         # Patrón: "D-" seguido de 10 dígitos

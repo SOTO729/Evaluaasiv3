@@ -21,8 +21,10 @@ import struct
 import zlib
 
 # ─── Configuración ───────────────────────────────────────────
+USE_DEV = "--dev" in sys.argv
+
 DB_SERVER = "evaluaasi-motorv2-sql.database.windows.net"
-DB_NAME = "evaluaasi"
+DB_NAME = "evaluaasi_dev" if USE_DEV else "evaluaasi"
 DB_USER = "evaluaasi_admin"
 DB_PASS = "EvalAasi2024_newpwd!"
 
@@ -44,7 +46,11 @@ except ImportError:
 
 import requests
 
-API = "https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
+API = (
+    "https://evaluaasi-motorv2-api-dev.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
+    if USE_DEV else
+    "https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
+)
 
 # ─── Helpers ─────────────────────────────────────────────────
 passed = 0
@@ -113,12 +119,13 @@ def get_auth_token():
 
 
 # ─── Variables de test ───────────────────────────────────────
-STANDARD_ID = 13  # ECM de prueba
+STANDARD_ID = 251 if USE_DEV else 13  # ECM de prueba
 token = None
 template_after_upload = None
 
 print("\n" + "=" * 60)
-print("📜 TESTS DE PLANTILLA DE CERTIFICADO — PRODUCCIÓN")
+ENV_LABEL = "DEV" if USE_DEV else "PRODUCCIÓN"
+print(f"📜 TESTS DE PLANTILLA DE CERTIFICADO — {ENV_LABEL}")
 print("=" * 60)
 
 # ══════════════════════════════════════════════════════════════
@@ -342,13 +349,35 @@ try:
         headers=headers, timeout=30,
         allow_redirects=True
     )
-    # La preview puede devolver PDF o redirigir
-    test("Preview status OK (200/302)", r.status_code in [200, 302], f"Status: {r.status_code}")
+    test("Preview status 200", r.status_code == 200, f"Status: {r.status_code} — {r.text[:200] if r.status_code != 200 else ''}")
     if r.status_code == 200:
         ct = r.headers.get("Content-Type", "")
         test("Preview Content-Type es PDF", "pdf" in ct.lower(), f"Content-Type: {ct}")
+        test("Preview body no vacío (>500 bytes)", len(r.content) > 500, f"Size: {len(r.content)}")
+        test("Preview comienza con %PDF", r.content[:5] == b"%PDF-", f"Primeros bytes: {r.content[:20]}")
 except Exception as e:
     test("Vista previa", False, str(e))
+
+# Preview sin plantilla → debe fallar
+print("\n👁️  10b. PREVIEW SIN AUTENTICACIÓN")
+try:
+    r = requests.get(
+        f"{API}/competency-standards/{STANDARD_ID}/certificate-template/preview",
+        timeout=15
+    )
+    test("Preview sin auth → 401", r.status_code == 401, f"Status: {r.status_code}")
+except Exception as e:
+    test("Preview sin auth", False, str(e))
+
+print("\n👁️  10c. PREVIEW ECM SIN PLANTILLA (99999)")
+try:
+    r = requests.get(
+        f"{API}/competency-standards/99999/certificate-template/preview",
+        headers=headers, timeout=15
+    )
+    test("Preview ECM inexistente → 404", r.status_code == 404, f"Status: {r.status_code}")
+except Exception as e:
+    test("Preview ECM inexistente", False, str(e))
 
 # ══════════════════════════════════════════════════════════════
 # 11. VALIDACIONES DE ERROR

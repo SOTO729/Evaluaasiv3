@@ -1732,7 +1732,7 @@ def get_assignment_history():
                         'assignment_type': group_exam.assignment_type,
                         'candidates_count': candidates_count,
                         'unit_cost': round(unit_cost, 2),
-                        'assigned_at': group_exam.created_at.isoformat() if group_exam.created_at else None,
+                        'assigned_at': group_exam.assigned_at.isoformat() if group_exam.assigned_at else None,
                     }
                     
                     # Aplicar filtro de grupo si se pidió

@@ -120,7 +120,7 @@ class ConocerUploadLog(db.Model):
     # Razón de descarte (solo si status = discarded)
     discard_reason = db.Column(db.String(50))
     # not_pdf, parse_error, no_curp, no_ecm_code, curp_not_found, 
-    # ecm_not_found, no_pending_tramite
+    # ecm_not_found, no_assignment
     
     discard_detail = db.Column(db.String(500))  # Descripción legible
     

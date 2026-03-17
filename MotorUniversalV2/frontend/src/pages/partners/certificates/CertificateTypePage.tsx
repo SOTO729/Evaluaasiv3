@@ -273,7 +273,17 @@ export default function CertificateTypePage({
       setSuccessMessage(`Descarga completada: ${selectedCandidates.size} candidato(s)`);
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al descargar certificados');
+      let msg = 'Error al descargar certificados';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          msg = json.error || msg;
+        } catch { /* keep default */ }
+      } else if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      }
+      setError(msg);
     } finally {
       setDownloading(false);
     }
@@ -301,7 +311,17 @@ export default function CertificateTypePage({
       setSuccessMessage('Descarga completa del grupo finalizada');
       setTimeout(() => setSuccessMessage(null), 4000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al descargar certificados');
+      let msg = 'Error al descargar certificados';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          msg = json.error || msg;
+        } catch { /* keep default */ }
+      } else if (err.response?.data?.error) {
+        msg = err.response.data.error;
+      }
+      setError(msg);
     } finally {
       setDownloading(false);
     }

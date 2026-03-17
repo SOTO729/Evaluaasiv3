@@ -30,6 +30,7 @@ import {
   Search,
   FileText,
   User,
+  ShieldAlert,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -63,6 +64,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; badgeColor: 
     color: 'from-gray-400 to-gray-500',
     badgeColor: 'bg-gray-100 text-gray-600 border-gray-200',
     icon: <SkipForward className="w-3.5 h-3.5" />,
+  },
+  curp_invalid: {
+    label: 'CURP Inválida',
+    color: 'from-orange-500 to-orange-600',
+    badgeColor: 'bg-orange-100 text-orange-700 border-orange-200',
+    icon: <ShieldAlert className="w-3.5 h-3.5" />,
   },
 };
 
@@ -301,6 +308,7 @@ export default function BulkUploadDetailPage() {
                 { key: 'created', label: 'Creados', count: batch.total_created },
                 { key: 'existing_assigned', label: 'Existentes', count: batch.total_existing_assigned },
                 { key: 'error', label: 'Errores', count: batch.total_errors },
+                { key: 'curp_invalid', label: 'CURP Inválida', count: (batch.members ?? []).filter(m => m.status === 'curp_invalid').length },
                 { key: 'skipped', label: 'Omitidos', count: batch.total_skipped },
               ].map((tab) => (
                 <button

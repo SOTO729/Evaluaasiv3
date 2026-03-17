@@ -1020,7 +1020,7 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                       {selectedConversation?.candidate?.role || 'candidato'}
                     </span>
                     <span className="rounded-full bg-white/15 px-2.5 py-1">
-                      @{selectedConversation?.candidate?.username || 'sin-usuario'}
+                      {selectedConversation?.candidate?.username || 'sin-usuario'}
                     </span>
                   </div>
                 </div>

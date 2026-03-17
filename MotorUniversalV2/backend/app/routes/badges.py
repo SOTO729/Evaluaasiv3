@@ -21,6 +21,138 @@ bp = Blueprint('badges', __name__)
 
 
 # ──────────────────────────────────────────────
+# Helper: emisión retroactiva de insignias
+# ──────────────────────────────────────────────
+
+def _retroactive_issue_for_template(template):
+    """
+    Emite insignias retroactivamente para resultados aprobados
+    que coinciden con esta plantilla pero aún no tienen insignia.
+    Llamar después de crear o activar una plantilla.
+    Returns (issued_count, errors_list)
+    """
+    from app.models.result import Result
+    from app.models.exam import Exam
+    from app.services.badge_service import issue_badge_for_result
+
+    if not template or not template.is_active:
+        return 0, []
+
+    # Encontrar exámenes que coinciden con esta plantilla
+    exam_ids = []
+    if template.exam_id:
+        exam_ids.append(template.exam_id)
+    if template.competency_standard_id:
+        matching_exams = Exam.query.filter_by(
+            competency_standard_id=template.competency_standard_id
+        ).with_entities(Exam.id).all()
+        exam_ids.extend(eid for (eid,) in matching_exams)
+    exam_ids = list(set(exam_ids))
+
+    if not exam_ids:
+        return 0, []
+
+    # Resultados aprobados y completados para esos exámenes
+    approved = Result.query.filter(
+        Result.exam_id.in_(exam_ids),
+        Result.result == 1,
+        Result.status == 1
+    ).all()
+
+    issued_count = 0
+    errors_list = []
+
+    for result in approved:
+        # ¿Ya tiene insignia para este resultado?
+        existing = IssuedBadge.query.filter_by(result_id=result.id).first()
+        if existing:
+            continue
+        # ¿Ya tiene insignia activa con esta plantilla?
+        existing2 = IssuedBadge.query.filter_by(
+            user_id=result.user_id, badge_template_id=template.id, status='active'
+        ).first()
+        if existing2:
+            continue
+
+        user = User.query.get(str(result.user_id))
+        if not user:
+            continue
+        exam = Exam.query.get(result.exam_id)
+        if not exam:
+            continue
+
+        try:
+            badge = issue_badge_for_result(result, user, exam, force=True)
+            if badge:
+                issued_count += 1
+        except HTTPException:
+            raise
+        except Exception as e:
+            errors_list.append(f"{getattr(user, 'email', None) or user.username}: {str(e)}")
+
+    if issued_count > 0:
+        print(f"[BADGE] Retroactive issue: {issued_count} badge(s) for template '{template.name}' (ID {template.id})")
+
+    return issued_count, errors_list
+
+
+def _lazy_issue_for_user(user_id):
+    """
+    Intenta emitir insignias pendientes para un usuario.
+    Se usa en my_badges para generación lazy cuando el template
+    no existía al momento de aprobar el examen.
+    Returns count of newly issued badges.
+    """
+    from app.models.result import Result
+    from app.models.exam import Exam
+    from app.services.badge_service import issue_badge_for_result
+
+    # Resultados aprobados del usuario sin insignia
+    approved = Result.query.filter_by(
+        user_id=str(user_id), result=1, status=1
+    ).all()
+
+    issued_count = 0
+    for result in approved:
+        existing = IssuedBadge.query.filter_by(result_id=result.id).first()
+        if existing:
+            continue
+
+        exam = Exam.query.get(result.exam_id) if result.exam_id else None
+        if not exam:
+            continue
+
+        # Buscar plantilla activa
+        template = BadgeTemplate.query.filter_by(exam_id=exam.id, is_active=True).first()
+        if not template and exam.competency_standard_id:
+            template = BadgeTemplate.query.filter_by(
+                competency_standard_id=exam.competency_standard_id, is_active=True
+            ).first()
+        if not template:
+            continue
+
+        # ¿Ya tiene insignia activa con esta plantilla?
+        existing2 = IssuedBadge.query.filter_by(
+            user_id=str(user_id), badge_template_id=template.id, status='active'
+        ).first()
+        if existing2:
+            continue
+
+        try:
+            user = User.query.get(str(user_id))
+            badge = issue_badge_for_result(result, user, exam, force=True)
+            if badge:
+                issued_count += 1
+        except Exception as e:
+            print(f"[BADGE] Lazy issue error for user {user_id}: {e}")
+
+    if issued_count > 0:
+        print(f"[BADGE] Lazy issue: {issued_count} badge(s) for user {user_id}")
+
+    return issued_count
+
+
+# ──────────────────────────────────────────────
 # Helper: verificar roles permitidos
 # ──────────────────────────────────────────────
 def _require_roles(*allowed):
@@ -137,7 +269,17 @@ def create_template():
     db.session.add(template)
     db.session.commit()
 
-    return jsonify({'message': 'Plantilla creada', 'template': template.to_dict()}), 201
+    # Emisión retroactiva: si la plantilla está activa, emitir para resultados aprobados existentes
+    retro_issued = 0
+    if template.is_active:
+        retro_issued, _errors = _retroactive_issue_for_template(template)
+
+    resp = {'message': 'Plantilla creada', 'template': template.to_dict()}
+    if retro_issued > 0:
+        resp['retroactive_issued'] = retro_issued
+        resp['message'] += f' — {retro_issued} insignia(s) emitida(s) retroactivamente'
+
+    return jsonify(resp), 201
 
 
 @bp.route('/templates/<int:template_id>', methods=['GET'])
@@ -182,6 +324,7 @@ def update_template(template_id):
             setattr(template, int_field, data[int_field])
 
     # Regla: solo puede haber 1 plantilla activa por ECM
+    was_active_before = template.is_active
     if 'is_active' in data:
         wants_active = bool(data['is_active'])
         ecm_id = template.competency_standard_id
@@ -198,7 +341,18 @@ def update_template(template_id):
         template.is_active = wants_active
 
     db.session.commit()
-    return jsonify({'message': 'Plantilla actualizada', 'template': template.to_dict()})
+
+    # Emisión retroactiva al activar una plantilla
+    retro_issued = 0
+    if template.is_active and not was_active_before:
+        retro_issued, _errors = _retroactive_issue_for_template(template)
+
+    resp = {'message': 'Plantilla actualizada', 'template': template.to_dict()}
+    if retro_issued > 0:
+        resp['retroactive_issued'] = retro_issued
+        resp['message'] += f' — {retro_issued} insignia(s) emitida(s) retroactivamente'
+
+    return jsonify(resp)
 
 
 @bp.route('/templates/<int:template_id>', methods=['DELETE'])
@@ -355,15 +509,68 @@ def issue_badge_batch():
 @bp.route('/my-badges', methods=['GET'])
 @jwt_required()
 def my_badges():
-    """Obtener las insignias del usuario autenticado"""
+    """Obtener las insignias del usuario autenticado (con emisión lazy de pendientes).
+    También devuelve exámenes aprobados que aún no tienen insignia (pending_exams)."""
     uid = get_jwt_identity()
+
+    # Emisión lazy: si hay resultados aprobados sin insignia y ahora existe plantilla, emitir
+    try:
+        _lazy_issue_for_user(uid)
+    except Exception as e:
+        print(f"[BADGE] Lazy issue error in my_badges: {e}")
+
     badges = IssuedBadge.query.filter_by(
         user_id=str(uid), status='active'
     ).order_by(IssuedBadge.issued_at.desc()).all()
 
+    # Identificar exámenes aprobados que aún no tienen insignia
+    pending_exams = []
+    try:
+        from app.models.result import Result
+        from app.models.exam import Exam
+
+        # IDs de resultados que ya tienen insignia
+        badged_result_ids = {b.result_id for b in badges if b.result_id}
+
+        approved_results = Result.query.filter_by(
+            user_id=str(uid), result=1, status=1
+        ).all()
+
+        seen_exam_ids = set()
+        for result in approved_results:
+            if result.id in badged_result_ids:
+                continue
+            if result.exam_id in seen_exam_ids:
+                continue
+            seen_exam_ids.add(result.exam_id)
+
+            exam = Exam.query.get(result.exam_id) if result.exam_id else None
+            if not exam:
+                continue
+
+            # Verificar si existe plantilla activa (para mostrar razón correcta)
+            has_template = False
+            tmpl = BadgeTemplate.query.filter_by(exam_id=exam.id, is_active=True).first()
+            if not tmpl and exam.competency_standard_id:
+                tmpl = BadgeTemplate.query.filter_by(
+                    competency_standard_id=exam.competency_standard_id, is_active=True
+                ).first()
+            if tmpl:
+                has_template = True
+
+            pending_exams.append({
+                'exam_id': exam.id,
+                'exam_name': exam.name,
+                'has_template': has_template,
+                'approved_at': result.created_at.isoformat() if result.created_at else None,
+            })
+    except Exception as e:
+        print(f"[BADGE] Error building pending_exams: {e}")
+
     return jsonify({
         'badges': [b.to_dict(include_credential=False) for b in badges],
         'total': len(badges),
+        'pending_exams': pending_exams,
     })
 
 

@@ -208,4 +208,9 @@ export const supportChatService = {
     })
     return response.users
   },
+
+  async getUnreadCount(): Promise<number> {
+    const response = await api.get('/support/chat/unread-count')
+    return Number(response.data?.unread_count || 0)
+  },
 }

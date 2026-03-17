@@ -70,6 +70,7 @@ export default function ConocerTramitesPage() {
   // Send solicitud
   const [sendingSolicitud, setSendingSolicitud] = useState(false);
   const [solicitudResult, setSolicitudResult] = useState<string | null>(null);
+  const [showSolicitudConfirm, setShowSolicitudConfirm] = useState(false);
 
   // Sort
   const [sortBy, setSortBy] = useState('name');
@@ -275,21 +276,7 @@ export default function ConocerTramitesPage() {
               Contactos
             </Link>
             <button
-              onClick={async () => {
-                if (!confirm('¿Enviar solicitud de línea de captura con todos los trámites pendientes?')) return;
-                try {
-                  setSendingSolicitud(true);
-                  setError(null);
-                  setSolicitudResult(null);
-                  const result = await sendConocerSolicitud();
-                  setSolicitudResult(result.message);
-                  loadData();
-                } catch (err: any) {
-                  setError(err.response?.data?.error || 'Error al enviar solicitud');
-                } finally {
-                  setSendingSolicitud(false);
-                }
-              }}
+              onClick={() => setShowSolicitudConfirm(true)}
               disabled={sendingSolicitud}
               className="fluid-px-4 fluid-py-2 bg-amber-500 hover:bg-amber-600 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all font-semibold disabled:opacity-50"
             >
@@ -767,6 +754,62 @@ export default function ConocerTramitesPage() {
             >
               Siguiente
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar envío de solicitud */}
+      {showSolicitudConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !sendingSolicitud && setShowSolicitudConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => !sendingSolicitud && setShowSolicitudConfirm(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+                <Send className="w-7 h-7 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900">Enviar Solicitud de Línea de Captura</h3>
+              <p className="text-gray-600 text-sm">
+                ¿Enviar solicitud de línea de captura con todos los trámites pendientes
+                {summary ? ` (${summary.pending})` : ''}?
+              </p>
+              <div className="flex gap-3 w-full mt-2">
+                <button
+                  onClick={() => setShowSolicitudConfirm(false)}
+                  disabled={sendingSolicitud}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors font-medium disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      setSendingSolicitud(true);
+                      setError(null);
+                      setSolicitudResult(null);
+                      const result = await sendConocerSolicitud();
+                      setSolicitudResult(result.message);
+                      loadData();
+                    } catch (err: any) {
+                      setError(err.response?.data?.error || 'Error al enviar solicitud');
+                    } finally {
+                      setSendingSolicitud(false);
+                      setShowSolicitudConfirm(false);
+                    }
+                  }}
+                  disabled={sendingSolicitud}
+                  className="flex-1 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {sendingSolicitud ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {sendingSolicitud ? 'Enviando...' : 'Enviar'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

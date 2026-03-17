@@ -9,6 +9,7 @@ import {
   updateStandard,
   uploadStandardLogo,
   deleteStandardLogo,
+  checkStandardCode,
   CreateStandardDTO,
   getBrands,
   Brand,
@@ -139,13 +140,17 @@ export default function StandardFormPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [pendingLogoFile, setPendingLogoFile] = useState<File | null>(null);
   
+  // Estado para validación de código único
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [codeExists, setCodeExists] = useState(false);
+  
   const [formData, setFormData] = useState<CreateStandardDTO>({
     code: '',
     name: '',
     description: '',
     sector: '',
-    level: undefined,
-    validity_years: 5,
+    level: 1,
+    validity_years: 0,
     certifying_body: 'CONOCER',
     brand_id: undefined,
   });
@@ -200,14 +205,33 @@ export default function StandardFormPage() {
   };
 
   // Funciones de validación
-  const validateCode = (value: string) => {
+  const validateCode = async (value: string) => {
     if (!value.trim()) {
       setCodeError('El código del estándar es requerido');
+      setCodeExists(false);
       return false;
     }
     if (value.length < 3) {
       setCodeError('El código debe tener al menos 3 caracteres');
+      setCodeExists(false);
       return false;
+    }
+    // Verificar unicidad en el servidor (solo al crear)
+    if (!isEditing) {
+      try {
+        setCheckingCode(true);
+        const result = await checkStandardCode(value);
+        if (result.exists) {
+          setCodeError(`Ya existe un estándar con el código "${result.code}"`);
+          setCodeExists(true);
+          return false;
+        }
+        setCodeExists(false);
+      } catch {
+        // Si falla la verificación, no bloquear (el backend validará al guardar)
+      } finally {
+        setCheckingCode(false);
+      }
     }
     setCodeError(null);
     return true;
@@ -327,7 +351,7 @@ export default function StandardFormPage() {
     const { name, value, type } = e.target;
     
     // Limpiar errores al modificar
-    if (name === 'code' && value.trim()) setCodeError(null);
+    if (name === 'code' && value.trim()) { setCodeError(null); setCodeExists(false); }
     if (name === 'name' && value.trim()) setNameError(null);
     if (name === 'sector' && value) setSectorError(null);
     if (name === 'level' && value) setLevelError(null);
@@ -353,6 +377,8 @@ export default function StandardFormPage() {
     } else if (formData.code.length < 3) {
       setCodeError('El código debe tener al menos 3 caracteres');
       errors.push('Código del Estándar (mínimo 3 caracteres)');
+    } else if (codeExists) {
+      errors.push('Código del Estándar (ya existe)');
     } else {
       setCodeError(null);
     }
@@ -447,7 +473,7 @@ export default function StandardFormPage() {
         />
       )}
       
-      <div className="fluid-p-6 max-w-5xl mx-auto">
+      <div className="fluid-p-6 max-w-[1920px] mx-auto animate-fade-in-up">
         {/* Back button */}
         <div className="fluid-mb-4">
           <button
@@ -477,8 +503,8 @@ export default function StandardFormPage() {
                 </h1>
                 <p className="fluid-text-sm text-white/80 fluid-mt-1">
                   {isEditing
-                    ? 'Actualiza la información del ECM.'
-                    : 'Define un nuevo ECM para crear exámenes y materiales basados en él.'}
+                    ? 'Actualiza la información del estándar.'
+                    : 'Define un nuevo estándar de competencia para crear exámenes y materiales basados en él.'}
                 </p>
               </div>
             </div>
@@ -496,9 +522,9 @@ export default function StandardFormPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
           {/* Layout principal: formulario izquierda + logo derecha */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 fluid-gap-6">
-            {/* Columna principal - 2/3 */}
-            <div className="lg:col-span-2 flex flex-col fluid-gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-4 fluid-gap-6">
+            {/* Columna principal - 3/4 */}
+            <div className="xl:col-span-3 flex flex-col fluid-gap-6">
               {/* Identificación del Estándar */}
               <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6">
                 <div className="flex items-center fluid-mb-5">
@@ -510,30 +536,54 @@ export default function StandardFormPage() {
                   <h2 className="fluid-text-base font-semibold text-gray-900">Identificación</h2>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-4">
                   {/* Código */}
                   <div>
                     <label htmlFor="code" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Código <span className="text-red-600">*</span>
                     </label>
-                    <input
-                      type="text"
-                      name="code"
-                      id="code"
-                      disabled={isEditing}
-                      value={formData.code}
-                      onChange={handleChange}
-                      onBlur={(e) => validateCode(e.target.value)}
-                      placeholder="Ej: EC0217"
-                      className={`input ${codeError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="code"
+                        id="code"
+                        disabled={isEditing}
+                        value={formData.code}
+                        onChange={handleChange}
+                        onBlur={(e) => validateCode(e.target.value)}
+                        placeholder="Ej: EC0217"
+                        className={`input ${codeError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''} ${isEditing ? 'bg-gray-100 cursor-not-allowed' : ''} pr-10`}
+                      />
+                      {checkingCode && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <div className="animate-spin h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full"></div>
+                        </div>
+                      )}
+                      {!checkingCode && !codeError && !isEditing && formData.code.trim() && formData.code.length >= 3 && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      {!checkingCode && codeError && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-red-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                     {codeError && (
                       <p className="text-red-600 fluid-text-xs fluid-mt-1 font-medium">{codeError}</p>
                     )}
-                    {!codeError && formData.code.trim() && formData.code.length >= 3 && (
-                      <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">✓ Código válido</p>
+                    {!codeError && !checkingCode && formData.code.trim() && formData.code.length >= 3 && (
+                      <p className="text-green-600 fluid-text-xs fluid-mt-1 font-medium">Código disponible</p>
                     )}
-                    {!codeError && !formData.code.trim() && (
+                    {checkingCode && (
+                      <p className="text-gray-500 fluid-text-xs fluid-mt-1">Verificando disponibilidad...</p>
+                    )}
+                    {!codeError && !checkingCode && !formData.code.trim() && !isEditing && (
                       <p className="text-gray-500 fluid-text-xs fluid-mt-1">No se puede modificar después</p>
                     )}
                   </div>
@@ -567,7 +617,7 @@ export default function StandardFormPage() {
                   </div>
 
                   {/* Nombre - full width */}
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label htmlFor="name" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Nombre del Estándar <span className="text-red-600">*</span>
                     </label>
@@ -590,7 +640,7 @@ export default function StandardFormPage() {
                   </div>
 
                   {/* Descripción - full width */}
-                  <div className="sm:col-span-2">
+                  <div className="sm:col-span-2 lg:col-span-3">
                     <label htmlFor="description" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Descripción
                     </label>
@@ -618,9 +668,9 @@ export default function StandardFormPage() {
                   <h2 className="fluid-text-base font-semibold text-gray-900">Clasificación y Certificación</h2>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 fluid-gap-4">
                   {/* Sector */}
-                  <div>
+                  <div className="sm:col-span-2">
                     <label htmlFor="sector" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
                       Sector Productivo <span className="text-red-600">*</span>
                     </label>
@@ -702,7 +752,7 @@ export default function StandardFormPage() {
                     <select
                       name="validity_years"
                       id="validity_years"
-                      value={formData.validity_years ?? 5}
+                      value={formData.validity_years ?? 0}
                       onChange={handleChange}
                       className="input"
                     >
@@ -717,9 +767,9 @@ export default function StandardFormPage() {
               </div>
             </div>
 
-            {/* Columna lateral - Logo 1/3 */}
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6 lg:sticky lg:top-24">
+            {/* Columna lateral - Logo 1/4 */}
+            <div className="xl:col-span-1">
+              <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-100 fluid-p-6 xl:sticky xl:top-24">
                 <div className="flex items-center fluid-mb-5">
                   <div className="w-9 h-9 rounded-fluid-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center fluid-mr-3 shadow-sm">
                     <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

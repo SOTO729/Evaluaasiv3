@@ -79,6 +79,7 @@ class CompetencyStandard(db.Model):
             'brand': self.brand.to_dict() if self.brand else None,
             'logo_url': self.logo_url,
             'is_active': self.is_active,
+            'has_template': self.certificate_template is not None,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

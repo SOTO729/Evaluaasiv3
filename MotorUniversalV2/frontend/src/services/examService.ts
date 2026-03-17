@@ -428,9 +428,18 @@ export const examService = {
     validity_months?: number;
     expires_at?: string;
     extended_months?: number;
+    require_security_pin?: boolean;
   }> => {
     const response = await api.get(`/exams/${examId}/check-access`, {
       params: { geid: groupExamId }
+    })
+    return response.data
+  },
+
+  verifyExamPin: async (examId: number, groupExamId: number, pin: string): Promise<{ valid: boolean; error?: string }> => {
+    const response = await api.post(`/exams/${examId}/verify-pin`, {
+      group_exam_id: groupExamId,
+      pin,
     })
     return response.data
   },

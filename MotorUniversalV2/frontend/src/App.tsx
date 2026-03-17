@@ -126,6 +126,7 @@ const ResultDetailPage = lazy(() => import('./pages/certificates/ResultDetailPag
 const StandardsListPage = lazy(() => import('./pages/standards/StandardsListPage'))
 const StandardFormPage = lazy(() => import('./pages/standards/StandardFormPage'))
 const StandardDetailPage = lazy(() => import('./pages/standards/StandardDetailPage'))
+const StandardExamDetailPage = lazy(() => import('./pages/standards/StandardExamDetailPage'))
 const DeletionRequestsPage = lazy(() => import('./pages/standards/DeletionRequestsPage'))
 const BrandsListPage = lazy(() => import('./pages/standards/BrandsListPage'))
 const BrandFormPage = lazy(() => import('./pages/standards/BrandFormPage'))
@@ -350,6 +351,7 @@ function App() {
               <Route path="/standards/brands/new" element={<RestrictedForGerenteFinOnly><BrandFormPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/brands/:id/edit" element={<RestrictedForGerenteFinOnly><BrandFormPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/:id" element={<RestrictedForGerenteFinOnly><StandardDetailPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/:id/exams/:examId" element={<RestrictedForGerenteFinOnly><StandardExamDetailPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/:id/edit" element={<RestrictedForGerenteFinOnly><StandardFormPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/:id/certificate-template" element={<RestrictedForGerenteFinOnly><CertificateTemplateEditorPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/deletion-requests" element={<RestrictedForGerenteFinOnly><DeletionRequestsPage /></RestrictedForGerenteFinOnly>} />

@@ -24,6 +24,7 @@ import {
   UserPlus,
   Plus,
   CalendarDays,
+  Clock,
 } from 'lucide-react';
 import {
   bulkUploadCandidates,
@@ -52,7 +53,7 @@ interface BulkUploadModalProps {
 export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploading] = useState(false);
   const [result, setResult] = useState<BulkUploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -216,84 +217,68 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   };
 
-  const handleUpload = async (runInBackground: boolean = false) => {
+  const handleUpload = async () => {
     if (!file) return;
 
-    if (runInBackground) {
-      // Proceso en segundo plano - cerrar modal y mostrar notificación
-      const notificationId = addNotification({
-        type: 'loading',
-        title: 'Procesando archivo',
-        message: `Cargando ${file.name}...`,
-        dismissible: false,
-        duration: 0,
-      });
+    // Siempre procesar en segundo plano
+    const hasCurps = preview?.preview.some(r => r.status === 'ready' && r.curp);
+    const notificationId = addNotification({
+      type: 'loading',
+      title: 'Procesando carga masiva',
+      message: hasCurps
+        ? `Creando candidatos y verificando CURPs en RENAPO... Esto puede tomar unos minutos.`
+        : `Cargando ${file.name}...`,
+      dismissible: false,
+      duration: 0,
+    });
+    
+    handleClose();
+    
+    try {
+      const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined, skipNameMatchRows.size > 0 ? Array.from(skipNameMatchRows) : undefined);
       
-      handleClose();
-      
-      try {
-        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined, skipNameMatchRows.size > 0 ? Array.from(skipNameMatchRows) : undefined);
-        
-        // Actualizar notificación con resultado
-        if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
-          const groupMsg = uploadResult.group_assignment
-            ? ` | ${uploadResult.group_assignment.assigned} asignados a ${uploadResult.group_assignment.group_name}`
-            : '';
-          const existingMsg = uploadResult.summary.existing_assigned > 0
-            ? `, ${uploadResult.summary.existing_assigned} existentes asignados al grupo`
-            : '';
-          updateNotification(notificationId, {
-            type: 'success',
-            title: 'Carga masiva completada',
-            message: `${uploadResult.summary.created} candidatos creados${existingMsg}, ${uploadResult.summary.errors} errores${groupMsg}`,
-            dismissible: true,
-            duration: 10000,
-          });
-          onSuccess();
-        } else if (uploadResult.summary.errors > 0) {
-          updateNotification(notificationId, {
-            type: 'error',
-            title: 'Error en carga masiva',
-            message: `${uploadResult.summary.errors} errores encontrados. Revisa el archivo.`,
-            dismissible: true,
-            duration: 10000,
-          });
-        } else {
-          updateNotification(notificationId, {
-            type: 'warning',
-            title: 'Sin cambios',
-            message: 'No se crearon candidatos nuevos.',
-            dismissible: true,
-            duration: 8000,
-          });
-        }
-      } catch (err: any) {
+      // Actualizar notificación con resultado
+      if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
+        const groupMsg = uploadResult.group_assignment
+          ? ` | ${uploadResult.group_assignment.assigned} asignados a ${uploadResult.group_assignment.group_name}`
+          : '';
+        const existingMsg = uploadResult.summary.existing_assigned > 0
+          ? `, ${uploadResult.summary.existing_assigned} existentes asignados al grupo`
+          : '';
+        const curpMsg = hasCurps ? '. Los CURPs se verificarán en RENAPO en segundo plano.' : '';
+        updateNotification(notificationId, {
+          type: 'success',
+          title: 'Carga masiva completada',
+          message: `${uploadResult.summary.created} candidatos creados${existingMsg}, ${uploadResult.summary.errors} errores${groupMsg}${curpMsg}`,
+          dismissible: true,
+          duration: 15000,
+        });
+        onSuccess();
+      } else if (uploadResult.summary.errors > 0) {
         updateNotification(notificationId, {
           type: 'error',
-          title: 'Error al procesar archivo',
-          message: err.response?.data?.error || 'Error desconocido',
+          title: 'Error en carga masiva',
+          message: `${uploadResult.summary.errors} errores encontrados. Revisa el historial de cargas.`,
           dismissible: true,
           duration: 10000,
         });
+      } else {
+        updateNotification(notificationId, {
+          type: 'warning',
+          title: 'Sin cambios',
+          message: 'No se crearon candidatos nuevos.',
+          dismissible: true,
+          duration: 8000,
+        });
       }
-    } else {
-      // Proceso normal - mantener modal abierto
-      setUploading(true);
-      setError(null);
-      setResult(null);
-      
-      try {
-        const uploadResult = await bulkUploadCandidates(file, selectedGroupId ? Number(selectedGroupId) : undefined, includedSkippedIds.size > 0 ? Array.from(includedSkippedIds) : undefined, skipNameMatchRows.size > 0 ? Array.from(skipNameMatchRows) : undefined);
-        setResult(uploadResult);
-        
-        if (uploadResult.summary.created > 0 || uploadResult.summary.existing_assigned > 0) {
-          onSuccess();
-        }
-      } catch (err: any) {
-        setError(err.response?.data?.error || 'Error al procesar el archivo');
-      } finally {
-        setUploading(false);
-      }
+    } catch (err: any) {
+      updateNotification(notificationId, {
+        type: 'error',
+        title: 'Error al procesar archivo',
+        message: err.response?.data?.error || 'Error desconocido',
+        dismissible: true,
+        duration: 10000,
+      });
     }
   };
 
@@ -628,6 +613,12 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   <strong>Importante:</strong> Sin email no recibe insignia digital. Sin CURP no recibe certificado CONOCER.
                 </p>
               </div>
+              <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
+                <p className="text-xs text-blue-700">
+                  <AlertCircle className="inline h-3 w-3 mr-1" />
+                  <strong>Verificación CURP:</strong> Los registros con CURP serán verificados en RENAPO. Si la CURP es inválida, el candidato será eliminado automáticamente.
+                </p>
+              </div>
             </div>
             
             <button
@@ -827,7 +818,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                       </div>
                       {includedSkippedIds.size > 0 && !uploading && (
                         <button
-                          onClick={() => handleUpload(false)}
+                          onClick={() => handleUpload()}
                           className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
                         >
                           <UserPlus className="h-4 w-4" />
@@ -900,8 +891,8 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                           <th className="px-3 py-2 text-left text-gray-600">Estado</th>
                           <th className="px-3 py-2 text-left text-gray-600">Email</th>
                           <th className="px-3 py-2 text-left text-gray-600">Nombre</th>
+                          <th className="px-3 py-2 text-left text-gray-600">CURP</th>
                           <th className="px-3 py-2 text-left text-gray-600">Usuario</th>
-                          <th className="px-3 py-2 text-left text-gray-600">Detalle</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -917,47 +908,16 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                                 </span>
                               )}
                               {r.status === 'name_match' && (
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                                  skipNameMatchRows.has(r.row)
-                                    ? 'bg-red-100 text-red-700'
-                                    : 'bg-orange-100 text-orange-700'
-                                }`}>
-                                  <AlertCircle className="h-3 w-3" />
-                                  {skipNameMatchRows.has(r.row) ? 'Omitido' : 'Coincide'}
-                                </span>
-                              )}
-                              {r.status === 'duplicate' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium">
-                                  <Users className="h-3 w-3" /> Existente
-                                </span>
-                              )}
-                              {r.status === 'error' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-medium">
-                                  <XCircle className="h-3 w-3" /> Error
-                                </span>
-                              )}
-                              {r.status === 'skipped' && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium">
-                                  <AlertCircle className="h-3 w-3" /> Omitido
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">{r.email || '-'}</td>
-                            <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">
-                              {(r.status === 'duplicate' || r.status === 'skipped') && r.existing_user
-                                ? r.existing_user.name
-                                : r.nombre
-                                  ? `${r.nombre} ${r.primer_apellido || ''}`
-                                  : '-'
-                              }
-                            </td>
-                            <td className="px-3 py-1.5 text-gray-500 font-mono">
-                              {r.username_preview || ((r.status === 'duplicate' || r.status === 'skipped') && r.existing_user ? r.existing_user.username : '-')}
-                            </td>
-                            <td className="px-3 py-1.5 text-gray-500 max-w-[220px]">
-                              {r.status === 'name_match' && r.name_matches ? (
                                 <div className="space-y-1">
-                                  <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                    skipNameMatchRows.has(r.row)
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-orange-100 text-orange-700'
+                                  }`}>
+                                    <AlertCircle className="h-3 w-3" />
+                                    {skipNameMatchRows.has(r.row) ? 'Omitido' : 'Coincide'}
+                                  </span>
+                                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
                                     <input
                                       type="checkbox"
                                       checked={skipNameMatchRows.has(r.row)}
@@ -975,55 +935,123 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                                       className="rounded border-gray-300 text-red-600 focus:ring-red-500 h-3.5 w-3.5"
                                     />
                                     <span className={`text-[10px] font-medium ${skipNameMatchRows.has(r.row) ? 'text-red-600' : 'text-orange-600'}`}>
-                                      {skipNameMatchRows.has(r.row) ? 'No se creará' : 'Omitir (no crear)'}
+                                      {skipNameMatchRows.has(r.row) ? 'No se creará' : 'Omitir'}
                                     </span>
                                   </label>
-                                  <button
-                                    onClick={() => setExpandedNameMatch(expandedNameMatch === r.row ? null : r.row)}
-                                    className="text-[10px] text-orange-600 hover:text-orange-800 underline"
-                                  >
-                                    {expandedNameMatch === r.row ? 'Ocultar coincidencias' : `Ver ${r.name_matches.length} coincidencia(s)`}
-                                  </button>
-                                  {expandedNameMatch === r.row && (
-                                    <div className="mt-1 p-1.5 bg-orange-50 rounded border border-orange-200 space-y-1">
-                                      {r.name_matches.map(m => (
-                                        <div key={m.id} className="text-[9px] text-orange-800 flex gap-2">
-                                          <span className="font-medium">{m.full_name}</span>
-                                          <span className="text-orange-500">@{m.username}</span>
-                                          {m.email && <span className="text-orange-400">{m.email}</span>}
+                                  {r.name_matches && (
+                                    <>
+                                      <button
+                                        onClick={() => setExpandedNameMatch(expandedNameMatch === r.row ? null : r.row)}
+                                        className="text-[10px] text-orange-600 hover:text-orange-800 underline"
+                                      >
+                                        {expandedNameMatch === r.row ? 'Ocultar' : `Ver ${r.name_matches.length} coincid.`}
+                                      </button>
+                                      {expandedNameMatch === r.row && (
+                                        <div className="mt-1 p-1.5 bg-orange-50 rounded border border-orange-200 space-y-1">
+                                          {r.name_matches.map(m => (
+                                            <div key={m.id} className="text-[9px] text-orange-800 flex gap-2">
+                                              <span className="font-medium">{m.full_name}</span>
+                                              <span className="text-orange-500">{m.username}</span>
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
+                                      )}
+                                    </>
                                   )}
                                 </div>
-                              ) : (r.status === 'skipped' || r.status === 'duplicate') && r.existing_user && selectedGroupId ? (
-                                <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                                  <input
-                                    type="checkbox"
-                                    checked={includedSkippedIds.has(r.existing_user.id)}
-                                    onChange={() => {
-                                      setIncludedSkippedIds(prev => {
-                                        const next = new Set(prev);
-                                        if (next.has(r.existing_user!.id)) {
-                                          next.delete(r.existing_user!.id);
-                                        } else {
-                                          next.add(r.existing_user!.id);
-                                        }
-                                        return next;
-                                      });
-                                    }}
-                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500 h-3.5 w-3.5"
-                                  />
-                                  <span className={`text-[10px] font-medium ${includedSkippedIds.has(r.existing_user.id) ? 'text-green-700' : 'text-gray-400'}`}>
-                                    {includedSkippedIds.has(r.existing_user.id) ? 'Se agregará al grupo' : 'Agregar al grupo'}
+                              )}
+                              {r.status === 'duplicate' && (
+                                <div className="space-y-1">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium">
+                                    <Users className="h-3 w-3" /> Existente
                                   </span>
-                                </label>
-                              ) : r.error || (r.status === 'ready' && r.eligibility ? (
-                                <span className="flex gap-1">
-                                  {r.eligibility.conocer && <span className="px-1 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px]">CC</span>}
-                                  {r.eligibility.insignia && <span className="px-1 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px]">ID</span>}
+                                  {r.existing_user && selectedGroupId && (
+                                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={includedSkippedIds.has(r.existing_user.id)}
+                                        onChange={() => {
+                                          setIncludedSkippedIds(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(r.existing_user!.id)) {
+                                              next.delete(r.existing_user!.id);
+                                            } else {
+                                              next.add(r.existing_user!.id);
+                                            }
+                                            return next;
+                                          });
+                                        }}
+                                        className="rounded border-gray-300 text-green-600 focus:ring-green-500 h-3.5 w-3.5"
+                                      />
+                                      <span className={`text-[10px] font-medium ${includedSkippedIds.has(r.existing_user.id) ? 'text-green-700' : 'text-gray-400'}`}>
+                                        {includedSkippedIds.has(r.existing_user.id) ? 'Se agregará' : 'Agregar al grupo'}
+                                      </span>
+                                    </label>
+                                  )}
+                                </div>
+                              )}
+                              {r.status === 'error' && (
+                                <div>
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-medium">
+                                    <XCircle className="h-3 w-3" /> Error
+                                  </span>
+                                  {r.error && <p className="text-[9px] text-red-500 mt-0.5">{r.error}</p>}
+                                </div>
+                              )}
+                              {r.status === 'skipped' && (
+                                <div className="space-y-1">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium">
+                                    <AlertCircle className="h-3 w-3" /> Omitido
+                                  </span>
+                                  {r.existing_user && selectedGroupId && (
+                                    <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                                      <input
+                                        type="checkbox"
+                                        checked={includedSkippedIds.has(r.existing_user.id)}
+                                        onChange={() => {
+                                          setIncludedSkippedIds(prev => {
+                                            const next = new Set(prev);
+                                            if (next.has(r.existing_user!.id)) {
+                                              next.delete(r.existing_user!.id);
+                                            } else {
+                                              next.add(r.existing_user!.id);
+                                            }
+                                            return next;
+                                          });
+                                        }}
+                                        className="rounded border-gray-300 text-green-600 focus:ring-green-500 h-3.5 w-3.5"
+                                      />
+                                      <span className={`text-[10px] font-medium ${includedSkippedIds.has(r.existing_user.id) ? 'text-green-700' : 'text-gray-400'}`}>
+                                        {includedSkippedIds.has(r.existing_user.id) ? 'Se agregará' : 'Agregar al grupo'}
+                                      </span>
+                                    </label>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-gray-700 truncate max-w-[140px]">{r.email || '-'}</td>
+                            <td className="px-3 py-1.5 text-gray-700 truncate max-w-[180px]">
+                              {(r.status === 'duplicate' || r.status === 'skipped') && r.existing_user
+                                ? r.existing_user.name
+                                : r.nombre
+                                  ? `${r.nombre} ${r.primer_apellido || ''} ${r.segundo_apellido || ''}`.trim().toUpperCase()
+                                  : '-'
+                              }
+                            </td>
+                            <td className="px-3 py-1.5 text-gray-600 font-mono text-[11px] max-w-[160px]">
+                              {r.curp ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="truncate">{r.curp}</span>
+                                  <span className="inline-flex items-center px-1 py-0.5 rounded bg-amber-100 text-amber-700 text-[8px] font-medium whitespace-nowrap" title="Se verificará en RENAPO después de la carga">
+                                    <Clock className="h-2.5 w-2.5 mr-0.5" />Pendiente
+                                  </span>
                                 </span>
-                              ) : '')}
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-gray-500 font-mono">
+                              {r.username_preview || ((r.status === 'duplicate' || r.status === 'skipped') && r.existing_user ? r.existing_user.username : '-')}
                             </td>
                           </tr>
                         ))}
@@ -1044,36 +1072,21 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                   <div className="flex gap-3">
                     {preview.can_proceed && (
                       <>
-                        {uploading ? (
-                          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-lg">
-                            <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                            <span className="text-sm text-blue-700">Procesando...</span>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleUpload(true)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
-                            >
-                              Procesar en segundo plano
-                            </button>
-                            <button
-                              onClick={() => handleUpload(false)}
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
-                            >
-                              <Upload className="h-4 w-4" />
-                              {(() => {
-                                const newCount = preview.summary.ready + preview.summary.name_matches - skipNameMatchRows.size;
-                                if (newCount > 0) {
-                                  return `Confirmar Carga (${newCount} nuevos${includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} al grupo` : ''})`;
+                        <button
+                          onClick={() => handleUpload()}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <Upload className="h-4 w-4" />
+                          {(() => {
+                            const newCount = preview.summary.ready + preview.summary.name_matches - skipNameMatchRows.size;
+                            if (newCount > 0) {
+                              return `Confirmar Carga (${newCount} nuevos${includedSkippedIds.size > 0 ? ` + ${includedSkippedIds.size} al grupo` : ''})`;
                                 }
                                 return includedSkippedIds.size > 0
-                                  ? `Asignar ${includedSkippedIds.size} usuario${includedSkippedIds.size !== 1 ? 's' : ''} al grupo`
-                                  : 'Confirmar Carga';
-                              })()}
-                            </button>
-                          </>
-                        )}
+                              ? `Asignar ${includedSkippedIds.size} usuario${includedSkippedIds.size !== 1 ? 's' : ''} al grupo`
+                              : 'Confirmar Carga';
+                          })()}
+                        </button>
                       </>
                     )}
                     {!preview.can_proceed && (

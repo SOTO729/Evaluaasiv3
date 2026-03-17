@@ -26,6 +26,7 @@ import {
   Shield,
   Activity,
   Building2,
+  AlertCircle,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BulkUploadModal from '../../components/users/BulkUploadModal';
@@ -45,6 +46,7 @@ import {
   ROLE_LABELS,
   ROLE_COLORS,
 } from '../../services/userManagementService';
+import CurpVerificationBadge from '../../components/users/CurpVerificationBadge';
 import { getGroups, addGroupMembersBulk, CandidateGroup } from '../../services/partnersService';
 import { useAuthStore } from '../../store/authStore';
 
@@ -719,11 +721,29 @@ export default function UsersListPage() {
         )}
       </div>
 
-      {/* Error */}
+      {/* Modal de Error */}
       {error && (
-        <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-4 text-red-700">
-          {error}
-          <button onClick={() => setError(null)} className="ml-2 underline">Cerrar</button>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-red-50 border-b border-red-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-800 fluid-text-lg">Error</h3>
+                <p className="fluid-text-sm text-red-700 fluid-mt-1">{error}</p>
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setError(null)}
+                className="fluid-px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -902,14 +922,23 @@ export default function UsersListPage() {
                   <td className="fluid-px-4 fluid-py-3">
                     <div>
                       <p className="font-medium text-gray-900 fluid-text-sm">{user.full_name}</p>
-                      <p className="fluid-text-xs text-gray-500">@{user.username}</p>
+                      <p className="fluid-text-xs text-gray-500">{user.username}</p>
                     </div>
                   </td>
                   <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600">
                     {user.email}
                   </td>
                   <td className="fluid-px-4 fluid-py-3 fluid-text-xs text-gray-600 font-mono">
-                    {user.curp || <span className="text-gray-400">—</span>}
+                    <div className="flex items-center gap-1.5">
+                      {user.curp || <span className="text-gray-400">—</span>}
+                      {user.curp && (
+                        <CurpVerificationBadge
+                          curp={user.curp}
+                          curpVerified={user.curp_verified}
+                          compact
+                        />
+                      )}
+                    </div>
                   </td>
                   <td className="fluid-px-4 fluid-py-3">
                     <span className={`inline-flex fluid-px-2 fluid-py-1 rounded-full fluid-text-xs font-medium ${ROLE_COLORS[user.role] || 'bg-gray-100 text-gray-800'}`}>

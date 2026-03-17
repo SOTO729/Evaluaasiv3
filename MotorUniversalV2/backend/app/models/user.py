@@ -81,6 +81,11 @@ class User(db.Model):
     second_surname = db.Column(db.String(100))
     gender = db.Column(db.String(1))  # M, F, O
     curp = db.Column(db.String(18))  # Unicidad manejada a nivel aplicación (no constraint por NULLs en editores)
+    curp_verified = db.Column(db.Boolean, default=False, nullable=False)  # True si CURP fue validada contra RENAPO
+    curp_verified_at = db.Column(db.DateTime, nullable=True)  # Fecha/hora de última validación RENAPO
+    curp_renapo_name = db.Column(db.String(100), nullable=True)  # Nombre(s) devuelto por RENAPO
+    curp_renapo_first_surname = db.Column(db.String(100), nullable=True)  # Primer apellido RENAPO
+    curp_renapo_second_surname = db.Column(db.String(100), nullable=True)  # Segundo apellido RENAPO
     phone = db.Column(db.String(20))
     
     # Institucional
@@ -211,6 +216,11 @@ class User(db.Model):
         if include_private:
             data.update({
                 'curp': self.curp,
+                'curp_verified': self.curp_verified,
+                'curp_verified_at': self.curp_verified_at.isoformat() if self.curp_verified_at else None,
+                'curp_renapo_name': self.curp_renapo_name,
+                'curp_renapo_first_surname': self.curp_renapo_first_surname,
+                'curp_renapo_second_surname': self.curp_renapo_second_surname,
                 'phone': self.phone,
                 'campus_id': self.campus_id,
                 'subsystem_id': self.subsystem_id,

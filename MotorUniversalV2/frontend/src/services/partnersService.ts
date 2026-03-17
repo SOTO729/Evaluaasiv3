@@ -208,6 +208,12 @@ export interface GroupMember {
   certification_status?: 'certified' | 'in_progress' | 'failed' | 'pending';
   // Elegibilidad de documentos
   eligibility?: MemberEligibility;
+  // Asignaciones ECM del candidato en este grupo
+  ecm_assignments?: Array<{
+    assignment_number: string;
+    ecm_code: string;
+    ecm_name: string;
+  }>;
   user?: {
     id: string;
     email: string;
@@ -3678,7 +3684,7 @@ export interface ConocerUploadBatch {
   skipped_files: number;
   discarded_files: number;
   error_files: number;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
   started_at: string | null;
   completed_at: string | null;
   error_message: string | null;
@@ -3803,6 +3809,14 @@ export async function exportConocerUploadBatchLogs(batchId: number): Promise<voi
  */
 export async function retryConocerUploadBatch(batchId: number): Promise<{ message: string }> {
   const response = await api.post(`/conocer/admin/upload-batches/${batchId}/retry`);
+  return response.data;
+}
+
+/**
+ * Cancelar un batch en cola o procesando
+ */
+export async function cancelConocerUploadBatch(batchId: number): Promise<{ message: string; batch: ConocerUploadBatch }> {
+  const response = await api.post(`/conocer/admin/upload-batches/${batchId}/cancel`);
   return response.data;
 }
 

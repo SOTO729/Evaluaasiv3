@@ -18,6 +18,11 @@ export interface ManagedUser {
   is_active: boolean;
   is_verified: boolean;
   curp?: string;
+  curp_verified?: boolean;
+  curp_verified_at?: string;
+  curp_renapo_name?: string;
+  curp_renapo_first_surname?: string;
+  curp_renapo_second_surname?: string;
   phone?: string;
   created_at: string;
   last_login?: string;
@@ -90,6 +95,56 @@ export interface UserStats {
   inactive_users: number;
   verified_users: number;
   users_by_role: Array<{ role: string; count: number }>;
+}
+
+// ============== VALIDACIÓN CURP RENAPO ==============
+
+export interface CurpValidationResult {
+  valid: boolean;
+  curp: string;
+  error?: string;
+  skip_reason?: string;
+  data?: {
+    name: string;
+    first_surname: string;
+    second_surname?: string;
+    gender?: string;
+  } | null;
+}
+
+export interface CurpBatchValidationResult {
+  results: Array<{
+    curp: string;
+    valid: boolean;
+    name?: string;
+    first_surname?: string;
+    second_surname?: string;
+    gender?: string;
+    error?: string;
+  }>;
+  summary: {
+    total: number;
+    valid: number;
+    invalid: number;
+  };
+}
+
+/**
+ * Valida una CURP contra RENAPO (~10s).
+ * Retorna datos del ciudadano si la CURP es válida.
+ */
+export async function validateCurpRenapo(curp: string): Promise<CurpValidationResult> {
+  const response = await api.post('/user-management/validate-curp', { curp });
+  return response.data;
+}
+
+/**
+ * Valida un lote de CURPs contra RENAPO.
+ * Máximo 50 CURPs por solicitud.
+ */
+export async function validateCurpBatch(curps: string[]): Promise<CurpBatchValidationResult> {
+  const response = await api.post('/user-management/validate-curp/batch', { curps });
+  return response.data;
 }
 
 // ============== LISTAR USUARIOS ==============
@@ -556,7 +611,7 @@ export interface BulkUploadMember {
   username: string | null;
   curp: string | null;
   gender: string | null;
-  status: 'created' | 'existing_assigned' | 'error' | 'skipped';
+  status: 'created' | 'existing_assigned' | 'error' | 'skipped' | 'curp_invalid';
   error_message: string | null;
   created_at: string;
 }

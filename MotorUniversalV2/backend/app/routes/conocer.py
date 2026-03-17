@@ -557,7 +557,8 @@ def verify_certificate_public(certificate_number):
 @jwt_required()
 def upload_batch():
     """
-    Subir un archivo ZIP con certificados CONOCER para procesamiento masivo.
+    Subir un archivo ZIP o PDF con certificados CONOCER para procesamiento.
+    Acepta archivos .zip (múltiples certificados) o .pdf (certificado individual).
     Responde HTTP 202 e inicia procesamiento en segundo plano.
     """
     current_user_id = get_jwt_identity()
@@ -573,8 +574,9 @@ def upload_batch():
     if file.filename == '':
         return jsonify({'error': 'Nombre de archivo vacío'}), 400
     
-    if not file.filename.lower().endswith('.zip'):
-        return jsonify({'error': 'Solo se permiten archivos ZIP'}), 400
+    filename_lower = file.filename.lower()
+    if not (filename_lower.endswith('.zip') or filename_lower.endswith('.pdf')):
+        return jsonify({'error': 'Solo se permiten archivos ZIP o PDF'}), 400
     
     try:
         import os
@@ -589,20 +591,31 @@ def upload_batch():
         if len(file_content) == 0:
             return jsonify({'error': 'El archivo está vacío'}), 400
         
-        # Validar que es un ZIP válido
-        try:
-            zf_test = zipfile.ZipFile(io.BytesIO(file_content), 'r')
-            all_files = [
-                n for n in zf_test.namelist()
-                if not n.endswith('/') and not n.startswith('__MACOSX')
-            ]
-            zf_test.close()
-            if len(all_files) == 0:
-                return jsonify({'error': 'El archivo ZIP está vacío'}), 400
-        except zipfile.BadZipFile:
-            return jsonify({'error': 'El archivo no es un ZIP válido'}), 400
+        is_pdf = filename_lower.endswith('.pdf')
         
-        # Subir ZIP a blob temporal
+        if is_pdf:
+            # Envolver el PDF individual en un ZIP virtual para procesamiento uniforme
+            original_filename = file.filename
+            zip_buffer = io.BytesIO()
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf_wrap:
+                zf_wrap.writestr(original_filename, file_content)
+            file_content = zip_buffer.getvalue()
+            all_files = [original_filename]
+        else:
+            # Validar que es un ZIP válido
+            try:
+                zf_test = zipfile.ZipFile(io.BytesIO(file_content), 'r')
+                all_files = [
+                    n for n in zf_test.namelist()
+                    if not n.endswith('/') and not n.startswith('__MACOSX')
+                ]
+                zf_test.close()
+                if len(all_files) == 0:
+                    return jsonify({'error': 'El archivo ZIP está vacío'}), 400
+            except zipfile.BadZipFile:
+                return jsonify({'error': 'El archivo no es un ZIP válido'}), 400
+        
+        # Subir ZIP a blob temporal (para PDF individual ya está envuelto en ZIP)
         conn_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
         container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
         blob_name = f"conocer-uploads/{uuid.uuid4().hex}_{file.filename}"
@@ -851,10 +864,53 @@ def export_upload_batch_logs(batch_id):
         return jsonify({'error': 'Error al exportar logs'}), 500
 
 
+@conocer_bp.route('/admin/upload-batches/<int:batch_id>/cancel', methods=['POST'])
+@jwt_required()
+def cancel_upload_batch(batch_id):
+    """Cancelar un batch que está en cola o procesando."""
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user or current_user.role not in ['admin', 'developer', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para esta acción'}), 403
+    
+    from app.models.conocer_upload import ConocerUploadBatch
+    
+    batch = ConocerUploadBatch.query.get(batch_id)
+    if not batch:
+        return jsonify({'error': 'Batch no encontrado'}), 404
+    
+    if batch.status not in ('queued', 'processing'):
+        return jsonify({'error': f'Solo se pueden cancelar batches en cola o procesando (estado actual: {batch.status})'}), 400
+    
+    batch.status = 'cancelled'
+    batch.completed_at = datetime.utcnow()
+    batch.error_message = f'Cancelado por {current_user.email}'
+    db.session.commit()
+    
+    # Intentar eliminar ZIP temporal del blob
+    try:
+        import os
+        from azure.storage.blob import BlobServiceClient as _BSC
+        conn_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+        container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
+        if conn_str and batch.blob_name:
+            bsc = _BSC.from_connection_string(conn_str)
+            blob_client = bsc.get_blob_client(container=container_name, blob=batch.blob_name)
+            blob_client.delete_blob()
+    except Exception:
+        pass  # No es crítico
+    
+    return jsonify({
+        'message': 'Batch cancelado exitosamente',
+        'batch': batch.to_dict()
+    })
+
+
 @conocer_bp.route('/admin/upload-batches/<int:batch_id>/retry', methods=['POST'])
 @jwt_required()
 def retry_upload_batch(batch_id):
-    """Reintentar un batch fallido o atascado (>30 min en processing)."""
+    """Reintentar un batch fallido, cancelado o atascado (>30 min en processing)."""
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     

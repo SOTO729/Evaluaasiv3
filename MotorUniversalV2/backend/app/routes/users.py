@@ -1,6 +1,8 @@
 """
 Rutas de usuarios
 """
+import re
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -121,9 +123,13 @@ def update_user(user_id):
     # Campos que solo admin puede actualizar
     admin_only_fields = ['role', 'is_active', 'campus_id', 'subsystem_id']
     
+    name_fields = {'name', 'first_surname', 'second_surname'}
     for field in self_updatable_fields:
         if field in data:
-            setattr(user, field, data[field])
+            val = data[field]
+            if val and isinstance(val, str) and field in name_fields:
+                val = val.strip().upper()
+            setattr(user, field, val)
     
     # Solo admin puede cambiar role y estado
     if current_user.role in ['admin', 'developer']:
@@ -137,6 +143,76 @@ def update_user(user_id):
         'message': 'Usuario actualizado exitosamente',
         'user': user.to_dict(include_private=True)
     }), 200
+
+
+@bp.route('/my-curp', methods=['POST'])
+@jwt_required()
+def validate_my_curp():
+    """Autoservicio: un candidato/responsable sin CURP valida su CURP contra RENAPO.
+    Si es válida, se asigna al usuario y se sobreescriben datos personales."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    if user.role not in ('candidato', 'responsable'):
+        return jsonify({'error': 'Solo candidatos y responsables pueden registrar su CURP'}), 403
+
+    if user.curp and user.curp.strip():
+        return jsonify({'error': 'Ya tienes una CURP registrada. No es posible cambiarla.'}), 409
+
+    data = request.get_json()
+    curp = (data.get('curp') or '').upper().strip()
+
+    if not curp:
+        return jsonify({'error': 'El campo CURP es requerido'}), 400
+
+    curp_pattern = re.compile(r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$')
+    if not curp_pattern.match(curp):
+        return jsonify({'error': 'Formato de CURP inválido (18 caracteres alfanuméricos)'}), 400
+
+    # Verificar que nadie más tenga esta CURP
+    existing = User.query.filter(User.curp == curp, User.id != user.id).first()
+    if existing:
+        return jsonify({'error': 'Esta CURP ya está registrada por otro usuario'}), 409
+
+    try:
+        from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user, is_generic_foreign_curp
+
+        if is_generic_foreign_curp(curp):
+            return jsonify({'error': 'No puedes usar una CURP genérica de extranjero'}), 400
+
+        result = validate_curp_renapo(curp)
+
+        if not result.valid:
+            return jsonify({
+                'valid': False,
+                'error': result.error or 'CURP no encontrada en RENAPO'
+            }), 200
+
+        # CURP válida — asignar y aplicar datos RENAPO
+        user.curp = curp
+        changes = apply_renapo_to_user(user, result)
+        db.session.commit()
+
+        return jsonify({
+            'valid': True,
+            'message': 'CURP validada y datos actualizados correctamente',
+            'user': user.to_dict(include_private=True),
+            'renapo_data': {
+                'name': result.name,
+                'first_surname': result.first_surname,
+                'second_surname': result.second_surname,
+                'gender': result.gender,
+            }
+        }), 200
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al validar CURP con RENAPO: {str(e)}'}), 500
 
 
 @bp.route('/<string:user_id>/document-options', methods=['PUT'])
@@ -469,49 +545,44 @@ def get_dashboard():
                     except:
                         interactives = []
                     
-                    # Crear mapeo de todos los content_ids por tipo
-                    all_content_ids = []
-                    content_type_map = {}  # content_id -> (content_type, topic_id)
+                    # Crear mapeo de todos los content_ids por tipo (clave compuesta para evitar colisiones)
+                    content_type_map = {}  # (content_type, content_id_str) -> topic_id
                     
                     for topic_id, content_id in readings:
-                        all_content_ids.append(str(content_id))
-                        content_type_map[str(content_id)] = ('reading', topic_id)
+                        content_type_map[('reading', str(content_id))] = topic_id
                     
                     for topic_id, content_id in videos:
-                        all_content_ids.append(str(content_id))
-                        content_type_map[str(content_id)] = ('video', topic_id)
+                        content_type_map[('video', str(content_id))] = topic_id
                     
                     for topic_id, content_id in downloadables:
-                        all_content_ids.append(str(content_id))
-                        content_type_map[str(content_id)] = ('downloadable', topic_id)
+                        content_type_map[('downloadable', str(content_id))] = topic_id
                     
                     for topic_id, content_id in interactives:
-                        all_content_ids.append(str(content_id))
-                        content_type_map[str(content_id)] = ('interactive', topic_id)
+                        content_type_map[('interactive', str(content_id))] = topic_id
                     
                     # ========== OPTIMIZACIÓN: Una sola query para progreso del usuario ==========
-                    completed_content_ids = set()
-                    if all_content_ids:
+                    completed_set = set()  # set de (content_type, content_id_str)
+                    if content_type_map:
                         user_progress = db.session.query(
+                            StudentContentProgress.content_type,
                             StudentContentProgress.content_id
                         ).filter(
                             StudentContentProgress.user_id == str(user_id),
-                            StudentContentProgress.content_id.in_(all_content_ids),
                             StudentContentProgress.is_completed == True
                         ).all()
                         
-                        completed_content_ids = {row[0] for row in user_progress}
+                        completed_set = {(row[0], row[1]) for row in user_progress}
                     
                     # Calcular totales y completados por material
                     for material in available_materials:
-                        topic_ids_for_material = topics_by_material.get(material.id, [])
+                        topic_ids_for_material = set(topics_by_material.get(material.id, []))
                         total_contents = 0
                         completed_contents = 0
                         
-                        for content_id, (content_type, topic_id) in content_type_map.items():
+                        for (content_type, content_id_str), topic_id in content_type_map.items():
                             if topic_id in topic_ids_for_material:
                                 total_contents += 1
-                                if content_id in completed_content_ids:
+                                if (content_type, content_id_str) in completed_set:
                                     completed_contents += 1
                         
                         content_counts[material.id] = {

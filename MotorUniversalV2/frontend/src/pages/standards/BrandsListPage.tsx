@@ -172,7 +172,7 @@ export default function BrandsListPage() {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'developer';
-  const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado';
+  const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado' || user?.role === 'coordinator';
   const canManage = isAdmin || isEditor;
 
   useEffect(() => {

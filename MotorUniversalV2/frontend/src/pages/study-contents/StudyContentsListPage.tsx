@@ -24,7 +24,8 @@ import {
   Layers,
   FileText,
   Calendar,
-  Clock
+  Clock,
+  CheckCircle2
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -152,6 +153,32 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
           </div>
         )}
       </div>
+
+      {/* Progress bar - solo para candidatos */}
+      {isCandidate && (material as any).progress && (
+        <div className="px-4 pb-4">
+          <div className="flex justify-between fluid-text-xs text-gray-500 mb-1">
+            <span>Progreso</span>
+            <span className="font-medium text-gray-700 flex items-center gap-1">
+              {(material as any).progress.percentage === 100 && (
+                <CheckCircle2 className="w-3 h-3 text-green-500" />
+              )}
+              {(material as any).progress.percentage}%
+            </span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-1.5">
+            <div 
+              className={`h-full rounded-full transition-all duration-500 ${
+                (material as any).progress.percentage === 100 ? 'bg-green-500' : 'bg-blue-500'
+              }`}
+              style={{ width: `${(material as any).progress.percentage}%` }}
+            />
+          </div>
+          <p className="fluid-text-xs text-gray-400 mt-1">
+            {(material as any).progress.completed_contents} de {(material as any).progress.total_contents} contenidos
+          </p>
+        </div>
+      )}
     </div>
   </div>
 );

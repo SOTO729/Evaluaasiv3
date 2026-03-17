@@ -20,7 +20,8 @@ import {
   CheckCircle2,
   Tag,
   ChevronRight,
-  Award
+  Award,
+  ScrollText,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -111,6 +112,12 @@ const StandardRow = ({
           
           {/* Metadata */}
           <div className="flex flex-wrap items-center fluid-gap-5 fluid-mt-3 fluid-text-sm text-gray-500">
+            {standard.brand && (
+              <div className="flex items-center fluid-gap-1">
+                <Tag className="fluid-icon-xs" />
+                <span className="font-medium text-gray-700">{standard.brand.name}</span>
+              </div>
+            )}
             {standard.sector && (
               <div className="flex items-center fluid-gap-1">
                 <Building2 className="fluid-icon-xs" />
@@ -131,6 +138,12 @@ const StandardRow = ({
               <FileText className="fluid-icon-xs" />
               <span>{standard.exam_count || 0} exámenes</span>
             </div>
+            {standard.has_template && (
+              <div className="flex items-center fluid-gap-1 text-emerald-600">
+                <ScrollText className="fluid-icon-xs" />
+                <span className="font-medium">Plantilla activa</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -155,7 +168,7 @@ export default function StandardsListPage() {
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'developer';
-  const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado';
+  const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado' || user?.role === 'coordinator';
   const canCreate = isAdmin || isEditor;
 
   useEffect(() => {
@@ -197,7 +210,7 @@ export default function StandardsListPage() {
             Estándares de Competencia
           </h1>
           <p className="fluid-text-base text-gray-600 fluid-mt-2">
-            Gestiona los ECM del sistema CONOCER
+            Gestiona los estándares de competencia del sistema CONOCER
           </p>
         </div>
         <div className="flex flex-wrap fluid-gap-3">

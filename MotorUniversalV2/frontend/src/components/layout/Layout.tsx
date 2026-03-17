@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
 import { getMiPlantel } from '../../services/partnersService'
+import { supportChatService } from '../../services/supportChatService'
 import ExamInProgressWidget from '../ExamInProgressWidget'
 
 interface LayoutProps {
@@ -21,6 +22,10 @@ const Layout = ({ children }: LayoutProps) => {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   
+  // Chat unread count para notificación
+  const [chatUnreadCount, setChatUnreadCount] = useState(0)
+  const hasChatAccess = user?.role === 'candidato' || user?.role === 'coordinator'
+
   // Refs y estado para scroll horizontal del navbar
   const navScrollRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -82,6 +87,21 @@ const Layout = ({ children }: LayoutProps) => {
   useEffect(() => {
     setIsMobileMenuOpen(false)
   }, [location.pathname])
+
+  // Polling de mensajes no leídos de chat
+  useEffect(() => {
+    if (!hasChatAccess) return
+    let cancelled = false
+    const fetchUnread = async () => {
+      try {
+        const count = await supportChatService.getUnreadCount()
+        if (!cancelled) setChatUnreadCount(count)
+      } catch { /* silenciar */ }
+    }
+    fetchUnread()
+    const interval = setInterval(fetchUnread, 30000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [hasChatAccess])
 
   // Determinar si es una página de contenido completo (sin padding)
   const isFullContentPage = location.pathname.includes('/preview')
@@ -252,7 +272,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/asignaciones-ecm" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/asignaciones-ecm') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Asignaciones</Link>
                     <Link to="/mi-saldo" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-saldo') || location.pathname.startsWith('/solicitar-') || location.pathname.startsWith('/historial-') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mi Saldo</Link>
                     <Link to="/badges/templates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/badges') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Insignias</Link>
-                    <Link to="/standards" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/standards') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>ECM</Link>
+                    <Link to="/standards" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/standards') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Estándares</Link>
                     <Link to="/tramites-conocer" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/tramites-conocer') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>CONOCER</Link>
                   </>
                 )}
@@ -313,18 +333,6 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
-                {user?.role === 'responsable' && (
-                  <Link 
-                    to="/mi-plantel/sesiones" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                      location.pathname.startsWith('/mi-plantel/sesiones') 
-                        ? 'text-primary-600 font-semibold bg-primary-50' 
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Sesiones
-                  </Link>
-                )}
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                   <Link 
                     to="/standards" 
@@ -334,7 +342,7 @@ const Layout = ({ children }: LayoutProps) => {
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
                   >
-                    ECM
+                    Estándares
                   </Link>
                 )}
                 {(user?.role === 'admin' || user?.role === 'developer') && (
@@ -385,45 +393,13 @@ const Layout = ({ children }: LayoutProps) => {
                     Insignias
                   </Link>
                 )}
-                {user?.role === 'responsable' && (
-                  <Link 
-                    to="/mi-plantel" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                      location.pathname === '/mi-plantel' 
-                        ? 'text-primary-600 font-semibold bg-primary-50' 
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Mi Plantel
-                  </Link>
-                )}
-                {user?.role === 'responsable' && (
-                  <Link 
-                    to="/user-management" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                      location.pathname.startsWith('/user-management') 
-                        ? 'text-primary-600 font-semibold bg-primary-50' 
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Usuarios
-                  </Link>
-                )}
-                {user?.role === 'responsable' && user?.can_manage_groups && (
-                  <Link 
-                    to="/grupos" 
-                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                      location.pathname.startsWith('/grupos') 
-                        ? 'text-primary-600 font-semibold bg-primary-50' 
-                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Grupos
-                  </Link>
-                )}
-                {/* ── Bloque responsable: exams, materiales y certificados al final ── */}
+                {/* ── Bloque responsable: orden personalizado ── */}
                 {user?.role === 'responsable' && (
                   <>
+                    <Link to="/mi-plantel" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mi Plantel</Link>
+                    {user?.can_manage_groups && <Link to="/grupos" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/grupos') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Grupos</Link>}
+                    <Link to="/user-management" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/user-management') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Usuarios</Link>
+                    <Link to="/mi-plantel/sesiones" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Sesiones</Link>
                     <Link to="/exams" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/exams') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Exámenes</Link>
                     <Link to="/study-contents" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/study-contents') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Materiales</Link>
                     <Link to="/certificates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/certificates') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Certificados</Link>
@@ -556,8 +532,13 @@ const Layout = ({ children }: LayoutProps) => {
                 className="flex items-center fluid-gap-3 fluid-px-4 fluid-py-2 fluid-rounded-xl hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
               >
                 {/* Avatar con iniciales */}
-                <div className="w-[clamp(2.25rem,2rem+0.75vw,3.5rem)] h-[clamp(2.25rem,2rem+0.75vw,3.5rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-base font-medium">
-                  {user?.full_name ? getInitials(user.full_name) : 'U'}
+                <div className="relative">
+                  <div className="w-[clamp(2.25rem,2rem+0.75vw,3.5rem)] h-[clamp(2.25rem,2rem+0.75vw,3.5rem)] rounded-full bg-primary-600 text-white flex items-center justify-center fluid-text-base font-medium">
+                    {user?.full_name ? getInitials(user.full_name) : 'U'}
+                  </div>
+                  {chatUnreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white" />
+                  )}
                 </div>
                 <span className="fluid-text-base font-medium text-gray-700 hidden sm:block max-w-[clamp(6rem,5rem+6vw,16rem)] truncate">
                   {user?.full_name}
@@ -604,10 +585,20 @@ const Layout = ({ children }: LayoutProps) => {
                         onClick={() => setIsDropdownOpen(false)}
                         className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
                       >
-                        <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m-8 7l-2-2m0 0l2-2m-2 2h12a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v3" />
-                        </svg>
-                        {user?.role === 'coordinator' ? 'Chat derivado' : 'Chat con Soporte'}
+                        <div className="relative fluid-mr-4">
+                          <svg className="fluid-icon-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m-8 7l-2-2m0 0l2-2m-2 2h12a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v3" />
+                          </svg>
+                          {chatUnreadCount > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
+                          )}
+                        </div>
+                        <span className="flex-1">{user?.role === 'coordinator' ? 'Chat derivado' : 'Chat con Soporte'}</span>
+                        {chatUnreadCount > 0 && (
+                          <span className="ml-2 min-w-[1.25rem] h-5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1.5">
+                            {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                          </span>
+                        )}
                       </Link>
                     )}
                     <Link
@@ -674,10 +665,20 @@ const Layout = ({ children }: LayoutProps) => {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <div className="flex items-center">
-                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m4-10H7a2 2 0 00-2 2v10l3-3h9a2 2 0 002-2V6a2 2 0 00-2-2z" />
-                    </svg>
-                    {user?.role === 'coordinator' ? 'Chat derivado' : 'Chat con Soporte'}
+                    <div className="relative fluid-mr-3">
+                      <svg className="fluid-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h8m-8 4h5m4-10H7a2 2 0 00-2 2v10l3-3h9a2 2 0 002-2V6a2 2 0 00-2-2z" />
+                      </svg>
+                      {chatUnreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                      )}
+                    </div>
+                    <span className="flex-1">{user?.role === 'coordinator' ? 'Chat derivado' : 'Chat con Soporte'}</span>
+                    {chatUnreadCount > 0 && (
+                      <span className="ml-2 min-w-[1.25rem] h-5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full px-1.5">
+                        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                      </span>
+                    )}
                   </div>
                 </Link>
               )}
@@ -723,7 +724,7 @@ const Layout = ({ children }: LayoutProps) => {
                   <Link to="/standards" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/standards') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
                     <div className="flex items-center">
                       <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      ECM
+                      Estándares
                     </div>
                   </Link>
                   <Link to="/tramites-conocer" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/tramites-conocer') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
@@ -816,24 +817,6 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role === 'responsable' && (
-                <Link 
-                  to="/mi-plantel/sesiones" 
-                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname.startsWith('/mi-plantel/sesiones') 
-                      ? 'bg-primary-50 text-primary-600 font-medium' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    Sesiones del Plantel
-                  </div>
-                </Link>
-              )}
               {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                 <Link 
                   to="/standards" 
@@ -847,7 +830,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Estándares (ECM)
+                    Estándares
                   </div>
                 </Link>
               )}
@@ -919,62 +902,35 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {user?.role === 'responsable' && (
-                <Link 
-                  to="/mi-plantel" 
-                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname === '/mi-plantel' 
-                      ? 'bg-primary-50 text-primary-600 font-medium' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    Mi Plantel
-                  </div>
-                </Link>
-              )}
-              {user?.role === 'responsable' && (
-                <Link 
-                  to="/user-management" 
-                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname.startsWith('/user-management') 
-                      ? 'bg-primary-50 text-primary-600 font-medium' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    Usuarios
-                  </div>
-                </Link>
-              )}
-              {user?.role === 'responsable' && user?.can_manage_groups && (
-                <Link 
-                  to="/grupos" 
-                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname.startsWith('/grupos') 
-                      ? 'bg-primary-50 text-primary-600 font-medium' 
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    Grupos
-                  </div>
-                </Link>
-              )}
-              {/* ── Bloque responsable mobile: exams, materiales y certificados al final ── */}
+              {/* ── Bloque responsable mobile: orden personalizado ── */}
               {user?.role === 'responsable' && (
                 <>
+                  <Link to="/mi-plantel" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mi-plantel' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                      Mi Plantel
+                    </div>
+                  </Link>
+                  {user?.can_manage_groups && (
+                    <Link to="/grupos" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/grupos') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                      <div className="flex items-center">
+                        <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                        Grupos
+                      </div>
+                    </Link>
+                  )}
+                  <Link to="/user-management" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/user-management') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                      Usuarios
+                    </div>
+                  </Link>
+                  <Link to="/mi-plantel/sesiones" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Sesiones
+                    </div>
+                  </Link>
                   <Link to="/exams" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/exams') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
                     <div className="flex items-center">
                       <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>

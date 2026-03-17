@@ -550,6 +550,7 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
 // Sección de Insignias Digitales
 const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
   const [badges, setBadges] = useState<any[]>([])
+  const [pendingExams, setPendingExams] = useState<{ exam_id: number; exam_name: string; has_template: boolean; approved_at: string | null }[]>([])
   const [badgesLoading, setBadgesLoading] = useState(true)
 
   useEffect(() => {
@@ -558,6 +559,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
         const { default: badgeService } = await import('../../services/badgeService')
         const data = await badgeService.getMyBadges()
         setBadges(data.badges)
+        setPendingExams(data.pending_exams || [])
       } catch (err) {
         console.error('Error loading badges:', err)
       } finally {
@@ -686,10 +688,11 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     )
   }
 
-  // Fall back to exam-based display if no badges from API
-  const displayItems = badges.length > 0 ? badges : exams
+  // Fall back to exam-based display if no badges AND no pending exams from API
+  const hasPendingFromApi = pendingExams.length > 0
+  const hasContent = badges.length > 0 || hasPendingFromApi || exams.length > 0
 
-  if (displayItems.length === 0) {
+  if (!hasContent) {
     return (
       <div className="text-center fluid-py-12 animate-fade-in">
         <BadgeCheck className="fluid-icon-2xl text-gray-300 mx-auto fluid-mb-4" />
@@ -701,9 +704,8 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 fluid-gap-5">
-      {badges.length > 0 ? (
-        // Real badges from API
-        badges.map((badge, index) => (
+      {/* Real badges from API */}
+      {badges.map((badge, index) => (
           <div
             key={badge.id}
             className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-primary-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
@@ -852,10 +854,49 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               </button>
             </div>
           </div>
-        ))
-      ) : (
-        // Fallback to exam-based display (no real badges yet)
-        exams.map((exam, index) => (
+        ))}
+
+      {/* Pending exams from API — exámenes aprobados sin insignia aún */}
+      {pendingExams.map((pe, index) => (
+          <div
+            key={`pending-${pe.exam_id}`}
+            className="bg-white border-2 border-dashed border-gray-300 rounded-fluid-2xl fluid-p-5 text-center hover:border-amber-300 hover:shadow-lg transition-all duration-300 group animate-stagger-in relative overflow-hidden"
+            style={{ animationDelay: `${(badges.length + index) * 75}ms` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-50/0 via-transparent to-amber-100/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+            <div className="relative mx-auto fluid-icon-2xl fluid-mb-4 z-10">
+              <div className={`absolute inset-0 bg-gradient-to-br ${pe.has_template ? 'from-amber-400 to-amber-600' : 'from-gray-400 to-gray-600'} rounded-full ${pe.has_template ? 'animate-pulse' : ''} group-hover:animate-none group-hover:scale-110 transition-transform duration-500`} />
+              <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center shadow-inner">
+                <div className={`w-full h-full bg-gradient-to-br ${pe.has_template ? 'from-amber-400 to-amber-600' : 'from-gray-400 to-gray-600'} rounded-full flex items-center justify-center`}>
+                  <BadgeCheck className="fluid-icon-xl text-white" />
+                </div>
+              </div>
+              <div className={`absolute -top-1 -right-1 fluid-icon-sm ${pe.has_template ? 'bg-amber-400' : 'bg-gray-400'} rounded-full flex items-center justify-center shadow-md`}>
+                <span className="text-white fluid-text-xs">{pe.has_template ? '⏳' : '★'}</span>
+              </div>
+            </div>
+            <h3 className="font-bold text-gray-900 mb-1 relative z-10">{pe.exam_name}</h3>
+            <p className="fluid-text-sm text-gray-500 fluid-mb-2 relative z-10">
+              {pe.has_template
+                ? 'Insignia en proceso de emisión'
+                : 'Insignia pendiente — esperando configuración de plantilla'}
+            </p>
+            {pe.approved_at && (
+              <p className="fluid-text-xs text-gray-400 fluid-mb-4 relative z-10">
+                Aprobado: {formatDate(pe.approved_at)}
+              </p>
+            )}
+            <div className={`inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 rounded-full fluid-text-sm font-medium relative z-10 ${
+              pe.has_template ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              <Clock className="fluid-icon-xs" />
+              {pe.has_template ? 'En proceso' : 'Pendiente'}
+            </div>
+          </div>
+        ))}
+
+      {/* Fallback: if API returned no data, show exam-based cards */}
+      {badges.length === 0 && pendingExams.length === 0 && exams.map((exam, index) => (
           <div
             key={exam.id}
             className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 text-center hover:border-primary-300 hover:shadow-xl transition-all duration-300 group animate-stagger-in relative overflow-hidden"
@@ -885,8 +926,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
               Pendiente
             </div>
           </div>
-        ))
-      )}
+        ))}
     </div>
   )
 } 
@@ -1094,7 +1134,12 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
       }
       
       if (!response.ok) {
-        throw new Error('Error al descargar el certificado')
+        let msg = 'Error al descargar el certificado'
+        try {
+          const data = await response.json()
+          msg = data.error || msg
+        } catch { /* keep default */ }
+        throw new Error(msg)
       }
       
       const blob = await response.blob()

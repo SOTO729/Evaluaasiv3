@@ -30,6 +30,7 @@ import {
   UserCheck,
   ArrowRight,
   RotateCcw,
+  Lock,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import StyledSelect from '../../components/StyledSelect';
@@ -42,14 +43,19 @@ import {
   getAvailableCampuses,
   getAvailablePartners,
   checkNameSimilarity,
+  validateCurpRenapo,
   CreateUserData,
   UpdateUserData,
   RoleOption,
   AvailableCampus,
   AvailablePartner,
   SimilarUser,
+  CurpValidationResult,
 } from '../../services/userManagementService';
 import { useAuthStore } from '../../store/authStore';
+import CurpVerificationBadge from '../../components/users/CurpVerificationBadge';
+import CurpValidationSpinner from '../../components/users/CurpValidationSpinner';
+import CurpValidationResultDisplay from '../../components/users/CurpValidationResult';
 
 // ─── Configuración visual de roles ─────────────────────────────────────────
 interface RoleCardConfig {
@@ -187,6 +193,13 @@ export default function UserFormPage() {
   const [checkingSimilarity, setCheckingSimilarity] = useState(false);
   const [similarityBypass, setSimilarityBypass] = useState(false);
 
+  // Validación CURP RENAPO
+  const [validatingCurp, setValidatingCurp] = useState(false);
+  const [curpValidationResult, setCurpValidationResult] = useState<CurpValidationResult | null>(null);
+  // Datos RENAPO del usuario existente (para edición)
+  const [existingCurpVerified, setExistingCurpVerified] = useState(false);
+  const [existingCurpVerifiedAt, setExistingCurpVerifiedAt] = useState<string | undefined>();
+
   const [formData, setFormData] = useState({
     email: '',
     name: '',
@@ -288,6 +301,9 @@ export default function UserFormPage() {
         can_view_reports: data.can_view_reports ?? true,
         partner_id: data.partners?.[0]?.id || 0,
       });
+      // Guardar estado de verificación CURP
+      setExistingCurpVerified(data.curp_verified ?? false);
+      setExistingCurpVerifiedAt(data.curp_verified_at);
       // Load campuses/partners if editing responsable/responsable_partner
       if (data.role === 'responsable') {
         loadCampuses();
@@ -481,7 +497,16 @@ export default function UserFormPage() {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar usuario');
+      const errorMsg = err.response?.data?.error || 'Error al guardar usuario';
+      const isRenapoError = err.response?.data?.renapo_error;
+      if (isRenapoError) {
+        setCurpValidationResult({
+          valid: false,
+          curp: formData.curp,
+          error: errorMsg,
+        });
+      }
+      setError(errorMsg);
     } finally {
       setSaving(false);
       setSimilarityBypass(false);
@@ -522,6 +547,8 @@ export default function UserFormPage() {
   const needsSecondSurname = ['candidato', 'responsable'].includes(formData.role);
   const needsEmail = formData.role !== 'candidato';
   const isEmailOptional = formData.role === 'candidato' || isEditing;
+  // Bloquear CURP y datos personales si CURP verificada (excepto soporte)
+  const curpLocked = isEditing && existingCurpVerified && currentUser?.role !== 'soporte';
 
   if (loading) {
     return (
@@ -535,6 +562,14 @@ export default function UserFormPage() {
 
   return (
     <div className="fluid-p-6 max-w-4xl mx-auto animate-fade-in-up">
+      {/* Spinner de validación CURP RENAPO */}
+      {validatingCurp && (
+        <CurpValidationSpinner
+          curp={formData.curp}
+          onCancel={() => setValidatingCurp(false)}
+        />
+      )}
+      
       {/* Back link */}
       <div className="fluid-mb-6">
         <Link
@@ -947,7 +982,8 @@ export default function UserFormPage() {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Juan"
-                    className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={curpLocked}
+                    className={`w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${curpLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
 
@@ -962,7 +998,8 @@ export default function UserFormPage() {
                     value={formData.first_surname}
                     onChange={handleChange}
                     placeholder="Pérez"
-                    className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={curpLocked}
+                    className={`w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${curpLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
 
@@ -978,7 +1015,8 @@ export default function UserFormPage() {
                     value={formData.second_surname}
                     onChange={handleChange}
                     placeholder="García"
-                    className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    disabled={curpLocked}
+                    className={`w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${curpLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
 
@@ -1013,23 +1051,86 @@ export default function UserFormPage() {
                       {(formData.role === 'candidato' || isEditing) && (
                         <span className="text-gray-400 text-xs ml-1">(opcional)</span>
                       )}
+                      {isEditing && formData.curp && (
+                        <CurpVerificationBadge
+                          curp={formData.curp}
+                          curpVerified={existingCurpVerified}
+                          curpVerifiedAt={existingCurpVerifiedAt}
+                          compact
+                        />
+                      )}
                     </label>
-                    <input
-                      type="text"
-                      name="curp"
-                      value={formData.curp}
-                      onChange={handleChange}
-                      placeholder="XXXX000000XXXXXX00"
-                      maxLength={18}
-                      className="w-full fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-                    />
+                    {curpLocked && (
+                      <p className="fluid-text-xs text-green-600 fluid-mb-1 flex items-center gap-1">
+                        <Lock className="w-3 h-3" />
+                        CURP verificada en RENAPO — campos bloqueados
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        name="curp"
+                        value={formData.curp}
+                        onChange={(e) => {
+                          handleChange(e);
+                          // Limpiar resultado previo si cambia la CURP
+                          setCurpValidationResult(null);
+                        }}
+                        placeholder="XXXX000000XXXXXX00"
+                        maxLength={18}
+                        disabled={curpLocked}
+                        className={`flex-1 fluid-px-4 py-2.5 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase ${curpLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                      />
+                      {!curpLocked && formData.curp.trim().length === 18 && !curpValidationResult?.valid && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setValidatingCurp(true);
+                              setCurpValidationResult(null);
+                              const result = await validateCurpRenapo(formData.curp.trim());
+                              setCurpValidationResult(result);
+                              if (result.valid && result.data) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  name: result.data!.name || prev.name,
+                                  first_surname: result.data!.first_surname || prev.first_surname,
+                                  second_surname: result.data!.second_surname || prev.second_surname,
+                                }));
+                              }
+                            } catch (err: any) {
+                              setCurpValidationResult({
+                                valid: false,
+                                curp: formData.curp,
+                                error: err?.response?.data?.error || 'Error al validar CURP',
+                              });
+                            } finally {
+                              setValidatingCurp(false);
+                            }
+                          }}
+                          disabled={validatingCurp}
+                          className="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 whitespace-nowrap flex items-center gap-1"
+                        >
+                          <Shield className="w-4 h-4" />
+                          Verificar
+                        </button>
+                      )}
+                    </div>
                     {formData.role === 'responsable' && (
-                      <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos</p>
+                      <p className="fluid-text-xs text-gray-500 fluid-mt-1">18 caracteres exactos — se valida contra RENAPO</p>
                     )}
                     {formData.role === 'candidato' && (
                       <p className="fluid-text-xs text-amber-600 fluid-mt-1">
                         Sin CURP no podrá recibir certificado CONOCER
                       </p>
+                    )}
+                    {curpValidationResult && (
+                      <CurpValidationResultDisplay
+                        result={curpValidationResult}
+                        onRetry={() => {
+                          setCurpValidationResult(null);
+                        }}
+                      />
                     )}
                   </div>
                 )}

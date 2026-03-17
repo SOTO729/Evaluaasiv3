@@ -68,6 +68,7 @@ const ExamTestRunPage: React.FC = () => {
   
   // Estado para modal de confirmación de salida
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
   
   // Estado para panel de navegación desplegable
   const [showNavPanel, setShowNavPanel] = useState(false);
@@ -1923,47 +1924,80 @@ const ExamTestRunPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/40  flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
           <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-xs sm:max-w-sm w-full overflow-hidden">
             <div className="fluid-p-4 sm:fluid-p-6 text-center">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">
-                <AlertCircle className="fluid-icon-sm sm:fluid-icon text-amber-600" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto fluid-mb-3 sm:fluid-mb-4">
+                <AlertCircle className="fluid-icon-sm sm:fluid-icon text-red-600" />
               </div>
               <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900 fluid-mb-2">¿Salir del examen?</h3>
+              <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 fluid-mb-1">
+                Si sales ahora, <span className="font-semibold text-red-600">perderás un intento</span> de este examen.
+              </p>
               <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 fluid-mb-4 sm:fluid-mb-6">
-                Tu progreso será guardado y podrás continuar después.
+                Tu examen se registrará como abandonado y se evaluarán las respuestas que hayas proporcionado hasta este momento.
               </p>
               <div className="flex fluid-gap-2 sm:fluid-gap-3">
                 <button
                   onClick={() => setShowExitConfirm(false)}
+                  disabled={isExiting}
                   className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-gray-700 bg-gray-100 rounded-fluid-md hover:bg-gray-200 transition-colors"
                 >
-                  Continuar
+                  Continuar examen
                 </button>
                 <button
-                  onClick={() => {
-                    // Guardar estado actual como si fuera pérdida de conexión
-                    const sessionData = {
-                      timeRemaining,
-                      savedAt: Date.now(),
-                      examDuration: exam?.duration_minutes ? exam.duration_minutes * 60 : null,
-                      pauseOnDisconnect: true, // Forzar pausa para que se pueda retomar
-                      examName: exam?.name || '',
-                      answers,
-                      exerciseResponses,
-                      currentItemIndex,
-                      selectedItems,
-                      orderingInteracted,
-                      actionErrors,
-                      stepCompleted,
-                      currentStepIndex,
-                      flaggedQuestions: Array.from(flaggedQuestions),
-                      disconnectionCount,
-                      exitedManually: true // Marcar que salió manualmente
-                    };
-                    localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
-                    navigate('/exams');
+                  disabled={isExiting}
+                  onClick={async () => {
+                    setIsExiting(true);
+                    try {
+                      const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+
+                      // Evaluar las respuestas proporcionadas hasta ahora
+                      let evaluationResults: any = null;
+                      let score = 0;
+                      let percentage = 0;
+                      try {
+                        const evaluationResult = await examService.evaluateExam(Number(examId), {
+                          answers,
+                          exerciseResponses,
+                          items: selectedItems
+                        });
+                        evaluationResults = evaluationResult.results || evaluationResult;
+                        score = evaluationResults.summary?.earned_points || 0;
+                        percentage = evaluationResults.summary?.percentage || 0;
+                      } catch (evalErr) {
+                        console.warn('⚠️ No se pudieron evaluar respuestas al abandonar:', evalErr);
+                      }
+
+                      // Guardar resultado como abandonado (status: 2)
+                      await examService.saveExamResult(Number(examId), {
+                        score,
+                        percentage,
+                        status: 2, // Abandonado
+                        duration_seconds: elapsedTime,
+                        answers_data: {
+                          answers,
+                          exerciseResponses,
+                          questions: evaluationResults?.questions || [],
+                          exercises: evaluationResults?.exercises || [],
+                          summary: evaluationResults?.summary || {},
+                          abandoned: true
+                        },
+                        questions_order: selectedItems.map((item: any) => item.id.toString()),
+                        group_id: groupId,
+                        group_exam_id: groupExamId
+                      });
+
+                      // Limpiar sesión guardada
+                      localStorage.removeItem(examSessionKey);
+                      clearExamSessionCache();
+                    } catch (err) {
+                      console.error('Error al registrar abandono:', err);
+                    } finally {
+                      setIsExiting(false);
+                      navigate('/exams');
+                    }
                   }}
-                  className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-white bg-amber-500 rounded-fluid-md hover:bg-amber-600 transition-colors"
+                  className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-white bg-red-500 rounded-fluid-md hover:bg-red-600 transition-colors"
                 >
-                  Salir
+                  {isExiting ? 'Saliendo...' : 'Salir y perder intento'}
                 </button>
               </div>
             </div>

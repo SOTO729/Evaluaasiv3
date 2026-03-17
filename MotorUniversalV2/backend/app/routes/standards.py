@@ -1,6 +1,7 @@
 """
 Rutas para gestión de Estándares de Competencia (ECM)
 """
+import os
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import HTTPException
@@ -57,6 +58,18 @@ def get_standard(standard_id):
     return jsonify(standard.to_dict(include_stats=True))
 
 
+@standards_bp.route('/check-code', methods=['GET'])
+@jwt_required()
+def check_standard_code():
+    """Verificar si un código de estándar ya existe"""
+    code = request.args.get('code', '').strip().upper()
+    if not code:
+        return jsonify({'error': 'El código es requerido'}), 400
+
+    existing = CompetencyStandard.query.filter_by(code=code).first()
+    return jsonify({'exists': existing is not None, 'code': code})
+
+
 @standards_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_standard():
@@ -78,7 +91,7 @@ def create_standard():
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para crear estándares'}), 403
     
     data = request.get_json()
@@ -144,7 +157,7 @@ def update_standard(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para editar estándares'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -270,7 +283,7 @@ def request_deletion(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para esta acción'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -330,13 +343,20 @@ def get_standard_exams(standard_id):
     
     exams = standard.exams.order_by(Exam.version.desc()).all()
     
+    exams_data = []
+    for e in exams:
+        exam_dict = e.to_dict()
+        exam_dict['creator_name'] = e.creator.full_name if e.creator else None
+        exam_dict['updater_name'] = e.updater.full_name if e.updater else None
+        exams_data.append(exam_dict)
+    
     return jsonify({
         'standard': {
             'id': standard.id,
             'code': standard.code,
             'name': standard.name
         },
-        'exams': [e.to_dict() for e in exams],
+        'exams': exams_data,
         'total': len(exams)
     })
 
@@ -650,7 +670,7 @@ def upload_standard_logo(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para subir logos'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -722,7 +742,7 @@ def delete_standard_logo(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para eliminar logos'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -786,7 +806,7 @@ def upload_brand_logo(brand_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para subir logos'}), 403
     
     brand = Brand.query.get(brand_id)
@@ -856,7 +876,7 @@ def delete_brand_logo(brand_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para eliminar logos'}), 403
     
     brand = Brand.query.get(brand_id)
@@ -910,7 +930,7 @@ def get_certificate_template(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado', 'coordinator']:
         return jsonify({'error': 'No tiene permisos'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -944,7 +964,7 @@ def upload_certificate_template(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para subir plantillas'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -1130,7 +1150,7 @@ def update_certificate_template(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para editar plantillas'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -1203,7 +1223,7 @@ def delete_certificate_template(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'coordinator']:
         return jsonify({'error': 'No tiene permisos para eliminar plantillas'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)
@@ -1255,7 +1275,7 @@ def preview_certificate_template(standard_id):
     current_user_id = get_jwt_identity()
     current_user = User.query.get(current_user_id)
     
-    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado']:
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado', 'coordinator']:
         return jsonify({'error': 'No tiene permisos'}), 403
     
     standard = CompetencyStandard.query.get(standard_id)

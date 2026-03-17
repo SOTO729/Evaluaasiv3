@@ -150,7 +150,11 @@ export const badgeService = {
   // ── My badges ──
 
   getMyBadges: async () => {
-    const resp = await api.get<{ badges: IssuedBadge[]; total: number }>('/badges/my-badges')
+    const resp = await api.get<{
+      badges: IssuedBadge[];
+      total: number;
+      pending_exams?: { exam_id: number; exam_name: string; has_template: boolean; approved_at: string | null }[];
+    }>('/badges/my-badges')
     return resp.data
   },
 

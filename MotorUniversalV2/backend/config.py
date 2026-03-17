@@ -67,7 +67,7 @@ class Config:
     CONTACT_RECIPIENT = os.getenv('CONTACT_RECIPIENT', 'contacto@evaluaasi.com')
     
     # Upload
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024 * 1024))  # 2GB para videos
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 6 * 1024 * 1024 * 1024))  # 6GB para lotes CONOCER
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))
     
     # Pagination

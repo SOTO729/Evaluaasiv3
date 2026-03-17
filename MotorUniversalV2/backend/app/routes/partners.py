@@ -1625,15 +1625,45 @@ def add_campus_responsable(campus_id):
         from app.routes.user_management import generate_secure_password
         password = generate_secure_password(12)
 
+        # ── Validación CURP contra RENAPO (solo nacionales) ──
+        renapo_result = None
+        if not is_foreign and not _is_generic_foreign_curp(curp):
+            try:
+                from app.services.renapo_service import validate_curp_renapo
+                renapo_result = validate_curp_renapo(curp)
+                if not renapo_result.valid:
+                    return jsonify({
+                        'error': f'CURP rechazada: {renapo_result.error}',
+                        'renapo_error': True,
+                        'curp': curp
+                    }), 400
+            except Exception as renapo_err:
+                import logging
+                logging.getLogger(__name__).warning(f'RENAPO no disponible: {renapo_err}')
+                renapo_result = None
+
+        # Usar datos RENAPO para nombre/apellidos si validación fue exitosa
+        user_name = data['name'].strip()
+        user_first_surname = data['first_surname'].strip()
+        user_second_surname = data['second_surname'].strip()
+        if renapo_result and renapo_result.valid:
+            if renapo_result.name:
+                user_name = renapo_result.name
+            if renapo_result.first_surname:
+                user_first_surname = renapo_result.first_surname
+            if renapo_result.second_surname:
+                user_second_surname = renapo_result.second_surname
+
         new_user = User(
             id=str(uuid.uuid4()),
             email=email,
             username=username,
-            name=data['name'].strip(),
-            first_surname=data['first_surname'].strip(),
-            second_surname=data['second_surname'].strip(),
+            name=user_name,
+            first_surname=user_first_surname,
+            second_surname=user_second_surname,
             gender=data['gender'],
             curp=curp,
+            curp_verified=bool(renapo_result and renapo_result.valid),
             date_of_birth=date_of_birth,
             role='responsable',
             campus_id=campus.id,
@@ -1644,6 +1674,11 @@ def add_campus_responsable(campus_id):
             can_view_reports=bool(data.get('can_view_reports', True)),
         )
         new_user.set_password(password)
+
+        # Aplicar datos RENAPO si la validación fue exitosa
+        if renapo_result and renapo_result.valid:
+            from app.services.renapo_service import apply_renapo_to_user
+            apply_renapo_to_user(new_user, renapo_result)
 
         db.session.add(new_user)
 
@@ -3422,6 +3457,32 @@ def get_group_members(group_id):
                     current['status'] = 1
                     current['result'] = 0
 
+        # ── Asignaciones ECM por candidato (solo página) ──
+        ecm_assignments_map = {}  # user_id → {ecm_code, ecm_name, assignment_number}
+        if page_user_ids:
+            from app.models.partner import EcmCandidateAssignment
+            from app.models.competency_standard import CompetencyStandard
+            ecm_rows = db.session.query(
+                EcmCandidateAssignment.user_id,
+                EcmCandidateAssignment.assignment_number,
+                CompetencyStandard.code,
+                CompetencyStandard.name
+            ).join(
+                CompetencyStandard, EcmCandidateAssignment.competency_standard_id == CompetencyStandard.id
+            ).filter(
+                EcmCandidateAssignment.user_id.in_(page_user_ids),
+                EcmCandidateAssignment.group_id == group_id
+            ).all()
+            for row in ecm_rows:
+                uid = row[0]
+                if uid not in ecm_assignments_map:
+                    ecm_assignments_map[uid] = []
+                ecm_assignments_map[uid].append({
+                    'assignment_number': row[1],
+                    'ecm_code': row[2],
+                    'ecm_name': row[3],
+                })
+
         # ── Construir respuesta para la página ──
         members_data = []
         for m in page_members:
@@ -3473,6 +3534,9 @@ def get_group_members(group_id):
                 'can_receive_conocer': has_curp_flag,
                 'can_receive_badge': has_email_flag,
             }
+
+            # Asignaciones ECM del candidato en este grupo
+            member_dict['ecm_assignments'] = ecm_assignments_map.get(m.user_id, [])
 
             members_data.append(member_dict)
 
@@ -11266,9 +11330,76 @@ def get_mis_materiales():
             StudyMaterial.is_published == True
         ).order_by(StudyMaterial.updated_at.desc()).all()
         
+        # ── Calcular progreso del candidato para cada material ──
+        materials_data = []
+        if materials:
+            from app.models.study_content import StudySession, StudyTopic, StudyReading, StudyVideo, StudyDownloadableExercise, StudyInteractiveExercise
+            from app.models.student_progress import StudentContentProgress
+            
+            mat_ids = [m.id for m in materials]
+            
+            # Obtener todos los topics de estos materiales
+            all_topics = db.session.query(
+                StudyTopic.id, StudySession.material_id
+            ).join(
+                StudySession, StudyTopic.session_id == StudySession.id
+            ).filter(
+                StudySession.material_id.in_(mat_ids)
+            ).all()
+            
+            topics_by_material = {}
+            all_topic_ids = []
+            for tid, mid in all_topics:
+                topics_by_material.setdefault(mid, []).append(tid)
+                all_topic_ids.append(tid)
+            
+            content_type_map = {}  # (content_type, content_id_str) -> topic_id
+            if all_topic_ids:
+                for tid, cid in db.session.query(StudyReading.topic_id, StudyReading.id).filter(StudyReading.topic_id.in_(all_topic_ids)).all():
+                    content_type_map[('reading', str(cid))] = tid
+                for tid, cid in db.session.query(StudyVideo.topic_id, StudyVideo.id).filter(StudyVideo.topic_id.in_(all_topic_ids)).all():
+                    content_type_map[('video', str(cid))] = tid
+                for tid, cid in db.session.query(StudyDownloadableExercise.topic_id, StudyDownloadableExercise.id).filter(StudyDownloadableExercise.topic_id.in_(all_topic_ids)).all():
+                    content_type_map[('downloadable', str(cid))] = tid
+                try:
+                    for tid, cid in db.session.query(StudyInteractiveExercise.topic_id, StudyInteractiveExercise.id).filter(StudyInteractiveExercise.topic_id.in_(all_topic_ids)).all():
+                        content_type_map[('interactive', str(cid))] = tid
+                except:
+                    pass
+            
+            # Progreso del usuario
+            completed_set = set()
+            if content_type_map:
+                rows = db.session.query(
+                    StudentContentProgress.content_type,
+                    StudentContentProgress.content_id
+                ).filter(
+                    StudentContentProgress.user_id == str(user_id),
+                    StudentContentProgress.is_completed == True
+                ).all()
+                completed_set = {(r[0], r[1]) for r in rows}
+            
+            for m in materials:
+                topic_ids_for_mat = set(topics_by_material.get(m.id, []))
+                total = 0
+                completed = 0
+                for (ct, cid_str), tid in content_type_map.items():
+                    if tid in topic_ids_for_mat:
+                        total += 1
+                        if (ct, cid_str) in completed_set:
+                            completed += 1
+                pct = round((completed / total * 100)) if total > 0 else 0
+                md = m.to_dict()
+                md['progress'] = {
+                    'total_contents': total,
+                    'completed_contents': completed,
+                    'percentage': pct
+                }
+                materials_data.append(md)
+        
         return jsonify({
-            'materials': [m.to_dict() for m in materials],
-            'total': len(materials),
+            'materials': materials_data,
+            'total': len(materials_data),
             'pages': 1,
             'current_page': 1
         })
@@ -11985,12 +12116,14 @@ def get_group_certificates_stats(group_id):
             
             total_for_type = ready_count + pending_count
             
-            # Filtrar candidatos sin resultados aprobados si no aplica
-            if exams_approved == 0:
-                continue
-            # Para tier_advanced y digital_badge, solo mostrar si tienen al menos 1
-            if cert_type in ('tier_advanced', 'digital_badge') and total_for_type == 0:
-                continue
+            # Para tier_advanced y digital_badge, mostrar solo si tienen al menos 1
+            if cert_type in ('tier_advanced', 'digital_badge'):
+                if total_for_type == 0:
+                    continue
+            else:
+                # Para tier_basic/tier_standard, filtrar candidatos sin resultados aprobados
+                if exams_approved == 0:
+                    continue
             
             stat_status = 'pending' if pending_count > 0 else 'ready'
             
@@ -12596,8 +12729,8 @@ def download_group_certificates_zip(group_id):
             # Procesar tier_advanced (CONOCER)
             if 'tier_advanced' in certificate_types:
                 try:
-                    from app.services.conocer_blob_service import ConocerBlobService
-                    blob_service = ConocerBlobService()
+                    from app.services.conocer_blob_service import get_conocer_blob_service
+                    blob_service = get_conocer_blob_service()
                     
                     for cert in conocer_certs:
                         user = users_map.get(cert.user_id)
@@ -12609,9 +12742,9 @@ def download_group_certificates_zip(group_id):
                         filename = f"{folder}/{cert.standard_code}_{cert.certificate_number}.pdf"
                         
                         try:
-                            blob_data = blob_service.download_certificate(cert.blob_name)
-                            if blob_data:
-                                zip_file.writestr(filename, blob_data)
+                            content, _ = blob_service.download_certificate(cert.blob_name)
+                            if content:
+                                zip_file.writestr(filename, content)
                                 files_added += 1
                         except HTTPException:
                             raise
@@ -16064,7 +16197,6 @@ def get_conocer_tramites():
                   AND r.result = 1
                   AND u.curp IS NOT NULL
                   AND LEN(u.curp) >= 10
-                  AND u.enable_conocer_certificate = 1
                   AND (
                       (cg.enable_tier_advanced_override = 1)
                       OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
@@ -16558,7 +16690,6 @@ def send_conocer_solicitud():
             LEFT JOIN campuses c ON c.id = eca.campus_id
             WHERE eca.tramite_status = 'pendiente'
               AND eca.assignment_number IS NOT NULL
-              AND u.enable_conocer_certificate = 1
               AND (
                   (cg.enable_tier_advanced_override = 1)
                   OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)

@@ -151,7 +151,7 @@ const SupportUsersPage = () => {
                     <div>
                       <p className="font-medium text-gray-900">{user.full_name || user.username}</p>
                       <p className="text-xs text-gray-500">
-                        @{user.username}
+                        {user.username}
                         {user.email ? ` · ${user.email}` : ''}
                         {user.curp ? ` · CURP: ${user.curp}` : ''}
                       </p>

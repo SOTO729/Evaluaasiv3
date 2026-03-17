@@ -19,10 +19,12 @@ import {
   ChevronRight,
   Clock,
   Eye,
+  Ban,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getConocerUploadBatches,
+  cancelConocerUploadBatch,
   ConocerUploadBatch,
 } from '../../services/partnersService';
 
@@ -36,6 +38,8 @@ export default function ConocerUploadHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
+
+  const [cancelling, setCancelling] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -91,6 +95,11 @@ export default function ConocerUploadHistoryPage() {
         color: 'bg-red-100 text-red-700 border-red-200',
         icon: <XCircle className="w-3 h-3" />,
       },
+      cancelled: {
+        label: 'Cancelado',
+        color: 'bg-orange-100 text-orange-700 border-orange-200',
+        icon: <Ban className="w-3 h-3" />,
+      },
     };
     const s = map[status] || map['queued'];
     return (
@@ -107,6 +116,20 @@ export default function ConocerUploadHistoryPage() {
     if (ms < 1000) return `${ms}ms`;
     if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
     return `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`;
+  };
+
+  const handleCancel = async (e: React.MouseEvent, batchId: number) => {
+    e.stopPropagation();
+    if (!confirm('¿Está seguro de cancelar esta carga?')) return;
+    try {
+      setCancelling(batchId);
+      await cancelConocerUploadBatch(batchId);
+      await loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al cancelar');
+    } finally {
+      setCancelling(null);
+    }
   };
 
   if (loading && !refreshing) {
@@ -228,9 +251,25 @@ export default function ConocerUploadHistoryPage() {
                         {getDuration(b)}
                       </td>
                       <td className="fluid-px-4 fluid-py-3 text-center">
-                        <button className="text-gray-400 hover:text-emerald-600 transition-colors">
-                          <Eye className="fluid-icon-sm" />
-                        </button>
+                        <div className="flex items-center justify-center fluid-gap-1">
+                          {(b.status === 'processing' || b.status === 'queued') && (
+                            <button
+                              onClick={(e) => handleCancel(e, b.id)}
+                              disabled={cancelling === b.id}
+                              className="text-gray-400 hover:text-red-600 transition-colors p-1"
+                              title="Cancelar carga"
+                            >
+                              {cancelling === b.id ? (
+                                <Loader2 className="fluid-icon-sm animate-spin" />
+                              ) : (
+                                <Ban className="fluid-icon-sm" />
+                              )}
+                            </button>
+                          )}
+                          <button className="text-gray-400 hover:text-emerald-600 transition-colors p-1">
+                            <Eye className="fluid-icon-sm" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

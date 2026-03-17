@@ -25,7 +25,9 @@ import {
   ToggleLeft,
   ListOrdered,
   Info,
-  ChevronDown
+  ChevronDown,
+  Lock,
+  X
 } from 'lucide-react';
 
 
@@ -59,6 +61,13 @@ const ExamOnboardingPage = () => {
   const contentRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
+  // PIN de seguridad
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+  const [pinVerifying, setPinVerifying] = useState(false);
+  const [requirePin, setRequirePin] = useState(false);
+
   const currentMode = mode === 'simulator' ? 'simulator' : 'exam';
   const isSimulator = currentMode === 'simulator';
 
@@ -68,6 +77,14 @@ const ExamOnboardingPage = () => {
     queryFn: () => examService.getExam(Number(id), true) as Promise<ExamData>,
     enabled: !!id,
   });
+
+  // Verificar si el examen requiere PIN de seguridad
+  useEffect(() => {
+    if (!id || !groupExamId) return;
+    examService.checkExamAccess(Number(id), groupExamId).then(data => {
+      if (data.require_security_pin) setRequirePin(true);
+    }).catch(() => {});
+  }, [id, groupExamId]);
 
   // Calcular el total de elementos según el modo
   const getTotalItems = () => {
@@ -178,6 +195,17 @@ const ExamOnboardingPage = () => {
   };
 
   const handleStartExam = () => {
+    // Si requiere PIN, mostrar modal primero
+    if (requirePin && groupExamId) {
+      setPinValue('');
+      setPinError(null);
+      setShowPinModal(true);
+      return;
+    }
+    navigateToExam();
+  };
+
+  const navigateToExam = () => {
     navigate(`/test-exams/${id}/run`, {
       state: {
         questionCount: exam?.total_questions || 0,
@@ -187,6 +215,25 @@ const ExamOnboardingPage = () => {
         groupExamId
       }
     });
+  };
+
+  const handlePinSubmit = async () => {
+    if (!pinValue.trim() || !groupExamId) return;
+    setPinVerifying(true);
+    setPinError(null);
+    try {
+      const result = await examService.verifyExamPin(Number(id), groupExamId, pinValue.trim());
+      if (result.valid) {
+        setShowPinModal(false);
+        navigateToExam();
+      } else {
+        setPinError(result.error || 'PIN incorrecto');
+      }
+    } catch {
+      setPinError('Error al verificar el PIN');
+    } finally {
+      setPinVerifying(false);
+    }
   };
 
   if (isLoading) {
@@ -605,6 +652,64 @@ const ExamOnboardingPage = () => {
         </div>
       )}
       </div>
+
+      {/* Modal de PIN de seguridad */}
+      {showPinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800">PIN de Seguridad</h3>
+              </div>
+              <button onClick={() => setShowPinModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-gray-600 text-sm mb-4">
+              Este examen requiere un PIN de seguridad. Solicítalo a tu responsable o coordinador.
+            </p>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={10}
+              value={pinValue}
+              onChange={(e) => { setPinValue(e.target.value); setPinError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handlePinSubmit(); }}
+              placeholder="Ingresa el PIN"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-center text-xl tracking-widest font-mono focus:border-blue-500 focus:outline-none transition-colors"
+              autoFocus
+            />
+            {pinError && (
+              <p className="text-red-500 text-sm mt-2 text-center">{pinError}</p>
+            )}
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowPinModal(false)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handlePinSubmit}
+                disabled={!pinValue.trim() || pinVerifying}
+                className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {pinVerifying ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Verificar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

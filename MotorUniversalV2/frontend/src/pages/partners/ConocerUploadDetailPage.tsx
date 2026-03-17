@@ -21,6 +21,7 @@ import {
   FileText,
   Clock,
   User,
+  Ban,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -28,6 +29,7 @@ import {
   getConocerUploadBatchLogs,
   exportConocerUploadBatchLogs,
   retryConocerUploadBatch,
+  cancelConocerUploadBatch,
   ConocerUploadBatch,
   ConocerUploadLog,
 } from '../../services/partnersService';
@@ -98,6 +100,7 @@ export default function ConocerUploadDetailPage() {
   const [perPage] = useState(50);
   const [exporting, setExporting] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [summary, setSummary] = useState({
     matched: 0, replaced: 0, skipped: 0, discarded: 0, error: 0,
   });
@@ -175,6 +178,20 @@ export default function ConocerUploadDetailPage() {
       alert(err.response?.data?.error || 'Error al reintentar');
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm('¿Está seguro de cancelar esta carga?')) return;
+    try {
+      setCancelling(true);
+      await cancelConocerUploadBatch(id);
+      await loadBatch();
+      await loadLogs();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al cancelar');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -267,7 +284,17 @@ export default function ConocerUploadDetailPage() {
             </div>
           </div>
           <div className="flex items-center fluid-gap-2">
-            {batch?.status === 'failed' && (
+            {(batch?.status === 'processing' || batch?.status === 'queued') && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="inline-flex items-center fluid-gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold fluid-px-4 fluid-py-2 rounded-fluid-lg transition-colors fluid-text-sm"
+              >
+                {cancelling ? <Loader2 className="fluid-icon-sm animate-spin" /> : <Ban className="fluid-icon-sm" />}
+                Cancelar
+              </button>
+            )}
+            {(batch?.status === 'failed' || batch?.status === 'cancelled') && (
               <button
                 onClick={handleRetry}
                 disabled={retrying}
@@ -312,6 +339,14 @@ export default function ConocerUploadDetailPage() {
         <div className="bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-3 fluid-mb-4 flex items-center fluid-gap-2">
           <XCircle className="fluid-icon-sm text-red-500 flex-shrink-0" />
           <p className="text-red-700 fluid-text-sm">{batch.error_message}</p>
+        </div>
+      )}
+
+      {/* Cancelled message */}
+      {batch?.status === 'cancelled' && (
+        <div className="bg-orange-50 border border-orange-200 rounded-fluid-lg fluid-p-3 fluid-mb-4 flex items-center fluid-gap-2">
+          <Ban className="fluid-icon-sm text-orange-500 flex-shrink-0" />
+          <p className="text-orange-700 fluid-text-sm">{batch.error_message || 'Carga cancelada'}</p>
         </div>
       )}
 

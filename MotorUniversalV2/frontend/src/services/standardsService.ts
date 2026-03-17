@@ -16,6 +16,7 @@ export interface CompetencyStandard {
   brand?: Brand | null;
   logo_url?: string;
   is_active: boolean;
+  has_template?: boolean;
   created_by: string;
   created_at: string;
   updated_at?: string;
@@ -111,6 +112,14 @@ export const createStandard = async (data: CreateStandardDTO): Promise<{
   standard: CompetencyStandard;
 }> => {
   const response = await api.post('/competency-standards/', data);
+  return response.data;
+};
+
+/**
+ * Verificar si un código de estándar ya existe
+ */
+export const checkStandardCode = async (code: string): Promise<{ exists: boolean; code: string }> => {
+  const response = await api.get(`/competency-standards/check-code?code=${encodeURIComponent(code)}`);
   return response.data;
 };
 
