@@ -415,6 +415,7 @@ export interface BulkUploadPreviewRow {
     username: string;
     email: string;
     curp: string;
+    groups?: Array<{ group_name: string; campus_name: string }>;
   }>;
   error?: string | null;
 }

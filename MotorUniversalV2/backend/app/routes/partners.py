@@ -3319,6 +3319,9 @@ def get_group_members(group_id):
 
         if status_filter:
             query = query.filter(GroupMember.status == status_filter)
+        else:
+            # Excluir miembros con CURP pendiente de verificación por defecto
+            query = query.filter(GroupMember.status != 'curp_pending')
 
         # ── Búsqueda textual ──
         if search:

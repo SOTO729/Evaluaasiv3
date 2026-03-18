@@ -616,7 +616,7 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
               <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                 <p className="text-xs text-blue-700">
                   <AlertCircle className="inline h-3 w-3 mr-1" />
-                  <strong>Verificación CURP:</strong> Los registros con CURP serán verificados en RENAPO. Si la CURP es inválida, el candidato será eliminado automáticamente.
+                  <strong>Verificación CURP:</strong> Los registros con CURP serán verificados en RENAPO. Si se seleccionó un grupo, los candidatos permanecerán en espera hasta que su CURP sea validada. Si la CURP es inválida, el candidato será eliminado automáticamente.
                 </p>
               </div>
             </div>
@@ -949,9 +949,20 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                                       {expandedNameMatch === r.row && (
                                         <div className="mt-1 p-1.5 bg-orange-50 rounded border border-orange-200 space-y-1">
                                           {r.name_matches.map(m => (
-                                            <div key={m.id} className="text-[9px] text-orange-800 flex gap-2">
-                                              <span className="font-medium">{m.full_name}</span>
-                                              <span className="text-orange-500">{m.username}</span>
+                                            <div key={m.id} className="text-[9px] text-orange-800 space-y-0.5">
+                                              <div className="flex gap-2">
+                                                <span className="font-medium">{m.full_name}</span>
+                                                <span className="text-orange-500">{m.username}</span>
+                                              </div>
+                                              {m.groups && m.groups.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 ml-1">
+                                                  {m.groups.map((g, i) => (
+                                                    <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 text-[8px]">
+                                                      {g.group_name} — {g.campus_name}
+                                                    </span>
+                                                  ))}
+                                                </div>
+                                              )}
                                             </div>
                                           ))}
                                         </div>

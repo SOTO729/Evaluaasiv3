@@ -2283,16 +2283,47 @@ def preview_bulk_upload_candidates():
                 key = (r['nombre'].strip().lower(), r['primer_apellido'].strip().lower(), (r['genero'] or '').strip().upper())
                 matches = name_lookup.get(key, [])
                 if matches:
-                    name_match_map[r['row']] = [
-                        {
-                            'id': u.id,
-                            'full_name': u.full_name,
-                            'username': u.username,
-                            'email': u.email or '',
-                            'curp': u.curp or '',
-                        }
-                        for u in matches[:5]  # Máximo 5 coincidencias
-                    ]
+                    name_match_map[r['row']] = matches[:5]  # Máximo 5 coincidencias (objetos User)
+
+            # Batch-fetch grupo y plantel actual de los usuarios coincidentes
+            all_match_user_ids = list({u.id for matches in name_match_map.values() for u in matches})
+            user_group_campus_map = {}  # user_id -> {group_name, campus_name}
+            if all_match_user_ids:
+                from app.models.partner import GroupMember as GM_match, CandidateGroup as CG_match, Campus as Campus_match
+                gm_rows = db.session.query(
+                    GM_match.user_id,
+                    CG_match.name.label('group_name'),
+                    Campus_match.name.label('campus_name')
+                ).join(
+                    CG_match, GM_match.group_id == CG_match.id
+                ).join(
+                    Campus_match, CG_match.campus_id == Campus_match.id
+                ).filter(
+                    GM_match.user_id.in_(all_match_user_ids),
+                    GM_match.status == 'active'
+                ).all()
+                for row in gm_rows:
+                    uid = row[0]
+                    if uid not in user_group_campus_map:
+                        user_group_campus_map[uid] = []
+                    user_group_campus_map[uid].append({
+                        'group_name': row[1],
+                        'campus_name': row[2],
+                    })
+
+            # Convertir a dicts con info de grupo/plantel
+            for row_num in name_match_map:
+                name_match_map[row_num] = [
+                    {
+                        'id': u.id,
+                        'full_name': u.full_name,
+                        'username': u.username,
+                        'email': u.email or '',
+                        'curp': u.curp or '',
+                        'groups': user_group_campus_map.get(u.id, []),
+                    }
+                    for u in name_match_map[row_num]
+                ]
 
         # Construir preview
         preview = []
@@ -2529,10 +2560,14 @@ def bulk_upload_candidates():
         created = []
         create_errors = []
         batch_count = 0
+        curp_pending_user_ids = set()  # IDs de usuarios que necesitan verificación CURP
         for r in to_create:
             try:
                 username = username_map[r['row']]
                 password = _gen_pwd()
+                needs_curp_verify = bool(
+                    target_group and r.get('curp') and r['curp'] not in GENERIC_FOREIGN_CURPS
+                )
                 new_user = User(
                     id=str(uuid.uuid4()),
                     email=r['email'] if r['email'] else None,
@@ -2545,12 +2580,14 @@ def bulk_upload_candidates():
                     role='candidato',
                     coordinator_id=current_user.id if current_user.role == 'coordinator' else None,
                     campus_id=current_user.campus_id if current_user.role == 'responsable' and current_user.campus_id else None,
-                    is_active=True,
+                    is_active=not needs_curp_verify,
                     is_verified=False,
                 )
                 new_user.set_password(password)
                 new_user.encrypted_password = encrypt_password(password)
                 db.session.add(new_user)
+                if needs_curp_verify:
+                    curp_pending_user_ids.add(new_user.id)
                 _parts = [r['nombre'], r['primer_apellido']]
                 if r.get('segundo_apellido'):
                     _parts.append(r['segundo_apellido'])
@@ -2646,7 +2683,8 @@ def bulk_upload_candidates():
             for uid, uname in all_assign_ids:
                 if uid not in existing_members:
                     try:
-                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status='active'))
+                        gm_status = 'curp_pending' if uid in curp_pending_user_ids else 'active'
+                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status=gm_status))
                         if uid in {ea['user_id'] for ea in existing_assigned}:
                             assigned_existing += 1
                         else:
@@ -2879,6 +2917,13 @@ def bulk_upload_candidates():
 
                             if result.valid:
                                 apply_renapo_to_user(user, result)
+                                # Activar usuario y sus membresías pendientes
+                                user.is_active = True
+                                pending_gms = GroupMember.query.filter_by(
+                                    user_id=user.id, status='curp_pending'
+                                ).all()
+                                for gm in pending_gms:
+                                    gm.status = 'active'
                                 db.session.commit()
                                 verified += 1
                                 _logger.info(f'[BULK-CURP] ({i+1}/{len(users_data)}) CURP {curp} válida - usuario {username}')
