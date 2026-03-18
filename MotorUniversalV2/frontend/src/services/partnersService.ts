@@ -3845,3 +3845,78 @@ export async function extendEcmAssignmentValidity(ecmAssignmentId: number, month
   const response = await api.post(`/partners/ecm-assignments/${ecmAssignmentId}/extend-validity`, { months });
   return response.data;
 }
+
+
+// ============== REPORTES ==============
+
+export interface ReportFiltersData {
+  partners: { id: number; name: string }[];
+  campuses: { id: number; name: string; partner_id: number }[];
+  school_cycles: { id: number; name: string; campus_id: number }[];
+  groups: { id: number; name: string; campus_id: number; school_cycle_id: number | null }[];
+  standards: { id: number; code: string; name: string; level: number | null; sector: string | null; brand_id: number | null }[];
+  brands: { id: number; name: string }[];
+}
+
+export interface ReportRow {
+  user_id: string;
+  full_name: string;
+  username: string;
+  email: string | null;
+  curp: string | null;
+  gender: string | null;
+  role: string;
+  is_active: boolean;
+  curp_verified: boolean;
+  partner_name: string;
+  campus_name: string;
+  campus_state: string;
+  school_cycle: string;
+  group_name: string;
+  standard_code: string;
+  standard_name: string;
+  standard_level: number | null;
+  standard_sector: string;
+  brand_name: string;
+  assignment_number: string;
+  exam_name: string;
+  score: number | null;
+  score_1000: number | null;
+  result: string;
+  result_date: string | null;
+  duration_seconds: number | null;
+  certificate_code: string | null;
+  tramite_status: string | null;
+  expires_at: string | null;
+}
+
+export interface ReportResponse {
+  rows: ReportRow[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export async function getReportFilters(): Promise<ReportFiltersData> {
+  const response = await api.get('/partners/reports/filters');
+  return response.data;
+}
+
+export async function getReports(params: Record<string, string | number | undefined>): Promise<ReportResponse> {
+  const clean: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v;
+  }
+  const response = await api.get('/partners/reports', { params: clean });
+  return response.data;
+}
+
+export async function exportReports(params: Record<string, string | number | undefined>): Promise<Blob> {
+  const clean: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v;
+  }
+  const response = await api.get('/partners/reports/export', { params: clean, responseType: 'blob' });
+  return response.data;
+}

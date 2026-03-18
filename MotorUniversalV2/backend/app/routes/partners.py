@@ -16999,4 +16999,499 @@ def _download_cosu_pdf_from_blob():
         raise
     except Exception as e:
         print(f"[COSU PDF] Error downloading: {e}")
+
+
+# ============== MÓDULO DE REPORTES ==============
+
+@bp.route('/reports/filters', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_report_filters():
+    """Obtener opciones de filtros disponibles para reportes.
+    Devuelve partners, planteles, ciclos, grupos, estándares, marcas, etc.
+    Scoped al coordinador o al plantel del responsable."""
+    try:
+        user = g.current_user
+        is_resp = user.role == 'responsable'
+
+        # ── Partners ──
+        partners_data = []
+        if not is_resp:
+            partners = Partner.query.filter_by(coordinator_id=user.id).order_by(Partner.name).all()
+            partners_data = [{'id': p.id, 'name': p.name} for p in partners]
+
+        # ── Planteles ──
+        if is_resp:
+            campuses = Campus.query.filter_by(id=user.campus_id).all() if user.campus_id else []
+        else:
+            campuses = Campus.query.filter(
+                Campus.partner_id.in_([p['id'] for p in partners_data])
+            ).order_by(Campus.name).all() if partners_data else []
+        campuses_data = [{'id': c.id, 'name': c.name, 'partner_id': c.partner_id} for c in campuses]
+        campus_ids = [c.id for c in campuses]
+
+        # ── Ciclos escolares ──
+        cycles = SchoolCycle.query.filter(
+            SchoolCycle.campus_id.in_(campus_ids)
+        ).order_by(SchoolCycle.start_date.desc()).all() if campus_ids else []
+        cycles_data = [{'id': c.id, 'name': c.name, 'campus_id': c.campus_id} for c in cycles]
+
+        # ── Grupos ──
+        groups = CandidateGroup.query.filter(
+            CandidateGroup.campus_id.in_(campus_ids)
+        ).order_by(CandidateGroup.name).all() if campus_ids else []
+        groups_data = [{'id': g_item.id, 'name': g_item.name, 'campus_id': g_item.campus_id, 'school_cycle_id': g_item.school_cycle_id} for g_item in groups]
+
+        # ── Estándares de competencia ──
+        from app.models.brand import Brand
+        standards = CompetencyStandard.query.filter_by(is_active=True).order_by(CompetencyStandard.code).all()
+        standards_data = [{
+            'id': s.id, 'code': s.code, 'name': s.name,
+            'level': s.level, 'sector': s.sector, 'brand_id': s.brand_id,
+        } for s in standards]
+
+        # ── Marcas ──
+        brands = Brand.query.filter_by(is_active=True).order_by(Brand.display_order).all()
+        brands_data = [{'id': b.id, 'name': b.name} for b in brands]
+
+        return jsonify({
+            'partners': partners_data,
+            'campuses': campuses_data,
+            'school_cycles': cycles_data,
+            'groups': groups_data,
+            'standards': standards_data,
+            'brands': brands_data,
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+def _build_reports_query(user, params):
+    """Construye query de reportes con filtros.
+    Retorna (rows, total_count, column_keys).
+    Cada row es un dict con los datos del usuario/asignación/resultado."""
+    from app.models.exam import Exam
+    from app.models.brand import Brand
+    from app.models.partner import EcmCandidateAssignment
+
+    is_resp = user.role == 'responsable'
+
+    # ── Determinar planteles accesibles ──
+    if is_resp:
+        accessible_campus_ids = [user.campus_id] if user.campus_id else []
+    else:
+        partner_id = params.get('partner_id', type=int)
+        if partner_id:
+            accessible_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=partner_id).all()]
+        else:
+            partner_ids = [p.id for p in Partner.query.filter_by(coordinator_id=user.id).all()]
+            accessible_campus_ids = [c.id for c in Campus.query.filter(Campus.partner_id.in_(partner_ids)).all()] if partner_ids else []
+
+    campus_filter = params.get('campus_id', type=int)
+    if campus_filter and campus_filter in accessible_campus_ids:
+        accessible_campus_ids = [campus_filter]
+
+    if not accessible_campus_ids:
+        return [], 0
+
+    # ── Filtros de grupo ──
+    group_filter = params.get('group_id', type=int)
+    cycle_filter = params.get('school_cycle_id', type=int)
+
+    group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(accessible_campus_ids))
+    if group_filter:
+        group_query = group_query.filter(CandidateGroup.id == group_filter)
+    if cycle_filter:
+        group_query = group_query.filter(CandidateGroup.school_cycle_id == cycle_filter)
+    group_ids = [gr.id for gr in group_query.all()]
+
+    if not group_ids:
+        return [], 0
+
+    # ── Miembros de grupos → user_ids ──
+    member_rows = db.session.query(
+        GroupMember.user_id, GroupMember.group_id, GroupMember.status
+    ).filter(
+        GroupMember.group_id.in_(group_ids),
+        GroupMember.status.notin_(['curp_pending']),
+    ).all()
+
+    user_ids = list({m[0] for m in member_rows})
+    if not user_ids:
+        return [], 0
+
+    # Map: user_id → [group_ids]
+    user_groups_map = {}
+    for uid, gid, _st in member_rows:
+        user_groups_map.setdefault(uid, set()).add(gid)
+
+    # ── Filtro por rol ──
+    role_filter = params.get('role')
+    user_query = User.query.filter(User.id.in_(user_ids))
+    if role_filter:
+        user_query = user_query.filter(User.role == role_filter)
+
+    # ── Filtro por búsqueda de texto ──
+    search = (params.get('search') or '').strip()
+    if search:
+        search_term = f'%{search}%'
+        user_query = user_query.filter(
+            db.or_(
+                User.name.ilike(search_term),
+                User.first_surname.ilike(search_term),
+                User.second_surname.ilike(search_term),
+                User.username.ilike(search_term),
+                User.email.ilike(search_term),
+                User.curp.ilike(search_term),
+            )
+        )
+
+    # ── Filtro activo/inactivo ──
+    is_active_filter = params.get('is_active')
+    if is_active_filter is not None and is_active_filter != '':
+        user_query = user_query.filter(User.is_active == (is_active_filter == '1' or is_active_filter == 'true'))
+
+    # ── Filtro género ──
+    gender_filter = params.get('gender')
+    if gender_filter:
+        user_query = user_query.filter(User.gender == gender_filter)
+
+    # ── Filtro CURP verificada ──
+    curp_verified_filter = params.get('curp_verified')
+    if curp_verified_filter is not None and curp_verified_filter != '':
+        user_query = user_query.filter(User.curp_verified == (curp_verified_filter in ('1', 'true')))
+
+    users = user_query.order_by(User.first_surname, User.name).all()
+    filtered_user_ids = [u.id for u in users]
+    users_map = {u.id: u for u in users}
+
+    if not filtered_user_ids:
+        return [], 0
+
+    # ── Precargar datos de grupo, campus, partner, ciclo ──
+    all_groups = {g.id: g for g in CandidateGroup.query.filter(CandidateGroup.id.in_(group_ids)).all()}
+    all_campuses = {c.id: c for c in Campus.query.filter(Campus.id.in_(accessible_campus_ids)).all()}
+    partner_ids_set = {c.partner_id for c in all_campuses.values()}
+    all_partners = {p.id: p for p in Partner.query.filter(Partner.id.in_(partner_ids_set)).all()} if partner_ids_set else {}
+    cycle_ids_set = {g.school_cycle_id for g in all_groups.values() if g.school_cycle_id}
+    all_cycles = {c.id: c for c in SchoolCycle.query.filter(SchoolCycle.id.in_(cycle_ids_set)).all()} if cycle_ids_set else {}
+
+    # ── ECM Assignments ──
+    ecm_assignments = EcmCandidateAssignment.query.filter(
+        EcmCandidateAssignment.user_id.in_(filtered_user_ids),
+        EcmCandidateAssignment.group_id.in_(group_ids),
+    ).all()
+    # Map: user_id → [ecm_assignment]
+    ecm_map = {}
+    for ea in ecm_assignments:
+        ecm_map.setdefault(ea.user_id, []).append(ea)
+
+    # ── Estándares & exámenes ──
+    std_ids = {ea.competency_standard_id for ea in ecm_assignments if ea.competency_standard_id}
+    all_standards = {s.id: s for s in CompetencyStandard.query.filter(CompetencyStandard.id.in_(std_ids)).all()} if std_ids else {}
+    exam_ids_set = {ea.exam_id for ea in ecm_assignments if ea.exam_id}
+    all_exams = {e.id: e for e in Exam.query.filter(Exam.id.in_(exam_ids_set)).all()} if exam_ids_set else {}
+    brand_ids_set = {s.brand_id for s in all_standards.values() if s.brand_id}
+    all_brands = {b.id: b for b in Brand.query.filter(Brand.id.in_(brand_ids_set)).all()} if brand_ids_set else {}
+
+    # ── Results (últimos por user+exam) ──
+    results = Result.query.filter(
+        Result.user_id.in_(filtered_user_ids),
+        Result.status == 1,  # completados
+    ).order_by(Result.end_date.desc()).all()
+    # Map: (user_id, exam_id) → best Result (aprobado > reprobado, mayor score)
+    best_results = {}
+    for r in results:
+        key = (r.user_id, r.exam_id)
+        if key not in best_results:
+            best_results[key] = r
+        else:
+            existing = best_results[key]
+            # Preferir aprobado
+            if r.result == 1 and existing.result != 1:
+                best_results[key] = r
+            elif r.result == existing.result and (r.score or 0) > (existing.score or 0):
+                best_results[key] = r
+
+    # ── Filtros de estándar/marca/resultado ──
+    std_filter = params.get('standard_id', type=int)
+    brand_filter = params.get('brand_id', type=int)
+    level_filter = params.get('level', type=int)
+    sector_filter = params.get('sector')
+    result_filter = params.get('result')  # 'approved' | 'rejected' | ''
+    score_min = params.get('score_min', type=int)
+    score_max = params.get('score_max', type=int)
+    has_assignment_filter = params.get('has_assignment')  # '1' = con asignación, '0' = sin
+
+    # ── Construir filas ──
+    rows = []
+    for uid in filtered_user_ids:
+        u = users_map[uid]
+        user_group_ids = user_groups_map.get(uid, set())
+        user_ecms = ecm_map.get(uid, [])
+
+        if has_assignment_filter == '1' and not user_ecms:
+            continue
+        if has_assignment_filter == '0' and user_ecms:
+            continue
+
+        if user_ecms:
+            # Una fila por cada asignación ECM
+            for ea in user_ecms:
+                std = all_standards.get(ea.competency_standard_id)
+                exam = all_exams.get(ea.exam_id)
+                brand = all_brands.get(std.brand_id) if std and std.brand_id else None
+
+                # Aplicar filtros de estándar
+                if std_filter and (not std or std.id != std_filter):
+                    continue
+                if brand_filter and (not brand or brand.id != brand_filter):
+                    continue
+                if level_filter and (not std or std.level != level_filter):
+                    continue
+                if sector_filter and (not std or (std.sector or '').lower() != sector_filter.lower()):
+                    continue
+
+                # Resultado del examen
+                res = best_results.get((uid, ea.exam_id))
+                score = res.score if res else None
+                score_1000 = round(score * 10) if score is not None else None
+                is_approved = res.result == 1 if res else None
+
+                if result_filter == 'approved' and not is_approved:
+                    continue
+                if result_filter == 'rejected' and is_approved is not False:
+                    continue
+                if score_min is not None and (score is None or score < score_min):
+                    continue
+                if score_max is not None and (score is None or score > score_max):
+                    continue
+
+                # Grupo de la asignación
+                grp = all_groups.get(ea.group_id)
+                campus = all_campuses.get(ea.campus_id) if ea.campus_id else (all_campuses.get(grp.campus_id) if grp else None)
+                partner = all_partners.get(campus.partner_id) if campus else None
+                cycle = all_cycles.get(grp.school_cycle_id) if grp and grp.school_cycle_id else None
+
+                rows.append({
+                    'user_id': uid,
+                    'full_name': u.full_name,
+                    'username': u.username,
+                    'email': u.email,
+                    'curp': u.curp,
+                    'gender': u.gender,
+                    'role': u.role,
+                    'is_active': u.is_active,
+                    'curp_verified': u.curp_verified,
+                    'partner_name': partner.name if partner else '',
+                    'campus_name': campus.name if campus else '',
+                    'campus_state': campus.state_name if campus else '',
+                    'school_cycle': cycle.name if cycle else '',
+                    'group_name': grp.name if grp else (ea.group_name or ''),
+                    'standard_code': std.code if std else '',
+                    'standard_name': std.name if std else '',
+                    'standard_level': std.level if std else None,
+                    'standard_sector': std.sector if std else '',
+                    'brand_name': brand.name if brand else '',
+                    'assignment_number': ea.assignment_number,
+                    'exam_name': exam.name if exam else '',
+                    'score': score,
+                    'score_1000': score_1000,
+                    'result': 'Aprobado' if is_approved else ('Reprobado' if is_approved is False else 'Sin evaluar'),
+                    'result_date': res.end_date.isoformat() if res and res.end_date else None,
+                    'duration_seconds': res.duration_seconds if res else None,
+                    'certificate_code': res.certificate_code if res and is_approved else None,
+                    'tramite_status': ea.tramite_status,
+                    'expires_at': ea.expires_at.isoformat() if ea.expires_at else None,
+                })
+        else:
+            # Usuario sin asignaciones ECM — una fila genérica
+            if std_filter or brand_filter or level_filter or sector_filter:
+                continue
+            if result_filter:
+                continue
+
+            for gid in user_group_ids:
+                grp = all_groups.get(gid)
+                if not grp:
+                    continue
+                campus = all_campuses.get(grp.campus_id)
+                partner = all_partners.get(campus.partner_id) if campus else None
+                cycle = all_cycles.get(grp.school_cycle_id) if grp.school_cycle_id else None
+
+                rows.append({
+                    'user_id': uid,
+                    'full_name': u.full_name,
+                    'username': u.username,
+                    'email': u.email,
+                    'curp': u.curp,
+                    'gender': u.gender,
+                    'role': u.role,
+                    'is_active': u.is_active,
+                    'curp_verified': u.curp_verified,
+                    'partner_name': partner.name if partner else '',
+                    'campus_name': campus.name if campus else '',
+                    'campus_state': campus.state_name if campus else '',
+                    'school_cycle': cycle.name if cycle else '',
+                    'group_name': grp.name if grp else '',
+                    'standard_code': '',
+                    'standard_name': '',
+                    'standard_level': None,
+                    'standard_sector': '',
+                    'brand_name': '',
+                    'assignment_number': '',
+                    'exam_name': '',
+                    'score': None,
+                    'score_1000': None,
+                    'result': 'Sin asignación',
+                    'result_date': None,
+                    'duration_seconds': None,
+                    'certificate_code': None,
+                    'tramite_status': None,
+                    'expires_at': None,
+                })
+
+    return rows, len(rows)
+
+
+@bp.route('/reports', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_reports():
+    """Endpoint principal de reportes con filtros avanzados.
+    Accesible por coordinador y responsable."""
+    try:
+        user = g.current_user
+        rows, total = _build_reports_query(user, request.args)
+
+        # Paginación
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        per_page = min(per_page, 200)
+        start = (page - 1) * per_page
+        end = start + per_page
+        page_rows = rows[start:end]
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 0
+
+        return jsonify({
+            'rows': page_rows,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': total_pages,
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/reports/export', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_reports():
+    """Exportar reportes a Excel con los mismos filtros."""
+    try:
+        user = g.current_user
+        rows, total = _build_reports_query(user, request.args)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Reporte'
+
+        headers = [
+            'Partner', 'Plantel', 'Estado', 'Ciclo Escolar', 'Grupo',
+            'Nombre Completo', 'Usuario', 'Email', 'CURP', 'Género', 'Tipo',
+            'Activo', 'CURP Verificada',
+            'Estándar (Código)', 'Estándar (Nombre)', 'Nivel', 'Sector', 'Marca',
+            'No. Asignación', 'Examen',
+            'Calificación (0-100)', 'Calificación (0-1000)', 'Resultado',
+            'Fecha Evaluación', 'Duración (seg)', 'Código Certificado',
+            'Trámite CONOCER', 'Vigencia',
+        ]
+
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+
+        gender_map = {'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro'}
+        role_map = {'candidato': 'Candidato', 'responsable': 'Responsable'}
+        tramite_map = {'pendiente': 'Pendiente', 'en_tramite': 'En trámite', 'entregado': 'Entregado'}
+
+        for i, row in enumerate(rows, 2):
+            data = [
+                row['partner_name'],
+                row['campus_name'],
+                row['campus_state'],
+                row['school_cycle'],
+                row['group_name'],
+                row['full_name'],
+                row['username'],
+                row['email'],
+                row['curp'],
+                gender_map.get(row['gender'], row['gender'] or ''),
+                role_map.get(row['role'], row['role'] or ''),
+                'Sí' if row['is_active'] else 'No',
+                'Sí' if row['curp_verified'] else 'No',
+                row['standard_code'],
+                row['standard_name'],
+                row['standard_level'],
+                row['standard_sector'],
+                row['brand_name'],
+                row['assignment_number'],
+                row['exam_name'],
+                row['score'],
+                row['score_1000'],
+                row['result'],
+                row['result_date'],
+                row['duration_seconds'],
+                row['certificate_code'],
+                tramite_map.get(row['tramite_status'] or '', row['tramite_status'] or ''),
+                row['expires_at'],
+            ]
+            for col, val in enumerate(data, 1):
+                cell = ws.cell(row=i, column=col, value=val)
+                cell.border = thin_border
+
+        # Auto-ajustar anchos
+        for col in ws.columns:
+            max_length = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            ws.column_dimensions[col_letter].width = min(max_length + 3, 40)
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        filename = f'Reporte_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
         return None

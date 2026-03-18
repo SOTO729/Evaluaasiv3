@@ -172,7 +172,7 @@ const ConocerContactsPage = lazy(() => import('./pages/partners/ConocerContactsP
 
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
-const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
+const ReportsPage = lazy(() => import('./pages/partners/ReportsPage'))
 const MiPlantelGrupoDetailPage = lazy(() => import('./pages/responsable/MiPlantelGrupoDetailPage'))
 const MiPlantelCicloDetailPage = lazy(() => import('./pages/responsable/MiPlantelCicloDetailPage'))
 const MiPlantelGrupoNuevoPage = lazy(() => import('./pages/responsable/MiPlantelGrupoNuevoPage'))
@@ -398,6 +398,7 @@ function App() {
               <Route path="/partners/groups/:groupId/assignments/:examId/detail" element={<AssignmentDetailPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/edit-members" element={<GroupEditAssignmentMembersPage />} />
               <Route path="/partners/groups/:groupId/assignments/:assignmentId/swap-history" element={<SwapHistoryPage />} />
+              <Route path="/partners/reports" element={<ReportsPage backPath="/partners" />} />
               
               {/* Asignaciones por ECM */}
               <Route path="/asignaciones-ecm" element={<EcmAssignmentsPage />} />
@@ -413,7 +414,7 @@ function App() {
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
-              <Route path="/mi-plantel/reportes" element={<MiPlantelReportesPage />} />
+              <Route path="/mi-plantel/reportes" element={<ReportsPage backPath="/mi-plantel" />} />
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
               <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />
               <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />

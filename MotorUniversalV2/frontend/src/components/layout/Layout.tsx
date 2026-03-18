@@ -274,6 +274,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/badges/templates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/badges') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Insignias</Link>
                     <Link to="/standards" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/standards') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Estándares</Link>
                     <Link to="/tramites-conocer" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/tramites-conocer') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>CONOCER</Link>
+                    <Link to="/partners/reports" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/partners/reports' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Reportes</Link>
                   </>
                 )}
                 {/* ── Bloque soporte: nav directo al módulo de soporte ── */}
@@ -403,6 +404,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/exams" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/exams') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Exámenes</Link>
                     <Link to="/study-contents" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/study-contents') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Materiales</Link>
                     <Link to="/certificates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/certificates') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Certificados</Link>
+                    <Link to="/mi-plantel/reportes" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/reportes' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Reportes</Link>
                   </>
                 )}
                 {user?.role === 'responsable_partner' && (
@@ -733,6 +735,12 @@ const Layout = ({ children }: LayoutProps) => {
                       CONOCER
                     </div>
                   </Link>
+                  <Link to="/partners/reports" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/partners/reports' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                      Reportes
+                    </div>
+                  </Link>
                 </>
               )}
               {/* ── Bloque soporte mobile: enlace al centro de soporte ── */}
@@ -947,6 +955,12 @@ const Layout = ({ children }: LayoutProps) => {
                     <div className="flex items-center">
                       <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
                       Certificados
+                    </div>
+                  </Link>
+                  <Link to="/mi-plantel/reportes" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mi-plantel/reportes' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                      Reportes
                     </div>
                   </Link>
                 </>
