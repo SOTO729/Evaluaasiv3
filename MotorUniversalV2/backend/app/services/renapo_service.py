@@ -8,7 +8,9 @@ import asyncio
 import json
 import re
 import logging
+import random
 import threading
+import time as _time
 from datetime import datetime
 from typing import Optional
 
@@ -27,9 +29,19 @@ CHALLENGE_POLL_INTERVAL = 3  # segundos entre checks del challenge
 # CURPs genéricos de extranjero — NO se validan contra RENAPO
 GENERIC_FOREIGN_CURPS = {'XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8'}
 
-# Rate limiting
-MAX_RETRIES = 3
-RETRY_BASE_DELAY = 2  # seconds
+# Retry config — 7 intentos con backoff exponencial + jitter
+MAX_RETRIES = 7
+RETRY_BASE_DELAY = 2  # seconds (base para backoff exponencial)
+RETRY_MAX_DELAY = 30  # segundos máximo entre reintentos
+RETRY_JITTER = 0.5    # ±50% jitter aleatorio sobre el delay calculado
+
+# Circuit breaker — evitar bombardear RENAPO cuando está caído
+_circuit_lock = threading.Lock()
+_consecutive_failures = 0
+_CIRCUIT_THRESHOLD = 10       # tras N fallos consecutivos, abrir circuito
+_CIRCUIT_COOLDOWN = 120       # segundos de espera antes de reintentar
+_circuit_opened_at = 0.0      # timestamp cuando se abrió
+_BROWSER_RESTART_AFTER = 3    # reiniciar browser tras N fallos seguidos en un call
 
 # ── Validación de formato CURP ──
 # Entidades federativas válidas (2 letras)
@@ -106,12 +118,69 @@ def is_generic_foreign_curp(curp: str) -> bool:
     return curp and curp.upper().strip() in GENERIC_FOREIGN_CURPS
 
 
+def _calc_retry_delay(attempt: int) -> float:
+    """Calcula delay con exponential backoff + jitter.
+    attempt es 1-based. Ejemplo con base=2, max=30:
+      attempt 1 → ~2s, 2 → ~4s, 3 → ~8s, 4 → ~16s, 5+ → ~30s (cap)
+    """
+    delay = min(RETRY_BASE_DELAY * (2 ** (attempt - 1)), RETRY_MAX_DELAY)
+    jitter = delay * RETRY_JITTER * (2 * random.random() - 1)  # ±50%
+    return max(1.0, min(delay + jitter, RETRY_MAX_DELAY))
+
+
+def _check_circuit_breaker() -> bool:
+    """Retorna True si el circuito está abierto (RENAPO caído, no intentar)."""
+    global _consecutive_failures, _circuit_opened_at
+    with _circuit_lock:
+        if _consecutive_failures < _CIRCUIT_THRESHOLD:
+            return False
+        elapsed = _time.time() - _circuit_opened_at
+        if elapsed < _CIRCUIT_COOLDOWN:
+            return True  # aún en cooldown
+        # Cooldown expiró — half-open, dejar pasar un intento
+        logger.info(f"[RENAPO-CB] Circuit half-open tras {elapsed:.0f}s cooldown, permitiendo intento")
+        return False
+
+
+def _record_renapo_success():
+    """Registra éxito en RENAPO — resetea circuit breaker."""
+    global _consecutive_failures
+    with _circuit_lock:
+        if _consecutive_failures > 0:
+            logger.info(f"[RENAPO-CB] Éxito tras {_consecutive_failures} fallo(s), reseteando circuito")
+        _consecutive_failures = 0
+
+
+def _record_renapo_failure():
+    """Registra fallo en RENAPO — incrementa contador y abre circuito si necesario."""
+    global _consecutive_failures, _circuit_opened_at
+    with _circuit_lock:
+        _consecutive_failures += 1
+        if _consecutive_failures >= _CIRCUIT_THRESHOLD:
+            _circuit_opened_at = _time.time()
+            logger.warning(f"[RENAPO-CB] Circuit ABIERTO tras {_consecutive_failures} fallos consecutivos, cooldown {_CIRCUIT_COOLDOWN}s")
+
+
 async def _ensure_browser():
     """Obtiene o crea la instancia singleton del browser Playwright"""
     global _playwright_instance, _browser_instance
 
     if _browser_instance and _browser_instance.is_connected():
         return _browser_instance
+
+    # Limpiar instancia anterior si existe pero está desconectada
+    if _browser_instance:
+        try:
+            await _browser_instance.close()
+        except Exception:
+            pass
+        _browser_instance = None
+    if _playwright_instance:
+        try:
+            await _playwright_instance.stop()
+        except Exception:
+            pass
+        _playwright_instance = None
 
     from playwright.async_api import async_playwright
     _playwright_instance = await async_playwright().start()
@@ -126,6 +195,25 @@ async def _ensure_browser():
     )
     logger.info("Playwright browser iniciado para validación RENAPO")
     return _browser_instance
+
+
+async def _restart_browser():
+    """Forzar cierre y reinicio del browser (útil tras fallos consecutivos)."""
+    global _playwright_instance, _browser_instance
+    logger.warning("[RENAPO] Reiniciando browser Playwright")
+    if _browser_instance:
+        try:
+            await _browser_instance.close()
+        except Exception:
+            pass
+        _browser_instance = None
+    if _playwright_instance:
+        try:
+            await _playwright_instance.stop()
+        except Exception:
+            pass
+        _playwright_instance = None
+    return await _ensure_browser()
 
 
 async def _close_browser():
@@ -171,10 +259,18 @@ async def _consultar_renapo_async(curp: str) -> RenapoValidationResult:
         return RenapoValidationResult(curp=curp, valid=True,
                                        error='CURP genérico extranjero — no requiere validación')
 
+    consecutive_errors = 0  # fallos seguidos en ESTA llamada (para browser restart)
+
     for attempt in range(1, MAX_RETRIES + 1):
         context = None
         try:
-            browser = await _ensure_browser()
+            # Reiniciar browser si hubo muchos fallos seguidos
+            if consecutive_errors >= _BROWSER_RESTART_AFTER:
+                browser = await _restart_browser()
+                consecutive_errors = 0
+            else:
+                browser = await _ensure_browser()
+
             context = await browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
             )
@@ -225,20 +321,27 @@ async def _consultar_renapo_async(curp: str) -> RenapoValidationResult:
 
             # Procesar respuesta API interceptada
             if api_response_data:
+                _record_renapo_success()
                 return _parse_renapo_response(curp, api_response_data)
 
-            # Si no se interceptó la respuesta, reportar fallo
+            # Sin respuesta API — contar como fallo para retry
+            consecutive_errors += 1
+            _record_renapo_failure()
+
             if attempt < MAX_RETRIES:
-                logger.warning(f"CURP {curp}: Sin respuesta API en intento {attempt}/{MAX_RETRIES}")
-                await asyncio.sleep(RETRY_BASE_DELAY * attempt)
+                delay = _calc_retry_delay(attempt)
+                logger.warning(f"CURP {curp}: Sin respuesta API en intento {attempt}/{MAX_RETRIES}, retry en {delay:.1f}s")
+                await asyncio.sleep(delay)
                 continue
 
             return RenapoValidationResult(
                 curp=curp, valid=False,
-                error='No se recibió respuesta del API de RENAPO'
+                error=f'No se recibió respuesta del API de RENAPO tras {MAX_RETRIES} intentos'
             )
 
         except Exception as e:
+            consecutive_errors += 1
+            _record_renapo_failure()
             logger.error(f"RENAPO error (intento {attempt}/{MAX_RETRIES}) para CURP {curp}: {e}")
             if context:
                 try:
@@ -247,11 +350,13 @@ async def _consultar_renapo_async(curp: str) -> RenapoValidationResult:
                     pass
                 context = None
             if attempt < MAX_RETRIES:
-                await asyncio.sleep(RETRY_BASE_DELAY * attempt)
+                delay = _calc_retry_delay(attempt)
+                logger.info(f"CURP {curp}: Reintentando en {delay:.1f}s")
+                await asyncio.sleep(delay)
                 continue
             return RenapoValidationResult(
                 curp=curp, valid=False,
-                error=f'Error de conexión con RENAPO: {str(e)[:100]}'
+                error=f'Error de conexión con RENAPO tras {MAX_RETRIES} intentos: {str(e)[:100]}'
             )
 
 
@@ -322,7 +427,9 @@ def _clean_name(value: Optional[str]) -> Optional[str]:
 
 def validate_curp_renapo(curp: str) -> RenapoValidationResult:
     """Valida una CURP contra RENAPO (síncrono).
-    Esta función es thread-safe y crea un event loop si no existe.
+    Incluye hasta 7 reintentos con backoff exponencial + jitter,
+    circuit breaker para proteger contra caídas de RENAPO,
+    y reinicio automático del browser tras fallos consecutivos.
     """
     curp = (curp or '').upper().strip()
 
@@ -339,12 +446,21 @@ def validate_curp_renapo(curp: str) -> RenapoValidationResult:
         return RenapoValidationResult(curp=curp, valid=False,
                                        error='Formato de CURP inválido')
 
+    # Circuit breaker: si RENAPO lleva muchos fallos seguidos, esperar cooldown
+    if _check_circuit_breaker():
+        logger.warning(f"[RENAPO-CB] Circuito abierto, rechazando CURP {curp} temporalmente")
+        return RenapoValidationResult(
+            curp=curp, valid=False,
+            error='Servicio RENAPO temporalmente no disponible (demasiados fallos), reintente en unos minutos'
+        )
+
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(_consultar_renapo_async(curp))
         return result
     except Exception as e:
+        _record_renapo_failure()
         logger.error(f"Error en validate_curp_renapo para {curp}: {e}")
         return RenapoValidationResult(curp=curp, valid=False,
                                        error=f'Error interno: {str(e)[:100]}')
