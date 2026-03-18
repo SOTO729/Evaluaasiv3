@@ -676,12 +676,17 @@ export default function GroupMembersPage() {
                     </td>
                     <td className="fluid-px-4 fluid-py-3 hidden lg:table-cell">
                       {member.ecm_assignments && member.ecm_assignments.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {member.ecm_assignments.map((ecm: any, idx: number) => (
-                            <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 max-w-[200px] truncate" title={`${ecm.ecm_code} - ${ecm.ecm_name}`}>
+                        <div className="flex flex-wrap gap-1 max-w-[260px]">
+                          {member.ecm_assignments.slice(0, 3).map((ecm: any, idx: number) => (
+                            <span key={idx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 truncate max-w-[120px]" title={`${ecm.ecm_code} - ${ecm.ecm_name}`}>
                               {ecm.ecm_code}
                             </span>
                           ))}
+                          {member.ecm_assignments.length > 3 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200" title={member.ecm_assignments.slice(3).map((e: any) => `${e.ecm_code} - ${e.ecm_name}`).join('\n')}>
+                              +{member.ecm_assignments.length - 3}
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <span className="text-gray-400 fluid-text-xs">—</span>
