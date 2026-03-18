@@ -1358,10 +1358,55 @@ def toggle_user_active(user_id):
         if user_id == current_user.id:
             return jsonify({'error': 'No puedes desactivarte a ti mismo'}), 400
         
+        was_inactive = not user.is_active
         user.is_active = not user.is_active
         db.session.commit()
         
         status = 'activado' if user.is_active else 'desactivado'
+
+        # Si se activa y tiene CURP no extranjera sin verificar → validar RENAPO en background
+        if user.is_active and was_inactive and user.curp and not user.curp_verified:
+            from app.services.renapo_service import is_generic_foreign_curp
+            if not is_generic_foreign_curp(user.curp):
+                import threading
+                from flask import current_app
+                app = current_app._get_current_object()
+                _user_id = user.id
+                _curp = user.curp
+                _username = user.username
+
+                def _verify_curp_on_activate(app_obj, uid, curp, username):
+                    import time
+                    import logging
+                    _logger = logging.getLogger(__name__)
+                    _logger.info(f'[ACTIVATE-CURP] Verificando CURP {curp} de {username}')
+                    time.sleep(1)  # Dar tiempo a que termine la respuesta HTTP
+                    with app_obj.app_context():
+                        from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user
+                        try:
+                            result = validate_curp_renapo(curp)
+                            u = User.query.get(uid)
+                            if not u:
+                                _logger.warning(f'[ACTIVATE-CURP] Usuario {username} ya no existe')
+                                return
+                            if result.valid:
+                                apply_renapo_to_user(u, result)
+                                db.session.commit()
+                                _logger.info(f'[ACTIVATE-CURP] CURP {curp} válida para {username}')
+                            else:
+                                _logger.warning(f'[ACTIVATE-CURP] CURP {curp} inválida para {username}: {result.error}')
+                        except Exception as e:
+                            _logger.error(f'[ACTIVATE-CURP] Error verificando CURP {curp} de {username}: {e}')
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+
+                threading.Thread(
+                    target=_verify_curp_on_activate,
+                    args=(app, _user_id, _curp, _username),
+                    daemon=True,
+                ).start()
         
         return jsonify({
             'message': f'Usuario {status} exitosamente',
