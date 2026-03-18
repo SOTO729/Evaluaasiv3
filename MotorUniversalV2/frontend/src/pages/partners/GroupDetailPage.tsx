@@ -331,7 +331,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
             <div className="fluid-p-2.5 bg-amber-100 rounded-fluid-lg"><Wallet className="fluid-icon-base text-amber-600" /></div>
             <div className="flex-1 min-w-0">
               <p className="fluid-text-2xl font-bold text-amber-600">{groupBalance ? formatCurrency(groupBalance.current_balance) : '$0'}</p>
-              <p className="fluid-text-xs text-gray-500">Saldo del grupo</p>
+              <p className="fluid-text-xs text-gray-500">Saldo del plantel</p>
             </div>
           </div>
           <div className="fluid-mt-2">

@@ -612,7 +612,7 @@ export interface BulkUploadMember {
   username: string | null;
   curp: string | null;
   gender: string | null;
-  status: 'created' | 'existing_assigned' | 'error' | 'skipped' | 'curp_invalid';
+  status: 'created' | 'existing_assigned' | 'error' | 'skipped' | 'curp_invalid' | 'curp_verified';
   error_message: string | null;
   created_at: string;
 }

@@ -71,6 +71,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; badgeColor: 
     badgeColor: 'bg-orange-100 text-orange-700 border-orange-200',
     icon: <ShieldAlert className="w-3.5 h-3.5" />,
   },
+  curp_verified: {
+    label: 'CURP Verificada',
+    color: 'from-teal-500 to-teal-600',
+    badgeColor: 'bg-teal-100 text-teal-700 border-teal-200',
+    icon: <UserCheck className="w-3.5 h-3.5" />,
+  },
 };
 
 export default function BulkUploadDetailPage() {
@@ -308,6 +314,7 @@ export default function BulkUploadDetailPage() {
                 { key: 'created', label: 'Creados', count: batch.total_created },
                 { key: 'existing_assigned', label: 'Existentes', count: batch.total_existing_assigned },
                 { key: 'error', label: 'Errores', count: batch.total_errors },
+                { key: 'curp_verified', label: 'CURP Verificada', count: (batch.members ?? []).filter(m => m.status === 'curp_verified').length },
                 { key: 'curp_invalid', label: 'CURP Inválida', count: (batch.members ?? []).filter(m => m.status === 'curp_invalid').length },
                 { key: 'skipped', label: 'Omitidos', count: batch.total_skipped },
               ].map((tab) => (

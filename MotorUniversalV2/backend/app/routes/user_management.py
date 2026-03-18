@@ -2924,6 +2924,12 @@ def bulk_upload_candidates():
                                 ).all()
                                 for gm in pending_gms:
                                     gm.status = 'active'
+                                # Actualizar registro en historial de carga masiva
+                                member_rec = BulkUploadMember.query.filter_by(
+                                    batch_id=batch_id, username=username
+                                ).first()
+                                if member_rec:
+                                    member_rec.status = 'curp_verified'
                                 db.session.commit()
                                 verified += 1
                                 _logger.info(f'[BULK-CURP] ({i+1}/{len(users_data)}) CURP {curp} válida - usuario {username}')
@@ -2954,13 +2960,33 @@ def bulk_upload_candidates():
                                 db.session.rollback()
                             except Exception:
                                 pass
+                            # Eliminar usuario que no pudo ser verificado
+                            try:
+                                user = User.query.filter_by(username=username).first()
+                                if user:
+                                    GroupMember.query.filter_by(user_id=user.id).delete()
+                                    member_rec = BulkUploadMember.query.filter_by(
+                                        batch_id=batch_id, username=username
+                                    ).first()
+                                    if member_rec:
+                                        member_rec.status = 'curp_invalid'
+                                        member_rec.error_message = f'Error al verificar CURP: {str(e)[:300]}'
+                                    db.session.delete(user)
+                                    db.session.commit()
+                                    _logger.info(f'[BULK-CURP] Usuario {username} eliminado tras error de verificación')
+                            except Exception as del_err:
+                                _logger.error(f'[BULK-CURP] Error eliminando usuario {username} tras fallo: {del_err}')
+                                try:
+                                    db.session.rollback()
+                                except Exception:
+                                    pass
 
                         # Rate limiting entre consultas RENAPO
                         if i < len(users_data) - 1:
                             time.sleep(2)
 
-                    total_rejected = invalid + format_invalid
-                    _logger.info(f'[BULK-CURP] Finalizado batch {batch_id}: {verified} verificados, {format_invalid} formato inválido, {invalid} rechazados RENAPO, {errors} errores')
+                    total_rejected = invalid + format_invalid + errors
+                    _logger.info(f'[BULK-CURP] Finalizado batch {batch_id}: {verified} verificados, {format_invalid} formato inválido, {invalid} rechazados RENAPO, {errors} errores eliminados')
 
                     # Actualizar contadores del batch
                     try:
