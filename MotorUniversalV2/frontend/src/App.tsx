@@ -205,6 +205,7 @@ const HistorialAsignacionesPage = lazy(() => import('./pages/coordinador/Histori
 // VM Sessions (Máquinas Virtuales)
 const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage'))
 const MiPlantelSesionesPage = lazy(() => import('./pages/responsable/MiPlantelSesionesPage'))
+const SolicitarCertificadosPage = lazy(() => import('./pages/responsable/SolicitarCertificadosPage'))
 
 // Grupos (gestión de grupos por plantel)
 const GruposListPage = lazy(() => import('./pages/grupos/GruposListPage'))
@@ -415,6 +416,7 @@ function App() {
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
               <Route path="/mi-plantel/reportes" element={<ReportsPage backPath="/mi-plantel" />} />
+              <Route path="/solicitar-certificados" element={<SolicitarCertificadosPage />} />
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
               <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />
               <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />

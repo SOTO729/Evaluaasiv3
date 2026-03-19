@@ -42,10 +42,13 @@ import {
   EcmAssignmentDetailResponse,
 } from '../../services/partnersService';
 import { formatCurrency } from '../../services/balanceService';
+import { useAuthStore } from '../../store/authStore';
 
 export default function EcmAssignmentDetailPage() {
   const { ecmId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isResponsable = user?.role === 'responsable';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<EcmAssignmentDetailResponse | null>(null);
@@ -357,8 +360,8 @@ export default function EcmAssignmentDetailPage() {
                 <Wallet className="fluid-icon-base text-green-600" />
               </div>
               <div>
-                <p className="fluid-text-xs text-gray-500">Inversión total</p>
-                <p className="fluid-text-xl font-bold text-green-700">{formatCurrency(summary.total_cost)}</p>
+                <p className="fluid-text-xs text-gray-500">{isResponsable ? 'Total certificados' : 'Inversión total'}</p>
+                <p className="fluid-text-xl font-bold text-green-700">{isResponsable ? summary.total_assignments : formatCurrency(summary.total_cost)}</p>
               </div>
             </div>
           </div>
@@ -577,7 +580,7 @@ export default function EcmAssignmentDetailPage() {
                   </th>
                   <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('cost')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
-                      Costo
+                      {isResponsable ? 'Cert.' : 'Costo'}
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
@@ -685,7 +688,7 @@ export default function EcmAssignmentDetailPage() {
                     {/* Costo */}
                     <td className="py-3 px-3 text-center">
                       <p className={`fluid-text-sm font-medium ${a.unit_cost > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                        {a.unit_cost > 0 ? formatCurrency(a.unit_cost) : '$0'}
+                        {isResponsable ? (a.unit_cost > 0 ? '1 cert.' : '—') : (a.unit_cost > 0 ? formatCurrency(a.unit_cost) : '$0')}
                       </p>
                     </td>
                     {/* Calificación */}

@@ -703,3 +703,51 @@ export async function toggleFinancieroDelegation(
   });
   return response.data;
 }
+
+
+// =====================================================
+// SOLICITUDES DE CERTIFICADOS (Responsable → Coordinador)
+// =====================================================
+
+export interface CertificateRequestData {
+  id: number;
+  responsable_id: string;
+  campus_id: number;
+  group_id: number | null;
+  coordinator_id: string;
+  units_requested: number;
+  justification: string;
+  status: string;
+  status_label: string;
+  created_at: string;
+  responsable?: { id: string; full_name: string; email: string };
+  campus?: { id: number; name: string };
+  group?: { id: number; name: string } | null;
+  coordinator?: { id: string; full_name: string; email: string };
+}
+
+export interface MyCampusInfo {
+  campus: { id: number; name: string; certification_cost: number };
+  groups: { id: number; name: string; use_custom_config: boolean; certification_cost_override: number | null }[];
+}
+
+export async function createCertificateRequest(data: {
+  campus_id: number;
+  group_id?: number | null;
+  units_requested: number;
+  justification: string;
+}): Promise<{ message: string; request: CertificateRequestData }> {
+  const response = await api.post('/balance/certificate-request', data);
+  return response.data;
+}
+
+export async function getCertificateRequests(campusId?: number): Promise<{ requests: CertificateRequestData[] }> {
+  const params = campusId ? `?campus_id=${campusId}` : '';
+  const response = await api.get(`/balance/certificate-requests${params}`);
+  return response.data;
+}
+
+export async function getMyCampusInfo(): Promise<MyCampusInfo> {
+  const response = await api.get('/balance/my-campus-info');
+  return response.data;
+}

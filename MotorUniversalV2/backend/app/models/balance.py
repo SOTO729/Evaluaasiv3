@@ -411,3 +411,92 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
     db.session.add(transaction)
     
     return transaction, balance
+
+
+# =====================================================
+# SOLICITUDES DE CERTIFICADOS (Responsable → Coordinador)
+# =====================================================
+
+CERTIFICATE_REQUEST_STATUS = {
+    'pending': 'Pendiente',
+    'seen': 'Vista',
+    'resolved': 'Resuelta',
+    'rejected': 'Rechazada',
+}
+
+
+class CertificateRequest(db.Model):
+    """Solicitud de certificados de un responsable de plantel a su coordinador.
+    
+    Flujo: Responsable solicita N certificados → Coordinador recibe notificación
+    → Coordinador decide si asignar saldo o solicitar más a financiero.
+    """
+    
+    __tablename__ = 'certificate_requests'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Quién solicita
+    responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    
+    # Destino
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    
+    # Coordinador destino (via campus.partner.coordinator_id)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    
+    # Datos de la solicitud
+    units_requested = db.Column(db.Integer, nullable=False)
+    justification = db.Column(db.Text, nullable=False)
+    
+    # Estado
+    status = db.Column(db.String(20), default='pending', nullable=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relaciones
+    responsable = db.relationship('User', foreign_keys=[responsable_id], backref=db.backref('certificate_requests_made', lazy='dynamic'))
+    coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('certificate_requests_received', lazy='dynamic'))
+    campus = db.relationship('Campus', backref=db.backref('certificate_requests', lazy='dynamic'))
+    group = db.relationship('CandidateGroup', backref=db.backref('certificate_requests', lazy='dynamic'))
+    
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'responsable_id': self.responsable_id,
+            'campus_id': self.campus_id,
+            'group_id': self.group_id,
+            'coordinator_id': self.coordinator_id,
+            'units_requested': self.units_requested,
+            'justification': self.justification,
+            'status': self.status,
+            'status_label': CERTIFICATE_REQUEST_STATUS.get(self.status, self.status),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if self.responsable:
+            data['responsable'] = {
+                'id': self.responsable.id,
+                'full_name': self.responsable.full_name,
+                'email': self.responsable.email,
+            }
+        if self.campus:
+            data['campus'] = {
+                'id': self.campus.id,
+                'name': self.campus.name,
+            }
+        if self.group:
+            data['group'] = {
+                'id': self.group.id,
+                'name': self.group.name,
+            }
+        if self.coordinator:
+            data['coordinator'] = {
+                'id': self.coordinator.id,
+                'full_name': self.coordinator.full_name,
+                'email': self.coordinator.email,
+            }
+        return data

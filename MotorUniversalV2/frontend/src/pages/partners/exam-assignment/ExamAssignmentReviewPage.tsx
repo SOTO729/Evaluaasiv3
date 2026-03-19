@@ -248,27 +248,31 @@ export default function ExamAssignmentReviewPage() {
               <tr className="bg-gray-50 border-b">
                 <th className="text-left py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Concepto</th>
                 <th className="text-center py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Unidades</th>
-                <th className="text-right py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Precio unitario</th>
-                <th className="text-right py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Subtotal</th>
+                {!isResponsable && <th className="text-right py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Precio unitario</th>}
+                {!isResponsable && <th className="text-right py-3 px-4 fluid-text-xs font-medium text-gray-500 uppercase">Subtotal</th>}
               </tr>
             </thead>
             <tbody>
               <tr className="border-b">
                 <td className="py-3 px-4">
                   <p className="font-medium text-gray-900 fluid-text-base">Certificación</p>
-                  <p className="fluid-text-xs text-gray-500">Origen del costo: {costPreview.cost_source}</p>
+                  {!isResponsable && <p className="fluid-text-xs text-gray-500">Origen del costo: {costPreview.cost_source}</p>}
                 </td>
                 <td className="py-3 px-4 text-center">
                   <span className="inline-flex items-center fluid-gap-1 text-gray-900 font-medium fluid-text-base"><Users className="fluid-icon-sm text-gray-400" />{costPreview.units}</span>
                 </td>
-                <td className="py-3 px-4 text-right font-medium text-gray-900 fluid-text-base">{formatCurrency(costPreview.unit_cost)}</td>
-                <td className="py-3 px-4 text-right font-medium text-gray-900 fluid-text-base">{formatCurrency(costPreview.total_cost)}</td>
+                {!isResponsable && <td className="py-3 px-4 text-right font-medium text-gray-900 fluid-text-base">{formatCurrency(costPreview.unit_cost)}</td>}
+                {!isResponsable && <td className="py-3 px-4 text-right font-medium text-gray-900 fluid-text-base">{formatCurrency(costPreview.total_cost)}</td>}
               </tr>
             </tbody>
             <tfoot>
               <tr className="bg-gray-50">
-                <td colSpan={3} className="py-3 px-4 text-right font-semibold text-gray-700 fluid-text-base">Total a descontar</td>
-                <td className="py-3 px-4 text-right font-bold fluid-text-lg text-gray-900">{formatCurrency(costPreview.total_cost)}</td>
+                <td colSpan={isResponsable ? 1 : 3} className="py-3 px-4 text-right font-semibold text-gray-700 fluid-text-base">
+                  {isResponsable ? 'Certificados a asignar' : 'Total a descontar'}
+                </td>
+                <td className="py-3 px-4 text-right font-bold fluid-text-lg text-gray-900">
+                  {isResponsable ? costPreview.units : formatCurrency(costPreview.total_cost)}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -277,19 +281,29 @@ export default function ExamAssignmentReviewPage() {
         {/* Balance cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-4">
-            <div className="flex items-center fluid-gap-2 mb-1"><Wallet className="fluid-icon-sm text-blue-500" /><p className="fluid-text-xs font-medium text-blue-600">Saldo actual</p></div>
-            <p className="fluid-text-2xl font-bold text-blue-700">{formatCurrency(costPreview.current_balance)}</p>
+            <div className="flex items-center fluid-gap-2 mb-1"><Wallet className="fluid-icon-sm text-blue-500" /><p className="fluid-text-xs font-medium text-blue-600">{isResponsable ? 'Certificados disponibles' : 'Saldo actual'}</p></div>
+            <p className="fluid-text-2xl font-bold text-blue-700">
+              {isResponsable
+                ? (costPreview.unit_cost > 0 ? Math.floor(costPreview.current_balance / costPreview.unit_cost) : 0)
+                : formatCurrency(costPreview.current_balance)}
+            </p>
           </div>
           <div className="bg-orange-50 border border-orange-200 rounded-fluid-xl fluid-p-4">
-            <div className="flex items-center fluid-gap-2 mb-1"><TrendingDown className="fluid-icon-sm text-orange-500" /><p className="fluid-text-xs font-medium text-orange-600">Descuento</p></div>
-            <p className="fluid-text-2xl font-bold text-orange-700">- {formatCurrency(costPreview.total_cost)}</p>
+            <div className="flex items-center fluid-gap-2 mb-1"><TrendingDown className="fluid-icon-sm text-orange-500" /><p className="fluid-text-xs font-medium text-orange-600">{isResponsable ? 'A asignar' : 'Descuento'}</p></div>
+            <p className="fluid-text-2xl font-bold text-orange-700">
+              {isResponsable ? `- ${costPreview.units}` : `- ${formatCurrency(costPreview.total_cost)}`}
+            </p>
           </div>
           <div className={`border rounded-fluid-xl fluid-p-4 ${costPreview.has_sufficient_balance ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
             <div className="flex items-center fluid-gap-2 mb-1">
               {costPreview.has_sufficient_balance ? <ShieldCheck className="fluid-icon-sm text-green-500" /> : <ShieldAlert className="fluid-icon-sm text-red-500" />}
-              <p className={`fluid-text-xs font-medium ${costPreview.has_sufficient_balance ? 'text-green-600' : 'text-red-600'}`}>Saldo restante</p>
+              <p className={`fluid-text-xs font-medium ${costPreview.has_sufficient_balance ? 'text-green-600' : 'text-red-600'}`}>{isResponsable ? 'Certificados restantes' : 'Saldo restante'}</p>
             </div>
-            <p className={`fluid-text-2xl font-bold ${costPreview.has_sufficient_balance ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(costPreview.remaining_balance)}</p>
+            <p className={`fluid-text-2xl font-bold ${costPreview.has_sufficient_balance ? 'text-green-700' : 'text-red-700'}`}>
+              {isResponsable
+                ? (costPreview.unit_cost > 0 ? Math.floor(costPreview.remaining_balance / costPreview.unit_cost) : 0)
+                : formatCurrency(costPreview.remaining_balance)}
+            </p>
           </div>
         </div>
 
@@ -298,13 +312,22 @@ export default function ExamAssignmentReviewPage() {
           <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6 flex items-start fluid-gap-3">
             <ShieldAlert className="fluid-icon-base text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-red-700 fluid-text-base">Saldo insuficiente</p>
-              <p className="fluid-text-sm text-red-600 mt-1">
-                Necesitas <strong>{formatCurrency(costPreview.total_cost)}</strong> pero tu saldo actual es de{' '}
-                <strong>{formatCurrency(costPreview.current_balance)}</strong>.
-                Te faltan <strong>{formatCurrency(Math.abs(costPreview.remaining_balance))}</strong> para completar esta asignación.
-              </p>
-              <Link to="/solicitar-saldo" className="inline-flex items-center fluid-gap-1 fluid-text-sm text-red-700 hover:text-red-900 font-medium mt-2 underline">Solicitar más saldo →</Link>
+              <p className="font-medium text-red-700 fluid-text-base">{isResponsable ? 'Certificados insuficientes' : 'Saldo insuficiente'}</p>
+              {isResponsable ? (
+                <p className="fluid-text-sm text-red-600 mt-1">
+                  Necesitas <strong>{costPreview.units} certificado{costPreview.units !== 1 ? 's' : ''}</strong> pero solo tienes{' '}
+                  <strong>{costPreview.unit_cost > 0 ? Math.floor(costPreview.current_balance / costPreview.unit_cost) : 0}</strong> disponibles.
+                </p>
+              ) : (
+                <p className="fluid-text-sm text-red-600 mt-1">
+                  Necesitas <strong>{formatCurrency(costPreview.total_cost)}</strong> pero tu saldo actual es de{' '}
+                  <strong>{formatCurrency(costPreview.current_balance)}</strong>.
+                  Te faltan <strong>{formatCurrency(Math.abs(costPreview.remaining_balance))}</strong> para completar esta asignación.
+                </p>
+              )}
+              <Link to={isResponsable ? '/solicitar-certificados' : '/solicitar-saldo'} className="inline-flex items-center fluid-gap-1 fluid-text-sm text-red-700 hover:text-red-900 font-medium mt-2 underline">
+                {isResponsable ? 'Solicitar más certificados →' : 'Solicitar más saldo →'}
+              </Link>
             </div>
           </div>
         )}
@@ -326,9 +349,11 @@ export default function ExamAssignmentReviewPage() {
           <button onClick={handleConfirm} disabled={saving || (!costPreview.has_sufficient_balance && costPreview.total_cost > 0)}
             className="fluid-px-6 fluid-py-3 bg-green-600 text-white rounded-fluid-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 font-medium shadow-lg transition-all fluid-text-sm">
             {saving ? (
-              <><Loader2 className="fluid-icon-base animate-spin" />Asignando y descontando saldo...</>
+              <><Loader2 className="fluid-icon-base animate-spin" />{isResponsable ? 'Asignando certificados...' : 'Asignando y descontando saldo...'}</>
             ) : (
-              <><CheckCircle2 className="fluid-icon-base" />{costPreview.total_cost > 0 ? `Confirmar Asignación (${formatCurrency(costPreview.total_cost)})` : 'Confirmar Asignación'}</>
+              <><CheckCircle2 className="fluid-icon-base" />{costPreview.total_cost > 0
+                ? (isResponsable ? `Confirmar Asignación (${costPreview.units} certificado${costPreview.units !== 1 ? 's' : ''})` : `Confirmar Asignación (${formatCurrency(costPreview.total_cost)})`)
+                : 'Confirmar Asignación'}</>
             )}
           </button>
         </div>

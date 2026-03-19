@@ -15,11 +15,12 @@ from app.models.balance import (
     CoordinatorBalance, 
     BalanceRequest, 
     BalanceTransaction,
+    CertificateRequest,
     create_balance_transaction,
     REQUEST_STATUS,
     REQUEST_TYPES
 )
-from app.models.partner import Campus, CandidateGroup, GroupExam, GroupExamMember
+from app.models.partner import Campus, CandidateGroup, GroupExam, GroupExamMember, Partner
 from app.models.activity_log import log_activity_from_request
 from datetime import datetime
 from functools import wraps
@@ -2184,3 +2185,204 @@ p.msg{{font-size:15px;color:#4b5563;line-height:1.6;margin-bottom:24px;}}
 </div>
 </body>
 </html>"""
+
+
+# =====================================================
+# SOLICITUDES DE CERTIFICADOS (Responsable → Coordinador)
+# =====================================================
+
+@bp.route('/certificate-request', methods=['POST'])
+@jwt_required()
+def create_certificate_request():
+    """Responsable solicita certificados a su coordinador"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        data = request.get_json()
+        
+        # Validaciones
+        if not data.get('units_requested') or int(data['units_requested']) <= 0:
+            return jsonify({'error': 'Número de certificados debe ser mayor a 0'}), 400
+        if not data.get('justification', '').strip():
+            return jsonify({'error': 'Justificación es requerida'}), 400
+        if not data.get('campus_id'):
+            return jsonify({'error': 'Plantel es requerido'}), 400
+        
+        campus = Campus.query.get(data['campus_id'])
+        if not campus:
+            return jsonify({'error': 'Plantel no encontrado'}), 404
+        
+        # Encontrar el coordinador via campus.partner.coordinator_id
+        partner = Partner.query.get(campus.partner_id) if campus.partner_id else None
+        if not partner or not partner.coordinator_id:
+            return jsonify({'error': 'No se encontró un coordinador asignado para este plantel'}), 400
+        
+        coordinator = User.query.get(partner.coordinator_id)
+        if not coordinator:
+            return jsonify({'error': 'El coordinador asignado no existe'}), 400
+        
+        # Verificar grupo (opcional)
+        group_id = data.get('group_id')
+        if group_id:
+            group = CandidateGroup.query.get(group_id)
+            if not group or group.campus_id != campus.id:
+                return jsonify({'error': 'Grupo no encontrado o no pertenece al plantel'}), 400
+        
+        cert_request = CertificateRequest(
+            responsable_id=user_id,
+            campus_id=campus.id,
+            group_id=group_id if group_id else None,
+            coordinator_id=partner.coordinator_id,
+            units_requested=int(data['units_requested']),
+            justification=data['justification'].strip(),
+            status='pending'
+        )
+        
+        db.session.add(cert_request)
+        db.session.commit()
+        
+        # Enviar email al coordinador
+        try:
+            from app.services.email_service import send_email
+            send_email(
+                to=coordinator.email,
+                subject=f'Solicitud de certificados - {campus.name}',
+                html=f"""
+                <h2>Nueva solicitud de certificados</h2>
+                <p><strong>{user.full_name}</strong> ha solicitado <strong>{cert_request.units_requested} certificado(s)</strong> 
+                para el plantel <strong>{campus.name}</strong>.</p>
+                {f'<p><strong>Grupo:</strong> {CandidateGroup.query.get(group_id).name}</p>' if group_id else ''}
+                <p><strong>Justificación:</strong> {cert_request.justification}</p>
+                <p>Ingresa a la plataforma para gestionar esta solicitud.</p>
+                """
+            )
+        except Exception:
+            pass  # Email is best-effort
+        
+        return jsonify({
+            'message': 'Solicitud de certificados enviada correctamente',
+            'request': cert_request.to_dict()
+        }), 201
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/certificate-requests', methods=['GET'])
+@jwt_required()
+def get_certificate_requests():
+    """Obtener solicitudes de certificados (responsable ve las suyas, coordinador las recibidas)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        query = CertificateRequest.query
+        
+        if user.role == 'responsable':
+            query = query.filter_by(responsable_id=user_id)
+        elif user.role == 'coordinator':
+            query = query.filter_by(coordinator_id=user_id)
+        elif user.role in ['admin', 'developer']:
+            pass  # Admin ve todas
+        else:
+            return jsonify({'error': 'Sin permisos para ver solicitudes'}), 403
+        
+        campus_id = request.args.get('campus_id', type=int)
+        if campus_id:
+            query = query.filter_by(campus_id=campus_id)
+        
+        requests_list = query.order_by(desc(CertificateRequest.created_at)).all()
+        
+        return jsonify({
+            'requests': [r.to_dict() for r in requests_list]
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/certificate-request/<int:request_id>/status', methods=['PUT'])
+@jwt_required()
+def update_certificate_request_status(request_id):
+    """Coordinador actualiza estado de solicitud de certificados"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        cert_req = CertificateRequest.query.get(request_id)
+        if not cert_req:
+            return jsonify({'error': 'Solicitud no encontrada'}), 404
+        
+        # Solo el coordinador destino, admin o developer pueden actualizar
+        if user.role not in ['admin', 'developer'] and cert_req.coordinator_id != user_id:
+            return jsonify({'error': 'Sin permisos para actualizar esta solicitud'}), 403
+        
+        data = request.get_json()
+        new_status = data.get('status')
+        if new_status not in ['seen', 'resolved', 'rejected']:
+            return jsonify({'error': 'Estado inválido'}), 400
+        
+        cert_req.status = new_status
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Estado actualizado',
+            'request': cert_req.to_dict()
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/my-campus-info', methods=['GET'])
+@jwt_required()
+def get_my_campus_info():
+    """Obtener información del plantel del responsable (campus, grupos, certification_cost)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        # Buscar campus donde el usuario es responsable
+        campus = Campus.query.filter_by(responsable_id=user_id).first()
+        if not campus:
+            return jsonify({'error': 'No se encontró un plantel asignado'}), 404
+        
+        # Obtener grupos del campus
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
+        
+        return jsonify({
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
+            },
+            'groups': [{
+                'id': g.id,
+                'name': g.name,
+                'use_custom_config': g.use_custom_config,
+                'certification_cost_override': float(g.certification_cost_override) if g.certification_cost_override else None,
+            } for g in groups]
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

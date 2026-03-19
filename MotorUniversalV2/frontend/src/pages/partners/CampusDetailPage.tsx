@@ -763,30 +763,47 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
           </div>
         </div>
 
-        {/* Costos y Vigencia */}
+        {/* Costos y Vigencia / Recursos del Plantel */}
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-green-200 transition-all duration-300">
           <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-3 flex items-center fluid-gap-2">
-            <div className="fluid-p-2 bg-green-100 rounded-fluid-lg">
-              <DollarSign className="fluid-icon-sm text-green-600" />
+            <div className={`fluid-p-2 rounded-fluid-lg ${isResponsable ? 'bg-emerald-100' : 'bg-green-100'}`}>
+              {isResponsable ? <Award className="fluid-icon-sm text-emerald-600" /> : <DollarSign className="fluid-icon-sm text-green-600" />}
             </div>
-            Costos y Vigencia
+            {isResponsable ? 'Recursos del Plantel' : 'Costos y Vigencia'}
           </h3>
           <div className="space-y-3">
-            {/* Costos - grid compacto */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-lg p-2.5 text-center border border-green-100">
-                <p className="text-lg font-bold text-green-700 leading-tight">${campus.certification_cost || 0}</p>
-                <p className="text-[11px] text-green-600 font-semibold mt-0.5">Certificación</p>
+            {/* Costos o Certificados - grid compacto */}
+            {isResponsable ? (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
+                  <p className="text-2xl font-black text-emerald-700 leading-tight">
+                    {(campus.certification_cost || 0) > 0 && balanceSummary
+                      ? Math.floor(balanceSummary.totals.current_balance / (campus.certification_cost || 1))
+                      : 0}
+                  </p>
+                  <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Certificados disponibles (aprox.)</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-3 text-center border border-purple-100">
+                  <p className="text-2xl font-black text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
+                  <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
+                </div>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-lg p-2.5 text-center border border-blue-100">
-                <p className="text-lg font-bold text-blue-700 leading-tight">${campus.retake_cost || 0}</p>
-                <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Retoma</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-lg p-2.5 text-center border border-green-100">
+                  <p className="text-lg font-bold text-green-700 leading-tight">${campus.certification_cost || 0}</p>
+                  <p className="text-[11px] text-green-600 font-semibold mt-0.5">Certificación</p>
+                </div>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-lg p-2.5 text-center border border-blue-100">
+                  <p className="text-lg font-bold text-blue-700 leading-tight">${campus.retake_cost || 0}</p>
+                  <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Retoma</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-2.5 text-center border border-purple-100">
+                  <p className="text-lg font-bold text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
+                  <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
+                </div>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-2.5 text-center border border-purple-100">
-                <p className="text-lg font-bold text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
-                <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
-              </div>
-            </div>
+            )}
 
             {/* Vigencia */}
             {campus.assignment_validity_months ? (
@@ -816,51 +833,53 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               </div>
             </div>
 
-            {/* Saldo del Plantel */}
-            <div className="pt-2 border-t border-gray-100">
-              {loadingBalance ? (
-                <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 animate-pulse">
-                  <div className="h-6 w-20 bg-gray-200 rounded mx-auto mb-1"></div>
-                  <div className="h-3 w-16 bg-gray-200 rounded mx-auto"></div>
-                </div>
-              ) : balanceSummary ? (
-                <div className="space-y-2">
-                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
-                    <div className="flex items-center justify-center gap-1.5 mb-1">
-                      <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                      <p className="text-[11px] text-emerald-700 font-bold uppercase tracking-wide">Saldo del Plantel</p>
-                    </div>
-                    <p className={`text-xl font-black leading-tight ${balanceSummary.totals.current_balance > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
-                      ${balanceSummary.totals.current_balance.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                    {balanceSummary.coordinators_count > 0 && (
-                      <p className="text-[10px] text-emerald-600 mt-1">
-                        {balanceSummary.coordinators_count} coordinador{balanceSummary.coordinators_count !== 1 ? 'es' : ''}
+            {/* Saldo del Plantel - solo para no-responsable */}
+            {!isResponsable && (
+              <div className="pt-2 border-t border-gray-100">
+                {loadingBalance ? (
+                  <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 animate-pulse">
+                    <div className="h-6 w-20 bg-gray-200 rounded mx-auto mb-1"></div>
+                    <div className="h-3 w-16 bg-gray-200 rounded mx-auto"></div>
+                  </div>
+                ) : balanceSummary ? (
+                  <div className="space-y-2">
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
+                      <div className="flex items-center justify-center gap-1.5 mb-1">
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                        <p className="text-[11px] text-emerald-700 font-bold uppercase tracking-wide">Saldo del Plantel</p>
+                      </div>
+                      <p className={`text-xl font-black leading-tight ${balanceSummary.totals.current_balance > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
+                        ${balanceSummary.totals.current_balance.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
+                      {balanceSummary.coordinators_count > 0 && (
+                        <p className="text-[10px] text-emerald-600 mt-1">
+                          {balanceSummary.coordinators_count} coordinador{balanceSummary.coordinators_count !== 1 ? 'es' : ''}
+                        </p>
+                      )}
+                    </div>
+                    {(balanceSummary.totals.total_received > 0 || balanceSummary.totals.total_spent > 0) && (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <div className="bg-blue-50/60 rounded-lg p-2 text-center border border-blue-100/60">
+                          <p className="text-xs font-bold text-blue-700">${balanceSummary.totals.total_received.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                          <p className="text-[10px] text-blue-600 font-medium">Recibido</p>
+                        </div>
+                        <div className="bg-orange-50/60 rounded-lg p-2 text-center border border-orange-100/60">
+                          <p className="text-xs font-bold text-orange-700">${balanceSummary.totals.total_spent.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                          <p className="text-[10px] text-orange-600 font-medium">Gastado</p>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {(balanceSummary.totals.total_received > 0 || balanceSummary.totals.total_spent > 0) && (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div className="bg-blue-50/60 rounded-lg p-2 text-center border border-blue-100/60">
-                        <p className="text-xs font-bold text-blue-700">${balanceSummary.totals.total_received.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
-                        <p className="text-[10px] text-blue-600 font-medium">Recibido</p>
-                      </div>
-                      <div className="bg-orange-50/60 rounded-lg p-2 text-center border border-orange-100/60">
-                        <p className="text-xs font-bold text-orange-700">${balanceSummary.totals.total_spent.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
-                        <p className="text-[10px] text-orange-600 font-medium">Gastado</p>
-                      </div>
+                ) : (
+                  <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <CreditCard className="w-3.5 h-3.5 text-gray-300" />
+                      <p className="text-[11px] text-gray-400 font-medium">Sin saldo registrado</p>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100">
-                  <div className="flex items-center justify-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-gray-300" />
-                    <p className="text-[11px] text-gray-400 font-medium">Sin saldo registrado</p>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
