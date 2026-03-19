@@ -3912,10 +3912,13 @@ export async function getReports(params: Record<string, string | number | undefi
   return response.data;
 }
 
-export async function exportReports(params: Record<string, string | number | undefined>): Promise<Blob> {
+export async function exportReports(params: Record<string, string | number | undefined>, columns?: string[]): Promise<Blob> {
   const clean: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== '' && v !== null) clean[k] = v;
+  }
+  if (columns && columns.length > 0) {
+    clean.columns = columns.join(',');
   }
   const response = await api.get('/partners/reports/export', { params: clean, responseType: 'blob' });
   return response.data;

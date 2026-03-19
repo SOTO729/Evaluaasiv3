@@ -17396,25 +17396,64 @@ def get_reports():
 @jwt_required()
 @coordinator_required
 def export_reports():
-    """Exportar reportes a Excel con los mismos filtros."""
+    """Exportar reportes a Excel con los mismos filtros.
+    Soporta parámetro 'columns' (comma-separated) para elegir qué columnas incluir."""
     try:
         user = g.current_user
         rows, total = _build_reports_query(user, request.args)
+
+        # Mapa completo de columnas disponibles: key -> (header_label, row_extractor)
+        gender_map = {'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro'}
+        role_map = {'candidato': 'Candidato', 'responsable': 'Responsable'}
+        tramite_map = {'pendiente': 'Pendiente', 'en_tramite': 'En trámite', 'entregado': 'Entregado'}
+
+        ALL_COLUMNS = {
+            'partner_name': ('Partner', lambda r: r['partner_name']),
+            'campus_name': ('Plantel', lambda r: r['campus_name']),
+            'campus_state': ('Estado', lambda r: r['campus_state']),
+            'school_cycle': ('Ciclo Escolar', lambda r: r['school_cycle']),
+            'group_name': ('Grupo', lambda r: r['group_name']),
+            'full_name': ('Nombre Completo', lambda r: r['full_name']),
+            'username': ('Usuario', lambda r: r['username']),
+            'email': ('Email', lambda r: r['email']),
+            'curp': ('CURP', lambda r: r['curp']),
+            'gender': ('Género', lambda r: gender_map.get(r['gender'], r['gender'] or '')),
+            'role': ('Tipo', lambda r: role_map.get(r['role'], r['role'] or '')),
+            'is_active': ('Activo', lambda r: 'Sí' if r['is_active'] else 'No'),
+            'curp_verified': ('CURP Verificada', lambda r: 'Sí' if r['curp_verified'] else 'No'),
+            'standard_code': ('Estándar (Código)', lambda r: r['standard_code']),
+            'standard_name': ('Estándar (Nombre)', lambda r: r['standard_name']),
+            'standard_level': ('Nivel', lambda r: r['standard_level']),
+            'standard_sector': ('Sector', lambda r: r['standard_sector']),
+            'brand_name': ('Marca', lambda r: r['brand_name']),
+            'assignment_number': ('No. Asignación', lambda r: r['assignment_number']),
+            'exam_name': ('Examen', lambda r: r['exam_name']),
+            'score': ('Calificación (0-100)', lambda r: r['score']),
+            'score_1000': ('Calificación (0-1000)', lambda r: r['score_1000']),
+            'result': ('Resultado', lambda r: r['result']),
+            'result_date': ('Fecha Evaluación', lambda r: r['result_date']),
+            'duration_seconds': ('Duración (seg)', lambda r: r['duration_seconds']),
+            'certificate_code': ('Código Certificado', lambda r: r['certificate_code']),
+            'tramite_status': ('Trámite CONOCER', lambda r: tramite_map.get(r['tramite_status'] or '', r['tramite_status'] or '')),
+            'expires_at': ('Vigencia', lambda r: r['expires_at']),
+        }
+
+        # Si se envía 'columns', filtrar solo esas columnas
+        selected_keys_param = request.args.get('columns', '')
+        if selected_keys_param:
+            selected_keys = [k.strip() for k in selected_keys_param.split(',') if k.strip() in ALL_COLUMNS]
+        else:
+            selected_keys = list(ALL_COLUMNS.keys())
+
+        if not selected_keys:
+            selected_keys = list(ALL_COLUMNS.keys())
 
         wb = Workbook()
         ws = wb.active
         ws.title = 'Reporte'
 
-        headers = [
-            'Partner', 'Plantel', 'Estado', 'Ciclo Escolar', 'Grupo',
-            'Nombre Completo', 'Usuario', 'Email', 'CURP', 'Género', 'Tipo',
-            'Activo', 'CURP Verificada',
-            'Estándar (Código)', 'Estándar (Nombre)', 'Nivel', 'Sector', 'Marca',
-            'No. Asignación', 'Examen',
-            'Calificación (0-100)', 'Calificación (0-1000)', 'Resultado',
-            'Fecha Evaluación', 'Duración (seg)', 'Código Certificado',
-            'Trámite CONOCER', 'Vigencia',
-        ]
+        headers = [ALL_COLUMNS[k][0] for k in selected_keys]
+        extractors = [ALL_COLUMNS[k][1] for k in selected_keys]
 
         header_font = Font(bold=True, color="FFFFFF", size=11)
         header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
@@ -17428,43 +17467,9 @@ def export_reports():
             cell.alignment = header_alignment
             cell.border = thin_border
 
-        gender_map = {'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro'}
-        role_map = {'candidato': 'Candidato', 'responsable': 'Responsable'}
-        tramite_map = {'pendiente': 'Pendiente', 'en_tramite': 'En trámite', 'entregado': 'Entregado'}
-
         for i, row in enumerate(rows, 2):
-            data = [
-                row['partner_name'],
-                row['campus_name'],
-                row['campus_state'],
-                row['school_cycle'],
-                row['group_name'],
-                row['full_name'],
-                row['username'],
-                row['email'],
-                row['curp'],
-                gender_map.get(row['gender'], row['gender'] or ''),
-                role_map.get(row['role'], row['role'] or ''),
-                'Sí' if row['is_active'] else 'No',
-                'Sí' if row['curp_verified'] else 'No',
-                row['standard_code'],
-                row['standard_name'],
-                row['standard_level'],
-                row['standard_sector'],
-                row['brand_name'],
-                row['assignment_number'],
-                row['exam_name'],
-                row['score'],
-                row['score_1000'],
-                row['result'],
-                row['result_date'],
-                row['duration_seconds'],
-                row['certificate_code'],
-                tramite_map.get(row['tramite_status'] or '', row['tramite_status'] or ''),
-                row['expires_at'],
-            ]
-            for col, val in enumerate(data, 1):
-                cell = ws.cell(row=i, column=col, value=val)
+            for col, extractor in enumerate(extractors, 1):
+                cell = ws.cell(row=i, column=col, value=extractor(row))
                 cell.border = thin_border
 
         # Auto-ajustar anchos
@@ -17494,4 +17499,3 @@ def export_reports():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
-        return None
