@@ -240,6 +240,12 @@ class Campus(db.Model):
     configuration_completed = db.Column(db.Boolean, default=False)
     configuration_completed_at = db.Column(db.DateTime)
     
+    # ========== BRANDING DEL PLANTEL ==========
+    logo_url = db.Column(db.String(500))  # URL del logo en Azure Blob Storage
+    primary_color = db.Column(db.String(7))  # Color primario HEX (#3b82f6)
+    secondary_color = db.Column(db.String(7))  # Color secundario HEX (opcional)
+    # ========== FIN BRANDING ==========
+    
     # ========== FIN CONFIGURACIÓN ==========
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -304,6 +310,10 @@ class Campus(db.Model):
             'assignment_validity_months': self.assignment_validity_months or 12,
             'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
             'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
+            # Branding
+            'logo_url': self.logo_url,
+            'primary_color': self.primary_color,
+            'secondary_color': self.secondary_color,
         }
         
         # Incluir configuración del plantel

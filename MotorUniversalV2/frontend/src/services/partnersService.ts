@@ -128,6 +128,10 @@ export interface Campus {
   cycle_count?: number;
   school_cycles?: SchoolCycle[];
   partner?: Partner;
+  // Branding
+  logo_url?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
 }
 
 export interface CandidateGroup {
@@ -2330,6 +2334,34 @@ export interface PlantelEvaluationsResponse {
  */
 export async function getMiPlantel(): Promise<{ campus: Campus }> {
   const response = await api.get('/partners/mi-plantel');
+  return response.data;
+}
+
+/**
+ * Actualizar branding del plantel (colores)
+ */
+export async function updateMiPlantelBranding(data: { primary_color?: string | null; secondary_color?: string | null }): Promise<{ message: string; campus: Campus }> {
+  const response = await api.put('/partners/mi-plantel/branding', data);
+  return response.data;
+}
+
+/**
+ * Subir logo del plantel
+ */
+export async function uploadMiPlantelLogo(file: File): Promise<{ message: string; logo_url: string; campus: Campus }> {
+  const formData = new FormData();
+  formData.append('logo', file);
+  const response = await api.post('/partners/mi-plantel/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+/**
+ * Eliminar logo del plantel
+ */
+export async function deleteMiPlantelLogo(): Promise<{ message: string; campus: Campus }> {
+  const response = await api.delete('/partners/mi-plantel/logo');
   return response.data;
 }
 

@@ -67,6 +67,60 @@ const Layout = ({ children }: LayoutProps) => {
   })
 
   const campusName = plantelData?.campus?.name
+  const campusLogo = plantelData?.campus?.logo_url
+  const campusPrimaryColor = plantelData?.campus?.primary_color
+
+  // Aplicar branding dinámico del plantel (colores CSS)
+  useEffect(() => {
+    if (user?.role !== 'responsable' || !campusPrimaryColor) {
+      // Limpiar variables custom si no aplica
+      const root = document.documentElement
+      root.style.removeProperty('--color-primary-50')
+      root.style.removeProperty('--color-primary-100')
+      root.style.removeProperty('--color-primary-200')
+      root.style.removeProperty('--color-primary-300')
+      root.style.removeProperty('--color-primary-400')
+      root.style.removeProperty('--color-primary-500')
+      root.style.removeProperty('--color-primary-600')
+      root.style.removeProperty('--color-primary-700')
+      root.style.removeProperty('--color-primary-800')
+      root.style.removeProperty('--color-primary-900')
+      return
+    }
+    // Generar paleta desde el color primario
+    const hex = campusPrimaryColor
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    const lighten = (v: number, a: number) => Math.min(255, Math.round(v + (255 - v) * a))
+    const darken = (v: number, a: number) => Math.max(0, Math.round(v * (1 - a)))
+    const toHex = (rv: number, gv: number, bv: number) =>
+      `#${rv.toString(16).padStart(2, '0')}${gv.toString(16).padStart(2, '0')}${bv.toString(16).padStart(2, '0')}`
+
+    const palette: Record<string, string> = {
+      '50': toHex(lighten(r, 0.93), lighten(g, 0.93), lighten(b, 0.93)),
+      '100': toHex(lighten(r, 0.82), lighten(g, 0.82), lighten(b, 0.82)),
+      '200': toHex(lighten(r, 0.65), lighten(g, 0.65), lighten(b, 0.65)),
+      '300': toHex(lighten(r, 0.42), lighten(g, 0.42), lighten(b, 0.42)),
+      '400': toHex(lighten(r, 0.2), lighten(g, 0.2), lighten(b, 0.2)),
+      '500': hex,
+      '600': toHex(darken(r, 0.15), darken(g, 0.15), darken(b, 0.15)),
+      '700': toHex(darken(r, 0.3), darken(g, 0.3), darken(b, 0.3)),
+      '800': toHex(darken(r, 0.45), darken(g, 0.45), darken(b, 0.45)),
+      '900': toHex(darken(r, 0.6), darken(g, 0.6), darken(b, 0.6)),
+    }
+
+    const root = document.documentElement
+    Object.entries(palette).forEach(([shade, color]) => {
+      root.style.setProperty(`--color-primary-${shade}`, color)
+    })
+
+    return () => {
+      Object.keys(palette).forEach((shade) => {
+        root.style.removeProperty(`--color-primary-${shade}`)
+      })
+    }
+  }, [user?.role, campusPrimaryColor])
 
   // Cerrar dropdown y menú móvil al hacer clic fuera
   useEffect(() => {
@@ -216,8 +270,14 @@ const Layout = ({ children }: LayoutProps) => {
               </button>
               
               <Link to={homePath} className="flex items-center fluid-gap-2">
-                <img src="/logo.webp" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
-                <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">Evaluaasi</span>
+                {user?.role === 'responsable' && campusLogo ? (
+                  <img src={campusLogo} alt={campusName || 'Plantel'} className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto object-contain" />
+                ) : (
+                  <img src="/logo.webp" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
+                )}
+                <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
+                  {user?.role === 'responsable' && campusLogo ? (campusName || 'Evaluaasi') : 'Evaluaasi'}
+                </span>
               </Link>
               
               {/* Nombre del plantel para responsables */}
@@ -417,6 +477,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/study-contents" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/study-contents') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Materiales</Link>
                     <Link to="/certificates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/certificates') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Certificados</Link>
                     <Link to="/mi-plantel/reportes" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/reportes' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Reportes</Link>
+                    <Link to="/mi-plantel/branding" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/branding' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Personalizar</Link>
                   </>
                 )}
                 {user?.role === 'responsable_partner' && (
@@ -991,6 +1052,12 @@ const Layout = ({ children }: LayoutProps) => {
                     <div className="flex items-center">
                       <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                       Reportes
+                    </div>
+                  </Link>
+                  <Link to="/mi-plantel/branding" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mi-plantel/branding' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+                      Personalizar
                     </div>
                   </Link>
                 </>

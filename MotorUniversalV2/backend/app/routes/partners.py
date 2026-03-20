@@ -9764,6 +9764,125 @@ def get_mi_plantel():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/mi-plantel/branding', methods=['PUT'])
+@jwt_required()
+@responsable_required
+def update_mi_plantel_branding():
+    """Actualizar branding del plantel (colores)"""
+    import re
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus or campus.responsable_id != user.id:
+            return jsonify({'error': 'No tienes acceso a este plantel'}), 403
+        
+        data = request.get_json()
+        hex_pattern = re.compile(r'^#[0-9a-fA-F]{6}$')
+        
+        if 'primary_color' in data:
+            if data['primary_color'] and not hex_pattern.match(data['primary_color']):
+                return jsonify({'error': 'Color primario inválido. Formato: #RRGGBB'}), 400
+            campus.primary_color = data['primary_color'] or None
+        
+        if 'secondary_color' in data:
+            if data['secondary_color'] and not hex_pattern.match(data['secondary_color']):
+                return jsonify({'error': 'Color secundario inválido. Formato: #RRGGBB'}), 400
+            campus.secondary_color = data['secondary_color'] or None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Branding actualizado exitosamente',
+            'campus': campus.to_dict()
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/logo', methods=['POST'])
+@jwt_required()
+@responsable_required
+def upload_mi_plantel_logo():
+    """Subir logo del plantel"""
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus or campus.responsable_id != user.id:
+            return jsonify({'error': 'No tienes acceso a este plantel'}), 403
+        
+        if 'logo' not in request.files:
+            return jsonify({'error': 'No se envió ningún archivo'}), 400
+        
+        file = request.files['logo']
+        if not file.filename:
+            return jsonify({'error': 'Archivo vacío'}), 400
+        
+        # Validar tipo de archivo
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+        if ext not in allowed_extensions:
+            return jsonify({'error': f'Formato no permitido. Use: {", ".join(allowed_extensions)}'}), 400
+        
+        # Validar tamaño (máx 2MB)
+        file.seek(0, 2)
+        size = file.tell()
+        file.seek(0)
+        if size > 2 * 1024 * 1024:
+            return jsonify({'error': 'El archivo no debe superar 2MB'}), 400
+        
+        from app.utils.azure_storage import AzureStorageService
+        storage = AzureStorageService()
+        url = storage.upload_file(file, folder=f'campus-logos/{campus.id}')
+        
+        if not url:
+            return jsonify({'error': 'Error al subir el archivo'}), 500
+        
+        campus.logo_url = url
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Logo actualizado exitosamente',
+            'logo_url': url,
+            'campus': campus.to_dict()
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/logo', methods=['DELETE'])
+@jwt_required()
+@responsable_required
+def delete_mi_plantel_logo():
+    """Eliminar logo del plantel"""
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus or campus.responsable_id != user.id:
+            return jsonify({'error': 'No tienes acceso a este plantel'}), 403
+        
+        campus.logo_url = None
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Logo eliminado exitosamente',
+            'campus': campus.to_dict()
+        })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/mi-plantel/stats', methods=['GET'])
 @jwt_required()
 @responsable_required
