@@ -6879,6 +6879,38 @@ def swap_exam_member(group_id, exam_id):
         except Exception as prog_err:
             print(f"⚠️ Error verificando progreso: {prog_err}")
 
+        # === VALIDAR QUE EL CANDIDATO DESTINO NO ESTÉ BLOQUEADO ===
+
+        # 1. Verificar si el destino tiene resultados (ha abierto examen/simulador)
+        dest_has_results = Result.query.filter(
+            Result.user_id == to_user_id,
+            Result.group_exam_id == group_exam.id
+        ).first()
+        if dest_has_results:
+            return jsonify({
+                'error': 'No se puede reasignar: el candidato destino ya ha abierto el examen o simulador',
+                'reason': 'dest_has_opened_exam'
+            }), 400
+
+        # 2. Verificar progreso de material de estudio del destino >= 15%
+        try:
+            if topic_ids:
+                dest_progress_records = StudentTopicProgress.query.filter(
+                    StudentTopicProgress.user_id == to_user_id,
+                    StudentTopicProgress.topic_id.in_(topic_ids)
+                ).all()
+                dest_total = len(topic_ids)
+                dest_sum = sum(pr.progress_percentage or 0.0 for pr in dest_progress_records)
+                dest_avg = dest_sum / dest_total if dest_total > 0 else 0.0
+                if dest_avg >= 15.0:
+                    return jsonify({
+                        'error': f'No se puede reasignar: el candidato destino tiene {round(dest_avg, 1)}% de avance en material de estudio',
+                        'reason': 'dest_material_progress',
+                        'progress': round(dest_avg, 1)
+                    }), 400
+        except Exception as dest_prog_err:
+            print(f"⚠️ Error verificando progreso del destino: {dest_prog_err}")
+
         # === REALIZAR EL SWAP ===
 
         # Si es 'selected', asegurar que ambos usuarios son miembros del examen
@@ -7202,6 +7234,31 @@ def bulk_swap_exam_members(group_id, exam_id):
                     from_u = User.query.get(from_user_id)
                     errors.append({'index': idx, 'from_user_id': from_user_id,
                                    'error': f'{from_u.full_name if from_u else from_user_id} tiene {round(avg_progress, 1)}% de avance'})
+                    continue
+
+            # === VALIDAR QUE EL CANDIDATO DESTINO NO ESTÉ BLOQUEADO ===
+            dest_has_results = Result.query.filter(
+                Result.user_id == to_user_id,
+                Result.group_exam_id == group_exam.id
+            ).first()
+            if dest_has_results:
+                to_u = User.query.get(to_user_id)
+                errors.append({'index': idx, 'to_user_id': to_user_id,
+                               'error': f'{to_u.full_name if to_u else to_user_id} ya abrió el examen/simulador'})
+                continue
+
+            if topic_ids:
+                dest_progress = StudentTopicProgress.query.filter(
+                    StudentTopicProgress.user_id == to_user_id,
+                    StudentTopicProgress.topic_id.in_(topic_ids)
+                ).all()
+                dest_total = len(topic_ids)
+                dest_sum = sum(pr.progress_percentage or 0.0 for pr in dest_progress)
+                dest_avg = dest_sum / dest_total if dest_total > 0 else 0.0
+                if dest_avg >= 15.0:
+                    to_u = User.query.get(to_user_id)
+                    errors.append({'index': idx, 'to_user_id': to_user_id,
+                                   'error': f'{to_u.full_name if to_u else to_user_id} tiene {round(dest_avg, 1)}% de avance en material'})
                     continue
 
             # === REALIZAR EL SWAP ===

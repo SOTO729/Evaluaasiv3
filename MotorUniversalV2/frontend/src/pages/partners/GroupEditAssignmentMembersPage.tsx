@@ -175,9 +175,9 @@ export default function GroupEditAssignmentMembersPage() {
         search: search || undefined,
       });
       if (reqId !== swapSearchRef.current) return;
-      // Only show candidates WITHOUT assignment_number (eligible to receive one)
+      // Only show candidates WITHOUT assignment_number AND not locked (eligible to receive one)
       const eligible = res.members
-        .filter(m => !m.assignment_number)
+        .filter(m => !m.assignment_number && !m.is_locked)
         .map(m => ({
           id: 0,
           group_id: Number(groupId),
@@ -222,7 +222,7 @@ export default function GroupEditAssignmentMembersPage() {
       });
       if (reqId !== bulkSwapSearchRef.current) return;
       const eligible = res.members
-        .filter(m => !m.assignment_number)
+        .filter(m => !m.assignment_number && !m.is_locked)
         .map(m => ({
           id: 0,
           group_id: Number(groupId),
