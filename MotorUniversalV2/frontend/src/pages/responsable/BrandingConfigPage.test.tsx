@@ -62,9 +62,9 @@ const MOCK_PLANTEL_DATA = {
   campus: {
     id: 10,
     name: 'Campus Monterrey',
-    logo_url: null,
-    primary_color: null,
-    secondary_color: null,
+    logo_url: null as string | null,
+    primary_color: null as string | null,
+    secondary_color: null as string | null,
     state: 'Nuevo León',
     city: 'Monterrey',
     partner_id: 1,
