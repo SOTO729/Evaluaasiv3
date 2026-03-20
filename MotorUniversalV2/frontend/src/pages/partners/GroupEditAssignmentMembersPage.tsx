@@ -31,6 +31,9 @@ import {
   Filter,
   RotateCcw,
   Eye,
+  UserPlus,
+  Upload,
+  Download,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
@@ -49,6 +52,11 @@ import {
   RetakePreviewResponse,
   BulkSwapPair,
   BulkSwapResponse,
+  addAssignmentsToExam,
+  AddAssignmentsResult,
+  bulkAssignExamsByECM,
+  BulkExamAssignResult,
+  downloadBulkExamAssignTemplate,
 } from '../../services/partnersService';
 
 type SortField = 'name' | 'email' | 'curp' | 'assignment_number' | 'progress' | 'status';
@@ -118,10 +126,29 @@ export default function GroupEditAssignmentMembersPage() {
   const [bulkSwapSearching, setBulkSwapSearching] = useState(false);
   const [bulkSwapTotalResults, setBulkSwapTotalResults] = useState(0);
 
+  // Assign modal (agregar asignaciones nuevas)
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignSearch, setAssignSearch] = useState('');
+  const [assignCandidates, setAssignCandidates] = useState<GroupMember[]>([]);
+  const [assignSearching, setAssignSearching] = useState(false);
+  const [assignTotalResults, setAssignTotalResults] = useState(0);
+  const [selectedForAssign, setSelectedForAssign] = useState<Set<string>>(new Set());
+  const [assigning, setAssigning] = useState(false);
+  const [assignResults, setAssignResults] = useState<AddAssignmentsResult | null>(null);
+
+  // Bulk upload modal (carga masiva Excel)
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState<File | null>(null);
+  const [bulkUploadPreview, setBulkUploadPreview] = useState<BulkExamAssignResult | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkUploadResult, setBulkUploadResult] = useState<BulkExamAssignResult | null>(null);
+  const [bulkUploadStep, setBulkUploadStep] = useState<1 | 2 | 3>(1);
+
   // Race condition prevention
   const searchRequestRef = useRef(0);
   const swapSearchRef = useRef(0);
   const bulkSwapSearchRef = useRef(0);
+  const assignSearchRef = useRef(0);
 
   // Carga inicial del grupo
   useEffect(() => {
@@ -463,6 +490,184 @@ export default function GroupEditAssignmentMembersPage() {
     }
   };
 
+  // ---- Assign (agregar asignaciones nuevas) handlers ----
+  const loadAssignCandidates = useCallback(async (search: string) => {
+    const reqId = ++assignSearchRef.current;
+    try {
+      setAssignSearching(true);
+      const res = await getExamMembersDetail(Number(groupId), Number(assignmentId), {
+        per_page: 200,
+        search: search || undefined,
+      });
+      if (reqId !== assignSearchRef.current) return;
+      // Solo miembros SIN número de asignación (elegibles para recibir uno)
+      const eligible = res.members
+        .filter(m => !m.assignment_number)
+        .map(m => ({
+          id: 0,
+          group_id: Number(groupId),
+          user_id: m.user_id,
+          status: 'active' as const,
+          joined_at: '',
+          user: m.user ? {
+            id: m.user.id,
+            email: m.user.email,
+            name: m.user.name,
+            first_surname: m.user.first_surname,
+            second_surname: m.user.second_surname || '',
+            full_name: m.user.full_name,
+            curp: m.user.curp || undefined,
+            is_active: true,
+          } : undefined,
+        }));
+      setAssignCandidates(eligible);
+      setAssignTotalResults(eligible.length);
+    } catch {
+      if (reqId !== assignSearchRef.current) return;
+    } finally {
+      if (reqId === assignSearchRef.current) setAssignSearching(false);
+    }
+  }, [groupId, assignmentId]);
+
+  useEffect(() => {
+    if (!showAssignModal) return;
+    const timer = setTimeout(() => loadAssignCandidates(assignSearch), 400);
+    return () => clearTimeout(timer);
+  }, [showAssignModal, assignSearch, loadAssignCandidates]);
+
+  const handleToggleAssign = (userId: string) => {
+    setSelectedForAssign(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
+
+  const handleSelectAllAssign = () => {
+    const allIds = assignCandidates.map(c => c.user_id);
+    const allSelected = allIds.length > 0 && allIds.every(id => selectedForAssign.has(id));
+    if (allSelected) {
+      setSelectedForAssign(new Set());
+    } else {
+      setSelectedForAssign(new Set(allIds));
+    }
+  };
+
+  const handleConfirmAssign = async () => {
+    if (selectedForAssign.size === 0) return;
+    try {
+      setAssigning(true);
+      setError(null);
+      const result = await addAssignmentsToExam(
+        Number(groupId),
+        Number(assignmentId),
+        Array.from(selectedForAssign)
+      );
+      setAssignResults(result);
+      if (result.assigned_count > 0) {
+        setSuccessMessage(result.message);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al crear las asignaciones');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleCloseAssignModal = () => {
+    const hadAssignments = assignResults && assignResults.assigned_count > 0;
+    setShowAssignModal(false);
+    setSelectedForAssign(new Set());
+    setAssignSearch('');
+    setAssignResults(null);
+    if (hadAssignments) {
+      handleSearch(currentPage, pageSize);
+    }
+  };
+
+  // ---- Bulk upload (carga masiva Excel) handlers ----
+  const handleBulkUploadInit = () => {
+    setBulkUploadFile(null);
+    setBulkUploadPreview(null);
+    setBulkUploadResult(null);
+    setBulkUploadStep(1);
+    setShowBulkUploadModal(true);
+  };
+
+  const handleBulkUploadPreview = async () => {
+    if (!bulkUploadFile) return;
+    try {
+      setBulkUploading(true);
+      setError(null);
+      const preview = await bulkAssignExamsByECM(
+        Number(groupId),
+        bulkUploadFile,
+        detailData?.ecm_code || '',
+        undefined,
+        true
+      );
+      setBulkUploadPreview(preview);
+      setBulkUploadStep(2);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al previsualizar el archivo');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const handleBulkUploadConfirm = async () => {
+    if (!bulkUploadFile) return;
+    try {
+      setBulkUploading(true);
+      setError(null);
+      const result = await bulkAssignExamsByECM(
+        Number(groupId),
+        bulkUploadFile,
+        detailData?.ecm_code || '',
+        undefined,
+        false
+      );
+      setBulkUploadResult(result);
+      setBulkUploadStep(3);
+      if (result.summary.assigned > 0) {
+        setSuccessMessage(result.message);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al procesar la carga masiva');
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadBulkExamAssignTemplate(Number(groupId));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plantilla_asignacion_masiva.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al descargar la plantilla');
+    }
+  };
+
+  const handleCloseBulkUploadModal = () => {
+    const hadAssignments = bulkUploadResult && bulkUploadResult.summary.assigned > 0;
+    setShowBulkUploadModal(false);
+    setBulkUploadFile(null);
+    setBulkUploadPreview(null);
+    setBulkUploadResult(null);
+    setBulkUploadStep(1);
+    if (hadAssignments) {
+      handleSearch(currentPage, pageSize);
+    }
+  };
+
   const members = detailData?.members || [];
 
   if (loading) {
@@ -648,6 +853,27 @@ export default function GroupEditAssignmentMembersPage() {
             title="Refrescar"
           >
             <RefreshCw className={`fluid-icon-sm text-gray-600 ${searching ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* Separador */}
+          <div className="h-6 w-px bg-gray-300" />
+
+          {/* Botón asignar candidatos */}
+          <button
+            onClick={() => { setShowAssignModal(true); setSelectedForAssign(new Set()); setAssignSearch(''); setAssignResults(null); }}
+            className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors shadow-sm"
+          >
+            <UserPlus className="fluid-icon-sm" />
+            Asignar
+          </button>
+
+          {/* Botón carga masiva */}
+          <button
+            onClick={handleBulkUploadInit}
+            className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors shadow-sm"
+          >
+            <Upload className="fluid-icon-sm" />
+            Carga masiva
           </button>
         </div>
 
@@ -1655,6 +1881,452 @@ export default function GroupEditAssignmentMembersPage() {
                       <Repeat2 className="w-4 h-4" />
                     )}
                     {bulkSwapping ? 'Reasignando...' : `Confirmar ${selectedForSwap.size} Reasignaciones`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DE ASIGNAR CANDIDATOS ===== */}
+      {showAssignModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => !assigning && handleCloseAssignModal()}
+        >
+          <div
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Asignar Candidatos</h2>
+                  <p className="text-sm text-gray-500">
+                    Selecciona miembros del grupo para generar números de asignación
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => !assigning && handleCloseAssignModal()}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Resultados de asignación */}
+            {assignResults ? (
+              <div className="p-6 overflow-y-auto flex-1">
+                {assignResults.assigned_count > 0 && (
+                  <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <p className="font-semibold text-emerald-800">{assignResults.assigned_count} asignación(es) creada(s)</p>
+                    </div>
+                    {assignResults.total_cost > 0 && (
+                      <p className="text-sm text-emerald-700 mb-3">
+                        Costo: {assignResults.assigned_count} x ${assignResults.unit_cost.toFixed(2)} = <strong>${assignResults.total_cost.toFixed(2)}</strong>
+                      </p>
+                    )}
+                    <div className="space-y-2">
+                      {assignResults.assigned.map((a) => (
+                        <div key={a.user_id} className="flex items-center gap-2 text-sm">
+                          <Hash className="w-3.5 h-3.5 text-emerald-600" />
+                          <span className="font-mono font-bold text-emerald-700">{a.assignment_number}</span>
+                          <span className="text-gray-700">{a.user_name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {assignResults.already_assigned_count > 0 && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                    <div className="flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      <p className="font-medium text-amber-800">{assignResults.already_assigned_count} ya tenía(n) asignación</p>
+                    </div>
+                    <div className="space-y-1">
+                      {assignResults.already_assigned.map((a) => (
+                        <p key={a.user_id} className="text-xs text-amber-700">
+                          {a.user_name} — #{a.assignment_number}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                {/* Búsqueda + seleccionar todos */}
+                <div className="p-4 border-b border-gray-100 flex-shrink-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={assignSearch}
+                        onChange={(e) => setAssignSearch(e.target.value)}
+                        placeholder="Buscar miembro sin asignación..."
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                      />
+                    </div>
+                    {assignCandidates.length > 0 && (
+                      <button
+                        onClick={handleSelectAllAssign}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 font-medium whitespace-nowrap"
+                      >
+                        {assignCandidates.every(c => selectedForAssign.has(c.user_id))
+                          ? 'Deseleccionar todos'
+                          : 'Seleccionar todos'}
+                      </button>
+                    )}
+                  </div>
+                  {assignTotalResults > 0 && (
+                    <p className="text-xs text-gray-400">
+                      {assignTotalResults} miembro(s) sin asignación
+                      {selectedForAssign.size > 0 && (
+                        <span className="text-emerald-600 font-medium"> — {selectedForAssign.size} seleccionado(s)</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                {/* Lista de candidatos */}
+                <div className="overflow-y-auto flex-1" style={{ maxHeight: '380px' }}>
+                  {assignSearching ? (
+                    <div className="p-8 text-center">
+                      <Loader2 className="w-6 h-6 animate-spin text-emerald-500 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">Buscando candidatos...</p>
+                    </div>
+                  ) : assignCandidates.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">
+                        {assignSearch ? 'No se encontraron miembros sin asignación' : 'No hay miembros sin asignación en este examen'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {assignCandidates.map((candidate) => {
+                        const isSelected = selectedForAssign.has(candidate.user_id);
+                        return (
+                          <button
+                            key={candidate.user_id}
+                            onClick={() => handleToggleAssign(candidate.user_id)}
+                            className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-50 border-l-4 border-l-emerald-500'
+                                : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                            />
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
+                              isSelected ? 'bg-gradient-to-br from-emerald-500 to-teal-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                            }`}>
+                              {candidate.user?.name?.charAt(0).toUpperCase() || '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium text-sm ${isSelected ? 'text-emerald-900' : 'text-gray-900'}`}>
+                                {candidate.user?.full_name || 'Desconocido'}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">{candidate.user?.email || '-'}</p>
+                            </div>
+                            {candidate.user?.curp && (
+                              <span className="text-xs text-gray-400 font-mono hidden lg:block">{candidate.user.curp}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <button
+                onClick={() => !assigning && handleCloseAssignModal()}
+                disabled={assigning}
+                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-100 disabled:opacity-50 font-medium text-sm transition-colors"
+              >
+                {assignResults ? 'Cerrar' : 'Cancelar'}
+              </button>
+              {!assignResults && (
+                <button
+                  onClick={handleConfirmAssign}
+                  disabled={assigning || selectedForAssign.size === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                >
+                  {assigning ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="w-4 h-4" />
+                  )}
+                  {assigning ? 'Asignando...' : `Asignar ${selectedForAssign.size} candidato${selectedForAssign.size !== 1 ? 's' : ''}`}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DE CARGA MASIVA (EXCEL) ===== */}
+      {showBulkUploadModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => !bulkUploading && handleCloseBulkUploadModal()}
+        >
+          <div
+            className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
+                  <Upload className="w-5 h-5 text-violet-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Carga Masiva de Asignaciones</h2>
+                  <p className="text-sm text-gray-500">
+                    {bulkUploadStep === 1
+                      ? 'Sube un archivo Excel con los usuarios a asignar'
+                      : bulkUploadStep === 2
+                        ? 'Vista previa de asignaciones'
+                        : 'Resultado de la carga'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2.5 py-1 bg-violet-100 text-violet-700 rounded-full text-xs font-semibold">
+                  Paso {bulkUploadStep} de 3
+                </span>
+                <button
+                  onClick={() => !bulkUploading && handleCloseBulkUploadModal()}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* PASO 1: Seleccionar archivo */}
+            {bulkUploadStep === 1 && (
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <p className="text-sm text-blue-800 font-medium mb-2">Instrucciones:</p>
+                  <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                    <li>El archivo debe ser Excel (.xlsx)</li>
+                    <li>Debe contener la columna "Nombre de Usuario" (username)</li>
+                    <li>Los usuarios deben ser miembros activos del grupo</li>
+                    <li>Se generará un número de asignación único para cada candidato</li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="w-full mb-4 inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-violet-300 text-violet-700 rounded-xl hover:bg-violet-50 font-medium text-sm transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Descargar plantilla Excel
+                </button>
+
+                <label className="block">
+                  <div className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                    bulkUploadFile
+                      ? 'border-violet-400 bg-violet-50'
+                      : 'border-gray-300 hover:border-violet-400 hover:bg-gray-50'
+                  }`}>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => setBulkUploadFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                    />
+                    {bulkUploadFile ? (
+                      <div>
+                        <FileSpreadsheet className="w-10 h-10 text-violet-500 mx-auto mb-2" />
+                        <p className="font-medium text-violet-900">{bulkUploadFile.name}</p>
+                        <p className="text-xs text-violet-600 mt-1">
+                          {(bulkUploadFile.size / 1024).toFixed(1)} KB
+                        </p>
+                        <p className="text-xs text-violet-500 mt-2">Haz clic para cambiar archivo</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                        <p className="font-medium text-gray-700">Haz clic para seleccionar archivo</p>
+                        <p className="text-xs text-gray-500 mt-1">Excel (.xlsx, .xls)</p>
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+            )}
+
+            {/* PASO 2: Vista previa */}
+            {bulkUploadStep === 2 && bulkUploadPreview && (
+              <div className="p-6 overflow-y-auto flex-1" style={{ maxHeight: '450px' }}>
+                {/* Resumen */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+                    <p className="text-xl font-bold text-emerald-700">{bulkUploadPreview.summary.assigned}</p>
+                    <p className="text-xs text-emerald-600">Por asignar</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                    <p className="text-xl font-bold text-amber-700">{bulkUploadPreview.summary.skipped}</p>
+                    <p className="text-xs text-amber-600">Omitidos</p>
+                  </div>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-center">
+                    <p className="text-xl font-bold text-red-700">{bulkUploadPreview.summary.errors}</p>
+                    <p className="text-xs text-red-600">Errores</p>
+                  </div>
+                </div>
+
+                {/* Lista de asignaciones previstas */}
+                {bulkUploadPreview.results.assigned.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Se asignarán:</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {bulkUploadPreview.results.assigned.map((a) => (
+                        <div key={a.row} className="flex items-center gap-2 text-sm p-2 bg-emerald-50 rounded-lg">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                          <span className="text-gray-700">{a.user_name}</span>
+                          <span className="text-xs text-gray-400">({a.username})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Omitidos */}
+                {bulkUploadPreview.results.skipped.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Omitidos:</p>
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {bulkUploadPreview.results.skipped.map((s) => (
+                        <div key={s.row} className="flex items-center gap-2 text-sm p-2 bg-amber-50 rounded-lg">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                          <span className="text-gray-700">{s.user_name || s.username}</span>
+                          <span className="text-xs text-amber-600">— {s.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Errores */}
+                {bulkUploadPreview.results.errors.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Errores:</p>
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {bulkUploadPreview.results.errors.map((e) => (
+                        <div key={e.row} className="flex items-center gap-2 text-sm p-2 bg-red-50 rounded-lg">
+                          <XCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />
+                          <span className="text-gray-700">{e.user_name || e.identifier}</span>
+                          <span className="text-xs text-red-600">— {e.error}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PASO 3: Resultado final */}
+            {bulkUploadStep === 3 && bulkUploadResult && (
+              <div className="p-6 overflow-y-auto flex-1">
+                <div className={`p-4 rounded-xl border mb-4 ${
+                  bulkUploadResult.summary.errors > 0
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-emerald-50 border-emerald-200'
+                }`}>
+                  <p className={`font-semibold ${
+                    bulkUploadResult.summary.errors > 0 ? 'text-amber-800' : 'text-emerald-800'
+                  }`}>
+                    {bulkUploadResult.message}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+                    <p className="text-xl font-bold text-emerald-700">{bulkUploadResult.summary.assigned}</p>
+                    <p className="text-xs text-emerald-600">Asignados</p>
+                  </div>
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                    <p className="text-xl font-bold text-amber-700">{bulkUploadResult.summary.skipped}</p>
+                    <p className="text-xs text-amber-600">Omitidos</p>
+                  </div>
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-center">
+                    <p className="text-xl font-bold text-red-700">{bulkUploadResult.summary.errors}</p>
+                    <p className="text-xs text-red-600">Errores</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <div>
+                {bulkUploadStep === 2 && (
+                  <button
+                    onClick={() => { setBulkUploadStep(1); setBulkUploadPreview(null); }}
+                    disabled={bulkUploading}
+                    className="inline-flex items-center gap-1 px-4 py-2.5 text-gray-600 hover:text-gray-800 font-medium text-sm transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Volver
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => !bulkUploading && handleCloseBulkUploadModal()}
+                  disabled={bulkUploading}
+                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-fluid-xl hover:bg-gray-100 disabled:opacity-50 font-medium text-sm transition-colors"
+                >
+                  {bulkUploadStep === 3 ? 'Cerrar' : 'Cancelar'}
+                </button>
+
+                {bulkUploadStep === 1 && (
+                  <button
+                    onClick={handleBulkUploadPreview}
+                    disabled={bulkUploading || !bulkUploadFile}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                  >
+                    {bulkUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                    {bulkUploading ? 'Procesando...' : 'Previsualizar'}
+                  </button>
+                )}
+
+                {bulkUploadStep === 2 && (
+                  <button
+                    onClick={handleBulkUploadConfirm}
+                    disabled={bulkUploading || (bulkUploadPreview?.summary.assigned ?? 0) === 0}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                  >
+                    {bulkUploading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {bulkUploading ? 'Asignando...' : `Confirmar ${bulkUploadPreview?.summary.assigned ?? 0} asignaciones`}
                   </button>
                 )}
               </div>

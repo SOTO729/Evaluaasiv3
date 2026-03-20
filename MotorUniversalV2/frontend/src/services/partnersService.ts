@@ -2024,6 +2024,38 @@ export async function addMembersToExam(
 }
 
 /**
+ * Agregar asignaciones ECM (con número y cobro de saldo) a miembros de un examen existente
+ */
+export interface AddAssignmentsResult {
+  message: string;
+  assigned: Array<{
+    user_id: string;
+    user_name: string;
+    assignment_number: string;
+  }>;
+  assigned_count: number;
+  already_assigned: Array<{
+    user_id: string;
+    user_name: string;
+    assignment_number: string;
+  }>;
+  already_assigned_count: number;
+  total_cost: number;
+  unit_cost: number;
+}
+
+export async function addAssignmentsToExam(
+  groupId: number,
+  examId: number,
+  userIds: string[]
+): Promise<AddAssignmentsResult> {
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/assignments/add`, {
+    user_ids: userIds
+  });
+  return response.data;
+}
+
+/**
  * Obtener detalle completo de miembros asignados: número asignación, progreso, estado de bloqueo
  */
 export interface ExamMemberDetail {

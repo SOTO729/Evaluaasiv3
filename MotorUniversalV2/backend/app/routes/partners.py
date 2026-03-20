@@ -6151,6 +6151,239 @@ def add_members_to_exam(group_id, exam_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/groups/<int:group_id>/exams/<int:exam_id>/assignments/add', methods=['POST'])
+@jwt_required()
+@coordinator_required
+def add_assignments_to_exam(group_id, exam_id):
+    """Agregar asignaciones (con número ECM + cobro de saldo) a miembros de un examen existente.
+
+    A diferencia de members/add, este endpoint:
+    - Crea GroupExamMember si no existe
+    - Crea EcmCandidateAssignment con número de asignación único
+    - Verifica y cobra saldo del coordinador
+    - Calcula vigencia según configuración del grupo/campus
+
+    Body JSON:
+    - user_ids: Lista de user_ids a asignar (requerido)
+    """
+    try:
+        from app.models import GroupExam, Exam
+        from app.models.partner import GroupExamMember, EcmCandidateAssignment
+        from dateutil.relativedelta import relativedelta
+
+        group = CandidateGroup.query.get_or_404(group_id)
+        group_exam = GroupExam.query.filter_by(
+            group_id=group_id,
+            exam_id=exam_id,
+            is_active=True
+        ).first_or_404()
+
+        exam = Exam.query.get(exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+
+        data = request.get_json()
+        user_ids = data.get('user_ids', [])
+        if not user_ids:
+            return jsonify({'error': 'Debes proporcionar al menos un user_id'}), 400
+
+        if len(user_ids) > 500:
+            return jsonify({'error': 'Máximo 500 asignaciones por lote'}), 400
+
+        # Verificar que todos son miembros activos del grupo
+        group_member_ids = {m.user_id for m in GroupMember.query.filter_by(group_id=group_id, status='active').all()}
+        invalid_ids = [uid for uid in user_ids if uid not in group_member_ids]
+        if invalid_ids:
+            return jsonify({'error': f'{len(invalid_ids)} usuario(s) no son miembros activos del grupo'}), 400
+
+        ecm_id = exam.competency_standard_id
+
+        # Clasificar: ya asignados vs nuevos
+        already_assigned = []
+        already_exam_member = []
+        new_user_ids = []
+
+        for uid in user_ids:
+            # Verificar si ya es miembro del examen
+            existing_member = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=uid
+            ).first()
+
+            if ecm_id:
+                existing_ecm = EcmCandidateAssignment.query.filter_by(
+                    user_id=uid,
+                    competency_standard_id=ecm_id
+                ).first()
+                if existing_ecm:
+                    user_obj = User.query.get(uid)
+                    already_assigned.append({
+                        'user_id': uid,
+                        'user_name': user_obj.full_name if user_obj else uid,
+                        'assignment_number': existing_ecm.assignment_number,
+                    })
+                    # Aún necesita ser GroupExamMember si no lo es
+                    if not existing_member:
+                        already_exam_member.append(uid)
+                    continue
+
+            if existing_member:
+                # Ya es miembro pero sin ECM assignment (raro, pero puede pasar)
+                new_user_ids.append(uid)
+            else:
+                new_user_ids.append(uid)
+
+        # Calcular vigencia
+        campus = Campus.query.get(group.campus_id)
+        if group.assignment_validity_months_override is not None:
+            validity_months = group.assignment_validity_months_override
+        elif campus and campus.assignment_validity_months:
+            validity_months = campus.assignment_validity_months
+        else:
+            validity_months = 12
+
+        assigned_at_now = datetime.utcnow()
+        expires_at = assigned_at_now + relativedelta(months=validity_months)
+
+        # Calcular costo
+        if group.certification_cost_override is not None:
+            unit_cost = float(group.certification_cost_override)
+        elif campus and campus.certification_cost is not None:
+            unit_cost = float(campus.certification_cost)
+        else:
+            unit_cost = 0.0
+
+        billable_count = len(new_user_ids)
+        total_cost = unit_cost * billable_count
+
+        # Verificar saldo (excepto admins/developers)
+        user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+        is_admin_or_dev = user_role in ('admin', 'developer')
+
+        if total_cost > 0 and not is_admin_or_dev:
+            coordinator_id = g.current_user.id
+            balance = CoordinatorBalance.query.filter_by(
+                coordinator_id=coordinator_id,
+                campus_id=group.campus_id
+            ).first()
+            current_bal = float(balance.current_balance) if balance else 0.0
+
+            if current_bal < total_cost:
+                return jsonify({
+                    'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                    'error_type': 'insufficient_balance',
+                    'required': total_cost,
+                    'available': current_bal,
+                    'deficit': total_cost - current_bal,
+                    'billable_count': billable_count,
+                    'already_assigned_count': len(already_assigned),
+                    'unit_cost': unit_cost,
+                }), 400
+
+            exam_name = exam.name if exam else f'Examen #{exam_id}'
+            skipped_note = f' ({len(already_assigned)} omitido(s) por ya tener ECM)' if already_assigned else ''
+            notes = f'Asignación adicional de "{exam_name}" en grupo "{group.name}" - {billable_count} unidad(es) x ${unit_cost:,.2f}{skipped_note}'
+
+            create_balance_transaction(
+                coordinator_id=coordinator_id,
+                campus_id=group.campus_id,
+                transaction_type='debit',
+                concept='asignacion_certificacion',
+                amount=total_cost,
+                group_id=group_id,
+                reference_type='group_exam',
+                reference_id=group_exam.id,
+                notes=notes,
+                created_by_id=coordinator_id
+            )
+
+        # Si era 'all', migrar a 'selected' antes de agregar
+        if group_exam.assignment_type == 'all':
+            existing_group_members = GroupMember.query.filter_by(group_id=group_id).all()
+            for gm in existing_group_members:
+                exists = GroupExamMember.query.filter_by(
+                    group_exam_id=group_exam.id,
+                    user_id=gm.user_id
+                ).first()
+                if not exists:
+                    db.session.add(GroupExamMember(
+                        group_exam_id=group_exam.id,
+                        user_id=gm.user_id
+                    ))
+            group_exam.assignment_type = 'selected'
+
+        # Crear GroupExamMember + EcmCandidateAssignment para nuevos
+        new_assignments = []
+        for uid in new_user_ids:
+            # GroupExamMember
+            existing_mem = GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id,
+                user_id=uid
+            ).first()
+            if not existing_mem:
+                db.session.add(GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=uid
+                ))
+
+            # EcmCandidateAssignment
+            if ecm_id:
+                new_ecm = EcmCandidateAssignment(
+                    assignment_number=EcmCandidateAssignment.generate_assignment_number(),
+                    user_id=uid,
+                    competency_standard_id=ecm_id,
+                    exam_id=exam_id,
+                    campus_id=group.campus_id,
+                    group_id=group_id,
+                    group_name=group.name,
+                    group_exam_id=group_exam.id,
+                    assigned_by_id=g.current_user.id,
+                    assignment_source='selected',
+                    validity_months=validity_months,
+                    assigned_at=assigned_at_now,
+                    expires_at=expires_at,
+                )
+                db.session.add(new_ecm)
+                new_assignments.append(new_ecm)
+
+        # También agregar como GroupExamMember a los que ya tenían ECM pero no eran miembros del examen
+        for uid in already_exam_member:
+            db.session.add(GroupExamMember(
+                group_exam_id=group_exam.id,
+                user_id=uid
+            ))
+
+        db.session.commit()
+
+        # Construir respuesta
+        assigned_details = []
+        for ecm_a in new_assignments:
+            user_obj = User.query.get(ecm_a.user_id)
+            assigned_details.append({
+                'user_id': str(ecm_a.user_id),
+                'user_name': user_obj.full_name if user_obj else str(ecm_a.user_id),
+                'assignment_number': ecm_a.assignment_number,
+            })
+
+        return jsonify({
+            'message': f'{len(new_assignments)} asignación(es) creada(s) exitosamente',
+            'assigned': assigned_details,
+            'assigned_count': len(new_assignments),
+            'already_assigned': already_assigned,
+            'already_assigned_count': len(already_assigned),
+            'total_cost': total_cost,
+            'unit_cost': unit_cost,
+        })
+
+    except HTTPException:
+
+        raise
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members-detail', methods=['GET'])
 @jwt_required()
 @coordinator_required
@@ -12018,6 +12251,57 @@ def bulk_assign_exams_by_ecm(group_id):
             })
         
         if not dry_run:
+            # ========== COBRO DE SALDO para bulk-assign ==========
+            billable_count = len(results['assigned'])
+            if billable_count > 0:
+                campus = Campus.query.get(group.campus_id)
+                if group.certification_cost_override is not None:
+                    unit_cost = float(group.certification_cost_override)
+                elif campus and campus.certification_cost is not None:
+                    unit_cost = float(campus.certification_cost)
+                else:
+                    unit_cost = 0.0
+
+                total_cost = unit_cost * billable_count
+                user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+                is_admin_or_dev = user_role in ('admin', 'developer')
+
+                if total_cost > 0 and not is_admin_or_dev:
+                    coordinator_id = g.current_user.id
+                    balance = CoordinatorBalance.query.filter_by(
+                        coordinator_id=coordinator_id,
+                        campus_id=group.campus_id
+                    ).first()
+                    current_bal = float(balance.current_balance) if balance else 0.0
+
+                    if current_bal < total_cost:
+                        db.session.rollback()
+                        return jsonify({
+                            'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                            'error_type': 'insufficient_balance',
+                            'required': total_cost,
+                            'available': current_bal,
+                            'deficit': total_cost - current_bal,
+                            'billable_count': billable_count,
+                            'unit_cost': unit_cost,
+                        }), 400
+
+                    exam_name = exam.name if exam else f'Examen #{exam_id}'
+                    notes = f'Asignación masiva (Excel) de "{exam_name}" en grupo "{group.name}" - {billable_count} unidad(es) x ${unit_cost:,.2f}'
+
+                    create_balance_transaction(
+                        coordinator_id=coordinator_id,
+                        campus_id=group.campus_id,
+                        transaction_type='debit',
+                        concept='asignacion_certificacion',
+                        amount=total_cost,
+                        group_id=group_id,
+                        reference_type='group_exam',
+                        reference_id=group_exam.id,
+                        notes=notes,
+                        created_by_id=coordinator_id
+                    )
+
             db.session.commit()
         
         action_word = 'previsualizadas' if dry_run else 'realizadas'
