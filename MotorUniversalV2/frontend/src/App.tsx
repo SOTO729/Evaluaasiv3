@@ -91,6 +91,15 @@ const RestrictedForGerenteFin = ({ children }: { children: React.ReactNode }) =>
   return <>{children}</>
 }
 
+// Protege reportes para responsable sin permiso can_view_reports
+const ReportsGuard = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuthStore()
+  if (user?.role === 'responsable' && !user?.can_view_reports) {
+    return <Navigate to="/mi-plantel" replace />
+  }
+  return <>{children}</>
+}
+
 // Componente que solo bloquea gerente/financiero (permite coordinator y editor)
 const RestrictedForGerenteFinOnly = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthStore()
@@ -417,7 +426,7 @@ function App() {
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
-              <Route path="/mi-plantel/reportes" element={<ReportsPage backPath="/mi-plantel" />} />
+              <Route path="/mi-plantel/reportes" element={<ReportsGuard><ReportsPage backPath="/mi-plantel" /></ReportsGuard>} />
               <Route path="/mi-plantel/branding" element={<BrandingConfigPage />} />
               <Route path="/mi-plantel/saldo" element={<MiSaldoResponsablePage />} />
               <Route path="/solicitar-certificados" element={<SolicitarCertificadosPage />} />
