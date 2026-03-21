@@ -17611,16 +17611,25 @@ def get_report_filters():
         campuses_data = [{'id': c.id, 'name': c.name, 'partner_id': c.partner_id} for c in campuses]
         campus_ids = [c.id for c in campuses]
 
-        # ── Ciclos escolares ──
-        cycles = SchoolCycle.query.filter(
-            SchoolCycle.campus_id.in_(campus_ids)
-        ).order_by(SchoolCycle.start_date.desc()).all() if campus_ids else []
+        # ── Ciclos escolares (solo los que tienen grupos del coordinador) ──
+        group_cycle_ids = {g_item.school_cycle_id for g_item in groups if g_item.school_cycle_id}
+        if group_cycle_ids:
+            cycles = SchoolCycle.query.filter(
+                SchoolCycle.id.in_(group_cycle_ids)
+            ).order_by(SchoolCycle.start_date.desc()).all()
+        else:
+            cycles = []
         cycles_data = [{'id': c.id, 'name': c.name, 'campus_id': c.campus_id} for c in cycles]
 
-        # ── Grupos ──
-        groups = CandidateGroup.query.filter(
-            CandidateGroup.campus_id.in_(campus_ids)
-        ).order_by(CandidateGroup.name).all() if campus_ids else []
+        # ── Grupos (aislados por coordinador) ──
+        coord_id = _get_coordinator_filter(user)
+        if campus_ids:
+            gq = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids))
+            if coord_id:
+                gq = gq.filter(CandidateGroup.coordinator_id == coord_id)
+            groups = gq.order_by(CandidateGroup.name).all()
+        else:
+            groups = []
         groups_data = [{'id': g_item.id, 'name': g_item.name, 'campus_id': g_item.campus_id, 'school_cycle_id': g_item.school_cycle_id} for g_item in groups]
 
         # ── Estándares de competencia ──
@@ -17677,11 +17686,14 @@ def _build_reports_query(user, params):
     if not accessible_campus_ids:
         return [], 0
 
-    # ── Filtros de grupo ──
+    # ── Filtros de grupo (aislados por coordinador) ──
     group_filter = params.get('group_id', type=int)
     cycle_filter = params.get('school_cycle_id', type=int)
 
     group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(accessible_campus_ids))
+    coord_id = _get_coordinator_filter(user)
+    if coord_id:
+        group_query = group_query.filter(CandidateGroup.coordinator_id == coord_id)
     if group_filter:
         group_query = group_query.filter(CandidateGroup.id == group_filter)
     if cycle_filter:
