@@ -207,6 +207,7 @@ const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage
 const MiPlantelSesionesPage = lazy(() => import('./pages/responsable/MiPlantelSesionesPage'))
 const SolicitarCertificadosPage = lazy(() => import('./pages/responsable/SolicitarCertificadosPage'))
 const BrandingConfigPage = lazy(() => import('./pages/responsable/BrandingConfigPage'))
+const MiSaldoResponsablePage = lazy(() => import('./pages/responsable/MiSaldoResponsablePage'))
 
 // Grupos (gestión de grupos por plantel)
 const GruposListPage = lazy(() => import('./pages/grupos/GruposListPage'))
@@ -418,6 +419,7 @@ function App() {
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
               <Route path="/mi-plantel/reportes" element={<ReportsPage backPath="/mi-plantel" />} />
               <Route path="/mi-plantel/branding" element={<BrandingConfigPage />} />
+              <Route path="/mi-plantel/saldo" element={<MiSaldoResponsablePage />} />
               <Route path="/solicitar-certificados" element={<SolicitarCertificadosPage />} />
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
               <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />

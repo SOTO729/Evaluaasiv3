@@ -195,6 +195,39 @@ export interface PaginatedResponse<T> {
 }
 
 // =====================================================
+// ENDPOINTS PARA RESPONSABLE DE PLANTEL
+// =====================================================
+
+export interface MyCampusBalanceResponse {
+  campus: {
+    id: number;
+    name: string;
+    certification_cost: number;
+  };
+  totals_money: {
+    current_balance: number;
+    total_received: number;
+    total_spent: number;
+    total_scholarships: number;
+  };
+  totals_units: {
+    current_balance: number;
+    total_received: number;
+    total_spent: number;
+    total_scholarships: number;
+  };
+  coordinators_count: number;
+}
+
+/**
+ * Obtener saldo del plantel del responsable (en unidades y pesos)
+ */
+export async function getMyCampusBalance(): Promise<MyCampusBalanceResponse> {
+  const response = await api.get('/balance/my-campus-balance');
+  return response.data;
+}
+
+// =====================================================
 // ENDPOINTS PARA COORDINADORES
 // =====================================================
 

@@ -2188,6 +2188,71 @@ p.msg{{font-size:15px;color:#4b5563;line-height:1.6;margin-bottom:24px;}}
 
 
 # =====================================================
+# SALDO DEL PLANTEL PARA RESPONSABLE (en unidades)
+# =====================================================
+
+@bp.route('/my-campus-balance', methods=['GET'])
+@jwt_required()
+def get_my_campus_balance():
+    """Obtener saldo del plantel del responsable (en unidades y pesos)"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        if user.role not in ['responsable', 'admin', 'developer']:
+            return jsonify({'error': 'Solo responsables de plantel pueden acceder'}), 403
+
+        # Buscar campus donde el usuario es responsable
+        campus = Campus.query.filter_by(responsable_id=user_id).first()
+        if not campus:
+            return jsonify({'error': 'No se encontró un plantel asignado'}), 404
+
+        certification_cost = float(campus.certification_cost) if campus.certification_cost else 0
+
+        # Obtener todos los balances de coordinadores para este plantel
+        balances = CoordinatorBalance.query.filter_by(campus_id=campus.id).all()
+
+        total_balance = sum(float(b.current_balance or 0) for b in balances)
+        total_received = sum(float(b.total_received or 0) for b in balances)
+        total_spent = sum(float(b.total_spent or 0) for b in balances)
+        total_scholarships = sum(float(b.total_scholarships or 0) for b in balances)
+
+        # Convertir a unidades
+        def to_units(amount):
+            if certification_cost > 0:
+                return int(amount // certification_cost)
+            return 0
+
+        return jsonify({
+            'campus': {
+                'id': campus.id,
+                'name': campus.name,
+                'certification_cost': certification_cost,
+            },
+            'totals_money': {
+                'current_balance': total_balance,
+                'total_received': total_received,
+                'total_spent': total_spent,
+                'total_scholarships': total_scholarships,
+            },
+            'totals_units': {
+                'current_balance': to_units(total_balance),
+                'total_received': to_units(total_received),
+                'total_spent': to_units(total_spent),
+                'total_scholarships': to_units(total_scholarships),
+            },
+            'coordinators_count': len(balances),
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
 # SOLICITUDES DE CERTIFICADOS (Responsable → Coordinador)
 # =====================================================
 
