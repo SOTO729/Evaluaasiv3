@@ -37,12 +37,14 @@ import {
 import {
   getPartners,
   getCampuses,
+  getCampus,
   getGroups,
   createGroup,
   getSchoolCycles,
 } from '../../services/partnersService';
 import SearchableSelect from '../ui/SearchableSelect';
 import { useNotificationStore } from '../../store/notificationStore';
+import { useAuthStore } from '../../store/authStore';
 
 interface BulkUploadModalProps {
   isOpen: boolean;
@@ -51,6 +53,9 @@ interface BulkUploadModalProps {
 }
 
 export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUploadModalProps) {
+  const { user } = useAuthStore();
+  const isResponsable = user?.role === 'responsable' && !!user?.campus_id;
+
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading] = useState(false);
@@ -101,9 +106,26 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [createGroupError, setCreateGroupError] = useState<string | null>(null);
 
-  // Cargar partners al abrir el selector
+  // Auto pre-seleccionar partner y campus para responsable
   useEffect(() => {
-    if (showGroupSelector && partners.length === 0) {
+    if (isOpen && isResponsable && user?.campus_id) {
+      setShowGroupSelector(true);
+      setLoadingCampuses(true);
+      getCampus(user.campus_id)
+        .then((campus: any) => {
+          setSelectedPartnerId(campus.partner_id);
+          setPartners([{ id: campus.partner_id, name: '' }]);
+          setSelectedCampusId(campus.id);
+          setCampuses([{ id: campus.id, name: campus.name }]);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingCampuses(false));
+    }
+  }, [isOpen, isResponsable]);
+
+  // Cargar partners al abrir el selector (solo para no-responsables)
+  useEffect(() => {
+    if (showGroupSelector && partners.length === 0 && !isResponsable) {
       setLoadingPartners(true);
       getPartners({ page: 1, per_page: 500 })
         .then(res => setPartners((res.partners || []).map((p: any) => ({ id: p.id, name: p.name }))))
@@ -112,8 +134,9 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   }, [showGroupSelector]);
 
-  // Cargar campuses cuando cambia el partner
+  // Cargar campuses cuando cambia el partner (solo para no-responsables)
   useEffect(() => {
+    if (isResponsable) return;
     setCampuses([]);
     setCycles([]);
     setGroups([]);
@@ -314,11 +337,13 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   };
 
   const handleResetGroup = () => {
-    setSelectedPartnerId('');
-    setSelectedCampusId('');
+    if (!isResponsable) {
+      setSelectedPartnerId('');
+      setSelectedCampusId('');
+      setCampuses([]);
+    }
     setSelectedCycleId('');
     setSelectedGroupId('');
-    setCampuses([]);
     setCycles([]);
     setGroups([]);
     setShowCreateGroup(false);
@@ -385,73 +410,102 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Selector de grupo (opcional) */}
+          {/* Selector de grupo */}
           {!result && (
             <div className="mb-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowGroupSelector(!showGroupSelector);
-                  if (showGroupSelector) handleResetGroup();
-                }}
-                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
-                  showGroupSelector
-                    ? 'border-purple-300 bg-purple-50'
-                    : 'border-gray-200 bg-gray-50 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${showGroupSelector ? 'bg-purple-100' : 'bg-gray-200'}`}>
-                    <Layers className={`h-5 w-5 ${showGroupSelector ? 'text-purple-600' : 'text-gray-500'}`} />
+              {/* Para responsables: el selector siempre está abierto y no se puede cerrar */}
+              {!isResponsable && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowGroupSelector(!showGroupSelector);
+                    if (showGroupSelector) handleResetGroup();
+                  }}
+                  className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                    showGroupSelector
+                      ? 'border-purple-300 bg-purple-50'
+                      : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${showGroupSelector ? 'bg-purple-100' : 'bg-gray-200'}`}>
+                      <Layers className={`h-5 w-5 ${showGroupSelector ? 'text-purple-600' : 'text-gray-500'}`} />
+                    </div>
+                    <div className="text-left">
+                      <p className={`font-medium ${showGroupSelector ? 'text-purple-800' : 'text-gray-700'}`}>
+                        Asignar a un grupo
+                        <span className="ml-2 text-xs font-normal text-gray-400">(Opcional)</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {selectedGroupId
+                          ? `Grupo: ${groups.find(g => g.id === selectedGroupId)?.name || '...'}`
+                          : 'Los candidatos se crearán sin grupo asignado'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className={`font-medium ${showGroupSelector ? 'text-purple-800' : 'text-gray-700'}`}>
-                      Asignar a un grupo
-                      <span className="ml-2 text-xs font-normal text-gray-400">(Opcional)</span>
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {selectedGroupId
-                        ? `Grupo: ${groups.find(g => g.id === selectedGroupId)?.name || '...'}`
-                        : 'Los candidatos se crearán sin grupo asignado'}
-                    </p>
+                  {showGroupSelector ? (
+                    <ChevronUp className="h-5 w-5 text-purple-500" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                  )}
+                </button>
+              )}
+
+              {/* Para responsables: mostrar banner informativo con su plantel */}
+              {isResponsable && (
+                <div className="w-full p-4 rounded-xl border-2 border-purple-300 bg-purple-50">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-100">
+                      <MapPin className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-purple-800">
+                        Asignar a un grupo de tu plantel
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {campuses.length > 0
+                          ? `Plantel: ${campuses[0]?.name}`
+                          : 'Cargando plantel...'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                {showGroupSelector ? (
-                  <ChevronUp className="h-5 w-5 text-purple-500" />
-                ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
+              )}
 
               {showGroupSelector && (
                 <div className="mt-3 p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
-                  {/* Partner */}
-                  <SearchableSelect
-                    label="Partner"
-                    icon={<Building2 className="h-4 w-4 text-gray-400" />}
-                    options={partners}
-                    value={selectedPartnerId}
-                    onChange={v => setSelectedPartnerId(v ? Number(v) : '')}
-                    disabled={loadingPartners}
-                    loading={loadingPartners}
-                    loadingText="Cargando partners..."
-                    placeholder="-- Selecciona un partner --"
-                    emptyMessage="No hay partners registrados"
-                  />
+                  {/* Partner y Plantel: solo visible para admin/coordinador */}
+                  {!isResponsable && (
+                    <>
+                      {/* Partner */}
+                      <SearchableSelect
+                        label="Partner"
+                        icon={<Building2 className="h-4 w-4 text-gray-400" />}
+                        options={partners}
+                        value={selectedPartnerId}
+                        onChange={v => setSelectedPartnerId(v ? Number(v) : '')}
+                        disabled={loadingPartners}
+                        loading={loadingPartners}
+                        loadingText="Cargando partners..."
+                        placeholder="-- Selecciona un partner --"
+                        emptyMessage="No hay partners registrados"
+                      />
 
-                  {/* Plantel */}
-                  <SearchableSelect
-                    label="Plantel"
-                    icon={<MapPin className="h-4 w-4 text-gray-400" />}
-                    options={campuses}
-                    value={selectedCampusId}
-                    onChange={v => setSelectedCampusId(v ? Number(v) : '')}
-                    disabled={!selectedPartnerId || loadingCampuses}
-                    loading={loadingCampuses}
-                    loadingText="Cargando planteles..."
-                    placeholder={!selectedPartnerId ? '-- Selecciona un partner primero --' : '-- Selecciona un plantel --'}
-                    emptyMessage="No hay planteles en este partner"
-                  />
+                      {/* Plantel */}
+                      <SearchableSelect
+                        label="Plantel"
+                        icon={<MapPin className="h-4 w-4 text-gray-400" />}
+                        options={campuses}
+                        value={selectedCampusId}
+                        onChange={v => setSelectedCampusId(v ? Number(v) : '')}
+                        disabled={!selectedPartnerId || loadingCampuses}
+                        loading={loadingCampuses}
+                        loadingText="Cargando planteles..."
+                        placeholder={!selectedPartnerId ? '-- Selecciona un partner primero --' : '-- Selecciona un plantel --'}
+                        emptyMessage="No hay planteles en este partner"
+                      />
+                    </>
+                  )}
 
                   {/* Ciclo Escolar */}
                   <SearchableSelect
@@ -552,14 +606,17 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                         </span>
                         <span className="text-gray-400">•</span>
                         <span className="text-gray-500 text-xs">
-                          {partners.find(p => p.id === selectedPartnerId)?.name} / {campuses.find(c => c.id === selectedCampusId)?.name} / {cycles.find(c => c.id === selectedCycleId)?.name}
+                          {isResponsable
+                            ? `${campuses[0]?.name || ''} / ${cycles.find(c => c.id === selectedCycleId)?.name || ''}`
+                            : `${partners.find(p => p.id === selectedPartnerId)?.name} / ${campuses.find(c => c.id === selectedCampusId)?.name} / ${cycles.find(c => c.id === selectedCycleId)?.name}`
+                          }
                         </span>
                       </div>
                       <button
                         onClick={handleResetGroup}
                         className="text-xs text-red-500 hover:text-red-700 font-medium"
                       >
-                        Quitar
+                        {isResponsable ? 'Cambiar' : 'Quitar'}
                       </button>
                     </div>
                   )}
