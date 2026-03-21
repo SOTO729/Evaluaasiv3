@@ -126,8 +126,8 @@ describe('MiPlantelReportesPage', () => {
     vi.clearAllMocks();
     mockUser.can_view_reports = true;
     // Reset URL.createObjectURL mock
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock');
-    global.URL.revokeObjectURL = vi.fn();
+    window.URL.createObjectURL = vi.fn(() => 'blob:mock');
+    window.URL.revokeObjectURL = vi.fn();
   });
 
   // ── Carga ──
