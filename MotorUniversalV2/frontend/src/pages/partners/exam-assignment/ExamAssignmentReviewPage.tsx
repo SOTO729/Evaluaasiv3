@@ -142,7 +142,13 @@ export default function ExamAssignmentReviewPage() {
     } catch (err: any) {
       const errorType = err.response?.data?.error_type;
       if (errorType === 'insufficient_balance') {
-        setError(`Saldo insuficiente. Necesitas ${formatCurrency(err.response?.data?.required || 0)} pero solo tienes ${formatCurrency(err.response?.data?.current_balance || 0)}.`);
+        if (isResponsable && costPreview && costPreview.unit_cost > 0) {
+          const needed = Math.ceil((err.response?.data?.required || 0) / costPreview.unit_cost);
+          const available = Math.floor((err.response?.data?.current_balance || 0) / costPreview.unit_cost);
+          setError(`Certificados insuficientes. Necesitas ${needed} certificado${needed !== 1 ? 's' : ''} pero solo tienes ${available} disponible${available !== 1 ? 's' : ''}.`);
+        } else {
+          setError(`Saldo insuficiente. Necesitas ${formatCurrency(err.response?.data?.required || 0)} pero solo tienes ${formatCurrency(err.response?.data?.current_balance || 0)}.`);
+        }
       } else {
         setError(err.response?.data?.error || 'Error al asignar el examen');
       }
