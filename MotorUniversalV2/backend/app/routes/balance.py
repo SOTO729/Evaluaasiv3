@@ -1273,7 +1273,7 @@ def get_balance_stats():
 def get_campus_balance_summary(campus_id):
     """Obtener resumen de saldo de un plantel (suma de todos los coordinadores).
     
-    Accesible por admin, developer, gerente, financiero y coordinadores del plantel.
+    Accesible por admin, developer, gerente, financiero, coordinadores y responsables del plantel.
     """
     try:
         user_id = get_jwt_identity()
@@ -1290,6 +1290,11 @@ def get_campus_balance_summary(campus_id):
                     coordinator_id=user_id, campus_id=campus_id
                 ).first()
                 if not has_balance:
+                    return jsonify({'error': 'No tienes acceso a este plantel'}), 403
+            # Si es responsable, verificar que sea responsable de ese plantel
+            elif user.role == 'responsable':
+                campus_check = Campus.query.filter_by(id=campus_id, responsable_id=user_id).first()
+                if not campus_check:
                     return jsonify({'error': 'No tienes acceso a este plantel'}), 403
             else:
                 return jsonify({'error': 'No autorizado'}), 403

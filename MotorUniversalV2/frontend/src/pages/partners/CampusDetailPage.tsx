@@ -774,20 +774,51 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
           <div className="space-y-3">
             {/* Costos o Certificados - grid compacto */}
             {isResponsable ? (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
-                  <p className="text-2xl font-black text-emerald-700 leading-tight">
-                    {(campus.certification_cost || 0) > 0 && balanceSummary
-                      ? Math.floor(balanceSummary.totals.current_balance / (campus.certification_cost || 1))
-                      : 0}
-                  </p>
-                  <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Certificados disponibles (aprox.)</p>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-3 text-center border border-purple-100">
-                  <p className="text-2xl font-black text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
-                  <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
-                </div>
-              </div>
+              <>
+                {loadingBalance ? (
+                  <div className="text-center p-3 bg-gray-50 rounded-fluid-lg border border-gray-100 animate-pulse">
+                    <div className="h-8 w-20 bg-gray-200 rounded mx-auto mb-1"></div>
+                    <div className="h-3 w-24 bg-gray-200 rounded mx-auto"></div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
+                      <p className="text-2xl font-black text-emerald-700 leading-tight">
+                        {(campus.certification_cost || 0) > 0 && balanceSummary
+                          ? Math.floor(balanceSummary.totals.current_balance / (campus.certification_cost || 1))
+                          : 0}
+                      </p>
+                      <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Disponibles</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-lg p-3 text-center border border-amber-200">
+                      <p className="text-2xl font-black text-amber-700 leading-tight">
+                        {(campus.certification_cost || 0) > 0 && balanceSummary
+                          ? Math.floor(balanceSummary.totals.total_spent / (campus.certification_cost || 1))
+                          : 0}
+                      </p>
+                      <p className="text-[11px] text-amber-600 font-semibold mt-0.5">Consumidas</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-lg p-3 text-center border border-blue-100">
+                      <p className="text-2xl font-black text-blue-700 leading-tight">
+                        {(campus.certification_cost || 0) > 0 && balanceSummary
+                          ? Math.floor(balanceSummary.totals.total_received / (campus.certification_cost || 1))
+                          : 0}
+                      </p>
+                      <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Total recibidas</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-3 text-center border border-purple-100">
+                      <p className="text-2xl font-black text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
+                      <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
+                    </div>
+                  </div>
+                )}
+                <Link
+                  to="/mi-plantel/saldo"
+                  className="block w-full text-center text-xs font-semibold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-fluid-lg py-2 border border-emerald-200 transition-colors"
+                >
+                  Ver detalle de saldo →
+                </Link>
+              </>
             ) : (
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-fluid-lg p-2.5 text-center border border-green-100">
