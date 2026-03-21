@@ -145,7 +145,7 @@ export default function ExamAssignmentReviewPage() {
         if (isResponsable && costPreview && costPreview.unit_cost > 0) {
           const needed = Math.ceil((err.response?.data?.required || 0) / costPreview.unit_cost);
           const available = Math.floor((err.response?.data?.current_balance || 0) / costPreview.unit_cost);
-          setError(`Certificados insuficientes. Necesitas ${needed} certificado${needed !== 1 ? 's' : ''} pero solo tienes ${available} disponible${available !== 1 ? 's' : ''}.`);
+          setError(`Vouchers insuficientes. Necesitas ${needed} voucher${needed !== 1 ? 's' : ''} pero solo tienes ${available} disponible${available !== 1 ? 's' : ''}.`);
         } else {
           setError(`Saldo insuficiente. Necesitas ${formatCurrency(err.response?.data?.required || 0)} pero solo tienes ${formatCurrency(err.response?.data?.current_balance || 0)}.`);
         }
@@ -274,7 +274,7 @@ export default function ExamAssignmentReviewPage() {
             <tfoot>
               <tr className="bg-gray-50">
                 <td colSpan={isResponsable ? 1 : 3} className="py-3 px-4 text-right font-semibold text-gray-700 fluid-text-base">
-                  {isResponsable ? 'Certificados a asignar' : 'Total a descontar'}
+                  {isResponsable ? 'Vouchers a asignar' : 'Total a descontar'}
                 </td>
                 <td className="py-3 px-4 text-right font-bold fluid-text-lg text-gray-900">
                   {isResponsable ? costPreview.units : formatCurrency(costPreview.total_cost)}
@@ -287,7 +287,7 @@ export default function ExamAssignmentReviewPage() {
         {/* Balance cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-4">
-            <div className="flex items-center fluid-gap-2 mb-1"><Wallet className="fluid-icon-sm text-blue-500" /><p className="fluid-text-xs font-medium text-blue-600">{isResponsable ? 'Certificados disponibles' : 'Saldo actual'}</p></div>
+            <div className="flex items-center fluid-gap-2 mb-1"><Wallet className="fluid-icon-sm text-blue-500" /><p className="fluid-text-xs font-medium text-blue-600">{isResponsable ? 'Vouchers disponibles' : 'Saldo actual'}</p></div>
             <p className="fluid-text-2xl font-bold text-blue-700">
               {isResponsable
                 ? (costPreview.unit_cost > 0 ? Math.floor(costPreview.current_balance / costPreview.unit_cost) : 0)
@@ -303,7 +303,7 @@ export default function ExamAssignmentReviewPage() {
           <div className={`border rounded-fluid-xl fluid-p-4 ${costPreview.has_sufficient_balance ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
             <div className="flex items-center fluid-gap-2 mb-1">
               {costPreview.has_sufficient_balance ? <ShieldCheck className="fluid-icon-sm text-green-500" /> : <ShieldAlert className="fluid-icon-sm text-red-500" />}
-              <p className={`fluid-text-xs font-medium ${costPreview.has_sufficient_balance ? 'text-green-600' : 'text-red-600'}`}>{isResponsable ? 'Certificados restantes' : 'Saldo restante'}</p>
+              <p className={`fluid-text-xs font-medium ${costPreview.has_sufficient_balance ? 'text-green-600' : 'text-red-600'}`}>{isResponsable ? 'Vouchers restantes' : 'Saldo restante'}</p>
             </div>
             <p className={`fluid-text-2xl font-bold ${costPreview.has_sufficient_balance ? 'text-green-700' : 'text-red-700'}`}>
               {isResponsable
@@ -318,10 +318,10 @@ export default function ExamAssignmentReviewPage() {
           <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6 flex items-start fluid-gap-3">
             <ShieldAlert className="fluid-icon-base text-red-500 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-red-700 fluid-text-base">{isResponsable ? 'Certificados insuficientes' : 'Saldo insuficiente'}</p>
+              <p className="font-medium text-red-700 fluid-text-base">{isResponsable ? 'Vouchers insuficientes' : 'Saldo insuficiente'}</p>
               {isResponsable ? (
                 <p className="fluid-text-sm text-red-600 mt-1">
-                  Necesitas <strong>{costPreview.units} certificado{costPreview.units !== 1 ? 's' : ''}</strong> pero solo tienes{' '}
+                  Necesitas <strong>{costPreview.units} voucher{costPreview.units !== 1 ? 's' : ''}</strong> pero solo tienes{' '}
                   <strong>{costPreview.unit_cost > 0 ? Math.floor(costPreview.current_balance / costPreview.unit_cost) : 0}</strong> disponibles.
                 </p>
               ) : (
@@ -332,7 +332,7 @@ export default function ExamAssignmentReviewPage() {
                 </p>
               )}
               <Link to={isResponsable ? '/solicitar-certificados' : '/solicitar-saldo'} className="inline-flex items-center fluid-gap-1 fluid-text-sm text-red-700 hover:text-red-900 font-medium mt-2 underline">
-                {isResponsable ? 'Solicitar más certificados →' : 'Solicitar más saldo →'}
+                {isResponsable ? 'Solicitar más vouchers →' : 'Solicitar más saldo →'}
               </Link>
             </div>
           </div>
@@ -355,10 +355,10 @@ export default function ExamAssignmentReviewPage() {
           <button onClick={handleConfirm} disabled={saving || (!costPreview.has_sufficient_balance && costPreview.total_cost > 0)}
             className="fluid-px-6 fluid-py-3 bg-green-600 text-white rounded-fluid-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 font-medium shadow-lg transition-all fluid-text-sm">
             {saving ? (
-              <><Loader2 className="fluid-icon-base animate-spin" />{isResponsable ? 'Asignando certificados...' : 'Asignando y descontando saldo...'}</>
+              <><Loader2 className="fluid-icon-base animate-spin" />{isResponsable ? 'Asignando vouchers...' : 'Asignando y descontando saldo...'}</>
             ) : (
               <><CheckCircle2 className="fluid-icon-base" />{costPreview.total_cost > 0
-                ? (isResponsable ? `Confirmar Asignación (${costPreview.units} certificado${costPreview.units !== 1 ? 's' : ''})` : `Confirmar Asignación (${formatCurrency(costPreview.total_cost)})`)
+                ? (isResponsable ? `Confirmar Asignación (${costPreview.units} voucher${costPreview.units !== 1 ? 's' : ''})` : `Confirmar Asignación (${formatCurrency(costPreview.total_cost)})`)
                 : 'Confirmar Asignación'}</>
             )}
           </button>

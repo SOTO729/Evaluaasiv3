@@ -813,10 +813,10 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   </div>
                 )}
                 <Link
-                  to="/mi-plantel/saldo"
+                  to="/mi-plantel/vouchers"
                   className="block w-full text-center text-xs font-semibold text-emerald-600 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-fluid-lg py-2 border border-emerald-200 transition-colors"
                 >
-                  Ver detalle de saldo →
+                  Ver detalle de vouchers →
                 </Link>
               </>
             ) : (

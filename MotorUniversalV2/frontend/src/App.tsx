@@ -428,7 +428,7 @@ function App() {
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
               <Route path="/mi-plantel/reportes" element={<ReportsGuard><ReportsPage backPath="/mi-plantel" /></ReportsGuard>} />
               <Route path="/mi-plantel/branding" element={<BrandingConfigPage />} />
-              <Route path="/mi-plantel/saldo" element={<MiSaldoResponsablePage />} />
+              <Route path="/mi-plantel/vouchers" element={<MiSaldoResponsablePage />} />
               <Route path="/solicitar-certificados" element={<SolicitarCertificadosPage />} />
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
               <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />
