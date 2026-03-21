@@ -10809,32 +10809,6 @@ def create_mi_plantel_cycle():
 @jwt_required()
 @responsable_required
 def get_mi_plantel_groups():
-    """Obtener grupos del plantel del responsable"""
-    try:
-        user = g.current_user
-        campus = Campus.query.get(user.campus_id)
-        
-        if not campus:
-            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
-        
-        groups = CandidateGroup.query.filter_by(campus_id=campus.id, is_active=True).all()
-        
-        return jsonify({
-            'groups': [g.to_dict(include_members=False) for g in groups]
-        })
-        
-    except HTTPException:
-        
-        raise
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@bp.route('/mi-plantel/groups', methods=['GET'])
-@jwt_required()
-@responsable_required
-def get_mi_plantel_groups():
     """Obtener grupos del plantel para filtros de reportes"""
     try:
         user = g.current_user
