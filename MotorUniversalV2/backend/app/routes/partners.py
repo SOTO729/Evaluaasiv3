@@ -10307,6 +10307,8 @@ def get_mi_plantel_stats():
 def get_mi_plantel_evaluations():
     """Obtener lista de evaluaciones del plantel del responsable"""
     from app.models import Result, Exam
+    from app.models.competency_standard import CompetencyStandard
+    from app.models.partner import EcmCandidateAssignment
     
     try:
         user = g.current_user
@@ -10317,20 +10319,35 @@ def get_mi_plantel_evaluations():
         
         # Parámetros de paginación y filtrado
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = request.args.get('per_page', 100, type=int)
+        per_page = min(per_page, 200)  # Máximo 200
         exam_id = request.args.get('exam_id', type=int)
         result_status = request.args.get('result', type=int)  # 0=reprobado, 1=aprobado
-        search = request.args.get('search', '')
+        group_id = request.args.get('group_id', type=int)
+        search = request.args.get('search', '').strip()
         
         # Obtener todos los grupos del plantel
         groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
-        group_ids = [g.id for g in groups]
+        group_ids = [gr.id for gr in groups]
+        group_map = {gr.id: gr for gr in groups}
         
-        # Obtener todos los candidatos del plantel
-        candidate_ids = db.session.query(GroupMember.user_id).filter(
-            GroupMember.group_id.in_(group_ids)
+        if not group_ids:
+            return jsonify({
+                'evaluations': [],
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'pages': 0
+            })
+        
+        # Filtrar por grupo específico
+        target_group_ids = [group_id] if group_id and group_id in group_ids else group_ids
+        
+        # Obtener candidatos del plantel (o del grupo seleccionado)
+        candidate_ids_q = db.session.query(GroupMember.user_id).filter(
+            GroupMember.group_id.in_(target_group_ids)
         ).distinct().all()
-        candidate_ids = [c[0] for c in candidate_ids]
+        candidate_ids = [c[0] for c in candidate_ids_q]
         
         if not candidate_ids:
             return jsonify({
@@ -10340,6 +10357,28 @@ def get_mi_plantel_evaluations():
                 'per_page': per_page,
                 'pages': 0
             })
+        
+        # Si hay búsqueda, filtrar candidate_ids por nombre/curp/email
+        if search:
+            search_pattern = f'%{search}%'
+            matching_users = User.query.filter(
+                User.id.in_(candidate_ids),
+                db.or_(
+                    User.full_name.ilike(search_pattern),
+                    User.curp.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                    User.username.ilike(search_pattern)
+                )
+            ).all()
+            candidate_ids = [u.id for u in matching_users]
+            if not candidate_ids:
+                return jsonify({
+                    'evaluations': [],
+                    'total': 0,
+                    'page': page,
+                    'per_page': per_page,
+                    'pages': 0
+                })
         
         # Query base de resultados
         query = Result.query.filter(
@@ -10358,22 +10397,47 @@ def get_mi_plantel_evaluations():
         query = query.order_by(Result.end_date.desc())
         
         # Paginación
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=200, error_out=False)
+        
+        # Pre-cargar datos para evitar N+1
+        result_user_ids = list({r.user_id for r in pagination.items})
+        result_exam_ids = list({r.exam_id for r in pagination.items})
+        result_std_ids = list({r.competency_standard_id for r in pagination.items if r.competency_standard_id})
+        
+        users_map = {u.id: u for u in User.query.filter(User.id.in_(result_user_ids)).all()} if result_user_ids else {}
+        exams_map = {e.id: e for e in Exam.query.filter(Exam.id.in_(result_exam_ids)).all()} if result_exam_ids else {}
+        standards_map = {s.id: s for s in CompetencyStandard.query.filter(CompetencyStandard.id.in_(result_std_ids)).all()} if result_std_ids else {}
+        
+        # Pre-cargar membresías de grupo
+        members_q = GroupMember.query.filter(
+            GroupMember.user_id.in_(result_user_ids),
+            GroupMember.group_id.in_(group_ids)
+        ).all()
+        member_group_map = {}
+        for m in members_q:
+            if m.user_id not in member_group_map:
+                member_group_map[m.user_id] = m.group_id
+        
+        # Pre-cargar asignaciones ECM
+        assignments_q = EcmCandidateAssignment.query.filter(
+            EcmCandidateAssignment.user_id.in_(result_user_ids),
+            EcmCandidateAssignment.campus_id == campus.id
+        ).all()
+        # Mapa: (user_id, exam_id) -> assignment
+        assignment_map = {}
+        for a in assignments_q:
+            key = (a.user_id, a.exam_id)
+            if key not in assignment_map:
+                assignment_map[key] = a
         
         evaluations = []
         for result in pagination.items:
-            # Obtener datos del usuario
-            candidate = User.query.get(result.user_id)
-            
-            # Obtener datos del examen
-            exam = Exam.query.get(result.exam_id)
-            
-            # Obtener grupo del candidato
-            member = GroupMember.query.filter(
-                GroupMember.user_id == result.user_id,
-                GroupMember.group_id.in_(group_ids)
-            ).first()
-            group = CandidateGroup.query.get(member.group_id) if member else None
+            candidate = users_map.get(result.user_id)
+            exam = exams_map.get(result.exam_id)
+            gid = member_group_map.get(result.user_id)
+            group = group_map.get(gid) if gid else None
+            standard = standards_map.get(result.competency_standard_id) if result.competency_standard_id else None
+            assignment = assignment_map.get((result.user_id, result.exam_id))
             
             evaluations.append({
                 'id': result.id,
@@ -10393,12 +10457,19 @@ def get_mi_plantel_evaluations():
                     'id': group.id,
                     'name': group.name
                 } if group else None,
+                'standard': {
+                    'code': standard.code,
+                    'name': standard.name
+                } if standard else None,
+                'assignment_number': assignment.assignment_number if assignment else None,
+                'tramite_status': assignment.tramite_status if assignment else None,
                 'score': result.score,
                 'result': result.result,
                 'result_text': 'Aprobado' if result.result == 1 else 'Reprobado',
                 'start_date': result.start_date.isoformat() if result.start_date else None,
                 'end_date': result.end_date.isoformat() if result.end_date else None,
                 'duration_seconds': result.duration_seconds,
+                'certificate_code': result.certificate_code,
                 'certificate_url': result.certificate_url,
                 'report_url': result.report_url
             })
@@ -10427,6 +10498,8 @@ def get_mi_plantel_evaluations():
 def export_mi_plantel_evaluations():
     """Exportar evaluaciones del plantel a Excel"""
     from app.models import Result, Exam
+    from app.models.competency_standard import CompetencyStandard
+    from app.models.partner import EcmCandidateAssignment
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     
@@ -10440,19 +10513,40 @@ def export_mi_plantel_evaluations():
         # Filtros opcionales
         exam_id = request.args.get('exam_id', type=int)
         result_status = request.args.get('result', type=int)
+        group_id = request.args.get('group_id', type=int)
+        search = request.args.get('search', '').strip()
         
         # Obtener todos los grupos del plantel
         groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
-        group_ids = [g.id for g in groups]
+        group_ids = [gr.id for gr in groups]
+        group_map = {gr.id: gr for gr in groups}
         
-        # Obtener todos los candidatos del plantel
-        candidate_ids = db.session.query(GroupMember.user_id).filter(
-            GroupMember.group_id.in_(group_ids)
+        target_group_ids = [group_id] if group_id and group_id in group_ids else group_ids
+        
+        # Obtener candidatos del plantel
+        candidate_ids_q = db.session.query(GroupMember.user_id).filter(
+            GroupMember.group_id.in_(target_group_ids)
         ).distinct().all()
-        candidate_ids = [c[0] for c in candidate_ids]
+        candidate_ids = [c[0] for c in candidate_ids_q]
         
         if not candidate_ids:
             return jsonify({'error': 'No hay candidatos en el plantel'}), 404
+        
+        # Filtrar por búsqueda
+        if search:
+            search_pattern = f'%{search}%'
+            matching_users = User.query.filter(
+                User.id.in_(candidate_ids),
+                db.or_(
+                    User.full_name.ilike(search_pattern),
+                    User.curp.ilike(search_pattern),
+                    User.email.ilike(search_pattern),
+                    User.username.ilike(search_pattern)
+                )
+            ).all()
+            candidate_ids = [u.id for u in matching_users]
+            if not candidate_ids:
+                return jsonify({'error': 'No hay resultados con los filtros seleccionados'}), 404
         
         # Query de resultados
         query = Result.query.filter(
@@ -10467,6 +10561,34 @@ def export_mi_plantel_evaluations():
             query = query.filter(Result.result == result_status)
         
         results = query.order_by(Result.end_date.desc()).all()
+        
+        # Pre-cargar datos para evitar N+1
+        result_user_ids = list({r.user_id for r in results})
+        result_exam_ids = list({r.exam_id for r in results})
+        result_std_ids = list({r.competency_standard_id for r in results if r.competency_standard_id})
+        
+        users_map = {u.id: u for u in User.query.filter(User.id.in_(result_user_ids)).all()} if result_user_ids else {}
+        exams_map = {e.id: e for e in Exam.query.filter(Exam.id.in_(result_exam_ids)).all()} if result_exam_ids else {}
+        standards_map = {s.id: s for s in CompetencyStandard.query.filter(CompetencyStandard.id.in_(result_std_ids)).all()} if result_std_ids else {}
+        
+        members_q = GroupMember.query.filter(
+            GroupMember.user_id.in_(result_user_ids),
+            GroupMember.group_id.in_(group_ids)
+        ).all()
+        member_group_map = {}
+        for m in members_q:
+            if m.user_id not in member_group_map:
+                member_group_map[m.user_id] = m.group_id
+        
+        assignments_q = EcmCandidateAssignment.query.filter(
+            EcmCandidateAssignment.user_id.in_(result_user_ids),
+            EcmCandidateAssignment.campus_id == campus.id
+        ).all()
+        assignment_map = {}
+        for a in assignments_q:
+            key = (a.user_id, a.exam_id)
+            if key not in assignment_map:
+                assignment_map[key] = a
         
         # Crear workbook
         wb = Workbook()
@@ -10485,18 +10607,20 @@ def export_mi_plantel_evaluations():
         center_align = Alignment(horizontal='center')
         
         # Título
-        ws.merge_cells('A1:I1')
+        headers = ['Grupo', 'Candidato', 'CURP', 'Email', 'Examen', 'Estándar', 'No. Asignación', 'Calificación', 'Resultado', 'Código Certificado', 'Trámite', 'Fecha', 'Duración']
+        col_count = len(headers)
+        last_col_letter = chr(64 + col_count)  # M for 13 columns
+        
+        ws.merge_cells(f'A1:{last_col_letter}1')
         ws['A1'] = f"Reporte de Evaluaciones - {campus.name}"
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
         
-        # Fecha de generación
-        ws.merge_cells('A2:I2')
-        ws['A2'] = f"Generado el: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        ws.merge_cells(f'A2:{last_col_letter}2')
+        ws['A2'] = f"Generado el: {datetime.now().strftime('%d/%m/%Y %H:%M')} — Total: {len(results)} registros"
         ws['A2'].alignment = Alignment(horizontal='center')
         
         # Encabezados
-        headers = ['Grupo', 'Candidato', 'CURP', 'Email', 'Examen', 'Calificación', 'Resultado', 'Fecha', 'Duración']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col, value=header)
             cell.font = header_font
@@ -10507,51 +10631,48 @@ def export_mi_plantel_evaluations():
         # Datos
         row_num = 5
         for result in results:
-            candidate = User.query.get(result.user_id)
-            exam = Exam.query.get(result.exam_id)
+            candidate = users_map.get(result.user_id)
+            exam = exams_map.get(result.exam_id)
+            gid = member_group_map.get(result.user_id)
+            group = group_map.get(gid) if gid else None
+            standard = standards_map.get(result.competency_standard_id) if result.competency_standard_id else None
+            assignment = assignment_map.get((result.user_id, result.exam_id))
             
-            member = GroupMember.query.filter(
-                GroupMember.user_id == result.user_id,
-                GroupMember.group_id.in_(group_ids)
-            ).first()
-            group = CandidateGroup.query.get(member.group_id) if member else None
-            
-            # Calcular duración en formato legible
             duration_str = ""
             if result.duration_seconds:
                 mins = result.duration_seconds // 60
                 secs = result.duration_seconds % 60
                 duration_str = f"{mins}m {secs}s"
             
+            tramite_labels = {'pendiente': 'Pendiente', 'en_tramite': 'En trámite', 'entregado': 'Entregado'}
+            
             ws.cell(row=row_num, column=1, value=group.name if group else "Sin grupo").border = thin_border
             ws.cell(row=row_num, column=2, value=candidate.full_name if candidate else "").border = thin_border
             ws.cell(row=row_num, column=3, value=candidate.curp if candidate else "").border = thin_border
             ws.cell(row=row_num, column=4, value=candidate.email if candidate else "").border = thin_border
             ws.cell(row=row_num, column=5, value=exam.name if exam else "").border = thin_border
-            ws.cell(row=row_num, column=6, value=result.score).border = thin_border
-            ws.cell(row=row_num, column=7, value="Aprobado" if result.result == 1 else "Reprobado").border = thin_border
-            ws.cell(row=row_num, column=8, value=result.end_date.strftime('%d/%m/%Y %H:%M') if result.end_date else "").border = thin_border
-            ws.cell(row=row_num, column=9, value=duration_str).border = thin_border
+            ws.cell(row=row_num, column=6, value=standard.code if standard else "").border = thin_border
+            ws.cell(row=row_num, column=7, value=assignment.assignment_number if assignment else "").border = thin_border
+            ws.cell(row=row_num, column=8, value=result.score).border = thin_border
+            ws.cell(row=row_num, column=9, value="Aprobado" if result.result == 1 else "Reprobado").border = thin_border
+            ws.cell(row=row_num, column=10, value=result.certificate_code or "").border = thin_border
+            ws.cell(row=row_num, column=11, value=tramite_labels.get(assignment.tramite_status, '') if assignment else "").border = thin_border
+            ws.cell(row=row_num, column=12, value=result.end_date.strftime('%d/%m/%Y %H:%M') if result.end_date else "").border = thin_border
+            ws.cell(row=row_num, column=13, value=duration_str).border = thin_border
             
             row_num += 1
         
         # Ajustar anchos
-        ws.column_dimensions['A'].width = 20
-        ws.column_dimensions['B'].width = 30
-        ws.column_dimensions['C'].width = 22
-        ws.column_dimensions['D'].width = 30
-        ws.column_dimensions['E'].width = 25
-        ws.column_dimensions['F'].width = 12
-        ws.column_dimensions['G'].width = 12
-        ws.column_dimensions['H'].width = 18
-        ws.column_dimensions['I'].width = 12
+        col_widths = [20, 30, 22, 30, 25, 15, 18, 12, 12, 18, 14, 18, 12]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[chr(64 + i)].width = w
         
         # Guardar a BytesIO
         output = BytesIO()
         wb.save(output)
         output.seek(0)
         
-        filename = f"Evaluaciones_{campus.code}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        filename = f"Evaluaciones_{campus.name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         
         return send_file(
             output,
@@ -10705,6 +10826,32 @@ def get_mi_plantel_groups():
     except HTTPException:
         
         raise
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/mi-plantel/groups', methods=['GET'])
+@jwt_required()
+@responsable_required
+def get_mi_plantel_groups():
+    """Obtener grupos del plantel para filtros de reportes"""
+    try:
+        user = g.current_user
+        campus = Campus.query.get(user.campus_id)
+        
+        if not campus:
+            return jsonify({'error': 'No se encontró el plantel asignado'}), 404
+        
+        groups = CandidateGroup.query.filter_by(campus_id=campus.id).order_by(CandidateGroup.name).all()
+        
+        return jsonify({
+            'groups': [{
+                'id': gr.id,
+                'name': gr.name,
+                'is_active': gr.is_active
+            } for gr in groups]
+        })
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

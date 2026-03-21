@@ -2343,12 +2343,19 @@ export interface PlantelEvaluation {
     id: number;
     name: string;
   } | null;
+  standard: {
+    code: string;
+    name: string;
+  } | null;
+  assignment_number: string | null;
+  tramite_status: string | null;
   score: number;
   result: number;
   result_text: string;
   start_date: string | null;
   end_date: string | null;
   duration_seconds: number | null;
+  certificate_code: string | null;
   certificate_url: string | null;
   report_url: string | null;
 }
@@ -2413,6 +2420,7 @@ export async function getMiPlantelEvaluations(params?: {
   per_page?: number;
   exam_id?: number;
   result?: number;
+  group_id?: number;
   search?: string;
 }): Promise<PlantelEvaluationsResponse> {
   const response = await api.get('/partners/mi-plantel/evaluations', { params });
@@ -2425,11 +2433,23 @@ export async function getMiPlantelEvaluations(params?: {
 export async function exportMiPlantelEvaluations(params?: {
   exam_id?: number;
   result?: number;
+  group_id?: number;
+  search?: string;
 }): Promise<Blob> {
   const response = await api.get('/partners/mi-plantel/evaluations/export', {
     params,
     responseType: 'blob'
   });
+  return response.data;
+}
+
+/**
+ * Obtener grupos del plantel para filtros de reportes
+ */
+export async function getMiPlantelGroups(): Promise<{
+  groups: { id: number; name: string; is_active: boolean }[];
+}> {
+  const response = await api.get('/partners/mi-plantel/groups');
   return response.data;
 }
 
@@ -2458,14 +2478,6 @@ export async function createMiPlantelCycle(data: {
 }): Promise<SchoolCycle> {
   const response = await api.post('/partners/mi-plantel/cycles', data);
   return response.data.cycle;
-}
-
-/**
- * Obtener grupos del plantel del responsable
- */
-export async function getMiPlantelGroups(): Promise<{ groups: CandidateGroup[] }> {
-  const response = await api.get('/partners/mi-plantel/groups');
-  return response.data;
 }
 
 /**
