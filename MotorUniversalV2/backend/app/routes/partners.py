@@ -17598,10 +17598,7 @@ def get_report_filters():
         # ── Partners ──
         partners_data = []
         if not is_resp:
-            if user.role in ('admin', 'developer'):
-                partners = Partner.query.order_by(Partner.name).all()
-            else:
-                partners = Partner.query.filter_by(coordinator_id=user.id).order_by(Partner.name).all()
+            partners = Partner.query.order_by(Partner.name).all()
             partners_data = [{'id': p.id, 'name': p.name} for p in partners]
 
         # ── Planteles ──
@@ -17671,11 +17668,7 @@ def _build_reports_query(user, params):
         if partner_id:
             accessible_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=partner_id).all()]
         else:
-            if user.role in ('admin', 'developer'):
-                accessible_campus_ids = [c.id for c in Campus.query.all()]
-            else:
-                partner_ids = [p.id for p in Partner.query.filter_by(coordinator_id=user.id).all()]
-                accessible_campus_ids = [c.id for c in Campus.query.filter(Campus.partner_id.in_(partner_ids)).all()] if partner_ids else []
+            accessible_campus_ids = [c.id for c in Campus.query.all()]
 
     campus_filter = params.get('campus_id', type=int)
     if campus_filter and campus_filter in accessible_campus_ids:
