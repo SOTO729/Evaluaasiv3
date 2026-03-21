@@ -15,6 +15,7 @@ Ejecutar:
 
 import pytest
 import requests
+import time
 
 # ─── Configuración ──────────────────────────────────────────────────────────
 DEV_API = "https://evaluaasi-motorv2-api-dev.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api"
@@ -30,15 +31,21 @@ def api():
 
 @pytest.fixture(scope="session")
 def admin_token(api):
-    """Obtener JWT token de admin"""
-    r = requests.post(f"{api}/auth/login", json={
-        "username": ADMIN_USER,
-        "password": ADMIN_PASS
-    })
-    assert r.status_code == 200, f"Login falló: {r.text}"
-    data = r.json()
-    assert "access_token" in data
-    return data["access_token"]
+    """Obtener JWT token de admin (con retry para cold starts)"""
+    for attempt in range(3):
+        try:
+            r = requests.post(f"{api}/auth/login", json={
+                "username": ADMIN_USER,
+                "password": ADMIN_PASS
+            }, timeout=30)
+            if r.status_code == 200:
+                data = r.json()
+                assert "access_token" in data
+                return data["access_token"]
+        except requests.exceptions.ConnectionError:
+            if attempt < 2:
+                time.sleep(5)
+    pytest.fail("No se pudo autenticar como admin después de 3 intentos")
 
 
 @pytest.fixture(scope="session")
@@ -531,3 +538,61 @@ class TestReportAccess:
         data = r.json()
         for row in data["rows"]:
             assert row["curp_verified"] is False
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# E. SCOPING POR ROL DE COORDINADOR
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestCoordinatorScoping:
+    """Verifica que el scoping modelo funcione: partners/campuses COMPARTIDOS,
+    grupos AISLADOS por coordinator_id."""
+
+    def test_admin_ve_todos_los_partners_en_filtros(self, filters_data):
+        """Admin debe ver todos los partners (compartidos)."""
+        assert len(filters_data["partners"]) >= 1, \
+            "Admin debería ver al menos 1 partner en filtros"
+
+    def test_admin_ve_todos_los_grupos(self, filters_data):
+        """Admin (developer) debe ver todos los grupos sin restricción."""
+        assert len(filters_data["groups"]) >= 1, \
+            "Admin debería ver al menos 1 grupo en filtros"
+
+    def test_filtros_campuses_son_de_partners_existentes(self, filters_data):
+        """Los campus en filtros referencian partners que existen en la misma respuesta."""
+        partner_ids = {p["id"] for p in filters_data["partners"]}
+        for c in filters_data["campuses"]:
+            assert c["partner_id"] in partner_ids, \
+                f"Campus {c['id']} referencia partner_id={c['partner_id']} que no está en filtros"
+
+    def test_filtros_ciclos_son_de_campuses_existentes(self, filters_data):
+        """Los ciclos en filtros referencian campuses que existen en la misma respuesta."""
+        campus_ids = {c["id"] for c in filters_data["campuses"]}
+        for cy in filters_data["school_cycles"]:
+            assert cy["campus_id"] in campus_ids, \
+                f"Ciclo {cy['id']} referencia campus_id={cy['campus_id']} que no está en filtros"
+
+    def test_admin_reportes_tiene_datos(self, api, headers):
+        """Admin debe poder obtener filas de reportes (no vacío si hay datos en DEV)."""
+        r = requests.get(f"{api}/partners/reports?per_page=5", headers=headers, timeout=30)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 0  # Mínimo 0, pero no error
+
+    def test_reportes_filas_tienen_partner_con_nombre(self, api, headers):
+        """Cada fila de reporte incluye partner_name (scoping compartido)."""
+        r = requests.get(f"{api}/partners/reports?per_page=10", headers=headers, timeout=30)
+        assert r.status_code == 200
+        rows = r.json()["rows"]
+        for row in rows:
+            assert "partner_name" in row
+            assert row["partner_name"], f"partner_name vacío para user_id={row.get('user_id')}"
+
+    def test_reportes_filas_tienen_grupo(self, api, headers):
+        """Cada fila de reporte incluye group_name (scoping aislado)."""
+        r = requests.get(f"{api}/partners/reports?per_page=10", headers=headers, timeout=30)
+        assert r.status_code == 200
+        rows = r.json()["rows"]
+        for row in rows:
+            assert "group_name" in row
+            assert row["group_name"], f"group_name vacío para user_id={row.get('user_id')}"

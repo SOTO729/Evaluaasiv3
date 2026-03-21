@@ -17660,291 +17660,359 @@ def get_report_filters():
 
 
 def _build_reports_query(user, params):
-    """Construye query de reportes con filtros.
-    Retorna (rows, total_count, column_keys).
-    Cada row es un dict con los datos del usuario/asignación/resultado."""
+    """Construye query de reportes con granularidad progresiva.
+
+    Categorías (cada una multiplica filas según nivel):
+      - usuario:        base — 1 fila por usuario en scope
+      - organizacion:   × membresías de grupo (partner/campus/ciclo/grupo)
+      - estandar:       × asignaciones ECM por grupo
+      - resultado:      × intentos de evaluación por asignación
+      - certificacion:  agrega datos de certificación (al nivel estándar o resultado)
+
+    Dependencias:
+      resultado/certificacion → requiere estandar → requiere organizacion
+
+    Retorna (rows, total_count).
+    """
     from app.models.exam import Exam
     from app.models.brand import Brand
     from app.models.partner import EcmCandidateAssignment
 
     is_resp = user.role == 'responsable'
 
-    # ── Determinar planteles accesibles ──
-    if is_resp:
-        accessible_campus_ids = [user.campus_id] if user.campus_id else []
-    else:
-        partner_id = params.get('partner_id', type=int)
-        if partner_id:
-            accessible_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=partner_id).all()]
-        else:
-            accessible_campus_ids = [c.id for c in Campus.query.all()]
+    # ── Categorías activas ──
+    categories_str = params.get('categories', 'usuario')
+    active_cats = set(c.strip().lower() for c in categories_str.split(',') if c.strip())
+    active_cats.add('usuario')
 
-    campus_filter = params.get('campus_id', type=int)
-    if campus_filter and campus_filter in accessible_campus_ids:
-        accessible_campus_ids = [campus_filter]
+    has_org  = 'organizacion' in active_cats
+    has_std  = 'estandar' in active_cats
+    has_res  = 'resultado' in active_cats
+    has_cert = 'certificacion' in active_cats
 
-    if not accessible_campus_ids:
-        return [], 0
+    # Dependencias: niveles superiores implican inferiores
+    if has_res or has_cert:
+        has_std = True
+    if has_std:
+        has_org = True
 
-    # ── Filtros de grupo (aislados por coordinador) ──
-    group_filter = params.get('group_id', type=int)
-    cycle_filter = params.get('school_cycle_id', type=int)
-
-    group_query = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(accessible_campus_ids))
     coord_id = _get_coordinator_filter(user)
-    if coord_id:
-        group_query = group_query.filter(CandidateGroup.coordinator_id == coord_id)
-    if group_filter:
-        group_query = group_query.filter(CandidateGroup.id == group_filter)
-    if cycle_filter:
-        group_query = group_query.filter(CandidateGroup.school_cycle_id == cycle_filter)
-    group_ids = [gr.id for gr in group_query.all()]
 
-    if not group_ids:
-        return [], 0
+    # ── Obtener user_ids en scope ──
+    if has_org:
+        # --- Scope por grupos (lógica original) ---
+        if is_resp:
+            accessible_campus_ids = [user.campus_id] if user.campus_id else []
+        else:
+            partner_id_filter = params.get('partner_id', type=int)
+            if partner_id_filter:
+                accessible_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=partner_id_filter).all()]
+            else:
+                accessible_campus_ids = [c.id for c in Campus.query.all()]
 
-    # ── Miembros de grupos → user_ids ──
-    member_rows = db.session.query(
-        GroupMember.user_id, GroupMember.group_id, GroupMember.status
-    ).filter(
-        GroupMember.group_id.in_(group_ids),
-        GroupMember.status.notin_(['curp_pending']),
-    ).all()
+        campus_filter = params.get('campus_id', type=int)
+        if campus_filter and campus_filter in accessible_campus_ids:
+            accessible_campus_ids = [campus_filter]
 
-    user_ids = list({m[0] for m in member_rows})
+        if not accessible_campus_ids:
+            return [], 0
+
+        group_filter = params.get('group_id', type=int)
+        cycle_filter = params.get('school_cycle_id', type=int)
+        gq = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(accessible_campus_ids))
+        if coord_id:
+            gq = gq.filter(CandidateGroup.coordinator_id == coord_id)
+        if group_filter:
+            gq = gq.filter(CandidateGroup.id == group_filter)
+        if cycle_filter:
+            gq = gq.filter(CandidateGroup.school_cycle_id == cycle_filter)
+        groups_list = gq.all()
+        group_ids = [gr.id for gr in groups_list]
+
+        if not group_ids:
+            return [], 0
+
+        member_rows = db.session.query(
+            GroupMember.user_id, GroupMember.group_id,
+            GroupMember.status, GroupMember.joined_at
+        ).filter(
+            GroupMember.group_id.in_(group_ids),
+            GroupMember.status.notin_(['curp_pending']),
+        ).all()
+
+        user_ids = list({m[0] for m in member_rows})
+        if not user_ids:
+            return [], 0
+
+        # user_id → [(group_id, status, joined_at)]
+        user_memberships = {}
+        for uid, gid, st, joined in member_rows:
+            user_memberships.setdefault(uid, []).append((gid, st, joined))
+    else:
+        # --- Solo usuarios: scope directo sin grupos ---
+        if is_resp:
+            uq = User.query.filter(User.campus_id == user.campus_id) if user.campus_id else User.query.filter(False)
+        elif coord_id:
+            uq = User.query.filter(User.coordinator_id == coord_id)
+        else:
+            uq = User.query
+        uq = uq.filter(User.role.in_(['candidato', 'responsable']))
+        user_ids = [u.id for u in uq.with_entities(User.id).all()]
+        user_memberships = {}
+        group_ids = []
+        accessible_campus_ids = []
+
     if not user_ids:
         return [], 0
 
-    # Map: user_id → [group_ids]
-    user_groups_map = {}
-    for uid, gid, _st in member_rows:
-        user_groups_map.setdefault(uid, set()).add(gid)
-
-    # ── Filtro por rol ──
-    role_filter = params.get('role')
+    # ── Filtros a nivel usuario ──
     user_query = User.query.filter(User.id.in_(user_ids))
+
+    role_filter = params.get('role')
     if role_filter:
         user_query = user_query.filter(User.role == role_filter)
 
-    # ── Filtro por búsqueda de texto ──
     search = (params.get('search') or '').strip()
     if search:
-        search_term = f'%{search}%'
-        user_query = user_query.filter(
-            db.or_(
-                User.name.ilike(search_term),
-                User.first_surname.ilike(search_term),
-                User.second_surname.ilike(search_term),
-                User.username.ilike(search_term),
-                User.email.ilike(search_term),
-                User.curp.ilike(search_term),
-            )
-        )
+        term = f'%{search}%'
+        user_query = user_query.filter(db.or_(
+            User.name.ilike(term), User.first_surname.ilike(term),
+            User.second_surname.ilike(term), User.username.ilike(term),
+            User.email.ilike(term), User.curp.ilike(term),
+        ))
 
-    # ── Filtro activo/inactivo ──
     is_active_filter = params.get('is_active')
     if is_active_filter is not None and is_active_filter != '':
-        user_query = user_query.filter(User.is_active == (is_active_filter == '1' or is_active_filter == 'true'))
+        user_query = user_query.filter(User.is_active == (is_active_filter in ('1', 'true')))
 
-    # ── Filtro género ──
     gender_filter = params.get('gender')
     if gender_filter:
         user_query = user_query.filter(User.gender == gender_filter)
 
-    # ── Filtro CURP verificada ──
     curp_verified_filter = params.get('curp_verified')
     if curp_verified_filter is not None and curp_verified_filter != '':
         user_query = user_query.filter(User.curp_verified == (curp_verified_filter in ('1', 'true')))
 
     users = user_query.order_by(User.first_surname, User.name).all()
-    filtered_user_ids = [u.id for u in users]
     users_map = {u.id: u for u in users}
+    filtered_user_ids = [u.id for u in users]
 
     if not filtered_user_ids:
         return [], 0
 
-    # ── Precargar datos de grupo, campus, partner, ciclo ──
-    all_groups = {g.id: g for g in CandidateGroup.query.filter(CandidateGroup.id.in_(group_ids)).all()}
-    all_campuses = {c.id: c for c in Campus.query.filter(Campus.id.in_(accessible_campus_ids)).all()}
-    partner_ids_set = {c.partner_id for c in all_campuses.values()}
-    all_partners = {p.id: p for p in Partner.query.filter(Partner.id.in_(partner_ids_set)).all()} if partner_ids_set else {}
-    cycle_ids_set = {g.school_cycle_id for g in all_groups.values() if g.school_cycle_id}
-    all_cycles = {c.id: c for c in SchoolCycle.query.filter(SchoolCycle.id.in_(cycle_ids_set)).all()} if cycle_ids_set else {}
+    # ── Precargar datos de organización ──
+    all_groups = {}
+    all_campuses = {}
+    all_partners = {}
+    all_cycles = {}
+    if has_org:
+        all_groups = {g.id: g for g in CandidateGroup.query.filter(CandidateGroup.id.in_(group_ids)).all()}
+        all_campuses = {c.id: c for c in Campus.query.filter(Campus.id.in_(accessible_campus_ids)).all()}
+        pid_set = {c.partner_id for c in all_campuses.values()}
+        all_partners = {p.id: p for p in Partner.query.filter(Partner.id.in_(pid_set)).all()} if pid_set else {}
+        cyc_ids = {g.school_cycle_id for g in all_groups.values() if g.school_cycle_id}
+        all_cycles = {c.id: c for c in SchoolCycle.query.filter(SchoolCycle.id.in_(cyc_ids)).all()} if cyc_ids else {}
 
-    # ── ECM Assignments ──
-    ecm_assignments = EcmCandidateAssignment.query.filter(
-        EcmCandidateAssignment.user_id.in_(filtered_user_ids),
-        EcmCandidateAssignment.group_id.in_(group_ids),
-    ).all()
-    # Map: user_id → [ecm_assignment]
-    ecm_map = {}
-    for ea in ecm_assignments:
-        ecm_map.setdefault(ea.user_id, []).append(ea)
+    # ── Precargar ECM assignments ──
+    ecm_map = {}          # user_id → {group_id → [assignment]}
+    all_standards = {}
+    all_exams = {}
+    all_brands = {}
+    if has_std:
+        ecm_q = EcmCandidateAssignment.query.filter(
+            EcmCandidateAssignment.user_id.in_(filtered_user_ids),
+        )
+        if group_ids:
+            ecm_q = ecm_q.filter(EcmCandidateAssignment.group_id.in_(group_ids))
+        ecm_assignments = ecm_q.all()
 
-    # ── Estándares & exámenes ──
-    std_ids = {ea.competency_standard_id for ea in ecm_assignments if ea.competency_standard_id}
-    all_standards = {s.id: s for s in CompetencyStandard.query.filter(CompetencyStandard.id.in_(std_ids)).all()} if std_ids else {}
-    exam_ids_set = {ea.exam_id for ea in ecm_assignments if ea.exam_id}
-    all_exams = {e.id: e for e in Exam.query.filter(Exam.id.in_(exam_ids_set)).all()} if exam_ids_set else {}
-    brand_ids_set = {s.brand_id for s in all_standards.values() if s.brand_id}
-    all_brands = {b.id: b for b in Brand.query.filter(Brand.id.in_(brand_ids_set)).all()} if brand_ids_set else {}
+        for ea in ecm_assignments:
+            ecm_map.setdefault(ea.user_id, {}).setdefault(ea.group_id, []).append(ea)
 
-    # ── Results (últimos por user+exam) ──
-    results = Result.query.filter(
-        Result.user_id.in_(filtered_user_ids),
-        Result.status == 1,  # completados
-    ).order_by(Result.end_date.desc()).all()
-    # Map: (user_id, exam_id) → best Result (aprobado > reprobado, mayor score)
-    best_results = {}
-    for r in results:
-        key = (r.user_id, r.exam_id)
-        if key not in best_results:
-            best_results[key] = r
-        else:
-            existing = best_results[key]
-            # Preferir aprobado
-            if r.result == 1 and existing.result != 1:
+        std_ids = {ea.competency_standard_id for ea in ecm_assignments if ea.competency_standard_id}
+        all_standards = {s.id: s for s in CompetencyStandard.query.filter(CompetencyStandard.id.in_(std_ids)).all()} if std_ids else {}
+        exam_ids_set = {ea.exam_id for ea in ecm_assignments if ea.exam_id}
+        all_exams = {e.id: e for e in Exam.query.filter(Exam.id.in_(exam_ids_set)).all()} if exam_ids_set else {}
+        brand_ids_set = {s.brand_id for s in all_standards.values() if s.brand_id}
+        all_brands = {b.id: b for b in Brand.query.filter(Brand.id.in_(brand_ids_set)).all()} if brand_ids_set else {}
+
+    # ── Precargar resultados ──
+    results_map = {}      # (user_id, exam_id) → [Result] desc by date
+    best_results = {}     # (user_id, exam_id) → best Result
+    if has_res or has_cert:
+        results = Result.query.filter(
+            Result.user_id.in_(filtered_user_ids),
+            Result.status == 1,
+        ).order_by(Result.end_date.desc()).all()
+
+        for r in results:
+            key = (r.user_id, r.exam_id)
+            results_map.setdefault(key, []).append(r)
+            if key not in best_results:
                 best_results[key] = r
-            elif r.result == existing.result and (r.score or 0) > (existing.score or 0):
-                best_results[key] = r
+            else:
+                existing = best_results[key]
+                if r.result == 1 and existing.result != 1:
+                    best_results[key] = r
+                elif r.result == existing.result and (r.score or 0) > (existing.score or 0):
+                    best_results[key] = r
 
-    # ── Filtros de estándar/marca/resultado ──
+    # ── Filtros post-query ──
     std_filter = params.get('standard_id', type=int)
     brand_filter = params.get('brand_id', type=int)
-    level_filter = params.get('level', type=int)
-    sector_filter = params.get('sector')
-    result_filter = params.get('result')  # 'approved' | 'rejected' | ''
-    score_min = params.get('score_min', type=int)
-    score_max = params.get('score_max', type=int)
-    has_assignment_filter = params.get('has_assignment')  # '1' = con asignación, '0' = sin
+    result_filter = params.get('result')
 
-    # ── Construir filas ──
+    # ── Helpers para crear campos por categoría ──
+    def _user_fields(u):
+        return {
+            'user_id': u.id,
+            'full_name': u.full_name,
+            'username': u.username,
+            'email': u.email,
+            'curp': u.curp,
+            'gender': u.gender,
+            'phone': u.phone,
+            'date_of_birth': u.date_of_birth.isoformat() if u.date_of_birth else None,
+            'role': u.role,
+            'is_active': u.is_active,
+            'curp_verified': u.curp_verified,
+            'last_login': u.last_login.isoformat() if u.last_login else None,
+            'created_at': u.created_at.isoformat() if u.created_at else None,
+        }
+
+    def _org_fields(grp, campus, partner, cycle, m_status=None, m_joined=None):
+        return {
+            'partner_name': partner.name if partner else '',
+            'partner_rfc': partner.rfc if partner else '',
+            'campus_name': campus.name if campus else '',
+            'campus_state': campus.state_name if campus else '',
+            'campus_city': campus.city if campus else '',
+            'school_cycle': cycle.name if cycle else '',
+            'group_name': grp.name if grp else '',
+            'member_status': m_status or '',
+            'joined_at': m_joined.isoformat() if m_joined else None,
+        }
+
+    def _std_fields(ea, std, exam, brand):
+        return {
+            'standard_code': std.code if std else '',
+            'standard_name': std.name if std else '',
+            'standard_level': std.level if std else None,
+            'standard_sector': std.sector if std else '',
+            'brand_name': brand.name if brand else '',
+            'assignment_number': ea.assignment_number if ea else '',
+            'exam_name': exam.name if exam else '',
+            'assigned_at': ea.assigned_at.isoformat() if ea and ea.assigned_at else None,
+        }
+
+    def _result_fields(res):
+        if not res:
+            return {'score': None, 'score_1000': None, 'result': 'Sin evaluar',
+                    'result_date': None, 'duration_seconds': None}
+        sc = res.score
+        return {
+            'score': sc,
+            'score_1000': round(sc * 10) if sc is not None else None,
+            'result': 'Aprobado' if res.result == 1 else 'Reprobado',
+            'result_date': res.end_date.isoformat() if res.end_date else None,
+            'duration_seconds': res.duration_seconds,
+        }
+
+    def _cert_fields(res, ea):
+        return {
+            'certificate_code': res.certificate_code if res and res.result == 1 else None,
+            'eduit_certificate_code': getattr(res, 'eduit_certificate_code', None) if res and res.result == 1 else None,
+            'tramite_status': ea.tramite_status if ea else None,
+            'expires_at': ea.expires_at.isoformat() if ea and ea.expires_at else None,
+        }
+
+    EMPTY_ORG  = _org_fields(None, None, None, None)
+    EMPTY_STD  = _std_fields(None, None, None, None)
+    EMPTY_RES  = _result_fields(None)
+    EMPTY_CERT = _cert_fields(None, None)
+
+    # ── Construir filas según nivel de profundidad ──
     rows = []
     for uid in filtered_user_ids:
         u = users_map[uid]
-        user_group_ids = user_groups_map.get(uid, set())
-        user_ecms = ecm_map.get(uid, [])
+        base = _user_fields(u)
 
-        if has_assignment_filter == '1' and not user_ecms:
-            continue
-        if has_assignment_filter == '0' and user_ecms:
+        # ─ Depth 0: solo usuario ─
+        if not has_org:
+            rows.append(base)
             continue
 
-        if user_ecms:
-            # Una fila por cada asignación ECM
-            for ea in user_ecms:
+        memberships = user_memberships.get(uid, [])
+        if not memberships:
+            row = {**base, **EMPTY_ORG}
+            if has_std:  row.update(EMPTY_STD)
+            if has_res:  row.update(EMPTY_RES)
+            if has_cert: row.update(EMPTY_CERT)
+            rows.append(row)
+            continue
+
+        # ─ Depth 1+: iterar membresías ─
+        for gid, m_status, m_joined in memberships:
+            grp = all_groups.get(gid)
+            if not grp:
+                continue
+            campus = all_campuses.get(grp.campus_id)
+            partner = all_partners.get(campus.partner_id) if campus else None
+            cycle = all_cycles.get(grp.school_cycle_id) if grp.school_cycle_id else None
+            org = _org_fields(grp, campus, partner, cycle, m_status, m_joined)
+
+            if not has_std:
+                rows.append({**base, **org})
+                continue
+
+            # ECM assignments para este usuario en este grupo
+            user_group_ecms = ecm_map.get(uid, {}).get(gid, [])
+            if not user_group_ecms:
+                row = {**base, **org, **EMPTY_STD}
+                if has_res:  row.update(EMPTY_RES)
+                if has_cert: row.update(EMPTY_CERT)
+                rows.append(row)
+                continue
+
+            for ea in user_group_ecms:
                 std = all_standards.get(ea.competency_standard_id)
                 exam = all_exams.get(ea.exam_id)
                 brand = all_brands.get(std.brand_id) if std and std.brand_id else None
 
-                # Aplicar filtros de estándar
                 if std_filter and (not std or std.id != std_filter):
                     continue
                 if brand_filter and (not brand or brand.id != brand_filter):
                     continue
-                if level_filter and (not std or std.level != level_filter):
-                    continue
-                if sector_filter and (not std or (std.sector or '').lower() != sector_filter.lower()):
+
+                std_data = _std_fields(ea, std, exam, brand)
+
+                if not has_res:
+                    # Depth 2: per assignment
+                    row = {**base, **org, **std_data}
+                    if has_cert:
+                        best = best_results.get((uid, ea.exam_id))
+                        row.update(_cert_fields(best, ea))
+                    rows.append(row)
                     continue
 
-                # Resultado del examen
-                res = best_results.get((uid, ea.exam_id))
-                score = res.score if res else None
-                score_1000 = round(score * 10) if score is not None else None
-                is_approved = res.result == 1 if res else None
-
-                if result_filter == 'approved' and not is_approved:
-                    continue
-                if result_filter == 'rejected' and is_approved is not False:
-                    continue
-                if score_min is not None and (score is None or score < score_min):
-                    continue
-                if score_max is not None and (score is None or score > score_max):
+                # Depth 3: per result attempt
+                attempt_results = results_map.get((uid, ea.exam_id), [])
+                if not attempt_results:
+                    row = {**base, **org, **std_data, **EMPTY_RES}
+                    if has_cert:
+                        row.update(EMPTY_CERT)
+                    rows.append(row)
                     continue
 
-                # Grupo de la asignación
-                grp = all_groups.get(ea.group_id)
-                campus = all_campuses.get(ea.campus_id) if ea.campus_id else (all_campuses.get(grp.campus_id) if grp else None)
-                partner = all_partners.get(campus.partner_id) if campus else None
-                cycle = all_cycles.get(grp.school_cycle_id) if grp and grp.school_cycle_id else None
-
-                rows.append({
-                    'user_id': uid,
-                    'full_name': u.full_name,
-                    'username': u.username,
-                    'email': u.email,
-                    'curp': u.curp,
-                    'gender': u.gender,
-                    'role': u.role,
-                    'is_active': u.is_active,
-                    'curp_verified': u.curp_verified,
-                    'partner_name': partner.name if partner else '',
-                    'campus_name': campus.name if campus else '',
-                    'campus_state': campus.state_name if campus else '',
-                    'school_cycle': cycle.name if cycle else '',
-                    'group_name': grp.name if grp else (ea.group_name or ''),
-                    'standard_code': std.code if std else '',
-                    'standard_name': std.name if std else '',
-                    'standard_level': std.level if std else None,
-                    'standard_sector': std.sector if std else '',
-                    'brand_name': brand.name if brand else '',
-                    'assignment_number': ea.assignment_number,
-                    'exam_name': exam.name if exam else '',
-                    'score': score,
-                    'score_1000': score_1000,
-                    'result': 'Aprobado' if is_approved else ('Reprobado' if is_approved is False else 'Sin evaluar'),
-                    'result_date': res.end_date.isoformat() if res and res.end_date else None,
-                    'duration_seconds': res.duration_seconds if res else None,
-                    'certificate_code': res.certificate_code if res and is_approved else None,
-                    'tramite_status': ea.tramite_status,
-                    'expires_at': ea.expires_at.isoformat() if ea.expires_at else None,
-                })
-        else:
-            # Usuario sin asignaciones ECM — una fila genérica
-            if std_filter or brand_filter or level_filter or sector_filter:
-                continue
-            if result_filter:
-                continue
-
-            for gid in user_group_ids:
-                grp = all_groups.get(gid)
-                if not grp:
-                    continue
-                campus = all_campuses.get(grp.campus_id)
-                partner = all_partners.get(campus.partner_id) if campus else None
-                cycle = all_cycles.get(grp.school_cycle_id) if grp.school_cycle_id else None
-
-                rows.append({
-                    'user_id': uid,
-                    'full_name': u.full_name,
-                    'username': u.username,
-                    'email': u.email,
-                    'curp': u.curp,
-                    'gender': u.gender,
-                    'role': u.role,
-                    'is_active': u.is_active,
-                    'curp_verified': u.curp_verified,
-                    'partner_name': partner.name if partner else '',
-                    'campus_name': campus.name if campus else '',
-                    'campus_state': campus.state_name if campus else '',
-                    'school_cycle': cycle.name if cycle else '',
-                    'group_name': grp.name if grp else '',
-                    'standard_code': '',
-                    'standard_name': '',
-                    'standard_level': None,
-                    'standard_sector': '',
-                    'brand_name': '',
-                    'assignment_number': '',
-                    'exam_name': '',
-                    'score': None,
-                    'score_1000': None,
-                    'result': 'Sin asignación',
-                    'result_date': None,
-                    'duration_seconds': None,
-                    'certificate_code': None,
-                    'tramite_status': None,
-                    'expires_at': None,
-                })
+                for res in attempt_results:
+                    if result_filter == 'approved' and res.result != 1:
+                        continue
+                    if result_filter == 'rejected' and res.result != 0:
+                        continue
+                    row = {**base, **org, **std_data, **_result_fields(res)}
+                    if has_cert:
+                        row.update(_cert_fields(res, ea))
+                    rows.append(row)
 
     return rows, len(rows)
 
@@ -17998,36 +18066,52 @@ def export_reports():
         gender_map = {'M': 'Masculino', 'F': 'Femenino', 'O': 'Otro'}
         role_map = {'candidato': 'Candidato', 'responsable': 'Responsable'}
         tramite_map = {'pendiente': 'Pendiente', 'en_tramite': 'En trámite', 'entregado': 'Entregado'}
+        status_map = {'active': 'Activo', 'inactive': 'Inactivo', 'completed': 'Completado', 'withdrawn': 'Retirado'}
 
         ALL_COLUMNS = {
-            'partner_name': ('Partner', lambda r: r['partner_name']),
-            'campus_name': ('Plantel', lambda r: r['campus_name']),
-            'campus_state': ('Estado', lambda r: r['campus_state']),
-            'school_cycle': ('Ciclo Escolar', lambda r: r['school_cycle']),
-            'group_name': ('Grupo', lambda r: r['group_name']),
-            'full_name': ('Nombre Completo', lambda r: r['full_name']),
-            'username': ('Usuario', lambda r: r['username']),
-            'email': ('Email', lambda r: r['email']),
-            'curp': ('CURP', lambda r: r['curp']),
-            'gender': ('Género', lambda r: gender_map.get(r['gender'], r['gender'] or '')),
-            'role': ('Tipo', lambda r: role_map.get(r['role'], r['role'] or '')),
-            'is_active': ('Activo', lambda r: 'Sí' if r['is_active'] else 'No'),
-            'curp_verified': ('CURP Verificada', lambda r: 'Sí' if r['curp_verified'] else 'No'),
-            'standard_code': ('Estándar (Código)', lambda r: r['standard_code']),
-            'standard_name': ('Estándar (Nombre)', lambda r: r['standard_name']),
-            'standard_level': ('Nivel', lambda r: r['standard_level']),
-            'standard_sector': ('Sector', lambda r: r['standard_sector']),
-            'brand_name': ('Marca', lambda r: r['brand_name']),
-            'assignment_number': ('No. Asignación', lambda r: r['assignment_number']),
-            'exam_name': ('Examen', lambda r: r['exam_name']),
-            'score': ('Calificación (0-100)', lambda r: r['score']),
-            'score_1000': ('Calificación (0-1000)', lambda r: r['score_1000']),
-            'result': ('Resultado', lambda r: r['result']),
-            'result_date': ('Fecha Evaluación', lambda r: r['result_date']),
-            'duration_seconds': ('Duración (seg)', lambda r: r['duration_seconds']),
-            'certificate_code': ('Código Certificado', lambda r: r['certificate_code']),
-            'tramite_status': ('Trámite CONOCER', lambda r: tramite_map.get(r['tramite_status'] or '', r['tramite_status'] or '')),
-            'expires_at': ('Vigencia', lambda r: r['expires_at']),
+            # Usuario
+            'full_name': ('Nombre Completo', lambda r: r.get('full_name', '')),
+            'username': ('Usuario', lambda r: r.get('username', '')),
+            'email': ('Email', lambda r: r.get('email', '')),
+            'curp': ('CURP', lambda r: r.get('curp', '')),
+            'gender': ('Género', lambda r: gender_map.get(r.get('gender', ''), r.get('gender') or '')),
+            'phone': ('Teléfono', lambda r: r.get('phone', '')),
+            'date_of_birth': ('Fecha de Nacimiento', lambda r: r.get('date_of_birth', '')),
+            'role': ('Tipo', lambda r: role_map.get(r.get('role', ''), r.get('role') or '')),
+            'is_active': ('Activo', lambda r: 'Sí' if r.get('is_active') else 'No'),
+            'curp_verified': ('CURP Verificada', lambda r: 'Sí' if r.get('curp_verified') else 'No'),
+            'last_login': ('Último Login', lambda r: r.get('last_login', '')),
+            'created_at': ('Fecha de Registro', lambda r: r.get('created_at', '')),
+            # Organización
+            'partner_name': ('Partner', lambda r: r.get('partner_name', '')),
+            'partner_rfc': ('RFC del Partner', lambda r: r.get('partner_rfc', '')),
+            'campus_name': ('Plantel', lambda r: r.get('campus_name', '')),
+            'campus_state': ('Estado', lambda r: r.get('campus_state', '')),
+            'campus_city': ('Ciudad', lambda r: r.get('campus_city', '')),
+            'school_cycle': ('Ciclo Escolar', lambda r: r.get('school_cycle', '')),
+            'group_name': ('Grupo', lambda r: r.get('group_name', '')),
+            'member_status': ('Estado en Grupo', lambda r: status_map.get(r.get('member_status', ''), r.get('member_status') or '')),
+            'joined_at': ('Fecha de Ingreso al Grupo', lambda r: r.get('joined_at', '')),
+            # Estándar
+            'standard_code': ('Estándar (Código)', lambda r: r.get('standard_code', '')),
+            'standard_name': ('Estándar (Nombre)', lambda r: r.get('standard_name', '')),
+            'standard_level': ('Nivel', lambda r: r.get('standard_level')),
+            'standard_sector': ('Sector', lambda r: r.get('standard_sector', '')),
+            'brand_name': ('Marca', lambda r: r.get('brand_name', '')),
+            'assignment_number': ('No. Asignación', lambda r: r.get('assignment_number', '')),
+            'exam_name': ('Examen', lambda r: r.get('exam_name', '')),
+            'assigned_at': ('Fecha de Asignación', lambda r: r.get('assigned_at', '')),
+            # Resultado
+            'score': ('Calificación (0-100)', lambda r: r.get('score')),
+            'score_1000': ('Calificación (0-1000)', lambda r: r.get('score_1000')),
+            'result': ('Resultado', lambda r: r.get('result', '')),
+            'result_date': ('Fecha Evaluación', lambda r: r.get('result_date', '')),
+            'duration_seconds': ('Duración (seg)', lambda r: r.get('duration_seconds')),
+            # Certificación
+            'certificate_code': ('Código Certificado', lambda r: r.get('certificate_code', '')),
+            'eduit_certificate_code': ('Código Certificado Eduit', lambda r: r.get('eduit_certificate_code', '')),
+            'tramite_status': ('Trámite CONOCER', lambda r: tramite_map.get(r.get('tramite_status') or '', r.get('tramite_status') or '')),
+            'expires_at': ('Vigencia', lambda r: r.get('expires_at', '')),
         }
 
         # Si se envía 'columns', filtrar solo esas columnas

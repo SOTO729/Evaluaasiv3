@@ -3935,35 +3935,50 @@ export interface ReportFiltersData {
 }
 
 export interface ReportRow {
+  // Usuario
   user_id: string;
   full_name: string;
   username: string;
   email: string | null;
   curp: string | null;
   gender: string | null;
+  phone: string | null;
+  date_of_birth: string | null;
   role: string;
   is_active: boolean;
   curp_verified: boolean;
-  partner_name: string;
-  campus_name: string;
-  campus_state: string;
-  school_cycle: string;
-  group_name: string;
-  standard_code: string;
-  standard_name: string;
-  standard_level: number | null;
-  standard_sector: string;
-  brand_name: string;
-  assignment_number: string;
-  exam_name: string;
-  score: number | null;
-  score_1000: number | null;
-  result: string;
-  result_date: string | null;
-  duration_seconds: number | null;
-  certificate_code: string | null;
-  tramite_status: string | null;
-  expires_at: string | null;
+  last_login: string | null;
+  created_at: string | null;
+  // Organización
+  partner_name?: string;
+  partner_rfc?: string;
+  campus_name?: string;
+  campus_state?: string;
+  campus_city?: string;
+  school_cycle?: string;
+  group_name?: string;
+  member_status?: string;
+  joined_at?: string | null;
+  // Estándar
+  standard_code?: string;
+  standard_name?: string;
+  standard_level?: number | null;
+  standard_sector?: string;
+  brand_name?: string;
+  assignment_number?: string;
+  exam_name?: string;
+  assigned_at?: string | null;
+  // Resultado
+  score?: number | null;
+  score_1000?: number | null;
+  result?: string;
+  result_date?: string | null;
+  duration_seconds?: number | null;
+  // Certificación
+  certificate_code?: string | null;
+  eduit_certificate_code?: string | null;
+  tramite_status?: string | null;
+  expires_at?: string | null;
 }
 
 export interface ReportResponse {

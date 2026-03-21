@@ -43,18 +43,19 @@ interface Props {
   backPath?: string;
 }
 
-/* ───────── Catálogo de columnas disponibles ───────── */
+/* ───────── Catálogo de columnas disponibles (5 categorías) ───────── */
 
 interface ColumnDef {
-  key: string;          // Coincide con ReportRow key
-  label: string;        // Nombre mostrado al usuario
-  group: string;        // Agrupación visual
-  defaultOn?: boolean;  // Encendida por defecto
-  render?: (row: ReportRow) => React.ReactNode;  // render personalizado en la tabla preview
+  key: string;
+  label: string;
+  group: string;          // Categoría: Usuario, Organización, Estándar, Resultado, Certificación
+  defaultOn?: boolean;
+  render?: (row: ReportRow) => React.ReactNode;
 }
 
 const GENDER_MAP: Record<string, string> = { M: 'Masculino', F: 'Femenino', O: 'Otro' };
 const ROLE_MAP: Record<string, string> = { candidato: 'Candidato', responsable: 'Responsable' };
+const STATUS_MAP: Record<string, string> = { active: 'Activo', inactive: 'Inactivo', completed: 'Completado', withdrawn: 'Retirado' };
 
 const ALL_COLUMNS: ColumnDef[] = [
   // ── Usuario ──
@@ -63,16 +64,24 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'email', label: 'Email', group: 'Usuario' },
   { key: 'curp', label: 'CURP', group: 'Usuario' },
   { key: 'gender', label: 'Género', group: 'Usuario', render: (r) => GENDER_MAP[r.gender || ''] || r.gender || '—' },
+  { key: 'phone', label: 'Teléfono', group: 'Usuario' },
+  { key: 'date_of_birth', label: 'Fecha de Nacimiento', group: 'Usuario' },
   { key: 'role', label: 'Tipo de usuario', group: 'Usuario', render: (r) => ROLE_MAP[r.role] || r.role },
   { key: 'is_active', label: 'Activo', group: 'Usuario', render: (r) => r.is_active ? 'Sí' : 'No' },
   { key: 'curp_verified', label: 'CURP Verificada', group: 'Usuario', render: (r) => r.curp_verified ? 'Sí' : 'No' },
+  { key: 'last_login', label: 'Último Login', group: 'Usuario' },
+  { key: 'created_at', label: 'Fecha de Registro', group: 'Usuario' },
   // ── Organización ──
   { key: 'partner_name', label: 'Partner', group: 'Organización', defaultOn: true },
+  { key: 'partner_rfc', label: 'RFC del Partner', group: 'Organización' },
   { key: 'campus_name', label: 'Plantel', group: 'Organización', defaultOn: true },
   { key: 'campus_state', label: 'Estado (entidad)', group: 'Organización' },
+  { key: 'campus_city', label: 'Ciudad', group: 'Organización' },
   { key: 'school_cycle', label: 'Ciclo Escolar', group: 'Organización' },
   { key: 'group_name', label: 'Grupo', group: 'Organización', defaultOn: true },
-  // ── Estándar / Asignación ──
+  { key: 'member_status', label: 'Estado en Grupo', group: 'Organización', render: (r) => STATUS_MAP[r.member_status || ''] || r.member_status || '—' },
+  { key: 'joined_at', label: 'Fecha de Ingreso al Grupo', group: 'Organización' },
+  // ── Estándar ──
   { key: 'standard_code', label: 'Estándar (Código)', group: 'Estándar', defaultOn: true },
   { key: 'standard_name', label: 'Estándar (Nombre)', group: 'Estándar' },
   { key: 'standard_level', label: 'Nivel del Estándar', group: 'Estándar' },
@@ -80,7 +89,8 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'brand_name', label: 'Marca / Producto', group: 'Estándar' },
   { key: 'assignment_number', label: 'No. Asignación', group: 'Estándar' },
   { key: 'exam_name', label: 'Examen', group: 'Estándar' },
-  // ── Resultados ──
+  { key: 'assigned_at', label: 'Fecha de Asignación', group: 'Estándar' },
+  // ── Resultado ──
   { key: 'score', label: 'Calificación (0-100)', group: 'Resultado', defaultOn: true },
   { key: 'score_1000', label: 'Calificación (0-1000)', group: 'Resultado' },
   { key: 'result', label: 'Resultado', group: 'Resultado', defaultOn: true,
@@ -92,10 +102,29 @@ const ALL_COLUMNS: ColumnDef[] = [
   },
   { key: 'result_date', label: 'Fecha Evaluación', group: 'Resultado' },
   { key: 'duration_seconds', label: 'Duración (seg)', group: 'Resultado' },
-  { key: 'certificate_code', label: 'Código Certificado', group: 'Resultado' },
-  { key: 'tramite_status', label: 'Trámite CONOCER', group: 'Resultado' },
-  { key: 'expires_at', label: 'Vigencia', group: 'Resultado' },
+  // ── Certificación ──
+  { key: 'certificate_code', label: 'Código Certificado', group: 'Certificación' },
+  { key: 'eduit_certificate_code', label: 'Código Certificado Eduit', group: 'Certificación' },
+  { key: 'tramite_status', label: 'Trámite CONOCER', group: 'Certificación' },
+  { key: 'expires_at', label: 'Vigencia', group: 'Certificación' },
 ];
+
+/* Mapa de grupo visual → clave de categoría para el backend */
+const GROUP_TO_CATEGORY: Record<string, string> = {
+  'Usuario': 'usuario',
+  'Organización': 'organizacion',
+  'Estándar': 'estandar',
+  'Resultado': 'resultado',
+  'Certificación': 'certificacion',
+};
+
+const DEPTH_LABELS: Record<string, string> = {
+  'usuario': '1 fila por usuario',
+  'organizacion': '1 fila por usuario × membresía de grupo',
+  'estandar': '1 fila por usuario × grupo × asignación de estándar',
+  'resultado': '1 fila por usuario × grupo × asignación × intento de evaluación',
+  'certificacion': '1 fila por usuario × grupo × asignación (con datos de certificado)',
+};
 
 const COLUMN_GROUPS = [...new Set(ALL_COLUMNS.map(c => c.group))];
 const DEFAULT_SELECTED = new Set(ALL_COLUMNS.filter(c => c.defaultOn).map(c => c.key));
@@ -174,6 +203,31 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
   const activeCols = useMemo(() => ALL_COLUMNS.filter(c => selectedCols.has(c.key)), [selectedCols]);
 
+  // Derivar categorías activas desde las columnas seleccionadas
+  const activeCategories = useMemo(() => {
+    const cats = new Set<string>();
+    cats.add('usuario');
+    for (const col of ALL_COLUMNS) {
+      if (selectedCols.has(col.key) && GROUP_TO_CATEGORY[col.group]) {
+        cats.add(GROUP_TO_CATEGORY[col.group]);
+      }
+    }
+    return cats;
+  }, [selectedCols]);
+
+  const hasUserCols = useMemo(() => {
+    return ALL_COLUMNS.some(c => c.group === 'Usuario' && selectedCols.has(c.key));
+  }, [selectedCols]);
+
+  // Determinar el nivel de profundidad más alto
+  const depthLabel = useMemo(() => {
+    if (activeCategories.has('resultado')) return DEPTH_LABELS['resultado'];
+    if (activeCategories.has('certificacion')) return DEPTH_LABELS['certificacion'];
+    if (activeCategories.has('estandar')) return DEPTH_LABELS['estandar'];
+    if (activeCategories.has('organizacion')) return DEPTH_LABELS['organizacion'];
+    return DEPTH_LABELS['usuario'];
+  }, [activeCategories]);
+
   const toggleCol = (key: string) => {
     setSelectedCols(prev => {
       const next = new Set(prev);
@@ -198,6 +252,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
   const buildParams = useCallback(() => {
     const params: Record<string, string | number | undefined> = {};
+    params.categories = Array.from(activeCategories).join(',');
     if (partnerId) params.partner_id = Number(partnerId);
     if (campusId) params.campus_id = Number(campusId);
     if (cycleId) params.school_cycle_id = Number(cycleId);
@@ -209,11 +264,11 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
     if (isActiveFilter) params.is_active = isActiveFilter;
     if (search) params.search = search;
     return params;
-  }, [partnerId, campusId, cycleId, groupId, standardId, brandId, resultFilter, roleFilter, isActiveFilter, search]);
+  }, [activeCategories, partnerId, campusId, cycleId, groupId, standardId, brandId, resultFilter, roleFilter, isActiveFilter, search]);
 
   const handleGenerate = useCallback(async () => {
-    if (selectedCols.size === 0) {
-      setError('Selecciona al menos una columna para el reporte.');
+    if (!hasUserCols) {
+      setError('Selecciona al menos una columna de Usuario para el reporte.');
       return;
     }
     try {
@@ -231,10 +286,10 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [buildParams, selectedCols]);
+  }, [buildParams, hasUserCols]);
 
   const handleExport = async () => {
-    if (selectedCols.size === 0) { setError('Selecciona al menos una columna.'); return; }
+    if (!hasUserCols) { setError('Selecciona al menos una columna de Usuario.'); return; }
     try {
       setExporting(true);
       setError(null);
@@ -472,7 +527,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={handleGenerate}
-          disabled={loading || selectedCols.size === 0}
+          disabled={loading || !hasUserCols}
           className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-xl font-semibold fluid-text-sm shadow-md transition-all disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
@@ -480,15 +535,20 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
         </button>
         <button
           onClick={handleExport}
-          disabled={exporting || selectedCols.size === 0}
+          disabled={exporting || !hasUserCols}
           className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-fluid-xl font-semibold fluid-text-sm shadow-md transition-all disabled:opacity-50"
         >
           {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
           Descargar Excel
         </button>
-        {selectedCols.size === 0 && (
+        {!hasUserCols && (
           <p className="fluid-text-xs text-amber-600 flex items-center gap-1">
-            <AlertTriangle className="w-3.5 h-3.5" /> Selecciona al menos una columna
+            <AlertTriangle className="w-3.5 h-3.5" /> Selecciona al menos una columna de Usuario
+          </p>
+        )}
+        {hasUserCols && depthLabel && (
+          <p className="fluid-text-xs text-indigo-600 flex items-center gap-1">
+            <Eye className="w-3.5 h-3.5" /> {depthLabel}
           </p>
         )}
       </div>
