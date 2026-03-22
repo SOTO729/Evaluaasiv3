@@ -69,26 +69,33 @@ const Layout = ({ children }: LayoutProps) => {
   const campusName = plantelData?.campus?.name
   const campusLogo = plantelData?.campus?.logo_url
   const campusPrimaryColor = plantelData?.campus?.primary_color
+  const campusSecondaryColor = plantelData?.campus?.secondary_color
 
-  // Aplicar branding dinámico del plantel (colores CSS)
+  // Favicon dinámico: usar logo del plantel como favicon para responsables
   useEffect(() => {
-    if (user?.role !== 'responsable' || !campusPrimaryColor) {
-      // Limpiar variables custom si no aplica
-      const root = document.documentElement
-      root.style.removeProperty('--color-primary-50')
-      root.style.removeProperty('--color-primary-100')
-      root.style.removeProperty('--color-primary-200')
-      root.style.removeProperty('--color-primary-300')
-      root.style.removeProperty('--color-primary-400')
-      root.style.removeProperty('--color-primary-500')
-      root.style.removeProperty('--color-primary-600')
-      root.style.removeProperty('--color-primary-700')
-      root.style.removeProperty('--color-primary-800')
-      root.style.removeProperty('--color-primary-900')
-      return
+    if (user?.role !== 'responsable' || !campusLogo) return
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    const appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
+    const originalHref = link?.href || '/logo.png'
+    const originalAppleHref = appleLink?.href || '/logo.png'
+    if (link) link.href = campusLogo
+    if (appleLink) appleLink.href = campusLogo
+    return () => {
+      if (link) link.href = originalHref
+      if (appleLink) appleLink.href = originalAppleHref
     }
-    // Generar paleta desde el color primario
-    const hex = campusPrimaryColor
+  }, [user?.role, campusLogo])
+
+  // Título de pestaña dinámico: mostrar nombre del plantel
+  useEffect(() => {
+    if (user?.role !== 'responsable' || !campusName) return
+    const originalTitle = document.title
+    document.title = `${campusName} — Evaluaasi`
+    return () => { document.title = originalTitle }
+  }, [user?.role, campusName])
+
+  // Generar paleta de 10 tonos desde un color HEX
+  const generatePalette = useCallback((hex: string) => {
     const r = parseInt(hex.slice(1, 3), 16)
     const g = parseInt(hex.slice(3, 5), 16)
     const b = parseInt(hex.slice(5, 7), 16)
@@ -96,8 +103,7 @@ const Layout = ({ children }: LayoutProps) => {
     const darken = (v: number, a: number) => Math.max(0, Math.round(v * (1 - a)))
     const toHex = (rv: number, gv: number, bv: number) =>
       `#${rv.toString(16).padStart(2, '0')}${gv.toString(16).padStart(2, '0')}${bv.toString(16).padStart(2, '0')}`
-
-    const palette: Record<string, string> = {
+    return {
       '50': toHex(lighten(r, 0.93), lighten(g, 0.93), lighten(b, 0.93)),
       '100': toHex(lighten(r, 0.82), lighten(g, 0.82), lighten(b, 0.82)),
       '200': toHex(lighten(r, 0.65), lighten(g, 0.65), lighten(b, 0.65)),
@@ -109,18 +115,44 @@ const Layout = ({ children }: LayoutProps) => {
       '800': toHex(darken(r, 0.45), darken(g, 0.45), darken(b, 0.45)),
       '900': toHex(darken(r, 0.6), darken(g, 0.6), darken(b, 0.6)),
     }
+  }, [])
 
+  // Aplicar branding dinámico del plantel (colores CSS: primary + secondary)
+  useEffect(() => {
     const root = document.documentElement
-    Object.entries(palette).forEach(([shade, color]) => {
+    const shades = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900']
+
+    if (user?.role !== 'responsable' || !campusPrimaryColor) {
+      shades.forEach(s => {
+        root.style.removeProperty(`--color-primary-${s}`)
+        root.style.removeProperty(`--color-secondary-${s}`)
+      })
+      return
+    }
+
+    // Paleta primaria
+    const primaryPalette = generatePalette(campusPrimaryColor)
+    Object.entries(primaryPalette).forEach(([shade, color]) => {
       root.style.setProperty(`--color-primary-${shade}`, color)
     })
 
+    // Paleta secundaria
+    if (campusSecondaryColor) {
+      const secondaryPalette = generatePalette(campusSecondaryColor)
+      Object.entries(secondaryPalette).forEach(([shade, color]) => {
+        root.style.setProperty(`--color-secondary-${shade}`, color)
+      })
+    } else {
+      shades.forEach(s => root.style.removeProperty(`--color-secondary-${s}`))
+    }
+
     return () => {
-      Object.keys(palette).forEach((shade) => {
-        root.style.removeProperty(`--color-primary-${shade}`)
+      shades.forEach(s => {
+        root.style.removeProperty(`--color-primary-${s}`)
+        root.style.removeProperty(`--color-secondary-${s}`)
       })
     }
-  }, [user?.role, campusPrimaryColor])
+  }, [user?.role, campusPrimaryColor, campusSecondaryColor, generatePalette])
 
   // Cerrar dropdown y menú móvil al hacer clic fuera
   useEffect(() => {
@@ -270,13 +302,9 @@ const Layout = ({ children }: LayoutProps) => {
               </button>
               
               <Link to={homePath} className="flex items-center fluid-gap-2">
-                {user?.role === 'responsable' && campusLogo ? (
-                  <img src={campusLogo} alt={campusName || 'Plantel'} className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto object-contain" />
-                ) : (
-                  <img src="/logo.webp" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
-                )}
+                <img src="/logo.webp" alt="Evaluaasi" className="h-[clamp(2.25rem,2rem+1.5vw,4.5rem)] w-auto" />
                 <span className="hidden sm:block fluid-text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
-                  {user?.role === 'responsable' && campusLogo ? (campusName || 'Evaluaasi') : 'Evaluaasi'}
+                  Evaluaasi
                 </span>
               </Link>
               

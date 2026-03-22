@@ -10502,6 +10502,8 @@ def export_mi_plantel_evaluations():
     from app.models.partner import EcmCandidateAssignment
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.drawing.image import Image as XlImage
+    import urllib.request
     
     try:
         user = g.current_user
@@ -10606,30 +10608,51 @@ def export_mi_plantel_evaluations():
         )
         center_align = Alignment(horizontal='center')
         
+        # Logo del plantel como encabezado
+        logo_row_offset = 0
+        if campus.logo_url:
+            try:
+                req = urllib.request.Request(campus.logo_url, headers={'User-Agent': 'Evaluaasi/1.0'})
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    logo_io = BytesIO(resp.read())
+                img = XlImage(logo_io)
+                img.height = 50
+                img.width = int(img.width * (50 / max(img.height, 1)))
+                ws.add_image(img, 'A1')
+                ws.row_dimensions[1].height = 45
+                logo_row_offset = 1
+            except Exception:
+                pass  # Si falla la descarga del logo, continuar sin él
+        
         # Título
         headers = ['Grupo', 'Candidato', 'CURP', 'Email', 'Examen', 'Estándar', 'No. Asignación', 'Calificación', 'Resultado', 'Código Certificado', 'Trámite', 'Fecha', 'Duración']
         col_count = len(headers)
         last_col_letter = chr(64 + col_count)  # M for 13 columns
         
-        ws.merge_cells(f'A1:{last_col_letter}1')
-        ws['A1'] = f"Reporte de Evaluaciones - {campus.name}"
-        ws['A1'].font = Font(bold=True, size=14)
-        ws['A1'].alignment = Alignment(horizontal='center')
+        title_row = 1 + logo_row_offset
+        subtitle_row = 2 + logo_row_offset
+        header_row = 4 + logo_row_offset
+        data_start_row = 5 + logo_row_offset
         
-        ws.merge_cells(f'A2:{last_col_letter}2')
-        ws['A2'] = f"Generado el: {datetime.now().strftime('%d/%m/%Y %H:%M')} — Total: {len(results)} registros"
-        ws['A2'].alignment = Alignment(horizontal='center')
+        ws.merge_cells(f'A{title_row}:{last_col_letter}{title_row}')
+        ws[f'A{title_row}'] = f"Reporte de Evaluaciones - {campus.name}"
+        ws[f'A{title_row}'].font = Font(bold=True, size=14)
+        ws[f'A{title_row}'].alignment = Alignment(horizontal='center')
+        
+        ws.merge_cells(f'A{subtitle_row}:{last_col_letter}{subtitle_row}')
+        ws[f'A{subtitle_row}'] = f"Generado el: {datetime.now().strftime('%d/%m/%Y %H:%M')} — Total: {len(results)} registros"
+        ws[f'A{subtitle_row}'].alignment = Alignment(horizontal='center')
         
         # Encabezados
         for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=4, column=col, value=header)
+            cell = ws.cell(row=header_row, column=col, value=header)
             cell.font = header_font
             cell.fill = header_fill
             cell.border = thin_border
             cell.alignment = center_align
         
         # Datos
-        row_num = 5
+        row_num = data_start_row
         for result in results:
             candidate = users_map.get(result.user_id)
             exam = exams_map.get(result.exam_id)
@@ -17611,16 +17634,6 @@ def get_report_filters():
         campuses_data = [{'id': c.id, 'name': c.name, 'partner_id': c.partner_id} for c in campuses]
         campus_ids = [c.id for c in campuses]
 
-        # ── Ciclos escolares (solo los que tienen grupos del coordinador) ──
-        group_cycle_ids = {g_item.school_cycle_id for g_item in groups if g_item.school_cycle_id}
-        if group_cycle_ids:
-            cycles = SchoolCycle.query.filter(
-                SchoolCycle.id.in_(group_cycle_ids)
-            ).order_by(SchoolCycle.start_date.desc()).all()
-        else:
-            cycles = []
-        cycles_data = [{'id': c.id, 'name': c.name, 'campus_id': c.campus_id} for c in cycles]
-
         # ── Grupos (aislados por coordinador) ──
         coord_id = _get_coordinator_filter(user)
         if campus_ids:
@@ -17631,6 +17644,16 @@ def get_report_filters():
         else:
             groups = []
         groups_data = [{'id': g_item.id, 'name': g_item.name, 'campus_id': g_item.campus_id, 'school_cycle_id': g_item.school_cycle_id} for g_item in groups]
+
+        # ── Ciclos escolares (solo los que tienen grupos del coordinador) ──
+        group_cycle_ids = {g_item.school_cycle_id for g_item in groups if g_item.school_cycle_id}
+        if group_cycle_ids:
+            cycles = SchoolCycle.query.filter(
+                SchoolCycle.id.in_(group_cycle_ids)
+            ).order_by(SchoolCycle.start_date.desc()).all()
+        else:
+            cycles = []
+        cycles_data = [{'id': c.id, 'name': c.name, 'campus_id': c.campus_id} for c in cycles]
 
         # ── Estándares de competencia ──
         from app.models.brand import Brand
@@ -17867,6 +17890,9 @@ def _build_reports_query(user, params):
         return {
             'user_id': u.id,
             'full_name': u.full_name,
+            'name': u.name,
+            'first_surname': u.first_surname,
+            'second_surname': u.second_surname or '',
             'username': u.username,
             'email': u.email,
             'curp': u.curp,
@@ -17881,17 +17907,24 @@ def _build_reports_query(user, params):
         }
 
     def _org_fields(grp, campus, partner, cycle, m_status=None, m_joined=None):
-        return {
+        d = {
             'partner_name': partner.name if partner else '',
-            'partner_rfc': partner.rfc if partner else '',
+            'campus_code': campus.code if campus else '',
             'campus_name': campus.name if campus else '',
             'campus_state': campus.state_name if campus else '',
             'campus_city': campus.city if campus else '',
+            'director_name': campus.director_name if campus else '',
             'school_cycle': cycle.name if cycle else '',
+            'cycle_start_date': cycle.start_date.strftime('%d/%m/%Y') if cycle and cycle.start_date else None,
+            'cycle_end_date': cycle.end_date.strftime('%d/%m/%Y') if cycle and cycle.end_date else None,
             'group_name': grp.name if grp else '',
             'member_status': m_status or '',
             'joined_at': m_joined.isoformat() if m_joined else None,
+            'max_retakes': campus.max_retakes if campus else None,
         }
+        if user.role != 'responsable':
+            d['certification_cost'] = float(campus.certification_cost) if campus and campus.certification_cost else None
+        return d
 
     def _std_fields(ea, std, exam, brand):
         return {
@@ -17899,20 +17932,21 @@ def _build_reports_query(user, params):
             'standard_name': std.name if std else '',
             'standard_level': std.level if std else None,
             'standard_sector': std.sector if std else '',
+            'validity_years': std.validity_years if std else None,
             'brand_name': brand.name if brand else '',
             'assignment_number': ea.assignment_number if ea else '',
+            'assignment_source': ea.assignment_source if ea else '',
             'exam_name': exam.name if exam else '',
             'assigned_at': ea.assigned_at.isoformat() if ea and ea.assigned_at else None,
         }
 
     def _result_fields(res):
         if not res:
-            return {'score': None, 'score_1000': None, 'result': 'Sin evaluar',
+            return {'score': None, 'result': 'Sin evaluar',
                     'result_date': None, 'duration_seconds': None}
         sc = res.score
         return {
             'score': sc,
-            'score_1000': round(sc * 10) if sc is not None else None,
             'result': 'Aprobado' if res.result == 1 else 'Reprobado',
             'result_date': res.end_date.isoformat() if res.end_date else None,
             'duration_seconds': res.duration_seconds,
@@ -17923,7 +17957,7 @@ def _build_reports_query(user, params):
             'certificate_code': res.certificate_code if res and res.result == 1 else None,
             'eduit_certificate_code': getattr(res, 'eduit_certificate_code', None) if res and res.result == 1 else None,
             'tramite_status': ea.tramite_status if ea else None,
-            'expires_at': ea.expires_at.isoformat() if ea and ea.expires_at else None,
+            'expires_at': ea.expires_at.strftime('%d/%m/%Y') if ea and ea.expires_at else None,
         }
 
     EMPTY_ORG  = _org_fields(None, None, None, None)
@@ -17944,6 +17978,8 @@ def _build_reports_query(user, params):
 
         memberships = user_memberships.get(uid, [])
         if not memberships:
+            if result_filter:
+                continue  # Skip empty org rows when filtering by result
             row = {**base, **EMPTY_ORG}
             if has_std:  row.update(EMPTY_STD)
             if has_res:  row.update(EMPTY_RES)
@@ -17968,6 +18004,8 @@ def _build_reports_query(user, params):
             # ECM assignments para este usuario en este grupo
             user_group_ecms = ecm_map.get(uid, {}).get(gid, [])
             if not user_group_ecms:
+                if result_filter:
+                    continue  # Skip empty std rows when filtering by result
                 row = {**base, **org, **EMPTY_STD}
                 if has_res:  row.update(EMPTY_RES)
                 if has_cert: row.update(EMPTY_CERT)
@@ -17998,6 +18036,8 @@ def _build_reports_query(user, params):
                 # Depth 3: per result attempt
                 attempt_results = results_map.get((uid, ea.exam_id), [])
                 if not attempt_results:
+                    if result_filter:
+                        continue  # Skip "Sin evaluar" when filtering by result
                     row = {**base, **org, **std_data, **EMPTY_RES}
                     if has_cert:
                         row.update(EMPTY_CERT)
@@ -18068,9 +18108,14 @@ def export_reports():
         tramite_map = {'pendiente': 'Pendiente', 'en_tramite': 'En trámite', 'entregado': 'Entregado'}
         status_map = {'active': 'Activo', 'inactive': 'Inactivo', 'completed': 'Completado', 'withdrawn': 'Retirado'}
 
+        source_map = {'bulk': 'Asignación masiva', 'selected': 'Selección individual'}
+
         ALL_COLUMNS = {
             # Usuario
             'full_name': ('Nombre Completo', lambda r: r.get('full_name', '')),
+            'name': ('Nombre(s)', lambda r: r.get('name', '')),
+            'first_surname': ('Apellido Paterno', lambda r: r.get('first_surname', '')),
+            'second_surname': ('Apellido Materno', lambda r: r.get('second_surname', '')),
             'username': ('Usuario', lambda r: r.get('username', '')),
             'email': ('Email', lambda r: r.get('email', '')),
             'curp': ('CURP', lambda r: r.get('curp', '')),
@@ -18084,26 +18129,32 @@ def export_reports():
             'created_at': ('Fecha de Registro', lambda r: r.get('created_at', '')),
             # Organización
             'partner_name': ('Partner', lambda r: r.get('partner_name', '')),
-            'partner_rfc': ('RFC del Partner', lambda r: r.get('partner_rfc', '')),
+            'campus_code': ('Clave Plantel', lambda r: r.get('campus_code', '')),
             'campus_name': ('Plantel', lambda r: r.get('campus_name', '')),
             'campus_state': ('Estado', lambda r: r.get('campus_state', '')),
             'campus_city': ('Ciudad', lambda r: r.get('campus_city', '')),
+            'director_name': ('Director del Plantel', lambda r: r.get('director_name', '')),
             'school_cycle': ('Ciclo Escolar', lambda r: r.get('school_cycle', '')),
+            'cycle_start_date': ('Inicio Ciclo', lambda r: r.get('cycle_start_date', '')),
+            'cycle_end_date': ('Fin Ciclo', lambda r: r.get('cycle_end_date', '')),
             'group_name': ('Grupo', lambda r: r.get('group_name', '')),
             'member_status': ('Estado en Grupo', lambda r: status_map.get(r.get('member_status', ''), r.get('member_status') or '')),
             'joined_at': ('Fecha de Ingreso al Grupo', lambda r: r.get('joined_at', '')),
+            'max_retakes': ('Máx. Retomas', lambda r: r.get('max_retakes')),
+            'certification_cost': ('Costo Certificación', lambda r: r.get('certification_cost')),
             # Estándar
             'standard_code': ('Estándar (Código)', lambda r: r.get('standard_code', '')),
             'standard_name': ('Estándar (Nombre)', lambda r: r.get('standard_name', '')),
             'standard_level': ('Nivel', lambda r: r.get('standard_level')),
             'standard_sector': ('Sector', lambda r: r.get('standard_sector', '')),
+            'validity_years': ('Vigencia Estándar (años)', lambda r: r.get('validity_years')),
             'brand_name': ('Marca', lambda r: r.get('brand_name', '')),
             'assignment_number': ('No. Asignación', lambda r: r.get('assignment_number', '')),
+            'assignment_source': ('Origen Asignación', lambda r: source_map.get(r.get('assignment_source', ''), r.get('assignment_source') or '')),
             'exam_name': ('Examen', lambda r: r.get('exam_name', '')),
             'assigned_at': ('Fecha de Asignación', lambda r: r.get('assigned_at', '')),
             # Resultado
-            'score': ('Calificación (0-100)', lambda r: r.get('score')),
-            'score_1000': ('Calificación (0-1000)', lambda r: r.get('score_1000')),
+            'score': ('Calificación (%)', lambda r: r.get('score')),
             'result': ('Resultado', lambda r: r.get('result', '')),
             'result_date': ('Fecha Evaluación', lambda r: r.get('result_date', '')),
             'duration_seconds': ('Duración (seg)', lambda r: r.get('duration_seconds')),
@@ -18113,6 +18164,10 @@ def export_reports():
             'tramite_status': ('Trámite CONOCER', lambda r: tramite_map.get(r.get('tramite_status') or '', r.get('tramite_status') or '')),
             'expires_at': ('Vigencia', lambda r: r.get('expires_at', '')),
         }
+
+        # Ocultar costo de certificación para responsables
+        if user.role == 'responsable':
+            ALL_COLUMNS.pop('certification_cost', None)
 
         # Si se envía 'columns', filtrar solo esas columnas
         selected_keys_param = request.args.get('columns', '')

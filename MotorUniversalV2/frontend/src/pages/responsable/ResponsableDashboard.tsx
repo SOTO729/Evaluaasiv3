@@ -4,8 +4,9 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
-import { getMiPlantelDashboardAdvanced } from '../../services/partnersService'
+import { getMiPlantelDashboardAdvanced, getMiPlantel } from '../../services/partnersService'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area
@@ -41,6 +42,14 @@ const ResponsableDashboard = () => {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Obtener logo del plantel (usa cache de Layout)
+  const { data: plantelData } = useQuery({
+    queryKey: ['mi-plantel'],
+    queryFn: getMiPlantel,
+    staleTime: 5 * 60 * 1000,
+  })
+  const campusLogo = plantelData?.campus?.logo_url
 
   useEffect(() => {
     loadDashboard()
@@ -105,8 +114,12 @@ const ResponsableDashboard = () => {
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
             <div className="flex-1">
-              <div className="flex items-center fluid-gap-2 fluid-mb-2">
-                <Building2 className="fluid-icon-lg text-blue-200" />
+              <div className="flex items-center fluid-gap-3 fluid-mb-2">
+                {campusLogo ? (
+                  <img src={campusLogo} alt={campus.name} className="h-12 w-auto object-contain rounded-lg bg-white/10 p-1" />
+                ) : (
+                  <Building2 className="fluid-icon-lg text-blue-200" />
+                )}
                 <span className="fluid-text-sm text-blue-200 font-medium">{campus.code}</span>
               </div>
               <h1 className="fluid-text-3xl font-bold fluid-mb-1">{campus.name}</h1>

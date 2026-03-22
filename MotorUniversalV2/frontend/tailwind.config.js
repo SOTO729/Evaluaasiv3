@@ -30,6 +30,18 @@ export default {
           800: 'var(--color-primary-800, #1e40af)',
           900: 'var(--color-primary-900, #1e3a8a)',
         },
+        secondary: {
+          50: 'var(--color-secondary-50, #f9fafb)',
+          100: 'var(--color-secondary-100, #f3f4f6)',
+          200: 'var(--color-secondary-200, #e5e7eb)',
+          300: 'var(--color-secondary-300, #d1d5db)',
+          400: 'var(--color-secondary-400, #9ca3af)',
+          500: 'var(--color-secondary-500, #6b7280)',
+          600: 'var(--color-secondary-600, #4b5563)',
+          700: 'var(--color-secondary-700, #374151)',
+          800: 'var(--color-secondary-800, #1f2937)',
+          900: 'var(--color-secondary-900, #111827)',
+        },
       },
       spacing: {
         '18': '4.5rem',

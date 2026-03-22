@@ -465,7 +465,11 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
             )}
             <div className="flex items-center fluid-gap-3 flex-wrap">
               <h1 className="fluid-text-3xl font-bold text-white flex items-center fluid-gap-3">
-                <MapPin className="fluid-icon-xl" />
+                {isResponsable && campus.logo_url ? (
+                  <img src={campus.logo_url} alt={campus.name} className="h-12 w-auto object-contain rounded-lg bg-white/10 p-1" />
+                ) : (
+                  <MapPin className="fluid-icon-xl" />
+                )}
                 {campus.name}
               </h1>
               <span className="fluid-text-sm font-mono font-semibold text-blue-100 bg-white/20 fluid-px-3 fluid-py-1 rounded-full border border-white/30">{campus.code}</span>

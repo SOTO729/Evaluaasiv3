@@ -501,7 +501,11 @@ export default function CertificateTypePage({
             <div>
               <p className="fluid-text-sm text-white/80 fluid-mb-1">{group?.name}</p>
               <h1 className="fluid-text-2xl font-bold flex items-center fluid-gap-3">
-                <Icon className="fluid-icon-lg" />
+                {group?.campus?.logo_url ? (
+                  <img src={group.campus.logo_url} alt={group.campus.name} className="h-10 w-auto object-contain rounded-lg bg-white/10 p-1" />
+                ) : (
+                  <Icon className="fluid-icon-lg" />
+                )}
                 {title}
               </h1>
               <p className="fluid-text-sm text-white/70 mt-1">{subtitle}</p>

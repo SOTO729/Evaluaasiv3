@@ -428,3 +428,44 @@ class TestBrandingFieldsInMiPlantel:
         api_request("PUT", f"{api}/partners/mi-plantel/branding",
                     json={"primary_color": None, "secondary_color": None},
                     headers=resp_headers)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# E. EXPORT EXCEL — Logo del plantel como encabezado
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestExportExcelBranding:
+    """Tests para GET /partners/mi-plantel/evaluations/export — logo en Excel"""
+
+    def test_export_excel_returns_xlsx(self, api, resp_headers):
+        """E1. Export genera archivo xlsx válido"""
+        r = api_request("GET", f"{api}/partners/mi-plantel/evaluations/export",
+                        headers=resp_headers)
+        # 200 con xlsx o 404 si no hay candidatos
+        assert r.status_code in [200, 404]
+        if r.status_code == 200:
+            assert 'spreadsheetml' in r.headers.get('Content-Type', '')
+
+    def test_export_excel_with_logo(self, api, resp_headers):
+        """E2. Export con logo de plantel no rompe la generación"""
+        # Subir un logo pequeño primero
+        png_1x1 = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01'
+            b'\x00\x00\x00\x01\x08\x02\x00\x00\x00\x90wS\xde\x00'
+            b'\x00\x00\x0cIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00'
+            b'\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        upload_headers = {"Authorization": resp_headers["Authorization"]}
+        import io
+        files = {'logo': ('test.png', io.BytesIO(png_1x1), 'image/png')}
+        api_request("POST", f"{api}/partners/mi-plantel/logo",
+                    headers=upload_headers, files=files)
+
+        # Ahora exportar — debe completar sin error
+        r = api_request("GET", f"{api}/partners/mi-plantel/evaluations/export",
+                        headers=resp_headers)
+        assert r.status_code in [200, 404]
+
+        # Cleanup: eliminar logo
+        api_request("DELETE", f"{api}/partners/mi-plantel/logo",
+                    headers=resp_headers)
