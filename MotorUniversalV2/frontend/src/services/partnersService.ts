@@ -3938,6 +3938,9 @@ export interface ReportRow {
   // Usuario
   user_id: string;
   full_name: string;
+  name: string;
+  first_surname: string;
+  second_surname: string;
   username: string;
   email: string | null;
   curp: string | null;
@@ -3951,26 +3954,32 @@ export interface ReportRow {
   created_at: string | null;
   // Organización
   partner_name?: string;
-  partner_rfc?: string;
+  campus_code?: string;
   campus_name?: string;
   campus_state?: string;
   campus_city?: string;
+  director_name?: string;
   school_cycle?: string;
+  cycle_start_date?: string | null;
+  cycle_end_date?: string | null;
   group_name?: string;
   member_status?: string;
   joined_at?: string | null;
+  max_retakes?: number | null;
+  certification_cost?: number | null;
   // Estándar
   standard_code?: string;
   standard_name?: string;
   standard_level?: number | null;
   standard_sector?: string;
+  validity_years?: number | null;
   brand_name?: string;
   assignment_number?: string;
+  assignment_source?: string;
   exam_name?: string;
   assigned_at?: string | null;
   // Resultado
   score?: number | null;
-  score_1000?: number | null;
   result?: string;
   result_date?: string | null;
   duration_seconds?: number | null;

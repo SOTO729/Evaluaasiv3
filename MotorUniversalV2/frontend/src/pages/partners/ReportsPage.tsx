@@ -11,6 +11,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
   Download,
   Search,
   Filter,
@@ -56,10 +59,14 @@ interface ColumnDef {
 const GENDER_MAP: Record<string, string> = { M: 'Masculino', F: 'Femenino', O: 'Otro' };
 const ROLE_MAP: Record<string, string> = { candidato: 'Candidato', responsable: 'Responsable' };
 const STATUS_MAP: Record<string, string> = { active: 'Activo', inactive: 'Inactivo', completed: 'Completado', withdrawn: 'Retirado' };
+const SOURCE_MAP: Record<string, string> = { bulk: 'Asignación masiva', selected: 'Selección individual' };
 
 const ALL_COLUMNS: ColumnDef[] = [
   // ── Usuario ──
   { key: 'full_name', label: 'Nombre Completo', group: 'Usuario', defaultOn: true },
+  { key: 'name', label: 'Nombre(s)', group: 'Usuario' },
+  { key: 'first_surname', label: 'Apellido Paterno', group: 'Usuario' },
+  { key: 'second_surname', label: 'Apellido Materno', group: 'Usuario' },
   { key: 'username', label: 'Usuario', group: 'Usuario', defaultOn: true },
   { key: 'email', label: 'Email', group: 'Usuario' },
   { key: 'curp', label: 'CURP', group: 'Usuario' },
@@ -73,26 +80,32 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'created_at', label: 'Fecha de Registro', group: 'Usuario' },
   // ── Organización ──
   { key: 'partner_name', label: 'Partner', group: 'Organización', defaultOn: true },
-  { key: 'partner_rfc', label: 'RFC del Partner', group: 'Organización' },
+  { key: 'campus_code', label: 'Clave Plantel', group: 'Organización' },
   { key: 'campus_name', label: 'Plantel', group: 'Organización', defaultOn: true },
   { key: 'campus_state', label: 'Estado (entidad)', group: 'Organización' },
   { key: 'campus_city', label: 'Ciudad', group: 'Organización' },
+  { key: 'director_name', label: 'Director del Plantel', group: 'Organización' },
   { key: 'school_cycle', label: 'Ciclo Escolar', group: 'Organización' },
+  { key: 'cycle_start_date', label: 'Inicio Ciclo', group: 'Organización' },
+  { key: 'cycle_end_date', label: 'Fin Ciclo', group: 'Organización' },
   { key: 'group_name', label: 'Grupo', group: 'Organización', defaultOn: true },
   { key: 'member_status', label: 'Estado en Grupo', group: 'Organización', render: (r) => STATUS_MAP[r.member_status || ''] || r.member_status || '—' },
   { key: 'joined_at', label: 'Fecha de Ingreso al Grupo', group: 'Organización' },
+  { key: 'max_retakes', label: 'Máx. Retomas', group: 'Organización' },
+  { key: 'certification_cost', label: 'Costo Certificación', group: 'Organización' },
   // ── Estándar ──
   { key: 'standard_code', label: 'Estándar (Código)', group: 'Estándar', defaultOn: true },
   { key: 'standard_name', label: 'Estándar (Nombre)', group: 'Estándar' },
   { key: 'standard_level', label: 'Nivel del Estándar', group: 'Estándar' },
   { key: 'standard_sector', label: 'Sector del Estándar', group: 'Estándar' },
+  { key: 'validity_years', label: 'Vigencia Estándar (años)', group: 'Estándar' },
   { key: 'brand_name', label: 'Marca / Producto', group: 'Estándar' },
   { key: 'assignment_number', label: 'No. Asignación', group: 'Estándar' },
+  { key: 'assignment_source', label: 'Origen Asignación', group: 'Estándar', render: (r) => SOURCE_MAP[r.assignment_source || ''] || r.assignment_source || '—' },
   { key: 'exam_name', label: 'Examen', group: 'Estándar' },
   { key: 'assigned_at', label: 'Fecha de Asignación', group: 'Estándar' },
   // ── Resultado ──
-  { key: 'score', label: 'Calificación (0-100)', group: 'Resultado', defaultOn: true },
-  { key: 'score_1000', label: 'Calificación (0-1000)', group: 'Resultado' },
+  { key: 'score', label: 'Calificación (%)', group: 'Resultado', defaultOn: true },
   { key: 'result', label: 'Resultado', group: 'Resultado', defaultOn: true,
     render: (r) => r.result === 'Aprobado' ? (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800"><CheckCircle2 className="w-3 h-3" />Certificado</span>
@@ -127,14 +140,21 @@ const DEPTH_LABELS: Record<string, string> = {
 };
 
 const COLUMN_GROUPS = [...new Set(ALL_COLUMNS.map(c => c.group))];
-const DEFAULT_SELECTED = new Set(ALL_COLUMNS.filter(c => c.defaultOn).map(c => c.key));
+const DEFAULT_SELECTED = ALL_COLUMNS.filter(c => c.defaultOn).map(c => c.key);
 
 export default function ReportsPage({ backPath = '/partners' }: Props) {
   const { user } = useAuthStore();
   const isResponsable = user?.role === 'responsable';
 
+  // Columnas visibles según rol (certification_cost solo para coordinadores)
+  const visibleColumns = useMemo(() =>
+    ALL_COLUMNS.filter(c => !(c.key === 'certification_cost' && isResponsable)),
+    [isResponsable]
+  );
+
   // ── Column selection ──
-  const [selectedCols, setSelectedCols] = useState<Set<string>>(() => new Set(DEFAULT_SELECTED));
+  const [selectedCols, setSelectedCols] = useState<string[]>(() => [...DEFAULT_SELECTED]);
+  const [showOrder, setShowOrder] = useState(false);
 
   // ── Filters ──
   const [filtersData, setFiltersData] = useState<ReportFiltersData | null>(null);
@@ -201,23 +221,26 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
     return g;
   }, [filtersData, campusId, partnerId, cycleId, filteredCampuses]);
 
-  const activeCols = useMemo(() => ALL_COLUMNS.filter(c => selectedCols.has(c.key)), [selectedCols]);
+  const activeCols = useMemo(() => {
+    const colMap = new Map(visibleColumns.map(c => [c.key, c]));
+    return selectedCols.map(k => colMap.get(k)).filter((c): c is ColumnDef => !!c);
+  }, [selectedCols, visibleColumns]);
 
   // Derivar categorías activas desde las columnas seleccionadas
   const activeCategories = useMemo(() => {
     const cats = new Set<string>();
     cats.add('usuario');
-    for (const col of ALL_COLUMNS) {
-      if (selectedCols.has(col.key) && GROUP_TO_CATEGORY[col.group]) {
+    for (const col of visibleColumns) {
+      if (selectedCols.includes(col.key) && GROUP_TO_CATEGORY[col.group]) {
         cats.add(GROUP_TO_CATEGORY[col.group]);
       }
     }
     return cats;
-  }, [selectedCols]);
+  }, [selectedCols, visibleColumns]);
 
   const hasUserCols = useMemo(() => {
-    return ALL_COLUMNS.some(c => c.group === 'Usuario' && selectedCols.has(c.key));
-  }, [selectedCols]);
+    return visibleColumns.some(c => c.group === 'Usuario' && selectedCols.includes(c.key));
+  }, [selectedCols, visibleColumns]);
 
   // Determinar el nivel de profundidad más alto
   const depthLabel = useMemo(() => {
@@ -230,25 +253,47 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
   const toggleCol = (key: string) => {
     setSelectedCols(prev => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
+      const idx = prev.indexOf(key);
+      if (idx >= 0) {
+        // Prevent deselecting the last Usuario column
+        const col = visibleColumns.find(c => c.key === key);
+        if (col?.group === 'Usuario') {
+          const otherUserSelected = visibleColumns.some(c => c.group === 'Usuario' && c.key !== key && prev.includes(c.key));
+          if (!otherUserSelected) return prev;
+        }
+        return prev.filter((_, i) => i !== idx);
+      }
+      return [...prev, key];
     });
   };
 
   const toggleGroup = (group: string) => {
-    const keys = ALL_COLUMNS.filter(c => c.group === group).map(c => c.key);
-    const allSelected = keys.every(k => selectedCols.has(k));
+    const keys = visibleColumns.filter(c => c.group === group).map(c => c.key);
+    const allSelected = keys.every(k => selectedCols.includes(k));
     setSelectedCols(prev => {
-      const next = new Set(prev);
-      keys.forEach(k => allSelected ? next.delete(k) : next.add(k));
-      return next;
+      if (allSelected && group === 'Usuario') {
+        return prev.filter(k => !keys.includes(k) || k === 'full_name');
+      }
+      if (allSelected) {
+        return prev.filter(k => !keys.includes(k));
+      }
+      const toAdd = keys.filter(k => !prev.includes(k));
+      return [...prev, ...toAdd];
     });
   };
 
-  const selectAll = () => setSelectedCols(new Set(ALL_COLUMNS.map(c => c.key)));
-  const selectNone = () => setSelectedCols(new Set());
+  const selectAll = () => setSelectedCols(visibleColumns.map(c => c.key));
+  const selectNone = () => setSelectedCols(['full_name']);
+
+  const moveCol = (index: number, direction: 'up' | 'down') => {
+    setSelectedCols(prev => {
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
 
   const buildParams = useCallback(() => {
     const params: Record<string, string | number | undefined> = {};
@@ -294,7 +339,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
       setExporting(true);
       setError(null);
       const params = buildParams();
-      const blob = await exportReports(params, Array.from(selectedCols));
+      const blob = await exportReports(params, selectedCols);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -349,7 +394,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
           </div>
           <div className="flex items-center gap-3">
             <span className="bg-white/20 fluid-px-3 fluid-py-1.5 rounded-fluid-lg fluid-text-sm font-medium">
-              {selectedCols.size} columna{selectedCols.size !== 1 ? 's' : ''}
+              {selectedCols.length} columna{selectedCols.length !== 1 ? 's' : ''}
             </span>
             {hasGenerated && totalRows > 0 && (
               <span className="bg-white/20 fluid-px-3 fluid-py-1.5 rounded-fluid-lg fluid-text-sm font-medium">
@@ -376,9 +421,9 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
         <div className="fluid-p-5 space-y-4">
           {COLUMN_GROUPS.map(group => {
-            const cols = ALL_COLUMNS.filter(c => c.group === group);
-            const allSel = cols.every(c => selectedCols.has(c.key));
-            const someSel = cols.some(c => selectedCols.has(c.key));
+            const cols = visibleColumns.filter(c => c.group === group);
+            const allSel = cols.every(c => selectedCols.includes(c.key));
+            const someSel = cols.some(c => selectedCols.includes(c.key));
             return (
               <div key={group}>
                 <button
@@ -390,11 +435,11 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                     {someSel && !allSel && <Minus className="w-2.5 h-2.5 text-indigo-600" />}
                   </div>
                   <span className="font-semibold text-gray-700 fluid-text-sm">{group}</span>
-                  <span className="text-[10px] text-gray-400">({cols.filter(c => selectedCols.has(c.key)).length}/{cols.length})</span>
+                  <span className="text-[10px] text-gray-400">({cols.filter(c => selectedCols.includes(c.key)).length}/{cols.length})</span>
                 </button>
                 <div className="flex flex-wrap gap-2 ml-6">
                   {cols.map(col => {
-                    const active = selectedCols.has(col.key);
+                    const active = selectedCols.includes(col.key);
                     return (
                       <button
                         key={col.key}
@@ -416,6 +461,55 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
           })}
         </div>
       </div>
+
+      {/* ══ Step 1b: Orden de Columnas (botones ↑↓) ══ */}
+      {selectedCols.length > 1 && (
+        <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
+          <button
+            onClick={() => setShowOrder(!showOrder)}
+            className="w-full fluid-px-5 fluid-py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 text-indigo-600" />
+              <h2 className="font-semibold text-gray-900 fluid-text-sm">Orden de columnas</h2>
+              <span className="text-[10px] text-gray-400">Usa las flechas para reordenar</span>
+            </div>
+            {showOrder ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+          </button>
+          {showOrder && (
+            <div className="fluid-px-5 fluid-pb-4 border-t border-gray-100 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5 max-h-80 overflow-y-auto">
+                {selectedCols.map((key, idx) => {
+                  const col = visibleColumns.find(c => c.key === key);
+                  if (!col) return null;
+                  return (
+                    <div key={key} className="flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg shadow-sm">
+                      <span className="text-gray-400 text-[10px] font-mono w-5 text-right">{idx + 1}</span>
+                      <span className="text-xs text-gray-700 truncate flex-1 ml-1">{col.label}</span>
+                      <button
+                        onClick={() => moveCol(idx, 'up')}
+                        disabled={idx === 0}
+                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-600"
+                        aria-label={`Mover ${col.label} arriba`}
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => moveCol(idx, 'down')}
+                        disabled={idx === selectedCols.length - 1}
+                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-600"
+                        aria-label={`Mover ${col.label} abajo`}
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ══ Step 2: Filtros (colapsable) ══ */}
       <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
