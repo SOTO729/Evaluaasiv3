@@ -26,6 +26,7 @@ AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'edi
 ROLE_CREATE_PERMISSIONS = {
     'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
     'developer': ['gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
+    'soporte': ['responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Soporte puede crear responsables, responsables del partner, candidatos y auxiliares
     'coordinator': ['responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Responsables, Responsables del Partner, candidatos y auxiliares
     'responsable': ['candidato']  # Solo candidatos
 }
@@ -48,15 +49,15 @@ def _get_effective_coordinator_id(user):
 
 
 def management_required(f):
-    """Decorador que requiere rol de admin, developer, coordinator, auxiliar o responsable"""
+    """Decorador que requiere rol de admin, developer, coordinator, auxiliar, soporte o responsable"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar', 'responsable']:
-            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador, desarrollador o coordinador'}), 403
+        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar', 'soporte', 'responsable']:
+            return jsonify({'error': 'Acceso denegado. Se requiere rol de administrador, desarrollador, soporte o coordinador'}), 403
         if user.role == 'responsable' and not user.campus_id:
             return jsonify({'error': 'No tienes un plantel asignado'}), 403
         g.current_user = user
@@ -853,9 +854,22 @@ def create_user():
         # Crear usuario
         # Determinar coordinator_id para multi-tenancy
         user_coordinator_id = None
-        if current_user.role == 'coordinator' and role in ['candidato', 'responsable', 'responsable_partner']:
+        if role == 'responsable':
+            # ── Regla de negocio: responsable DEBE tener coordinator_id ──
+            if current_user.role == 'coordinator':
+                # El coordinador que crea → se liga automáticamente
+                user_coordinator_id = current_user.id
+            elif data.get('coordinator_id'):
+                # Admin/developer/soporte eligen coordinador del dropdown
+                coord_check = User.query.get(data['coordinator_id'])
+                if not coord_check or coord_check.role != 'coordinator' or not coord_check.is_active:
+                    return jsonify({'error': 'El coordinador seleccionado no es válido o no está activo'}), 400
+                user_coordinator_id = data['coordinator_id']
+            else:
+                return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
+        elif current_user.role == 'coordinator' and role in ['candidato', 'responsable_partner']:
             user_coordinator_id = current_user.id
-        elif current_user.role in ['admin', 'developer'] and role in ['responsable', 'candidato'] and user_campus_id:
+        elif current_user.role in ['admin', 'developer', 'soporte'] and role == 'candidato' and user_campus_id:
             # Admin/developer creando responsable/candidato: buscar el coordinador del campus
             from app.models.partner import Campus as CampusLookup, Partner as PartnerLookup, user_partners as up_table
             campus_lookup = CampusLookup.query.get(user_campus_id)
@@ -1063,8 +1077,8 @@ def update_user(user_id):
                     return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
             user.email = email
         
-        # Campos de responsable (editables por admin, developer y coordinator)
-        if user.role == 'responsable' and current_user.role in ['admin', 'developer', 'coordinator']:
+        # Campos de responsable (editables por admin, developer, soporte y coordinator)
+        if user.role == 'responsable' and current_user.role in ['admin', 'developer', 'soporte', 'coordinator']:
             if 'date_of_birth' in data:
                 if data['date_of_birth']:
                     user.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
@@ -1082,6 +1096,20 @@ def update_user(user_id):
                 user.can_manage_groups = bool(data['can_manage_groups'])
             if 'can_view_reports' in data:
                 user.can_view_reports = bool(data['can_view_reports'])
+        
+        # Cambio de coordinador asignado (admin, developer, gerente, soporte)
+        if user.role == 'responsable' and 'coordinator_id' in data:
+            if current_user.role in ['admin', 'developer', 'gerente', 'soporte']:
+                new_coord_id = data['coordinator_id']
+                if new_coord_id:
+                    coord = User.query.get(new_coord_id)
+                    if not coord or coord.role != 'coordinator' or not coord.is_active:
+                        return jsonify({'error': 'El coordinador seleccionado no es válido o no está activo'}), 400
+                    user.coordinator_id = new_coord_id
+                else:
+                    user.coordinator_id = None
+            else:
+                return jsonify({'error': 'No tienes permisos para cambiar el coordinador asignado'}), 403
         
         # Campos de responsable_partner (editables por admin, developer y coordinator)
         if user.role == 'responsable_partner' and current_user.role in ['admin', 'developer', 'coordinator']:
@@ -1832,6 +1860,36 @@ def get_available_partners():
         
         raise
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== COORDINADORES DISPONIBLES (para asignar a responsables) ==============
+
+@bp.route('/available-coordinators', methods=['GET'])
+@jwt_required()
+@management_required
+def get_available_coordinators():
+    """Obtener lista de coordinadores activos para asignar a responsables"""
+    try:
+        coordinators = User.query.filter(
+            User.role == 'coordinator',
+            User.is_active == True
+        ).order_by(User.name).all()
+
+        return jsonify({
+            'coordinators': [{
+                'id': c.id,
+                'full_name': c.full_name,
+                'email': c.email,
+                'username': c.username
+            } for c in coordinators],
+            'total': len(coordinators)
+        })
+
+    except HTTPException:
+        raise
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

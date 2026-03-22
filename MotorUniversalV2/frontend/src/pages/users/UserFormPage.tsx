@@ -42,6 +42,7 @@ import {
   getAvailableRoles,
   getAvailableCampuses,
   getAvailablePartners,
+  getAvailableCoordinators,
   checkNameSimilarity,
   validateCurpRenapo,
   CreateUserData,
@@ -49,6 +50,7 @@ import {
   RoleOption,
   AvailableCampus,
   AvailablePartner,
+  AvailableCoordinator,
   SimilarUser,
   CurpValidationResult,
 } from '../../services/userManagementService';
@@ -184,6 +186,9 @@ export default function UserFormPage() {
   // Estados para responsable_partner
   const [availablePartners, setAvailablePartners] = useState<AvailablePartner[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(false);
+  // Estados para coordinadores (asignar a responsables)
+  const [availableCoordinators, setAvailableCoordinators] = useState<AvailableCoordinator[]>([]);
+  const [loadingCoordinators, setLoadingCoordinators] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ username: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -214,6 +219,7 @@ export default function UserFormPage() {
     can_bulk_create_candidates: false,
     can_manage_groups: false,
     can_view_reports: true,
+    coordinator_id: '',
     partner_id: 0,
   });
 
@@ -224,13 +230,17 @@ export default function UserFormPage() {
     }
   }, [userId]);
 
-  // Cargar campuses/partners según rol
+  // Cargar campuses/partners/coordinadores según rol
   useEffect(() => {
     if (formData.role === 'responsable' && !isEditing) {
       loadCampuses();
     }
     if (formData.role === 'responsable_partner' && !isEditing) {
       loadPartners();
+    }
+    // Cargar coordinadores si el creador NO es coordinador (coordinador se asigna automáticamente)
+    if (formData.role === 'responsable' && currentUser?.role !== 'coordinator') {
+      loadCoordinators();
     }
   }, [formData.role, isEditing]);
 
@@ -255,6 +265,18 @@ export default function UserFormPage() {
       console.error('Error loading partners:', err);
     } finally {
       setLoadingPartners(false);
+    }
+  };
+
+  const loadCoordinators = async () => {
+    try {
+      setLoadingCoordinators(true);
+      const data = await getAvailableCoordinators();
+      setAvailableCoordinators(data.coordinators);
+    } catch (err) {
+      console.error('Error loading coordinators:', err);
+    } finally {
+      setLoadingCoordinators(false);
     }
   };
 
@@ -299,6 +321,7 @@ export default function UserFormPage() {
         can_bulk_create_candidates: data.can_bulk_create_candidates ?? false,
         can_manage_groups: data.can_manage_groups ?? false,
         can_view_reports: data.can_view_reports ?? true,
+        coordinator_id: data.coordinator_id || '',
         partner_id: data.partners?.[0]?.id || 0,
       });
       // Guardar estado de verificación CURP
@@ -307,6 +330,9 @@ export default function UserFormPage() {
       // Load campuses/partners if editing responsable/responsable_partner
       if (data.role === 'responsable') {
         loadCampuses();
+        if (currentUser?.role !== 'coordinator') {
+          loadCoordinators();
+        }
       }
       if (data.role === 'responsable_partner') {
         loadPartners();
@@ -449,6 +475,9 @@ export default function UserFormPage() {
           updateData.can_bulk_create_candidates = formData.can_bulk_create_candidates;
           updateData.can_manage_groups = formData.can_manage_groups;
           updateData.can_view_reports = formData.can_view_reports;
+          if (formData.coordinator_id) {
+            updateData.coordinator_id = formData.coordinator_id;
+          }
         }
 
         // Campos adicionales para responsable_partner
@@ -476,6 +505,9 @@ export default function UserFormPage() {
           createData.can_bulk_create_candidates = formData.can_bulk_create_candidates;
           createData.can_manage_groups = formData.can_manage_groups;
           createData.can_view_reports = formData.can_view_reports;
+          if (currentUser?.role !== 'coordinator') {
+            createData.coordinator_id = formData.coordinator_id || undefined;
+          }
         }
 
         // Campos adicionales para responsable_partner
@@ -1219,6 +1251,49 @@ export default function UserFormPage() {
                       </p>
                     )}
                   </div>
+                  {/* ── Coordinador asignado ── */}
+                  {currentUser?.role === 'coordinator' ? (
+                    <div className="md:col-span-2">
+                      <div className="flex items-center fluid-gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-fluid-lg">
+                        <Shield className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                        <p className="fluid-text-sm text-indigo-700">
+                          Este responsable quedará ligado a ti como coordinador.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                        Coordinador asignado <span className="text-red-500">*</span>
+                      </label>
+                      {loadingCoordinators ? (
+                        <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
+                          <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                          Cargando coordinadores...
+                        </div>
+                      ) : (
+                        <StyledSelect
+                          value={formData.coordinator_id}
+                          onChange={(value) =>
+                            setFormData((prev) => ({ ...prev, coordinator_id: value }))
+                          }
+                          options={availableCoordinators.map((c) => ({
+                            value: c.id,
+                            label: `${c.full_name} (${c.email})`,
+                          }))}
+                          placeholder="Seleccionar coordinador..."
+                          icon={Shield}
+                          colorScheme="indigo"
+                          required
+                        />
+                      )}
+                      {availableCoordinators.length === 0 && !loadingCoordinators && (
+                        <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                          No hay coordinadores disponibles.
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="md:col-span-2">
                     <p className="fluid-text-sm font-medium text-blue-800 fluid-mb-3">Permisos</p>
                     <div className="flex flex-wrap fluid-gap-4">

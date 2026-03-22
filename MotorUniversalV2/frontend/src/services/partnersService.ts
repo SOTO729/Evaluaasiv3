@@ -283,6 +283,7 @@ export interface CreateResponsableData {
   can_manage_groups?: boolean;
   can_view_reports?: boolean;
   replace_existing?: boolean;  // Si es true, reemplaza el responsable actual
+  coordinator_id?: string;  // Coordinador asignado (requerido si creador no es coordinador)
 }
 
 // Datos para actualizar un responsable

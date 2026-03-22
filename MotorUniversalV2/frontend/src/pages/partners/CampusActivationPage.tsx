@@ -46,6 +46,11 @@ const FOREIGN_CURP_FEMALE = 'XEXX010101MNEXXXA8';
 const getForeignCurp = (gender: string) => gender === 'M' ? FOREIGN_CURP_MALE : FOREIGN_CURP_FEMALE;
 import StyledSelect from '../../components/StyledSelect';
 import ToggleSwitch from '../../components/ui/ToggleSwitch';
+import { useAuthStore } from '../../store/authStore';
+import {
+  getAvailableCoordinators,
+  AvailableCoordinator,
+} from '../../services/userManagementService';
 import {
   getCampus,
   Campus,
@@ -75,6 +80,7 @@ interface ActivationStep {
 export default function CampusActivationPage() {
   const { campusId } = useParams();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
   
   const [campus, setCampus] = useState<Campus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -121,6 +127,12 @@ export default function CampusActivationPage() {
     can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true,
   });
 
+  // Estado para coordinador asignado
+  const [availableCoordinators, setAvailableCoordinators] = useState<AvailableCoordinator[]>([]);
+  const [loadingCoordinators, setLoadingCoordinators] = useState(false);
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState('');
+  const [addMoreCoordinatorId, setAddMoreCoordinatorId] = useState('');
+
   // Estado del formulario de configuración
   const [configError, setConfigError] = useState<string | null>(null);
   const [isConfiguringCampus, setIsConfiguringCampus] = useState(false);
@@ -166,6 +178,13 @@ export default function CampusActivationPage() {
       loadAvailableResponsables();
     }
   }, [campusId]);
+
+  // Cargar coordinadores disponibles (solo si el usuario actual NO es coordinador)
+  useEffect(() => {
+    if (currentUser?.role !== 'coordinator') {
+      loadCoordinators();
+    }
+  }, [currentUser?.role]);
 
   // Cargar ECM disponibles cuando el campus tiene responsable y entramos al paso 2
   useEffect(() => {
@@ -279,9 +298,27 @@ export default function CampusActivationPage() {
     }
   };
 
+  const loadCoordinators = async () => {
+    try {
+      setLoadingCoordinators(true);
+      const result = await getAvailableCoordinators();
+      setAvailableCoordinators(result.coordinators);
+    } catch (err: any) {
+      console.error('Error loading coordinators:', err);
+    } finally {
+      setLoadingCoordinators(false);
+    }
+  };
+
   const handleAssignExistingResponsable = async () => {
     if (!selectedResponsableId) {
       setFormError('Debe seleccionar un responsable');
+      return;
+    }
+
+    // Validar coordinador para asignación de existente
+    if (currentUser?.role !== 'coordinator' && !selectedCoordinatorId) {
+      setFormError('Debe seleccionar un coordinador para el responsable');
       return;
     }
 
@@ -289,12 +326,17 @@ export default function CampusActivationPage() {
       setIsSubmitting(true);
       setFormError(null);
       
-      const result = await assignExistingResponsable(Number(campusId), {
+      const assignData: any = {
         responsable_id: selectedResponsableId,
         can_bulk_create_candidates: assignPerms.can_bulk_create_candidates,
         can_manage_groups: assignPerms.can_manage_groups,
         can_view_reports: assignPerms.can_view_reports,
-      });
+      };
+      if (currentUser?.role !== 'coordinator') {
+        assignData.coordinator_id = selectedCoordinatorId;
+      }
+      
+      const result = await assignExistingResponsable(Number(campusId), assignData);
 
       // Actualizar el estado del campus
       setCampus(prev => prev ? {
@@ -365,16 +407,25 @@ export default function CampusActivationPage() {
       setFormError(validationError);
       return;
     }
+
+    // Validar coordinador
+    if (currentUser?.role !== 'coordinator' && !selectedCoordinatorId) {
+      setFormError('Debe seleccionar un coordinador para el responsable');
+      return;
+    }
     
     try {
       setIsSubmitting(true);
       setFormError(null);
       
       // Si el campus ya tiene un responsable, pasar replace_existing: true
-      const dataToSend = {
+      const dataToSend: any = {
         ...formData,
-        replace_existing: campus?.responsable_id ? true : false
+        replace_existing: campus?.responsable_id ? true : false,
       };
+      if (currentUser?.role !== 'coordinator') {
+        dataToSend.coordinator_id = selectedCoordinatorId;
+      }
       
       const result = await createCampusResponsable(Number(campusId), dataToSend);
       
@@ -845,6 +896,47 @@ export default function CampusActivationPage() {
                         </div>
                       </div>
 
+                      {/* Coordinador asignado (asignar existente) */}
+                      <div>
+                        <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-4 flex items-center fluid-gap-2">
+                          <Shield className="fluid-w-4 fluid-h-4 text-indigo-500" />
+                          Coordinador Asignado
+                        </h3>
+                        {currentUser?.role === 'coordinator' ? (
+                          <div className="flex items-center fluid-gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                            <Shield className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <p className="fluid-text-sm text-indigo-700">
+                              Este responsable quedará ligado a ti como coordinador.
+                            </p>
+                          </div>
+                        ) : loadingCoordinators ? (
+                          <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
+                            <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                            Cargando coordinadores...
+                          </div>
+                        ) : (
+                          <>
+                            <StyledSelect
+                              value={selectedCoordinatorId}
+                              onChange={(value) => setSelectedCoordinatorId(value)}
+                              options={availableCoordinators.map((c) => ({
+                                value: c.id,
+                                label: `${c.full_name} (${c.email})`,
+                              }))}
+                              placeholder="Seleccionar coordinador..."
+                              icon={Shield}
+                              colorScheme="indigo"
+                              required
+                            />
+                            {availableCoordinators.length === 0 && (
+                              <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                                No hay coordinadores disponibles.
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+
                       {/* Permisos para responsable existente */}
                       <div>
                         <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-4 flex items-center fluid-gap-2">
@@ -1057,6 +1149,47 @@ export default function CampusActivationPage() {
                       placeholder="responsable@ejemplo.com"
                     />
                   </div>
+                </div>
+
+                {/* Coordinador asignado (crear nuevo) */}
+                <div>
+                  <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-4 flex items-center fluid-gap-2">
+                    <Shield className="fluid-w-4 fluid-h-4 text-indigo-500" />
+                    Coordinador Asignado
+                  </h3>
+                  {currentUser?.role === 'coordinator' ? (
+                    <div className="flex items-center fluid-gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <Shield className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                      <p className="fluid-text-sm text-indigo-700">
+                        Este responsable quedará ligado a ti como coordinador.
+                      </p>
+                    </div>
+                  ) : loadingCoordinators ? (
+                    <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
+                      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      Cargando coordinadores...
+                    </div>
+                  ) : (
+                    <>
+                      <StyledSelect
+                        value={selectedCoordinatorId}
+                        onChange={(value) => setSelectedCoordinatorId(value)}
+                        options={availableCoordinators.map((c) => ({
+                          value: c.id,
+                          label: `${c.full_name} (${c.email})`,
+                        }))}
+                        placeholder="Seleccionar coordinador..."
+                        icon={Shield}
+                        colorScheme="indigo"
+                        required
+                      />
+                      {availableCoordinators.length === 0 && (
+                        <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                          No hay coordinadores disponibles.
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Permisos */}
@@ -1298,7 +1431,7 @@ export default function CampusActivationPage() {
                       </div>
                       <div className="flex gap-2 mt-3">
                         <button type="button" onClick={() => { setAddMorePassword(null); setShowAddMore(false); setShowAddMorePwd(false); }} className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">Entendido</button>
-                        <button type="button" onClick={() => { setAddMorePassword(null); setAddMoreForm({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true }); }} className="px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors">Agregar otro</button>
+                        <button type="button" onClick={() => { setAddMorePassword(null); setAddMoreCoordinatorId(''); setAddMoreForm({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true }); }} className="px-3 py-1.5 border border-green-300 text-green-700 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors">Agregar otro</button>
                       </div>
                     </div>
                   ) : (
@@ -1345,13 +1478,41 @@ export default function CampusActivationPage() {
                         <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_bulk_create_candidates} onChange={v => setAddMoreForm(p => ({...p, can_bulk_create_candidates: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Altas Masivas</span></div>
                         <div className="flex items-center gap-2"><ToggleSwitch size="sm" checked={addMoreForm.can_view_reports} onChange={v => setAddMoreForm(p => ({...p, can_view_reports: v}))} colorScheme="indigo" /><span className="text-xs text-gray-700 font-medium select-none">Ver Reportes</span></div>
                       </div>
+                      {/* Coordinador para responsable adicional */}
+                      <div className="mb-3">
+                        {currentUser?.role === 'coordinator' ? (
+                          <div className="flex items-center gap-2 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+                            <Shield className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                            <p className="text-xs text-indigo-700">Quedará ligado a ti como coordinador.</p>
+                          </div>
+                        ) : (
+                          <>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Coordinador asignado <span className="text-red-500">*</span></label>
+                            <StyledSelect
+                              value={addMoreCoordinatorId}
+                              onChange={(value) => setAddMoreCoordinatorId(value)}
+                              options={availableCoordinators.map((c) => ({
+                                value: c.id,
+                                label: `${c.full_name} (${c.email})`,
+                              }))}
+                              placeholder="Seleccionar coordinador..."
+                              icon={Shield}
+                              colorScheme="indigo"
+                              required
+                            />
+                          </>
+                        )}
+                      </div>
                       <div className="flex gap-2 justify-end">
                         <button type="button" onClick={() => setShowAddMore(false)} className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100">Cancelar</button>
                         <button type="button" disabled={addMoreLoading} onClick={async () => {
                           if (!addMoreForm.name || !addMoreForm.first_surname || !addMoreForm.second_surname || !addMoreForm.email || (!isForeign && !addMoreForm.curp) || !addMoreForm.gender || !addMoreForm.date_of_birth) { setAddMoreError('Todos los campos son requeridos'); return; }
+                          if (currentUser?.role !== 'coordinator' && !addMoreCoordinatorId) { setAddMoreError('Debe seleccionar un coordinador'); return; }
                           setAddMoreLoading(true); setAddMoreError(null);
                           try {
-                            const res = await addCampusResponsable(Number(campusId), { name: addMoreForm.name, first_surname: addMoreForm.first_surname, second_surname: addMoreForm.second_surname, email: addMoreForm.email, curp: addMoreForm.curp, gender: addMoreForm.gender as 'M'|'F'|'O', date_of_birth: addMoreForm.date_of_birth, can_bulk_create_candidates: addMoreForm.can_bulk_create_candidates, can_manage_groups: addMoreForm.can_manage_groups, can_view_reports: addMoreForm.can_view_reports });
+                            const addData: any = { name: addMoreForm.name, first_surname: addMoreForm.first_surname, second_surname: addMoreForm.second_surname, email: addMoreForm.email, curp: addMoreForm.curp, gender: addMoreForm.gender as 'M'|'F'|'O', date_of_birth: addMoreForm.date_of_birth, can_bulk_create_candidates: addMoreForm.can_bulk_create_candidates, can_manage_groups: addMoreForm.can_manage_groups, can_view_reports: addMoreForm.can_view_reports };
+                            if (currentUser?.role !== 'coordinator') { addData.coordinator_id = addMoreCoordinatorId; }
+                            const res = await addCampusResponsable(Number(campusId), addData);
                             setAdditionalResps(prev => [...prev, res.responsable]);
                             setAddMorePassword(res.responsable.temporary_password || null);
                           } catch (err: any) { setAddMoreError(err?.response?.data?.error || 'Error al crear'); }

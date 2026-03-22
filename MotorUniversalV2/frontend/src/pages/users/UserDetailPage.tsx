@@ -38,11 +38,15 @@ import {
   getUserPassword,
   deleteUser,
   getUserGroupHistory,
+  updateUser,
+  getAvailableCoordinators,
   ManagedUser,
   GroupHistoryEntry,
+  AvailableCoordinator,
   ROLE_LABELS,
   ROLE_COLORS,
 } from '../../services/userManagementService';
+import StyledSelect from '../../components/StyledSelect';
 import { useAuthStore } from '../../store/authStore';
 import CurpVerificationBadge from '../../components/users/CurpVerificationBadge';
 
@@ -72,6 +76,13 @@ export default function UserDetailPage() {
   // Estados para eliminar usuario (solo admin)
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Estados para coordinador asignado (responsables)
+  const [showCoordinatorChange, setShowCoordinatorChange] = useState(false);
+  const [availableCoordinators, setAvailableCoordinators] = useState<AvailableCoordinator[]>([]);
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState('');
+  const [loadingCoordinators, setLoadingCoordinators] = useState(false);
+  const [changingCoordinator, setChangingCoordinator] = useState(false);
 
   // Estados para historial de grupos
   const [groupHistory, setGroupHistory] = useState<GroupHistoryEntry[]>([]);
@@ -468,6 +479,130 @@ export default function UserDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Coordinador asignado (solo responsables) ── */}
+          {(user.role === 'responsable' || user.role === 'responsable_partner') && (
+            <div className="fluid-mt-8 fluid-pt-6 border-t border-gray-200">
+              <h3 className="fluid-text-sm font-semibold text-gray-500 uppercase fluid-mb-4 flex items-center fluid-gap-2">
+                <Shield className="fluid-icon-sm text-indigo-500" />
+                Coordinador Asignado
+              </h3>
+              
+              {user.coordinator_name ? (
+                <div className="flex items-center fluid-gap-3">
+                  <div className="flex items-center fluid-gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <Shield className="w-4 h-4 text-indigo-600" />
+                    <span className="font-medium text-indigo-800">{user.coordinator_name}</span>
+                  </div>
+                  {['admin', 'developer', 'gerente', 'soporte'].includes(currentUser?.role || '') && (
+                    <button
+                      onClick={async () => {
+                        setShowCoordinatorChange(true);
+                        if (availableCoordinators.length === 0) {
+                          setLoadingCoordinators(true);
+                          try {
+                            const result = await getAvailableCoordinators();
+                            setAvailableCoordinators(result.coordinators);
+                            if (user.coordinator_id) setSelectedCoordinatorId(user.coordinator_id);
+                          } catch (err) {
+                            console.error('Error loading coordinators:', err);
+                          } finally {
+                            setLoadingCoordinators(false);
+                          }
+                        } else {
+                          if (user.coordinator_id) setSelectedCoordinatorId(user.coordinator_id);
+                        }
+                      }}
+                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+                    >
+                      Cambiar
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center fluid-gap-3">
+                  <p className="text-gray-400 italic fluid-text-sm">Sin coordinador asignado</p>
+                  {['admin', 'developer', 'gerente', 'soporte'].includes(currentUser?.role || '') && (
+                    <button
+                      onClick={async () => {
+                        setShowCoordinatorChange(true);
+                        if (availableCoordinators.length === 0) {
+                          setLoadingCoordinators(true);
+                          try {
+                            const result = await getAvailableCoordinators();
+                            setAvailableCoordinators(result.coordinators);
+                          } catch (err) {
+                            console.error('Error loading coordinators:', err);
+                          } finally {
+                            setLoadingCoordinators(false);
+                          }
+                        }
+                      }}
+                      className="text-sm text-indigo-600 hover:text-indigo-700 font-medium hover:underline"
+                    >
+                      Asignar
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {showCoordinatorChange && (
+                <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar coordinador
+                  </label>
+                  {loadingCoordinators ? (
+                    <div className="flex items-center gap-2 py-2 text-gray-500">
+                      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      Cargando coordinadores...
+                    </div>
+                  ) : (
+                    <StyledSelect
+                      value={selectedCoordinatorId}
+                      onChange={(value) => setSelectedCoordinatorId(value)}
+                      options={availableCoordinators.map((c) => ({
+                        value: c.id,
+                        label: `${c.full_name} (${c.email})`,
+                      }))}
+                      placeholder="Seleccionar coordinador..."
+                      icon={Shield}
+                      colorScheme="indigo"
+                    />
+                  )}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      disabled={changingCoordinator || !selectedCoordinatorId}
+                      onClick={async () => {
+                        setChangingCoordinator(true);
+                        try {
+                          await updateUser(user.id, { coordinator_id: selectedCoordinatorId });
+                          const refreshed = await getUser(user.id);
+                          setUser(refreshed);
+                          setShowCoordinatorChange(false);
+                          setSuccess('Coordinador actualizado correctamente');
+                          setTimeout(() => setSuccess(null), 3000);
+                        } catch (err: any) {
+                          setError(err?.response?.data?.error || 'Error al cambiar coordinador');
+                          setTimeout(() => setError(null), 4000);
+                        } finally {
+                          setChangingCoordinator(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+                    >
+                      {changingCoordinator ? 'Guardando...' : 'Guardar'}
+                    </button>
+                    <button
+                      onClick={() => setShowCoordinatorChange(false)}
+                      className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-100 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Historial de Grupos (solo candidatos) ── */}
           {user.role === 'candidato' && (

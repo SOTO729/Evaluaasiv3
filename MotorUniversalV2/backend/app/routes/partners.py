@@ -29,14 +29,14 @@ bp = Blueprint('partners', __name__)
 
 
 def coordinator_required(f):
-    """Decorador que requiere rol de coordinador, auxiliar, developer, admin o responsable"""
+    """Decorador que requiere rol de coordinador, auxiliar, developer, admin, soporte o responsable"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return jsonify({'error': 'No autorizado'}), 401
-        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar', 'responsable']:
+        if user.role not in ['admin', 'developer', 'coordinator', 'auxiliar', 'soporte', 'responsable']:
             return jsonify({'error': 'Acceso denegado. Se requiere rol de coordinador'}), 403
         if user.role == 'responsable' and not user.campus_id:
             return jsonify({'error': 'No tienes un plantel asignado'}), 403
@@ -1170,6 +1170,19 @@ def create_campus_responsable(campus_id):
             can_manage_groups=can_manage_groups,
             can_view_reports=can_view_reports
         )
+        
+        # ── Asignar coordinator_id obligatorio ──
+        current_user = g.current_user
+        if current_user.role == 'coordinator':
+            new_user.coordinator_id = current_user.id
+        elif data.get('coordinator_id'):
+            coord_check = User.query.get(data['coordinator_id'])
+            if not coord_check or coord_check.role != 'coordinator' or not coord_check.is_active:
+                return jsonify({'error': 'El coordinador seleccionado no es válido o no está activo'}), 400
+            new_user.coordinator_id = data['coordinator_id']
+        else:
+            return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
+        
         new_user.set_password(password)
         new_user.encrypted_password = encrypt_password(password)
         
@@ -1446,6 +1459,16 @@ def assign_existing_responsable(campus_id):
         campus.responsable_id = responsable_id
         responsable.campus_id = campus.id  # Actualizar el campus_id del responsable
         
+        # ── Asignar coordinator_id si no tiene ──
+        current_user = g.current_user
+        if not responsable.coordinator_id:
+            if current_user.role == 'coordinator':
+                responsable.coordinator_id = current_user.id
+            elif data.get('coordinator_id'):
+                coord_check = User.query.get(data['coordinator_id'])
+                if coord_check and coord_check.role == 'coordinator' and coord_check.is_active:
+                    responsable.coordinator_id = data['coordinator_id']
+        
         # Actualizar permisos si se envían
         if 'can_bulk_create_candidates' in data:
             responsable.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
@@ -1673,6 +1696,19 @@ def add_campus_responsable(campus_id):
             can_manage_groups=bool(data.get('can_manage_groups', False)),
             can_view_reports=bool(data.get('can_view_reports', True)),
         )
+        
+        # ── Asignar coordinator_id obligatorio ──
+        current_user = g.current_user
+        if current_user.role == 'coordinator':
+            new_user.coordinator_id = current_user.id
+        elif data.get('coordinator_id'):
+            coord_check = User.query.get(data['coordinator_id'])
+            if not coord_check or coord_check.role != 'coordinator' or not coord_check.is_active:
+                return jsonify({'error': 'El coordinador seleccionado no es válido o no está activo'}), 400
+            new_user.coordinator_id = data['coordinator_id']
+        else:
+            return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
+        
         new_user.set_password(password)
 
         # Aplicar datos RENAPO si la validación fue exitosa

@@ -32,6 +32,8 @@ export interface ManagedUser {
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
   can_view_reports?: boolean;
+  coordinator_id?: string;
+  coordinator_name?: string;
   document_options?: {
     evaluation_report: boolean;
     certificate: boolean;
@@ -59,6 +61,7 @@ export interface CreateUserData {
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
   can_view_reports?: boolean;
+  coordinator_id?: string;
   // Campos adicionales para responsable_partner
   partner_id?: number;
 }
@@ -79,6 +82,7 @@ export interface UpdateUserData {
   can_bulk_create_candidates?: boolean;
   can_manage_groups?: boolean;
   can_view_reports?: boolean;
+  coordinator_id?: string;
   // Campos adicionales para responsable_partner
   partner_id?: number;
 }
@@ -350,6 +354,23 @@ export async function getAvailablePartners(): Promise<{
   total: number;
 }> {
   const response = await api.get('/user-management/available-partners');
+  return response.data;
+}
+
+// ============== COORDINADORES DISPONIBLES (para asignar a responsables) ==============
+
+export interface AvailableCoordinator {
+  id: string;
+  full_name: string;
+  email: string;
+  username: string;
+}
+
+export async function getAvailableCoordinators(): Promise<{
+  coordinators: AvailableCoordinator[];
+  total: number;
+}> {
+  const response = await api.get('/user-management/available-coordinators');
   return response.data;
 }
 

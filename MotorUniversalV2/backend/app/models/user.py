@@ -214,6 +214,13 @@ class User(db.Model):
         }
         
         if include_private:
+            # Resolver nombre del coordinador si tiene coordinator_id
+            coordinator_name = None
+            if self.coordinator_id:
+                from app.models.user import User as UserModel
+                coord = UserModel.query.get(self.coordinator_id)
+                if coord:
+                    coordinator_name = coord.full_name
             data.update({
                 'curp': self.curp,
                 'curp_verified': self.curp_verified,
@@ -227,7 +234,9 @@ class User(db.Model):
                 'date_of_birth': self.date_of_birth.isoformat() if self.date_of_birth else None,
                 'can_bulk_create_candidates': self.can_bulk_create_candidates,
                 'can_manage_groups': self.can_manage_groups,
-                'can_view_reports': self.can_view_reports
+                'can_view_reports': self.can_view_reports,
+                'coordinator_id': self.coordinator_id,
+                'coordinator_name': coordinator_name
             })
         
         if include_partners:
