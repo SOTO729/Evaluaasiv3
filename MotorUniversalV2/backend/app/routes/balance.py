@@ -2652,6 +2652,12 @@ def review_certificate_request(request_id):
                 'balance_request_id': balance_request.id,
             })
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 
 @bp.route('/my-campus-info', methods=['GET'])
 @jwt_required()
