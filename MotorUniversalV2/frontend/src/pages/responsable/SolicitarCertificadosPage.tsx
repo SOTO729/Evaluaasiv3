@@ -1,13 +1,14 @@
 /**
  * Página de Solicitar Certificados - Responsable de Plantel
  * 
- * Formulario simple para que el responsable solicite certificados:
+ * Formulario para que el responsable solicite certificados:
  * - Número de certificados necesarios
  * - Grupo (opcional)
  * - Justificación
+ * - Documentos adjuntos (PDF, XLSX, DOC, DOCX, PNG, JPG, CSV, WEBP)
  * La solicitud se envía al coordinador del plantel.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -18,13 +19,22 @@ import {
   CheckCircle2,
   Building2,
   Users,
+  Paperclip,
+  X,
+  FileText,
+  Upload,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   createCertificateRequest,
   getMyCampusInfo,
   getCampusBalanceSummary,
+  uploadAttachment,
+  validateFile,
+  formatFileSize,
+  ALLOWED_FILE_EXTENSIONS,
   MyCampusInfo,
+  Attachment,
 } from '../../services/balanceService';
 
 export default function SolicitarCertificadosPage() {
@@ -43,6 +53,9 @@ export default function SolicitarCertificadosPage() {
   const [units, setUnits] = useState(1);
   const [groupId, setGroupId] = useState<number | null>(preselectedGroupId);
   const [justification, setJustification] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadData();
@@ -69,6 +82,36 @@ export default function SolicitarCertificadosPage() {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    setUploading(true);
+    setError(null);
+    
+    try {
+      for (const file of Array.from(files)) {
+        const validation = validateFile(file);
+        if (!validation.valid) {
+          setError(`${file.name}: ${validation.error}`);
+          continue;
+        }
+        
+        const uploaded = await uploadAttachment(file);
+        setAttachments(prev => [...prev, uploaded]);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Error al subir archivo');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!campusInfo || units <= 0 || !justification.trim()) return;
@@ -81,6 +124,7 @@ export default function SolicitarCertificadosPage() {
         group_id: groupId || undefined,
         units_requested: units,
         justification: justification.trim(),
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       setSuccess(true);
     } catch (err: any) {
@@ -106,8 +150,14 @@ export default function SolicitarCertificadosPage() {
           </p>
           <div className="flex fluid-gap-3 justify-center">
             <Link
-              to="/mi-plantel"
+              to="/mis-solicitudes"
               className="fluid-px-5 fluid-py-2.5 bg-blue-600 text-white rounded-fluid-xl font-medium fluid-text-sm hover:bg-blue-700 transition-colors"
+            >
+              Ver mis solicitudes
+            </Link>
+            <Link
+              to="/mi-plantel"
+              className="fluid-px-5 fluid-py-2.5 bg-gray-100 text-gray-700 rounded-fluid-xl font-medium fluid-text-sm hover:bg-gray-200 transition-colors"
             >
               Volver a Mi Plantel
             </Link>
@@ -215,6 +265,60 @@ export default function SolicitarCertificadosPage() {
           <p className="fluid-text-xs text-gray-400 mt-1">{justification.length}/1000 caracteres</p>
         </div>
 
+        {/* Documentos adjuntos */}
+        <div>
+          <label className="block fluid-text-sm font-semibold text-gray-700 fluid-mb-1.5">
+            Documentos adjuntos <span className="fluid-text-xs text-gray-400 font-normal">(opcional)</span>
+          </label>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ALLOWED_FILE_EXTENSIONS.map(ext => `.${ext}`).join(',')}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 border-2 border-dashed border-gray-300 rounded-fluid-xl hover:border-emerald-400 hover:bg-emerald-50 transition-colors fluid-text-sm text-gray-600 w-full justify-center"
+          >
+            {uploading ? (
+              <><Loader2 className="fluid-icon-sm animate-spin" /> Subiendo...</>
+            ) : (
+              <><Upload className="fluid-icon-sm" /> Seleccionar archivos</>
+            )}
+          </button>
+          <p className="fluid-text-xs text-gray-400 mt-1">
+            Formatos: {ALLOWED_FILE_EXTENSIONS.join(', ').toUpperCase()} — Máx. 10 MB por archivo
+          </p>
+          
+          {/* Lista de archivos adjuntos */}
+          {attachments.length > 0 && (
+            <div className="fluid-mt-3 space-y-2">
+              {attachments.map((att, idx) => (
+                <div key={idx} className="flex items-center fluid-gap-2 bg-gray-50 rounded-fluid-lg fluid-px-3 fluid-py-2 border border-gray-200">
+                  <FileText className="fluid-icon-sm text-gray-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="fluid-text-xs font-medium text-gray-700 truncate">{att.name}</p>
+                    <p className="fluid-text-xs text-gray-400">{formatFileSize(att.size)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(idx)}
+                    className="p-1 hover:bg-red-100 rounded-full transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Resumen */}
         <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 border border-gray-200">
           <h3 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
@@ -229,8 +333,14 @@ export default function SolicitarCertificadosPage() {
             <div>
               <p className="text-gray-500">Disponibles ahora:</p>
               <p className="font-bold text-blue-700 fluid-text-lg">{currentCerts}</p>
-            </div>
-          </div>
+            </div>            {attachments.length > 0 && (
+              <div className="col-span-2">
+                <p className="text-gray-500">Archivos adjuntos:</p>
+                <p className="font-medium text-gray-700 flex items-center fluid-gap-1">
+                  <Paperclip className="w-3.5 h-3.5" /> {attachments.length} archivo{attachments.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            )}          </div>
         </div>
 
         {/* Botones */}

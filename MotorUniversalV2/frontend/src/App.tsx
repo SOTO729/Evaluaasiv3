@@ -210,11 +210,13 @@ const SolicitarBecaPage = lazy(() => import('./pages/coordinador/SolicitarBecaPa
 const HistorialSolicitudesPage = lazy(() => import('./pages/coordinador/HistorialSolicitudesPage'))
 const HistorialMovimientosPage = lazy(() => import('./pages/coordinador/HistorialMovimientosPage'))
 const HistorialAsignacionesPage = lazy(() => import('./pages/coordinador/HistorialAsignacionesPage'))
+const SolicitudesResponsablesPage = lazy(() => import('./pages/coordinador/SolicitudesResponsablesPage'))
 
 // VM Sessions (Máquinas Virtuales)
 const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage'))
 const MiPlantelSesionesPage = lazy(() => import('./pages/responsable/MiPlantelSesionesPage'))
 const SolicitarCertificadosPage = lazy(() => import('./pages/responsable/SolicitarCertificadosPage'))
+const MisSolicitudesPage = lazy(() => import('./pages/responsable/MisSolicitudesPage'))
 const BrandingConfigPage = lazy(() => import('./pages/responsable/BrandingConfigPage'))
 const MiSaldoResponsablePage = lazy(() => import('./pages/responsable/MiSaldoResponsablePage'))
 const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
@@ -431,6 +433,7 @@ function App() {
               <Route path="/mi-plantel/branding" element={<BrandingConfigPage />} />
               <Route path="/mi-plantel/vouchers" element={<MiSaldoResponsablePage />} />
               <Route path="/solicitar-certificados" element={<SolicitarCertificadosPage />} />
+              <Route path="/mis-solicitudes" element={<MisSolicitudesPage />} />
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />
               <Route path="/mi-plantel/grupos/nuevo" element={<MiPlantelGrupoNuevoPage />} />
               <Route path="/mi-plantel/grupos/:groupId" element={<MiPlantelGrupoDetailPage />} />
@@ -477,6 +480,7 @@ function App() {
               <Route path="/historial-solicitudes" element={<HistorialSolicitudesPage />} />
               <Route path="/historial-movimientos" element={<HistorialMovimientosPage />} />
               <Route path="/historial-asignaciones" element={<HistorialAsignacionesPage />} />
+              <Route path="/mi-saldo/solicitudes-responsables" element={<SolicitudesResponsablesPage />} />
               
               {/* Máquinas Virtuales - Calendario de sesiones */}
               <Route path="/vm-sessions" element={<VmSchedulingPage />} />

@@ -420,16 +420,25 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
 CERTIFICATE_REQUEST_STATUS = {
     'pending': 'Pendiente',
     'seen': 'Vista',
-    'resolved': 'Resuelta',
+    'approved_by_coordinator': 'Aprobada por coordinador',
+    'rejected_by_coordinator': 'Rechazada por coordinador',
+    'modified': 'Modificada por coordinador',
+    'forwarded': 'Enviada a aprobación',
+    'in_review': 'En revisión financiera',
+    'approved': 'Aprobada',
     'rejected': 'Rechazada',
+    'resolved': 'Resuelta',
 }
 
 
 class CertificateRequest(db.Model):
-    """Solicitud de certificados de un responsable de plantel a su coordinador.
+    """Solicitud de saldo de un responsable de plantel a su coordinador.
     
-    Flujo: Responsable solicita N certificados → Coordinador recibe notificación
-    → Coordinador decide si asignar saldo o solicitar más a financiero.
+    Flujo completo:
+    1. Responsable solicita N unidades + justificación + documentos adjuntos
+    2. Coordinador recibe → puede rechazar, modificar o aprobar
+    3. Si aprueba, elige precio especial (grupo) y número de unidades, y envía al flujo de aprobación
+    4. Financiero revisa → Gerente aprueba/rechaza
     """
     
     __tablename__ = 'certificate_requests'
@@ -443,15 +452,26 @@ class CertificateRequest(db.Model):
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
     group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
     
-    # Coordinador destino (via campus.partner.coordinator_id)
+    # Coordinador destino (via user.coordinator_id del responsable)
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     
-    # Datos de la solicitud
+    # Datos de la solicitud (responsable)
     units_requested = db.Column(db.Integer, nullable=False)
     justification = db.Column(db.Text, nullable=False)
+    attachments = db.Column(db.Text, nullable=True)  # JSON: [{name, url, type, size}]
+    
+    # Datos del coordinador (al revisar/modificar)
+    coordinator_units = db.Column(db.Integer, nullable=True)  # Unidades aprobadas por coordinador
+    coordinator_group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    coordinator_notes = db.Column(db.Text, nullable=True)
+    coordinator_reviewed_at = db.Column(db.DateTime, nullable=True)
+    
+    # Vinculación con solicitud de saldo (BalanceRequest) cuando el coordinador envía al flujo
+    forwarded_request_id = db.Column(db.Integer, db.ForeignKey('balance_requests.id', ondelete='SET NULL'), nullable=True)
+    forwarded_at = db.Column(db.DateTime, nullable=True)
     
     # Estado
-    status = db.Column(db.String(20), default='pending', nullable=False)
+    status = db.Column(db.String(30), default='pending', nullable=False)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -461,7 +481,9 @@ class CertificateRequest(db.Model):
     responsable = db.relationship('User', foreign_keys=[responsable_id], backref=db.backref('certificate_requests_made', lazy='dynamic'))
     coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('certificate_requests_received', lazy='dynamic'))
     campus = db.relationship('Campus', backref=db.backref('certificate_requests', lazy='dynamic'))
-    group = db.relationship('CandidateGroup', backref=db.backref('certificate_requests', lazy='dynamic'))
+    group = db.relationship('CandidateGroup', foreign_keys=[group_id], backref=db.backref('certificate_requests', lazy='dynamic'))
+    coordinator_group = db.relationship('CandidateGroup', foreign_keys=[coordinator_group_id])
+    forwarded_request = db.relationship('BalanceRequest', backref=db.backref('certificate_request_origin', uselist=False))
     
     def to_dict(self):
         data = {
@@ -472,6 +494,13 @@ class CertificateRequest(db.Model):
             'coordinator_id': self.coordinator_id,
             'units_requested': self.units_requested,
             'justification': self.justification,
+            'attachments': json.loads(self.attachments) if self.attachments else [],
+            'coordinator_units': self.coordinator_units,
+            'coordinator_group_id': self.coordinator_group_id,
+            'coordinator_notes': self.coordinator_notes,
+            'coordinator_reviewed_at': self.coordinator_reviewed_at.isoformat() if self.coordinator_reviewed_at else None,
+            'forwarded_request_id': self.forwarded_request_id,
+            'forwarded_at': self.forwarded_at.isoformat() if self.forwarded_at else None,
             'status': self.status,
             'status_label': CERTIFICATE_REQUEST_STATUS.get(self.status, self.status),
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -493,10 +522,18 @@ class CertificateRequest(db.Model):
                 'id': self.group.id,
                 'name': self.group.name,
             }
+        if self.coordinator_group:
+            data['coordinator_group'] = {
+                'id': self.coordinator_group.id,
+                'name': self.coordinator_group.name,
+            }
         if self.coordinator:
             data['coordinator'] = {
                 'id': self.coordinator.id,
                 'full_name': self.coordinator.full_name,
                 'email': self.coordinator.email,
             }
+        if self.forwarded_request:
+            data['forwarded_request_status'] = self.forwarded_request.status
+            data['forwarded_request_status_label'] = REQUEST_STATUS.get(self.forwarded_request.status, self.forwarded_request.status)
         return data

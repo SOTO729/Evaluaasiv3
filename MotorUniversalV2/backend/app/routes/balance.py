@@ -1496,7 +1496,7 @@ def toggle_financiero_delegation(financiero_id):
 # UPLOAD DE ARCHIVOS ADJUNTOS
 # =====================================================
 
-ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx'}
+ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx', 'doc', 'docx', 'csv', 'webp'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 def allowed_file(filename):
@@ -1526,7 +1526,7 @@ def upload_attachment():
         return jsonify({'error': 'Token de autenticación requerido'}), 401
     
     user = User.query.get(user_id)
-    if not user or user.role not in ['admin', 'developer', 'gerente', 'coordinator']:
+    if not user or user.role not in ['admin', 'developer', 'gerente', 'coordinator', 'responsable']:
         return jsonify({'error': 'No autorizado'}), 403
     
     import json
@@ -2264,7 +2264,7 @@ def get_my_campus_balance():
 @bp.route('/certificate-request', methods=['POST'])
 @jwt_required()
 def create_certificate_request():
-    """Responsable solicita certificados a su coordinador"""
+    """Responsable solicita saldo a su coordinador (con documentos adjuntos opcionales)"""
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
@@ -2276,7 +2276,7 @@ def create_certificate_request():
         
         # Validaciones
         if not data.get('units_requested') or int(data['units_requested']) <= 0:
-            return jsonify({'error': 'Número de certificados debe ser mayor a 0'}), 400
+            return jsonify({'error': 'Número de unidades debe ser mayor a 0'}), 400
         if not data.get('justification', '').strip():
             return jsonify({'error': 'Justificación es requerida'}), 400
         if not data.get('campus_id'):
@@ -2286,12 +2286,17 @@ def create_certificate_request():
         if not campus:
             return jsonify({'error': 'Plantel no encontrado'}), 404
         
-        # Encontrar el coordinador via campus.partner.coordinator_id
-        partner = Partner.query.get(campus.partner_id) if campus.partner_id else None
-        if not partner or not partner.coordinator_id:
-            return jsonify({'error': 'No se encontró un coordinador asignado para este plantel'}), 400
+        # Determinar coordinador: preferir user.coordinator_id (nuevo), fallback a partner.coordinator_id
+        coordinator_id = user.coordinator_id
+        if not coordinator_id:
+            partner = Partner.query.get(campus.partner_id) if campus.partner_id else None
+            if partner and partner.coordinator_id:
+                coordinator_id = partner.coordinator_id
         
-        coordinator = User.query.get(partner.coordinator_id)
+        if not coordinator_id:
+            return jsonify({'error': 'No se encontró un coordinador asignado'}), 400
+        
+        coordinator = User.query.get(coordinator_id)
         if not coordinator:
             return jsonify({'error': 'El coordinador asignado no existe'}), 400
         
@@ -2302,13 +2307,19 @@ def create_certificate_request():
             if not group or group.campus_id != campus.id:
                 return jsonify({'error': 'Grupo no encontrado o no pertenece al plantel'}), 400
         
+        # Procesar attachments
+        import json as _json
+        attachments = data.get('attachments', [])
+        attachments_json = _json.dumps(attachments) if attachments else None
+        
         cert_request = CertificateRequest(
             responsable_id=user_id,
             campus_id=campus.id,
             group_id=group_id if group_id else None,
-            coordinator_id=partner.coordinator_id,
+            coordinator_id=coordinator_id,
             units_requested=int(data['units_requested']),
             justification=data['justification'].strip(),
+            attachments=attachments_json,
             status='pending'
         )
         
@@ -2318,23 +2329,28 @@ def create_certificate_request():
         # Enviar email al coordinador
         try:
             from app.services.email_service import send_email
+            group_name = CandidateGroup.query.get(group_id).name if group_id else 'General (plantel)'
+            att_count = len(attachments)
+            att_text = f'<p><strong>Documentos adjuntos:</strong> {att_count} archivo{"s" if att_count != 1 else ""}</p>' if att_count > 0 else ''
             send_email(
                 to=coordinator.email,
-                subject=f'Solicitud de certificados - {campus.name}',
+                subject=f'Nueva solicitud de saldo - {campus.name}',
                 html=f"""
-                <h2>Nueva solicitud de certificados</h2>
-                <p><strong>{user.full_name}</strong> ha solicitado <strong>{cert_request.units_requested} certificado(s)</strong> 
+                <h2>Nueva solicitud de saldo de responsable</h2>
+                <p><strong>{user.full_name}</strong> ha solicitado <strong>{cert_request.units_requested} unidad(es)</strong> 
                 para el plantel <strong>{campus.name}</strong>.</p>
-                {f'<p><strong>Grupo:</strong> {CandidateGroup.query.get(group_id).name}</p>' if group_id else ''}
+                <p><strong>Grupo:</strong> {group_name}</p>
                 <p><strong>Justificación:</strong> {cert_request.justification}</p>
-                <p>Ingresa a la plataforma para gestionar esta solicitud.</p>
+                {att_text}
+                <p>Ingresa a la plataforma para revisar y gestionar esta solicitud.</p>
+                <p><a href="https://thankful-stone-07fbe5410.6.azurestaticapps.net/mi-saldo/solicitudes-responsables/{cert_request.id}">Ver solicitud</a></p>
                 """
             )
         except Exception:
             pass  # Email is best-effort
         
         return jsonify({
-            'message': 'Solicitud de certificados enviada correctamente',
+            'message': 'Solicitud enviada correctamente',
             'request': cert_request.to_dict()
         }), 201
         
@@ -2371,10 +2387,25 @@ def get_certificate_requests():
         if campus_id:
             query = query.filter_by(campus_id=campus_id)
         
-        requests_list = query.order_by(desc(CertificateRequest.created_at)).all()
+        status_filter = request.args.get('status')
+        if status_filter:
+            if status_filter == 'pending_coordinator':
+                query = query.filter(CertificateRequest.status.in_(['pending', 'seen', 'modified']))
+            else:
+                query = query.filter_by(status=status_filter)
+        
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        pagination = query.order_by(desc(CertificateRequest.created_at)).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
         
         return jsonify({
-            'requests': [r.to_dict() for r in requests_list]
+            'requests': [r.to_dict() for r in pagination.items],
+            'total': pagination.total,
+            'pages': pagination.pages,
+            'current_page': page,
         })
         
     except HTTPException:
@@ -2401,7 +2432,7 @@ def update_certificate_request_status(request_id):
         
         data = request.get_json()
         new_status = data.get('status')
-        if new_status not in ['seen', 'resolved', 'rejected']:
+        if new_status not in ['seen', 'resolved', 'rejected_by_coordinator']:
             return jsonify({'error': 'Estado inválido'}), 400
         
         cert_req.status = new_status
@@ -2417,6 +2448,209 @@ def update_certificate_request_status(request_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/certificate-request/<int:request_id>/review', methods=['PUT'])
+@jwt_required()
+def review_certificate_request(request_id):
+    """Coordinador revisa solicitud: aprobar, rechazar o modificar.
+    
+    Acciones:
+    - reject: Rechaza la solicitud, notifica al responsable
+    - modify: Modifica unidades/grupo/notas (queda en estado 'modified')
+    - approve: Aprueba y opcionalmente la envía al flujo de aprobación financiero/gerente
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        cert_req = CertificateRequest.query.get(request_id)
+        if not cert_req:
+            return jsonify({'error': 'Solicitud no encontrada'}), 404
+        
+        if user.role not in ['admin', 'developer'] and cert_req.coordinator_id != user_id:
+            return jsonify({'error': 'Sin permisos para revisar esta solicitud'}), 403
+        
+        if cert_req.status in ['approved', 'rejected', 'forwarded']:
+            return jsonify({'error': 'Esta solicitud ya fue procesada'}), 400
+        
+        data = request.get_json()
+        action = data.get('action')
+        
+        if action not in ['reject', 'modify', 'approve']:
+            return jsonify({'error': 'Acción inválida. Use: reject, modify o approve'}), 400
+        
+        cert_req.coordinator_reviewed_at = datetime.utcnow()
+        
+        if action == 'reject':
+            cert_req.status = 'rejected_by_coordinator'
+            cert_req.coordinator_notes = data.get('notes', '').strip() or 'Rechazada por coordinador'
+            db.session.commit()
+            
+            # Notificar al responsable
+            try:
+                responsable = User.query.get(cert_req.responsable_id)
+                campus = Campus.query.get(cert_req.campus_id)
+                if responsable and responsable.email:
+                    from app.services.email_service import send_email
+                    send_email(
+                        to=responsable.email,
+                        subject=f'Solicitud de saldo rechazada - {campus.name if campus else ""}',
+                        html=f"""
+                        <h2>Tu solicitud fue rechazada</h2>
+                        <p>Tu solicitud de <strong>{cert_req.units_requested} unidad(es)</strong> 
+                        para el plantel <strong>{campus.name if campus else ""}</strong> fue rechazada por tu coordinador.</p>
+                        <p><strong>Motivo:</strong> {cert_req.coordinator_notes}</p>
+                        <p>Puedes crear una nueva solicitud con la información corregida.</p>
+                        """
+                    )
+            except Exception:
+                pass
+            
+            return jsonify({
+                'message': 'Solicitud rechazada',
+                'request': cert_req.to_dict()
+            })
+        
+        elif action == 'modify':
+            # Coordinador modifica la solicitud
+            if data.get('units'):
+                cert_req.coordinator_units = int(data['units'])
+            if data.get('group_id') is not None:
+                cert_req.coordinator_group_id = data['group_id'] if data['group_id'] else None
+            if data.get('notes'):
+                cert_req.coordinator_notes = data['notes'].strip()
+            cert_req.status = 'modified'
+            db.session.commit()
+            
+            return jsonify({
+                'message': 'Solicitud modificada',
+                'request': cert_req.to_dict()
+            })
+        
+        else:  # approve → enviar al flujo de aprobación
+            units = int(data.get('units') or cert_req.coordinator_units or cert_req.units_requested)
+            group_id = data.get('group_id', cert_req.coordinator_group_id or cert_req.group_id)
+            notes = data.get('notes', '').strip()
+            
+            cert_req.coordinator_units = units
+            cert_req.coordinator_notes = notes or cert_req.coordinator_notes
+            if group_id is not None:
+                cert_req.coordinator_group_id = group_id if group_id else None
+            
+            # Calcular monto en pesos
+            campus = Campus.query.get(cert_req.campus_id)
+            certification_cost = float(campus.certification_cost) if campus and campus.certification_cost else 0
+            
+            if group_id:
+                group = CandidateGroup.query.get(group_id)
+                if group and group.certification_cost_override:
+                    certification_cost = float(group.certification_cost_override)
+            
+            amount = units * certification_cost
+            if amount <= 0:
+                return jsonify({'error': 'No se pudo calcular el monto. Verifique el costo de certificación del plantel/grupo.'}), 400
+            
+            # Construir justificación combinada
+            combined_justification = f"Solicitud de responsable: {cert_req.justification}"
+            if notes:
+                combined_justification += f"\n\nNotas del coordinador: {notes}"
+            
+            # Crear BalanceRequest (solicitud formal al flujo financiero/gerente)
+            import json as _json
+            balance_request = BalanceRequest(
+                coordinator_id=user_id,
+                campus_id=cert_req.campus_id,
+                group_id=group_id if group_id else None,
+                request_type='saldo',
+                amount_requested=amount,
+                justification=combined_justification,
+                attachments=cert_req.attachments,
+            )
+            db.session.add(balance_request)
+            db.session.flush()
+            
+            # Vincular
+            cert_req.forwarded_request_id = balance_request.id
+            cert_req.forwarded_at = datetime.utcnow()
+            cert_req.status = 'forwarded'
+            cert_req.coordinator_reviewed_at = datetime.utcnow()
+            
+            # Log de actividad
+            log_activity_from_request(
+                user=user,
+                action_type='balance_request',
+                entity_type='balance_request',
+                entity_id=balance_request.id,
+                details={
+                    'amount': amount,
+                    'request_type': 'saldo',
+                    'campus_id': cert_req.campus_id,
+                    'campus_name': campus.name if campus else None,
+                    'origin': 'responsable_request',
+                    'certificate_request_id': cert_req.id,
+                    'units': units,
+                }
+            )
+            
+            db.session.commit()
+            
+            # Enviar email a gerentes (flujo normal)
+            try:
+                has_delegation = User.query.filter_by(
+                    role='financiero', is_active=True, can_approve_balance=True
+                ).first() is not None
+                
+                if not has_delegation:
+                    from app.services.email_service import send_balance_approval_email
+                    gerentes = User.query.filter_by(role='gerente', is_active=True).all()
+                    coordinator_name = user.full_name or user.name or 'Coordinador'
+                    campus_name = campus.name if campus else 'N/A'
+                    group_obj = CandidateGroup.query.get(group_id) if group_id else None
+                    group_name = group_obj.name if group_obj else 'Plantel general'
+                    
+                    for gerente in gerentes:
+                        if gerente.email:
+                            send_balance_approval_email(
+                                gerente_email=gerente.email,
+                                gerente_name=gerente.full_name or gerente.name or 'Gerente',
+                                gerente_id=str(gerente.id),
+                                request_id=balance_request.id,
+                                coordinator_name=coordinator_name,
+                                campus_name=campus_name,
+                                amount=amount,
+                                request_type='saldo',
+                                justification=combined_justification,
+                                has_financiero_review=False,
+                            )
+            except Exception:
+                pass
+            
+            # Notificar al responsable que fue aprobada/enviada
+            try:
+                responsable = User.query.get(cert_req.responsable_id)
+                if responsable and responsable.email:
+                    from app.services.email_service import send_email
+                    send_email(
+                        to=responsable.email,
+                        subject=f'Solicitud aprobada por coordinador - {campus.name if campus else ""}',
+                        html=f"""
+                        <h2>Tu solicitud fue aprobada por tu coordinador</h2>
+                        <p>Tu solicitud de <strong>{cert_req.units_requested} unidad(es)</strong> 
+                        para el plantel <strong>{campus.name if campus else ""}</strong> fue aprobada 
+                        y enviada al flujo de aprobación.</p>
+                        <p><strong>Unidades aprobadas:</strong> {units}</p>
+                        <p>Te notificaremos cuando sea aprobada por el área financiera.</p>
+                        """
+                    )
+            except Exception:
+                pass
+            
+            return jsonify({
+                'message': 'Solicitud aprobada y enviada al flujo de aprobación',
+                'request': cert_req.to_dict(),
+                'balance_request_id': balance_request.id,
+            })
 
 
 @bp.route('/my-campus-info', methods=['GET'])

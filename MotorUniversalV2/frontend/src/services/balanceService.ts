@@ -580,7 +580,7 @@ export async function updateRequestAttachments(
 /**
  * Extensiones de archivo permitidas
  */
-export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx'];
+export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx', 'doc', 'docx', 'csv', 'webp'];
 
 /**
  * Tamaño máximo de archivo (10 MB)
@@ -742,6 +742,10 @@ export async function toggleFinancieroDelegation(
 // SOLICITUDES DE CERTIFICADOS (Responsable → Coordinador)
 // =====================================================
 
+export type CertificateRequestStatus = 
+  | 'pending' | 'seen' | 'approved_by_coordinator' | 'rejected_by_coordinator'
+  | 'modified' | 'forwarded' | 'in_review' | 'approved' | 'rejected' | 'resolved';
+
 export interface CertificateRequestData {
   id: number;
   responsable_id: string;
@@ -750,13 +754,24 @@ export interface CertificateRequestData {
   coordinator_id: string;
   units_requested: number;
   justification: string;
-  status: string;
+  attachments: Attachment[];
+  coordinator_units: number | null;
+  coordinator_group_id: number | null;
+  coordinator_notes: string | null;
+  coordinator_reviewed_at: string | null;
+  forwarded_request_id: number | null;
+  forwarded_at: string | null;
+  status: CertificateRequestStatus;
   status_label: string;
   created_at: string;
+  updated_at: string;
   responsable?: { id: string; full_name: string; email: string };
   campus?: { id: number; name: string };
   group?: { id: number; name: string } | null;
+  coordinator_group?: { id: number; name: string } | null;
   coordinator?: { id: string; full_name: string; email: string };
+  forwarded_request_status?: string;
+  forwarded_request_status_label?: string;
 }
 
 export interface MyCampusInfo {
@@ -769,14 +784,40 @@ export async function createCertificateRequest(data: {
   group_id?: number | null;
   units_requested: number;
   justification: string;
+  attachments?: Attachment[];
 }): Promise<{ message: string; request: CertificateRequestData }> {
   const response = await api.post('/balance/certificate-request', data);
   return response.data;
 }
 
-export async function getCertificateRequests(campusId?: number): Promise<{ requests: CertificateRequestData[] }> {
-  const params = campusId ? `?campus_id=${campusId}` : '';
-  const response = await api.get(`/balance/certificate-requests${params}`);
+export async function getCertificateRequests(params?: {
+  campus_id?: number;
+  status?: string;
+  page?: number;
+  per_page?: number;
+}): Promise<{ requests: CertificateRequestData[]; total: number; pages: number; current_page: number }> {
+  const response = await api.get('/balance/certificate-requests', { params });
+  return response.data;
+}
+
+export async function updateCertificateRequestStatus(
+  requestId: number,
+  status: 'seen' | 'resolved' | 'rejected_by_coordinator'
+): Promise<{ message: string; request: CertificateRequestData }> {
+  const response = await api.put(`/balance/certificate-request/${requestId}/status`, { status });
+  return response.data;
+}
+
+export async function reviewCertificateRequest(
+  requestId: number,
+  data: {
+    action: 'reject' | 'modify' | 'approve';
+    units?: number;
+    group_id?: number | null;
+    notes?: string;
+  }
+): Promise<{ message: string; request: CertificateRequestData; balance_request_id?: number }> {
+  const response = await api.put(`/balance/certificate-request/${requestId}/review`, data);
   return response.data;
 }
 
