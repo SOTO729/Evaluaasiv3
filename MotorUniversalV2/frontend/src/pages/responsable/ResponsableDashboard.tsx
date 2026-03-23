@@ -19,6 +19,13 @@ import {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
 
+/** Read computed CSS variable or return fallback */
+function getCSSColor(varName: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  return value || fallback
+}
+
 interface DashboardData {
   campus: { id: number; name: string; code: string }
   stats: {
@@ -71,7 +78,7 @@ const ResponsableDashboard = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-900"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-primary-900"></div>
         <p className="mt-4 text-base font-medium text-gray-700">Cargando dashboard...</p>
       </div>
     )
@@ -87,6 +94,10 @@ const ResponsableDashboard = () => {
   }
 
   const { stats, charts, campus } = data
+
+  // Read the branding primary color for charts (falls back to blue-500)
+  const primaryHex = getCSSColor('--color-primary-500', '#3b82f6')
+  const primaryDarkHex = getCSSColor('--color-primary-700', '#1d4ed8')
 
   const certTypeData = [
     { name: 'Constancia Eduit', value: charts.certification_by_type.constancia_eduit },
@@ -108,7 +119,7 @@ const ResponsableDashboard = () => {
   return (
     <div className="fluid-gap-5 flex flex-col">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-blue-700 rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500 rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
         <div className="relative z-10">
@@ -118,12 +129,12 @@ const ResponsableDashboard = () => {
                 {campusLogo ? (
                   <img src={campusLogo} alt={campus.name} className="h-12 w-auto object-contain rounded-lg bg-white/10 p-1" />
                 ) : (
-                  <Building2 className="fluid-icon-lg text-blue-200" />
+                  <Building2 className="fluid-icon-lg text-primary-200" />
                 )}
-                <span className="fluid-text-sm text-blue-200 font-medium">{campus.code}</span>
+                <span className="fluid-text-sm text-primary-200 font-medium">{campus.code}</span>
               </div>
               <h1 className="fluid-text-3xl font-bold fluid-mb-1">{campus.name}</h1>
-              <p className="text-blue-100 fluid-text-base">
+              <p className="text-primary-100 fluid-text-base">
                 Panel de gestión — Hola, <span className="font-medium text-white">{user?.name}</span>
               </p>
             </div>
@@ -150,8 +161,8 @@ const ResponsableDashboard = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 fluid-gap-4">
         {[
-          { label: 'Candidatos', value: stats.total_candidates, icon: Users, color: 'blue' },
-          { label: 'Grupos', value: stats.total_groups, icon: GraduationCap, color: 'indigo' },
+          { label: 'Candidatos', value: stats.total_candidates, icon: Users, color: 'primary' },
+          { label: 'Grupos', value: stats.total_groups, icon: GraduationCap, color: 'primary' },
           { label: 'Evaluaciones', value: stats.total_evaluations, icon: FileText, color: 'amber' },
           { label: 'Aprobadas', value: stats.passed_evaluations, icon: CheckCircle2, color: 'green' },
           { label: 'Tasa Aprob.', value: `${stats.approval_rate}%`, icon: TrendingUp, color: 'emerald' },
@@ -195,7 +206,7 @@ const ResponsableDashboard = () => {
         {/* Score Distribution */}
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5">
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center fluid-gap-2">
-            <BarChart3 className="fluid-icon text-blue-600" />
+            <BarChart3 className="fluid-icon text-primary-600" />
             Distribución de Calificaciones
           </h3>
           {charts.score_distribution.some(d => d.count > 0) ? (
@@ -205,7 +216,7 @@ const ResponsableDashboard = () => {
                 <XAxis dataKey="range" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="count" name="Candidatos" fill="#3b82f6" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="count" name="Candidatos" fill={primaryHex} radius={[4, 4, 0, 0]}>
                   {charts.score_distribution.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
@@ -223,7 +234,7 @@ const ResponsableDashboard = () => {
         {/* Evaluations Over Time */}
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 lg:col-span-2">
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center fluid-gap-2">
-            <TrendingUp className="fluid-icon text-indigo-600" />
+            <TrendingUp className="fluid-icon text-primary-600" />
             Tendencia de Evaluaciones (últimos 6 meses)
           </h3>
           {timelineData.some(d => d.approved > 0 || d.failed > 0) ? (
@@ -308,7 +319,7 @@ const ResponsableDashboard = () => {
         {/* Material Progress by Group */}
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5">
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center fluid-gap-2">
-            <BookOpen className="fluid-icon text-blue-600" />
+            <BookOpen className="fluid-icon text-primary-600" />
             Progreso de Materiales por Grupo
           </h3>
           {charts.material_progress_by_group.length > 0 ? (
@@ -320,7 +331,7 @@ const ResponsableDashboard = () => {
                 <Tooltip />
                 <Legend />
                 <Bar dataKey="completed" name="Completados" stackId="a" fill="#10b981" />
-                <Bar dataKey="in_progress" name="En progreso" stackId="a" fill="#3b82f6" />
+                <Bar dataKey="in_progress" name="En progreso" stackId="a" fill={primaryHex} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -332,7 +343,7 @@ const ResponsableDashboard = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 fluid-gap-4">
         {[
-          { label: 'Gestionar Plantel', route: '/mi-plantel', icon: Building2, color: 'blue', desc: 'Grupos, candidatos y configuración' },
+          { label: 'Gestionar Plantel', route: '/mi-plantel', icon: Building2, color: 'primary', desc: 'Grupos, candidatos y configuración' },
           { label: 'Certificados', route: '/certificates', icon: Award, color: 'amber', desc: 'Certificados por grupo' },
           { label: 'Reportes', route: '/mi-plantel/reportes', icon: FileText, color: 'green', desc: 'Evaluaciones y exportaciones', requiresReports: true },
           { label: 'Materiales', route: '/study-contents', icon: BookOpen, color: 'purple', desc: 'Material de estudio' },

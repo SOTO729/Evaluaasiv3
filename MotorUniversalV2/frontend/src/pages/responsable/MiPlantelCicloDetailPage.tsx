@@ -141,8 +141,8 @@ export default function MiPlantelCicloDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-5 fluid-mb-6">
         <div className="bg-white rounded-fluid-xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-md transition-all duration-300">
           <div className="flex items-center fluid-gap-4">
-            <div className="fluid-p-3 bg-blue-100 rounded-fluid-xl">
-              <Layers className="fluid-icon-lg text-blue-600" />
+            <div className="fluid-p-3 bg-primary-100 rounded-fluid-xl">
+              <Layers className="fluid-icon-lg text-primary-600" />
             </div>
             <div>
               <p className="fluid-text-3xl font-bold text-gray-900">{stats.totalGroups}</p>
@@ -179,8 +179,8 @@ export default function MiPlantelCicloDetailPage() {
         <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
             <h2 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
-                <Users className="fluid-icon-base text-blue-600" />
+              <div className="fluid-p-2 bg-primary-100 rounded-fluid-lg">
+                <Users className="fluid-icon-base text-primary-600" />
               </div>
               Grupos del Ciclo
               <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">
@@ -196,7 +196,7 @@ export default function MiPlantelCicloDetailPage() {
                   placeholder="Buscar grupo..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:w-64 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
+                  className="w-full sm:w-64 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-sm"
                 />
                 {searchQuery && (
                   <button
@@ -210,7 +210,7 @@ export default function MiPlantelCicloDetailPage() {
               {canManage && (
                 <button
                   onClick={() => navigate(`/mi-plantel/grupos/nuevo?cycleId=${cycle.id}`)}
-                  className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                  className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
                 >
                   <Plus className="fluid-icon-sm" />
                   Nuevo Grupo
@@ -232,7 +232,7 @@ export default function MiPlantelCicloDetailPage() {
                 <p className="fluid-text-base text-gray-500 fluid-mb-4">No hay resultados para "{searchQuery}"</p>
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="fluid-px-4 fluid-py-2 text-blue-600 hover:text-blue-700 font-medium"
+                  className="fluid-px-4 fluid-py-2 text-primary-600 hover:text-primary-700 font-medium"
                 >
                   Limpiar búsqueda
                 </button>
@@ -246,7 +246,7 @@ export default function MiPlantelCicloDetailPage() {
                 {canManage && (
                   <button
                     onClick={() => navigate(`/mi-plantel/grupos/nuevo?cycleId=${cycle.id}`)}
-                    className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl font-semibold transition-all shadow-lg"
+                    className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-xl font-semibold transition-all shadow-lg"
                   >
                     <Plus className="fluid-icon-sm" />
                     Crear Grupo
@@ -283,13 +283,13 @@ export default function MiPlantelCicloDetailPage() {
                   {filteredGroups.map((group) => (
                     <tr
                       key={group.id}
-                      className="hover:bg-blue-50 transition-colors cursor-pointer group"
+                      className="hover:bg-primary-50 transition-colors cursor-pointer group"
                       onClick={() => navigate(`/mi-plantel/grupos/${group.id}`)}
                     >
                       <td className="fluid-px-5 fluid-py-4">
                         <div className="flex items-center fluid-gap-3 min-w-0">
-                          <div className={`fluid-p-2 rounded-fluid-lg flex-shrink-0 ${group.is_active ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                            <Layers className={`fluid-icon-sm ${group.is_active ? 'text-blue-600' : 'text-gray-400'}`} />
+                          <div className={`fluid-p-2 rounded-fluid-lg flex-shrink-0 ${group.is_active ? 'bg-primary-100' : 'bg-gray-100'}`}>
+                            <Layers className={`fluid-icon-sm ${group.is_active ? 'text-primary-600' : 'text-gray-400'}`} />
                           </div>
                           <div className="min-w-0">
                             <p className={`fluid-text-sm font-semibold truncate ${group.is_active ? 'text-gray-900' : 'text-gray-500'}`}>
@@ -353,7 +353,7 @@ export default function MiPlantelCicloDetailPage() {
                         )}
                       </td>
                       <td className="fluid-px-5 fluid-py-4 text-right">
-                        <div className="flex items-center fluid-gap-2 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                        <div className="flex items-center fluid-gap-2 text-primary-600 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
                           <span className="fluid-text-xs font-medium">Ver</span>
                           <ChevronRight className="fluid-icon-sm" />
                         </div>

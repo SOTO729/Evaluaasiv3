@@ -255,7 +255,8 @@ TRANSACTION_CONCEPTS = {
     'asignacion_certificacion': 'Asignación de certificación',
     'asignacion_retoma': 'Asignación de retoma',
     'ajuste_manual': 'Ajuste manual',
-    'devolucion': 'Devolución'
+    'devolucion': 'Devolución',
+    'pago_en_linea': 'Pago en línea',
 }
 
 

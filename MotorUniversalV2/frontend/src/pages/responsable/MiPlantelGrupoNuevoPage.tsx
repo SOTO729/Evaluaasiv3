@@ -124,7 +124,7 @@ export default function MiPlantelGrupoNuevoPage() {
             <select
               value={formData.school_cycle_id}
               onChange={(e) => setFormData(prev => ({ ...prev, school_cycle_id: parseInt(e.target.value) }))}
-              className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
+              className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-sm"
             >
               <option value={0}>Seleccionar ciclo...</option>
               {cycles.map(c => (
@@ -143,7 +143,7 @@ export default function MiPlantelGrupoNuevoPage() {
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Ej: Grupo 2026-A"
-              className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
+              className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-sm"
               required
             />
           </div>
@@ -158,7 +158,7 @@ export default function MiPlantelGrupoNuevoPage() {
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Descripción breve del grupo (opcional)"
               rows={3}
-              className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm resize-none"
+              className="w-full fluid-px-4 fluid-py-2.5 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-sm resize-none"
             />
           </div>
 
@@ -175,7 +175,7 @@ export default function MiPlantelGrupoNuevoPage() {
             <button
               type="submit"
               disabled={creating || !formData.name.trim() || !formData.school_cycle_id}
-              className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 shadow-md disabled:shadow-none"
+              className="inline-flex items-center fluid-gap-2 fluid-px-6 fluid-py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 shadow-md disabled:shadow-none"
             >
               {creating ? (
                 <>

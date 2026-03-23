@@ -79,6 +79,7 @@ from app.models.support_chat import (
     SupportConversationSatisfaction,
     SupportMessage
 )
+from app.models.payment import Payment, PAYMENT_STATUS
 
 __all__ = [
     'User',
@@ -153,5 +154,8 @@ __all__ = [
     'SupportConversation',
     'SupportConversationParticipant',
     'SupportConversationSatisfaction',
-    'SupportMessage'
+    'SupportMessage',
+    # Payment models
+    'Payment',
+    'PAYMENT_STATUS',
 ]

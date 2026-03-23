@@ -95,7 +95,7 @@ export default function MisSolicitudesPage() {
       <div className="flex items-center justify-between mb-6 animate-fadeInDown">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
-            <ClipboardList className="w-8 h-8 text-emerald-600" />
+            <ClipboardList className="w-8 h-8 text-primary-600" />
             Mis Solicitudes
           </h1>
           <p className="text-gray-600 mt-1">Historial de solicitudes de saldo enviadas</p>
@@ -110,7 +110,7 @@ export default function MisSolicitudesPage() {
           </button>
           <Link
             to="/solicitar-certificados"
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-medium text-sm hover:bg-emerald-700 transition-colors shadow-lg"
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-xl font-medium text-sm hover:bg-primary-700 transition-colors shadow-lg"
           >
             <Plus className="w-4 h-4" /> Nueva solicitud
           </Link>
@@ -152,7 +152,7 @@ export default function MisSolicitudesPage() {
           <p className="text-gray-400 mb-6">No has enviado ninguna solicitud de saldo aún.</p>
           <Link
             to="/solicitar-certificados"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium text-sm hover:bg-emerald-700"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium text-sm hover:bg-primary-700"
           >
             <Plus className="w-4 h-4" /> Crear primera solicitud
           </Link>
@@ -178,14 +178,14 @@ export default function MisSolicitudesPage() {
                     
                     <div className="flex items-center gap-4 mb-2">
                       <div className="flex items-center gap-2">
-                        <Award className="w-4 h-4 text-emerald-600" />
+                        <Award className="w-4 h-4 text-primary-600" />
                         <span className="font-bold text-lg text-gray-800">{req.units_requested}</span>
                         <span className="text-sm text-gray-500">unidades solicitadas</span>
                       </div>
                       {req.coordinator_units && req.coordinator_units !== req.units_requested && (
                         <div className="flex items-center gap-1 text-sm">
                           <ChevronRight className="w-4 h-4 text-gray-400" />
-                          <span className="font-semibold text-indigo-700">{req.coordinator_units}</span>
+                          <span className="font-semibold text-primary-700">{req.coordinator_units}</span>
                           <span className="text-gray-500">aprobadas</span>
                         </div>
                       )}

@@ -505,10 +505,9 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/exams" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/exams') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Exámenes</Link>
                     <Link to="/study-contents" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/study-contents') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Materiales</Link>
                     <Link to="/certificates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/certificates') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Certificados</Link>
-                    <Link to="/mi-plantel/vouchers" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/vouchers' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mis Vouchers</Link>
-                    <Link to="/mis-solicitudes" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mis-solicitudes' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mis Solicitudes</Link>
                     {user?.can_view_reports && <Link to="/mi-plantel/reportes" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/reportes' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Reportes</Link>}
                     <Link to="/mi-plantel/branding" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/branding' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Personalizar</Link>
+                    <Link to="/mis-pagos" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mis-pagos' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mis Pagos</Link>
                   </>
                 )}
                 {user?.role === 'responsable_partner' && (
@@ -705,6 +704,18 @@ const Layout = ({ children }: LayoutProps) => {
                             {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
                           </span>
                         )}
+                      </Link>
+                    )}
+                    {user?.role === 'responsable' && (
+                      <Link
+                        to="/mi-plantel/vouchers"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                        </svg>
+                        Mis Vouchers
                       </Link>
                     )}
                     <Link
@@ -1085,18 +1096,6 @@ const Layout = ({ children }: LayoutProps) => {
                       Certificados
                     </div>
                   </Link>
-                  <Link to="/mi-plantel/vouchers" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mi-plantel/vouchers' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="flex items-center">
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      Mis Vouchers
-                    </div>
-                  </Link>
-                  <Link to="/mis-solicitudes" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mis-solicitudes' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="flex items-center">
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                      Mis Solicitudes
-                    </div>
-                  </Link>
                   {user?.can_view_reports && (
                   <Link to="/mi-plantel/reportes" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mi-plantel/reportes' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
                     <div className="flex items-center">
@@ -1109,6 +1108,12 @@ const Layout = ({ children }: LayoutProps) => {
                     <div className="flex items-center">
                       <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
                       Personalizar
+                    </div>
+                  </Link>
+                  <Link to="/mis-pagos" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mis-pagos' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><line x1="1" y1="10" x2="23" y2="10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>
+                      Mis Pagos
                     </div>
                   </Link>
                 </>

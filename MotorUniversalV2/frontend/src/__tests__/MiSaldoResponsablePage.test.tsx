@@ -37,23 +37,46 @@ const mockBalanceData = {
 };
 
 const mockGetMyCampusBalance = vi.fn();
+const mockGetCertificateRequests = vi.fn();
 
 vi.mock('../services/balanceService', () => ({
   getMyCampusBalance: (...args: unknown[]) => mockGetMyCampusBalance(...args),
-  // Re-export the type for TS
+  getCertificateRequests: (...args: unknown[]) => mockGetCertificateRequests(...args),
   MyCampusBalanceResponse: undefined,
+  CertificateRequestData: undefined,
+  CertificateRequestStatus: undefined,
+}));
+
+vi.mock('../services/paymentService', () => ({
+  createCheckout: vi.fn(),
 }));
 
 // Mock lucide-react icons as simple spans
-vi.mock('lucide-react', () => ({
-  Wallet: (props: Record<string, unknown>) => <span data-testid="icon-wallet" {...props} />,
-  TrendingUp: (props: Record<string, unknown>) => <span data-testid="icon-trending-up" {...props} />,
-  TrendingDown: (props: Record<string, unknown>) => <span data-testid="icon-trending-down" {...props} />,
-  AlertCircle: (props: Record<string, unknown>) => <span data-testid="icon-alert" {...props} />,
-  RefreshCw: (props: Record<string, unknown>) => <span data-testid="icon-refresh" {...props} />,
-  Award: (props: Record<string, unknown>) => <span data-testid="icon-award" {...props} />,
-  Gift: (props: Record<string, unknown>) => <span data-testid="icon-gift" {...props} />,
-}));
+vi.mock('lucide-react', () => {
+  const icon = (name: string) => (props: Record<string, unknown>) => <span data-testid={`icon-${name}`} {...props} />;
+  return {
+    Wallet: icon('wallet'),
+    TrendingUp: icon('trending-up'),
+    TrendingDown: icon('trending-down'),
+    AlertCircle: icon('alert'),
+    RefreshCw: icon('refresh'),
+    Award: icon('award'),
+    Gift: icon('gift'),
+    ClipboardList: icon('clipboard-list'),
+    Clock: icon('clock'),
+    CheckCircle2: icon('check-circle'),
+    XCircle: icon('x-circle'),
+    Plus: icon('plus'),
+    Paperclip: icon('paperclip'),
+    ChevronRight: icon('chevron-right'),
+    Send: icon('send'),
+    Eye: icon('eye'),
+    Loader2: icon('loader'),
+    CreditCard: icon('credit-card'),
+    ShoppingCart: icon('shopping-cart'),
+    X: icon('x'),
+  };
+});
 
 function renderPage() {
   return render(
@@ -68,6 +91,7 @@ function renderPage() {
 describe('MiSaldoResponsablePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetCertificateRequests.mockResolvedValue({ requests: [] });
   });
 
   // ── Estado de carga ──
@@ -176,12 +200,11 @@ describe('MiSaldoResponsablePage', () => {
       });
     });
 
-    it('tiene links de navegación: Solicitar Vouchers y Mi Plantel', async () => {
+    it('tiene link de Solicitar Vouchers', async () => {
       renderPage();
       await waitFor(() => {
         const solicitarLinks = screen.getAllByText('Solicitar Vouchers');
         expect(solicitarLinks.length).toBeGreaterThanOrEqual(1);
-        expect(screen.getByText('Mi Plantel')).toBeTruthy();
       });
     });
 

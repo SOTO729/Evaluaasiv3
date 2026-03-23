@@ -325,7 +325,7 @@ export default function MiPlantelSesionesPage() {
 
         {/* Mode badge + stats */}
         <div className="fluid-mt-4 fluid-pt-4 border-t border-white/10 flex flex-wrap items-center fluid-gap-4">
-          <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-full fluid-text-xs font-semibold ${isLeaderOnly ? 'bg-amber-400/20 text-amber-100 border border-amber-400/30' : 'bg-blue-400/20 text-blue-100 border border-blue-400/30'}`}>
+          <span className={`inline-flex items-center fluid-px-3 fluid-py-1 rounded-full fluid-text-xs font-semibold ${isLeaderOnly ? 'bg-amber-400/20 text-amber-100 border border-amber-400/30' : 'bg-primary-400/20 text-primary-100 border border-primary-400/30'}`}>
             {isLeaderOnly ? '🔒 Solo líder agenda' : '👤 Candidatos agendan'}
           </span>
           <div className="bg-white/10 rounded-fluid-xl fluid-py-2 fluid-px-4 text-center backdrop-blur-sm border border-white/5">
@@ -482,7 +482,7 @@ export default function MiPlantelSesionesPage() {
                             return (
                               <td key={di} className={`border-b border-r last:border-r-0 border-gray-200 h-12 relative ${todayCol ? 'bg-teal-50/30' : ''}`}>
                                 <div
-                                  className={`absolute inset-0.5 rounded-md flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isLeaderOnly ? 'bg-teal-500 hover:bg-teal-600' : 'bg-blue-400'} shadow-sm`}
+                                  className={`absolute inset-0.5 rounded-md flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isLeaderOnly ? 'bg-teal-500 hover:bg-teal-600' : 'bg-primary-400'} shadow-sm`}
                                   onClick={() => { if (isLeaderOnly) setCancelTarget(groupSes); }}
                                   title={isLeaderOnly ? `${groupSes.user_name || 'Candidato'} · Click para cancelar` : `${groupSes.user_name || 'Candidato'}`}
                                 >

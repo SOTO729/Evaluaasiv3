@@ -178,7 +178,11 @@ def list_users():
         # Usuarios son compartidos: todos los coordinadores ven todos (sin filtro coordinator_id)
         if _is_coordinator_role(current_user.role):
             query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
-        
+
+        # Soporte solo ve responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            query = query.filter(User.role.in_(['responsable', 'responsable_partner', 'candidato']))
+
         # Responsables solo ven candidatos de su plantel (por grupo O por campus_id directo)
         if current_user.role == 'responsable':
             from app.models.partner import GroupMember, CandidateGroup
@@ -380,6 +384,8 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     if _is_coordinator_role(user_role):
         query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
         # Usuarios compartidos: sin filtro por coordinator_id
+    if user_role == 'soporte':
+        query = query.filter(User.role.in_(['responsable', 'responsable_partner', 'candidato']))
     if user_role == 'responsable' and campus_id:
         from app.models.partner import GroupMember, CandidateGroup
         campus_user_ids = db.session.query(GroupMember.user_id).join(
@@ -420,7 +426,12 @@ def get_user_detail(user_id):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
             # Usuarios son compartidos: sin filtro por coordinator_id
-        
+
+        # Soporte solo puede ver responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+                return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
+
         # Responsable solo puede ver candidatos de su plantel
         if current_user.role == 'responsable':
             if user.role != 'candidato':
@@ -1014,7 +1025,12 @@ def update_user(user_id):
         if _is_coordinator_role(current_user.role):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'Solo puedes editar candidatos, responsables y responsables del partner'}), 403
-        
+
+        # Soporte solo puede editar responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+                return jsonify({'error': 'Solo puedes editar responsables, responsables del partner y candidatos'}), 403
+
         # Responsable solo puede editar candidatos de su plantel
         if current_user.role == 'responsable':
             if user.role != 'candidato':
@@ -1240,7 +1256,12 @@ def change_user_password(user_id):
         if _is_coordinator_role(current_user.role):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'Solo puedes cambiar contraseñas de candidatos y responsables'}), 403
-        
+
+        # Soporte solo puede cambiar contraseñas de responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+                return jsonify({'error': 'Solo puedes cambiar contraseñas de responsables, responsables del partner y candidatos'}), 403
+
         new_password = data.get('new_password')
         if not new_password:
             return jsonify({'error': 'La nueva contraseña es requerida'}), 400
@@ -1282,7 +1303,12 @@ def generate_temp_password(user_id):
         if _is_coordinator_role(current_user.role):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'Solo puedes generar contraseñas de candidatos y responsables'}), 403
-        
+
+        # Soporte solo puede generar contraseñas de responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+                return jsonify({'error': 'Solo puedes generar contraseñas de responsables, responsables del partner y candidatos'}), 403
+
         # Generar contraseña segura de 12 caracteres
         temp_password = generate_secure_password(12)
         
@@ -1320,7 +1346,12 @@ def get_user_password(user_id):
         if _is_coordinator_role(current_user.role):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'Solo puedes ver contraseñas de candidatos y responsables'}), 403
-        
+
+        # Soporte solo puede ver contraseñas de responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+                return jsonify({'error': 'Solo puedes ver contraseñas de responsables, responsables del partner y candidatos'}), 403
+
         # Responsable solo puede ver contraseñas de candidatos de su plantel
         if current_user.role == 'responsable':
             if user.role != 'candidato':
@@ -1373,14 +1404,19 @@ def toggle_user_active(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Solo admin/coordinator pueden activar/desactivar usuarios
+        # Solo admin/coordinator/soporte pueden activar/desactivar usuarios
         # Coordinadores solo pueden activar/desactivar candidatos, responsables y responsables_partner
         if current_user.role == 'responsable':
-            return jsonify({'error': 'Solo administradores o coordinadores pueden activar/desactivar usuarios'}), 403
-        
+            return jsonify({'error': 'Solo administradores, coordinadores o soporte pueden activar/desactivar usuarios'}), 403
+
         if _is_coordinator_role(current_user.role):
             if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
                 return jsonify({'error': 'Solo puedes activar/desactivar candidatos, responsables y responsables del partner'}), 403
+
+        # Soporte solo puede activar/desactivar responsables, responsables_partner y candidatos
+        if current_user.role == 'soporte':
+            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+                return jsonify({'error': 'Solo puedes activar/desactivar responsables, responsables del partner y candidatos'}), 403
         
         # No se puede desactivar a uno mismo
         if user_id == current_user.id:
@@ -1641,6 +1677,8 @@ def get_user_stats():
         # Query optimizada: obtener todos los conteos en una sola consulta
         if current_user.role == 'coordinator':
             allowed_roles = ['candidato', 'responsable', 'responsable_partner']
+        elif current_user.role == 'soporte':
+            allowed_roles = ['responsable', 'responsable_partner', 'candidato']
         elif current_user.role == 'responsable':
             allowed_roles = ['candidato']
         else:
@@ -1657,6 +1695,8 @@ def get_user_stats():
         if current_user.role == 'coordinator':
             stats_query = stats_query.filter(User.role.in_(allowed_roles))
             # Usuarios compartidos: sin filtro por coordinator_id
+        elif current_user.role == 'soporte':
+            stats_query = stats_query.filter(User.role.in_(allowed_roles))
         elif current_user.role == 'responsable':
             from app.models.partner import GroupMember, CandidateGroup
             campus_user_ids = db.session.query(GroupMember.user_id).join(

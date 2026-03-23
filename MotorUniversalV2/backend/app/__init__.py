@@ -190,6 +190,15 @@ def create_app(config_name='development'):
     from app.routes.user_management import bp as user_management_bp
     app.register_blueprint(user_management_bp)
     print("[INIT] ✅ user-management registrado")
+
+    # Pagos en línea (Mercado Pago)
+    try:
+        from app.routes.payments import bp as payments_bp
+        app.register_blueprint(payments_bp, url_prefix='/api/payments')
+        print("[INIT] ✅ payments registrado (Mercado Pago)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando payments_bp: {e}")
+        raise
     
     print("[INIT] ✅ Todos los blueprints registrados correctamente")
     

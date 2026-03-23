@@ -203,6 +203,7 @@ export interface MyCampusBalanceResponse {
     id: number;
     name: string;
     certification_cost: number;
+    enable_online_payments?: boolean;
   };
   totals_money: {
     current_balance: number;

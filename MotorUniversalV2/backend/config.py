@@ -66,6 +66,10 @@ class Config:
     APP_URL = os.getenv('APP_URL', 'https://app.evaluaasi.com')
     CONTACT_RECIPIENT = os.getenv('CONTACT_RECIPIENT', 'contacto@evaluaasi.com')
     
+    # Mercado Pago
+    MP_ACCESS_TOKEN = os.getenv('MP_ACCESS_TOKEN', '')
+    MP_WEBHOOK_SECRET = os.getenv('MP_WEBHOOK_SECRET', '')
+
     # Upload
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 6 * 1024 * 1024 * 1024))  # 6GB para lotes CONOCER
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))

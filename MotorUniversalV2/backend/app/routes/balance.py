@@ -2235,6 +2235,7 @@ def get_my_campus_balance():
                 'id': campus.id,
                 'name': campus.name,
                 'certification_cost': certification_cost,
+                'enable_online_payments': bool(campus.enable_online_payments),
             },
             'totals_money': {
                 'current_balance': total_balance,

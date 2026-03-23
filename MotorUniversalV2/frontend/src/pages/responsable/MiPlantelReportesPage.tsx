@@ -19,7 +19,7 @@ import { useAuthStore } from '../../store/authStore';
 
 const TRAMITE_LABELS: Record<string, { text: string; color: string }> = {
   pendiente: { text: 'Pendiente', color: 'bg-gray-100 text-gray-700' },
-  en_tramite: { text: 'En trámite', color: 'bg-blue-100 text-blue-700' },
+  en_tramite: { text: 'En trámite', color: 'bg-primary-100 text-primary-700' },
   entregado: { text: 'Entregado', color: 'bg-green-100 text-green-700' },
 };
 
@@ -394,7 +394,7 @@ const MiPlantelReportesPage = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {ev.standard ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700" title={ev.standard.name}>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700" title={ev.standard.name}>
                             {ev.standard.code}
                           </span>
                         ) : (
@@ -437,7 +437,7 @@ const MiPlantelReportesPage = () => {
                               href={ev.report_url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-1.5 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                               title="Ver reporte PDF"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

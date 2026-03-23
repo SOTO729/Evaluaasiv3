@@ -9,6 +9,7 @@ import {
   Users,
   Building2,
   CalendarClock,
+  UserCog,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Layout from '../layout/Layout'
@@ -157,6 +158,22 @@ const SupportLayout = () => {
                 }}
               </NavLink>
             ))}
+            {!isCoordinatorView && (
+              <NavLink to="/user-management">
+                {({ isActive }) => (
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                      isActive
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <UserCog className="h-4 w-4" />
+                    Gestión de Usuarios
+                  </span>
+                )}
+              </NavLink>
+            )}
           </div>
         </div>
 

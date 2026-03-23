@@ -29,7 +29,7 @@ const MiPlantelPage = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-900"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-primary-900"></div>
         <p className="mt-4 text-base font-medium text-gray-700">Cargando plantel...</p>
       </div>
     )
