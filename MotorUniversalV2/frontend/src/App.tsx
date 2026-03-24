@@ -446,7 +446,7 @@ function App() {
               <Route path="/mi-plantel/grupos/:groupId/documents/conocer" element={<GroupCertConocerPage />} />
               <Route path="/mi-plantel/grupos/:groupId/documents/insignia" element={<GroupCertInsigniaPage />} />
               <Route path="/mi-plantel/grupos/:groupId/analytics" element={<GroupAnalyticsPage />} />
-              <Route path="/mi-plantel/grupos/:groupId/edit" element={<GroupFormPage />} />
+              {/* Group config blocked for responsable — only coordinators/admins can edit via /partners/groups/:id/edit */}
               <Route path="/mi-plantel/grupos/:groupId/assign-candidates" element={<GroupAssignCandidatesPage />} />
               <Route path="/mi-plantel/grupos/:groupId/bulk-upload" element={<GroupBulkUploadPage />} />
               <Route path="/mi-plantel/grupos/:groupId/assign-exam" element={<ExamSelectConfigPage />} />

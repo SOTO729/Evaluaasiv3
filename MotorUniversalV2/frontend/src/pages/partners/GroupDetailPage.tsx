@@ -292,7 +292,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
                 )}
               </div>
             )}
-            {canManage && (
+            {canManage && !isResponsable && (
               <Link to={`${basePath}/edit`}
                 className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg">
                 <Settings className="fluid-icon-sm" /><span className="hidden sm:inline">Configurar</span>
