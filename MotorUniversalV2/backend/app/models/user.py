@@ -80,7 +80,7 @@ class User(db.Model):
     first_surname = db.Column(db.String(100), nullable=False)
     second_surname = db.Column(db.String(100))
     gender = db.Column(db.String(1))  # M, F, O
-    curp = db.Column(db.String(18))  # Unicidad manejada a nivel aplicación (no constraint por NULLs en editores)
+    curp = db.Column(db.String(18), index=True)  # Unicidad manejada a nivel aplicación (no constraint por NULLs en editores)
     curp_verified = db.Column(db.Boolean, default=False, nullable=False)  # True si CURP fue validada contra RENAPO
     curp_verified_at = db.Column(db.DateTime, nullable=True)  # Fecha/hora de última validación RENAPO
     curp_renapo_name = db.Column(db.String(100), nullable=True)  # Nombre(s) devuelto por RENAPO
@@ -89,15 +89,15 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     
     # Institucional
-    campus_id = db.Column(db.Integer)
+    campus_id = db.Column(db.Integer, index=True)
     subsystem_id = db.Column(db.Integer)
     
     # Fecha de nacimiento (requerido para responsables y candidatos)
     date_of_birth = db.Column(db.Date)
     
     # Rol y permisos
-    role = db.Column(db.String(25), nullable=False, default='candidato')  # admin, developer, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable, responsable_partner
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    role = db.Column(db.String(25), nullable=False, default='candidato', index=True)  # admin, developer, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable, responsable_partner
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
     # Multi-tenant: coordinador que creó/gestiona este usuario
@@ -146,10 +146,10 @@ class User(db.Model):
         return ' '.join(parts)
     
     def set_password(self, password):
-        """Hashear contraseña con Argon2 y guardar versión encriptada"""
+        """Hashear contraseña con Argon2"""
         self.password_hash = ph.hash(password)
-        # También guardar la versión encriptada para que admin pueda verla
-        self.encrypted_password = encrypt_password(password)
+        # SECURITY: Ya no se almacena encrypted_password (reversible)
+        # La columna se mantiene por compatibilidad pero no se actualiza
     
     def get_decrypted_password(self):
         """Obtener contraseña desencriptada (solo para admin)"""

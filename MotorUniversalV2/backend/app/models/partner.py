@@ -151,9 +151,9 @@ class Campus(db.Model):
     """Plantel de un partner"""
     
     __tablename__ = 'campuses'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False, index=True)
     
     name = db.Column(db.String(200), nullable=False)
     code = db.Column(db.String(50), unique=True, nullable=False)  # Código único auto-generado
@@ -506,7 +506,7 @@ class CandidateGroup(db.Model):
     __tablename__ = 'candidate_groups'
     
     id = db.Column(db.Integer, primary_key=True)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
     school_cycle_id = db.Column(db.Integer, db.ForeignKey('school_cycles.id', ondelete='SET NULL'), nullable=True)
     
     # Multi-tenant: coordinador dueño del grupo (aislamiento por coordinador)
@@ -655,9 +655,9 @@ class GroupMember(db.Model):
     __tablename__ = 'group_members'
     
     id = db.Column(db.Integer, primary_key=True)
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+
     # Estado en el grupo
     status = db.Column(db.String(20), default='active', nullable=False)  # active, inactive, completed)  # active, inactive, completed, withdrawn
     
@@ -711,7 +711,7 @@ class GroupExam(db.Model):
     __tablename__ = 'group_exams'
     
     id = db.Column(db.Integer, primary_key=True)
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False, index=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='CASCADE'), nullable=False)
     
     # Fecha de asignación
@@ -950,10 +950,10 @@ class GroupExamMember(db.Model):
     __tablename__ = 'group_exam_members'
     
     id = db.Column(db.Integer, primary_key=True)
-    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    
+
     # Índice único para evitar duplicados
     __table_args__ = (
         db.UniqueConstraint('group_exam_id', 'user_id', name='uq_group_exam_member'),
@@ -1124,7 +1124,7 @@ class EcmCandidateAssignment(db.Model):
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True)
     group_id = db.Column(db.Integer, nullable=True)  # Solo referencia, sin FK para que persista si se borra el grupo
     group_name = db.Column(db.String(200), nullable=True)  # Nombre del grupo al momento de la asignación
-    group_exam_id = db.Column(db.Integer, nullable=True)  # Referencia al group_exam original
+    group_exam_id = db.Column(db.Integer, nullable=True, index=True)  # Referencia al group_exam original
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
     assignment_source = db.Column(db.String(20), default='bulk', nullable=False)  # 'bulk' o 'selected'

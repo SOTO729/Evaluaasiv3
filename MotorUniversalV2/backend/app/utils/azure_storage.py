@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 # Configuración de SAS tokens
 SAS_TOKEN_DURATION_HOURS = 24  # Duración de SAS tokens en horas
 VIDEO_ACCOUNT_NAME = 'evaluaasivideos'
-VIDEO_ACCOUNT_KEY = os.getenv('AZURE_VIDEO_ACCOUNT_KEY', 'r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==')
+VIDEO_ACCOUNT_KEY = os.getenv('AZURE_VIDEO_ACCOUNT_KEY', '')
 
 
 class AzureStorageService:
@@ -27,10 +27,7 @@ class AzureStorageService:
         self.container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
         
         # Cuenta de videos (Cool tier - más económica)
-        self.video_connection_string = os.getenv(
-            'AZURE_VIDEO_STORAGE_CONNECTION_STRING',
-            'DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=evaluaasivideos;AccountKey=r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw=='
-        )
+        self.video_connection_string = os.getenv('AZURE_VIDEO_STORAGE_CONNECTION_STRING', '')
         self.video_container_name = os.getenv('AZURE_VIDEO_CONTAINER', 'videos')
         
         # Inicializar cliente general

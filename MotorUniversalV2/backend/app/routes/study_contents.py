@@ -2561,6 +2561,7 @@ def _disabled_setup_progress_tables():
 
 # Endpoint de debug para verificar las tablas
 @study_contents_bp.route('/debug-all-progress-records', methods=['GET'])
+@jwt_required()
 def debug_all_progress_records():
     """Debug para ver todos los registros de progreso"""
     try:
@@ -2589,10 +2590,11 @@ def debug_all_progress_records():
         raise
     except Exception as e:
         import traceback
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/debug-progress-tables', methods=['GET'])
+@jwt_required()
 def debug_progress_tables():
     """Debug para verificar el estado de las tablas de progreso"""
     try:
@@ -2647,7 +2649,7 @@ def debug_progress_tables():
         raise
     except Exception as e:
         import traceback
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/migrate-progress-tables', methods=['GET'])
@@ -2689,7 +2691,7 @@ def migrate_progress_tables():
     except Exception as e:
         db.session.rollback()
         import traceback
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/progress/<content_type>/<content_id>', methods=['POST'])
@@ -2942,7 +2944,7 @@ def get_topic_progress(topic_id):
         import traceback
         print(f"Error in get_topic_progress: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/progress/material/<int:material_id>', methods=['GET'])
@@ -3097,6 +3099,7 @@ def get_material_progress(material_id):
 
 # Endpoint de debug para probar progreso sin autenticación
 @study_contents_bp.route('/debug-material-progress/<int:material_id>', methods=['GET'])
+@jwt_required()
 def debug_material_progress(material_id):
     """Debug endpoint para ver errores de progreso"""
     try:
@@ -3156,13 +3159,12 @@ def debug_material_progress(material_id):
         
     except Exception as e:
         import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/debug-list-materials', methods=['GET'])
+@jwt_required()
 def debug_list_materials():
     """Debug endpoint para listar materiales sin autenticación"""
     try:
@@ -3175,13 +3177,12 @@ def debug_list_materials():
         raise
     except Exception as e:
         import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/debug-test-progress-query', methods=['GET'])
+@jwt_required()
 def debug_test_progress_query():
     """Debug endpoint para probar consultas de progreso"""
     try:
@@ -3214,13 +3215,12 @@ def debug_test_progress_query():
         raise
     except Exception as e:
         import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/debug-full-progress/<int:material_id>', methods=['GET'])
+@jwt_required()
 def debug_full_progress(material_id):
     """Debug endpoint que replica get_material_progress sin autenticación"""
     try:
@@ -3337,13 +3337,12 @@ def debug_full_progress(material_id):
         
     except Exception as e:
         import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @study_contents_bp.route('/debug-interactive-progress', methods=['GET'])
+@jwt_required()
 def debug_interactive_progress():
     """Debug endpoint para ver todos los registros de progreso de ejercicios interactivos"""
     try:
@@ -3358,7 +3357,5 @@ def debug_interactive_progress():
         raise
     except Exception as e:
         import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500

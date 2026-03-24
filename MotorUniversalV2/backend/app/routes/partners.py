@@ -14,6 +14,7 @@ from werkzeug.exceptions import HTTPException
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from app import db
+from app.utils.cache_utils import cached_with_user
 from app.models import (
     Partner, PartnerStatePresence, Campus, CandidateGroup, GroupMember,
     User, MEXICAN_STATES, SchoolCycle
@@ -12570,6 +12571,7 @@ def bulk_assign_exams_by_ecm(group_id):
 @bp.route('/groups/<int:group_id>/certificates/stats', methods=['GET'])
 @jwt_required()
 @coordinator_required
+@cached_with_user(timeout=60)
 def get_group_certificates_stats(group_id):
     """
     Obtener estadísticas de certificados del grupo con paginación server-side.
@@ -13609,6 +13611,7 @@ def clear_group_certificates_urls(group_id):
 @bp.route('/groups/<int:group_id>/analytics', methods=['GET'])
 @jwt_required()
 @coordinator_required
+@cached_with_user(timeout=60)
 def get_group_analytics(group_id):
     """
     Dashboard analítico completo del grupo.

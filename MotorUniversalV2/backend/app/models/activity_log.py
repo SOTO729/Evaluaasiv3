@@ -95,12 +95,12 @@ class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Usuario que realizó la acción
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     user_role = db.Column(db.String(20), nullable=True)  # Guardamos rol al momento de la acción
     user_email = db.Column(db.String(255), nullable=True)  # Para referencia incluso si se borra usuario
     
     # Tipo de acción
-    action_type = db.Column(db.String(50), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False, index=True)
     
     # Entidad afectada
     entity_type = db.Column(db.String(50), nullable=True)

@@ -1199,37 +1199,77 @@ def issue_pending_group_badges(group_id):
         Result.status == 1
     ).all()
 
+    if not approved_results:
+        return jsonify({'message': 'No hay resultados aprobados pendientes', 'issued': 0}), 200
+
+    # Pre-cargar datos para evitar N+1 queries
+    result_ids = [r.id for r in approved_results]
+    user_ids = list(set(str(r.user_id) for r in approved_results))
+    exam_ids = list(set(r.exam_id for r in approved_results if r.exam_id))
+
+    # Cargar todas las insignias existentes de una vez
+    existing_badges_by_result = set(
+        row[0] for row in db.session.query(IssuedBadge.result_id)
+        .filter(IssuedBadge.result_id.in_(result_ids)).all()
+    )
+
+    # Cargar todos los usuarios de una vez
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()}
+
+    # Cargar todos los exámenes de una vez
+    exams_map = {e.id: e for e in Exam.query.filter(Exam.id.in_(exam_ids)).all()} if exam_ids else {}
+
+    # Cargar todas las plantillas activas de una vez
+    active_templates = BadgeTemplate.query.filter_by(is_active=True).filter(
+        db.or_(
+            BadgeTemplate.exam_id.in_(exam_ids),
+            BadgeTemplate.competency_standard_id.isnot(None)
+        )
+    ).all() if exam_ids else []
+    templates_by_exam = {}
+    templates_by_standard = {}
+    for t in active_templates:
+        if t.exam_id:
+            templates_by_exam[t.exam_id] = t
+        if t.competency_standard_id:
+            templates_by_standard[t.competency_standard_id] = t
+
+    # Cargar insignias activas existentes por (user_id, template_id)
+    template_ids = [t.id for t in active_templates]
+    existing_user_badges = set()
+    if template_ids:
+        for row in db.session.query(IssuedBadge.user_id, IssuedBadge.badge_template_id).filter(
+            IssuedBadge.user_id.in_(user_ids),
+            IssuedBadge.badge_template_id.in_(template_ids),
+            IssuedBadge.status == 'active'
+        ).all():
+            existing_user_badges.add((row[0], row[1]))
+
     issued_count = 0
     errors_list = []
 
     for result in approved_results:
         # Verificar si ya tiene insignia para este resultado
-        existing = IssuedBadge.query.filter_by(result_id=result.id).first()
-        if existing:
+        if result.id in existing_badges_by_result:
             continue
 
-        user = User.query.get(str(result.user_id))
+        user = users_map.get(str(result.user_id))
         if not user:
             continue
 
-        exam = Exam.query.get(result.exam_id) if result.exam_id else None
+        exam = exams_map.get(result.exam_id) if result.exam_id else None
         if not exam:
             continue
 
-        # Buscar plantilla activa
-        template = BadgeTemplate.query.filter_by(exam_id=exam.id, is_active=True).first()
+        # Buscar plantilla activa (desde cache precargado)
+        template = templates_by_exam.get(exam.id)
         if not template and hasattr(exam, 'competency_standard_id') and exam.competency_standard_id:
-            template = BadgeTemplate.query.filter_by(
-                competency_standard_id=exam.competency_standard_id, is_active=True
-            ).first()
+            template = templates_by_standard.get(exam.competency_standard_id)
         if not template:
             continue
 
         # Verificar que no haya duplicado user+template
-        existing2 = IssuedBadge.query.filter_by(
-            user_id=user.id, badge_template_id=template.id, status='active'
-        ).first()
-        if existing2:
+        if (user.id, template.id) in existing_user_badges:
             continue
 
         try:

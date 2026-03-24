@@ -127,10 +127,10 @@ class BalanceRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Solicitante
-    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+
     # Destino (plantel obligatorio, grupo opcional para precio especial)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id'), nullable=False)  # Para qué plantel
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id'), nullable=False, index=True)  # Para qué plantel
     group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)  # Grupo con precio especial (opcional)
     
     # Tipo de solicitud
@@ -142,9 +142,9 @@ class BalanceRequest(db.Model):
     
     # Justificación del coordinador
     justification = db.Column(db.Text, nullable=False)
-    
+
     # Estado
-    status = db.Column(db.String(30), default='pending', nullable=False)
+    status = db.Column(db.String(30), default='pending', nullable=False, index=True)
     
     # Revisión del financiero (primer nivel)
     financiero_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)

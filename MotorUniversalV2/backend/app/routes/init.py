@@ -16,7 +16,9 @@ import os
 
 init_bp = Blueprint('init', __name__)
 
-INIT_TOKEN = os.getenv('INIT_TOKEN', 'temp-init-token-12345')
+INIT_TOKEN = os.getenv('INIT_TOKEN')
+if not INIT_TOKEN:
+    INIT_TOKEN = None  # Deshabilitado si no se configura
 
 
 @init_bp.route('/init-database', methods=['POST'])
