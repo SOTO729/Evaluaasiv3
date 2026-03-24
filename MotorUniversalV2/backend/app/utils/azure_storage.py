@@ -366,7 +366,7 @@ class AzureStorageService:
                 account_name='evaluaasivideos',
                 container_name=self.video_container_name,
                 blob_name=unique_filename,
-                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                account_key=VIDEO_ACCOUNT_KEY,
                 permission=BlobSasPermissions(read=True),
                 expiry=datetime.now(timezone.utc) + timedelta(days=3650)  # 10 años
             )
@@ -557,7 +557,7 @@ class AzureStorageService:
                 account_name='evaluaasivideos',
                 container_name=self.video_container_name,
                 blob_name=blob_name,
-                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                account_key=VIDEO_ACCOUNT_KEY,
                 permission=BlobSasPermissions(write=True, create=True),
                 expiry=datetime.now(timezone.utc) + timedelta(hours=1)
             )
@@ -567,7 +567,7 @@ class AzureStorageService:
                 account_name='evaluaasivideos',
                 container_name=self.video_container_name,
                 blob_name=blob_name,
-                account_key='r9C4hrfzCHwUjbFY2reYY3spGvPjTKV0oBPDmB2sDqhkBI4whu1NkmwAlEp+bRzwmeBxUK0dP3WD+AStEbwldw==',
+                account_key=VIDEO_ACCOUNT_KEY,
                 permission=BlobSasPermissions(read=True),
                 expiry=datetime.now(timezone.utc) + timedelta(days=3650)
             )
