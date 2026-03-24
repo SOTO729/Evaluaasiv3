@@ -173,8 +173,8 @@ class TestCurpRecoveryDev:
     """Verificar el sistema de recuperación de CURPs en DEV"""
 
     def test_dev_no_orphaned_users_stuck(self, dev_headers):
-        """DEV: no debe haber usuarios stuck en curp_pending por más de 10 min.
-        Si el recovery funciona, cualquier usuario huérfano debió ser procesado."""
+        """DEV: no debe haber usuarios stuck en curp_pending/curp_verifying.
+        Si el recovery funciona, cualquier usuario huérfano debió ser procesado al arrancar."""
         r = requests.get(
             f"{DEV_API}/user-management/users?role=candidato&is_active=false&per_page=100",
             headers=dev_headers,
@@ -194,8 +194,8 @@ class TestCurpRecoveryDev:
                     and not u.get("is_active")):
                 orphan_suspects.append(u.get("username", "?"))
 
-        # Si hay, reportar como warning (no necesariamente un error,
-        # pueden ser usuarios recién creados en los últimos 10 min)
+        # Si hay, reportar como warning (pueden ser usuarios cuya
+        # verificación fue interrumpida y serán procesados por recovery)
         if orphan_suspects:
             print(f"\n  [INFO] DEV tiene {len(orphan_suspects)} candidatos inactivos con CURP no verificada")
             print(f"  Usernames: {orphan_suspects[:10]}")
@@ -242,7 +242,7 @@ class TestCurpRecoveryProd:
     """Verificar el sistema de recuperación de CURPs en PROD"""
 
     def test_prod_no_orphaned_users_stuck(self, prod_headers):
-        """PROD: no debe haber usuarios stuck en curp_pending por más de 10 min."""
+        """PROD: no debe haber usuarios stuck en curp_pending/curp_verifying."""
         r = requests.get(
             f"{PROD_API}/user-management/users?role=candidato&is_active=false&per_page=100",
             headers=prod_headers,

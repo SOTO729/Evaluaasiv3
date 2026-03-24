@@ -3034,6 +3034,16 @@ def bulk_upload_candidates():
                         curp = u_data['curp']
                         username = u_data['username']
                         try:
+                            # Mark as 'curp_verifying' so recovery knows this user
+                            # is being actively processed by a live thread
+                            _mark_user = User.query.filter_by(username=username).first()
+                            if _mark_user:
+                                for _gm in GroupMember.query.filter_by(
+                                    user_id=_mark_user.id, status='curp_pending'
+                                ).all():
+                                    _gm.status = 'curp_verifying'
+                                db.session.commit()
+
                             # Primero validar formato antes de consultar RENAPO
                             fmt_valid, fmt_error = validate_curp_format(curp)
                             if not fmt_valid:
@@ -3063,7 +3073,9 @@ def bulk_upload_candidates():
                                 # Activar usuario y sus membresías pendientes
                                 user.is_active = True
                                 pending_gms = GroupMember.query.filter_by(
-                                    user_id=user.id, status='curp_pending'
+                                    user_id=user.id,
+                                ).filter(
+                                    GroupMember.status.in_(['curp_pending', 'curp_verifying'])
                                 ).all()
                                 for gm in pending_gms:
                                     gm.status = 'active'
@@ -3786,7 +3798,9 @@ def _recover_orphaned_curp_users(app_obj, users_data):
                         # 3a. Valid — activate user
                         apply_renapo_to_user(user, result)
                         user.is_active = True
-                        for gm in GroupMember.query.filter_by(user_id=user.id, status='curp_pending').all():
+                        for gm in GroupMember.query.filter_by(user_id=user.id).filter(
+                            GroupMember.status.in_(['curp_pending', 'curp_verifying'])
+                        ).all():
                             gm.status = 'active'
                         rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
                         if rec:

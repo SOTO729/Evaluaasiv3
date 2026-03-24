@@ -3357,7 +3357,7 @@ def get_group_members(group_id):
             query = query.filter(GroupMember.status == status_filter)
         else:
             # Excluir miembros con CURP pendiente de verificación por defecto
-            query = query.filter(GroupMember.status != 'curp_pending')
+            query = query.filter(GroupMember.status.notin_(['curp_pending', 'curp_verifying']))
 
         # ── Búsqueda textual ──
         if search:
@@ -17796,7 +17796,7 @@ def _build_reports_query(user, params):
             GroupMember.status, GroupMember.joined_at
         ).filter(
             GroupMember.group_id.in_(group_ids),
-            GroupMember.status.notin_(['curp_pending']),
+            GroupMember.status.notin_(['curp_pending', 'curp_verifying']),
         ).all()
 
         user_ids = list({m[0] for m in member_rows})

@@ -1529,19 +1529,21 @@ _curp_recovery_launched = False
 
 
 def check_and_recover_orphaned_curp_users():
-    """Detect users stuck in curp_pending state after a container restart
-    and re-launch CURP verification in a background thread."""
+    """Detect users stuck in curp_pending/curp_verifying state after a
+    container restart and re-launch CURP verification in a background thread.
+
+    Status-based approach (no time threshold):
+      - curp_pending   = user was created but verification never started
+      - curp_verifying = verification was in progress when container died
+    Both statuses indicate the user needs (re-)verification."""
     global _curp_recovery_launched
     if _curp_recovery_launched:
         return
     _curp_recovery_launched = True
 
     try:
-        from datetime import datetime, timedelta
         from app.models.user import User
         from app.models.partner import GroupMember
-
-        threshold = datetime.utcnow() - timedelta(minutes=10)
 
         orphaned_users = (
             db.session.query(User)
@@ -1553,8 +1555,7 @@ def check_and_recover_orphaned_curp_users():
                 User.curp != '',
                 User.curp.notin_(['XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8']),
                 User.role == 'candidato',
-                User.created_at < threshold,
-                GroupMember.status == 'curp_pending',
+                GroupMember.status.in_(['curp_pending', 'curp_verifying']),
             )
             .distinct()
             .all()
