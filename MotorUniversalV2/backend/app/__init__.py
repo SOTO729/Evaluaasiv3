@@ -212,6 +212,13 @@ def create_app(config_name='development'):
             check_and_create_bulk_upload_tables()
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando tablas: {e}")
+
+        # Recover orphaned curp_pending users from interrupted verifications
+        try:
+            from app.auto_migrate import check_and_recover_orphaned_curp_users
+            check_and_recover_orphaned_curp_users()
+        except Exception as e:
+            print(f"[CURP-RECOVERY] Error checking for orphaned users: {e}")
     
     # Manejadores de errores
     register_error_handlers(app)

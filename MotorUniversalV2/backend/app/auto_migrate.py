@@ -1519,3 +1519,70 @@ def _create_support_table_raw(table_name: str):
             print(f"  ✓ Tabla {table_name} ya existe (detectado en SQL raw)")
         else:
             print(f"  ❌ SQL raw falló para {table_name}: {raw_err}")
+
+
+# ---------------------------------------------------------------------------
+# CURP recovery: detect and re-verify orphaned curp_pending users
+# ---------------------------------------------------------------------------
+
+_curp_recovery_launched = False
+
+
+def check_and_recover_orphaned_curp_users():
+    """Detect users stuck in curp_pending state after a container restart
+    and re-launch CURP verification in a background thread."""
+    global _curp_recovery_launched
+    if _curp_recovery_launched:
+        return
+    _curp_recovery_launched = True
+
+    try:
+        from datetime import datetime, timedelta
+        from app.models.user import User
+        from app.models.partner import GroupMember
+
+        threshold = datetime.utcnow() - timedelta(minutes=10)
+
+        orphaned_users = (
+            db.session.query(User)
+            .join(GroupMember, GroupMember.user_id == User.id)
+            .filter(
+                User.is_active == False,
+                User.curp_verified == False,
+                User.curp.isnot(None),
+                User.curp != '',
+                User.curp.notin_(['XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8']),
+                User.role == 'candidato',
+                User.created_at < threshold,
+                GroupMember.status == 'curp_pending',
+            )
+            .distinct()
+            .all()
+        )
+
+        if not orphaned_users:
+            print("[CURP-RECOVERY] No orphaned curp_pending users found")
+            return
+
+        print(f"[CURP-RECOVERY] Found {len(orphaned_users)} orphaned users, launching recovery thread...")
+
+        users_data = [
+            {'username': u.username, 'curp': u.curp, 'user_id': u.id}
+            for u in orphaned_users
+        ]
+
+        import threading
+        from flask import current_app
+        app_obj = current_app._get_current_object()
+
+        from app.routes.user_management import _recover_orphaned_curp_users
+        thread = threading.Thread(
+            target=_recover_orphaned_curp_users,
+            args=(app_obj, users_data),
+            daemon=True,
+        )
+        thread.start()
+        print(f"[CURP-RECOVERY] Recovery thread started for {len(users_data)} users")
+
+    except Exception as e:
+        print(f"[CURP-RECOVERY] Error during orphan detection: {e}")

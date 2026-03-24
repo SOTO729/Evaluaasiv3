@@ -3721,3 +3721,131 @@ def export_bulk_upload_batch(batch_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# ---------------------------------------------------------------------------
+# Recovery: re-verify CURPs for users orphaned by a container restart
+# ---------------------------------------------------------------------------
+
+def _recover_orphaned_curp_users(app_obj, users_data):
+    """Re-verify CURPs for users stuck in curp_pending after a restart.
+
+    Mirrors the logic of _verify_curps_background but without batch_id
+    dependency. Looks up BulkUploadMember by user_id instead.
+    """
+    import time
+    import logging
+    _logger = logging.getLogger(__name__)
+    _logger.info(
+        '[CURP-RECOVERY] Starting RENAPO verification for %d orphaned users',
+        len(users_data),
+    )
+
+    verified = 0
+    invalid = 0
+    format_invalid = 0
+    errors = 0
+
+    try:
+        with app_obj.app_context():
+            from app.services.renapo_service import (
+                validate_curp_renapo, apply_renapo_to_user, validate_curp_format,
+            )
+            from app.models.partner import BulkUploadMember, GroupMember
+
+            for i, u_data in enumerate(users_data):
+                curp = u_data['curp']
+                username = u_data['username']
+                try:
+                    # 1. Validate format
+                    fmt_valid, fmt_error = validate_curp_format(curp)
+                    if not fmt_valid:
+                        _logger.warning(
+                            '[CURP-RECOVERY] (%d/%d) Invalid format %s (%s): %s',
+                            i + 1, len(users_data), curp, username, fmt_error,
+                        )
+                        user = User.query.filter_by(username=username).first()
+                        if user:
+                            GroupMember.query.filter_by(user_id=user.id).delete()
+                            rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
+                            if rec:
+                                rec.status = 'curp_invalid'
+                                rec.error_message = f'Formato CURP invalido (recovery): {fmt_error}'
+                            db.session.delete(user)
+                            db.session.commit()
+                        format_invalid += 1
+                        continue
+
+                    # 2. Call RENAPO
+                    result = validate_curp_renapo(curp)
+                    user = User.query.filter_by(username=username).first()
+                    if not user:
+                        _logger.warning('[CURP-RECOVERY] User %s no longer exists, skipping', username)
+                        continue
+
+                    if result.valid:
+                        # 3a. Valid — activate user
+                        apply_renapo_to_user(user, result)
+                        user.is_active = True
+                        for gm in GroupMember.query.filter_by(user_id=user.id, status='curp_pending').all():
+                            gm.status = 'active'
+                        rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
+                        if rec:
+                            rec.status = 'curp_verified'
+                        db.session.commit()
+                        verified += 1
+                        _logger.info(
+                            '[CURP-RECOVERY] (%d/%d) CURP %s valid — user %s activated',
+                            i + 1, len(users_data), curp, username,
+                        )
+                    else:
+                        # 3b. Invalid — delete user
+                        _logger.warning(
+                            '[CURP-RECOVERY] (%d/%d) CURP %s rejected: %s — deleting %s',
+                            i + 1, len(users_data), curp, result.error, username,
+                        )
+                        GroupMember.query.filter_by(user_id=user.id).delete()
+                        rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
+                        if rec:
+                            rec.status = 'curp_invalid'
+                            rec.error_message = f'CURP rechazada por RENAPO (recovery): {(result.error or "no encontrada")[:300]}'
+                        db.session.delete(user)
+                        db.session.commit()
+                        invalid += 1
+
+                except Exception as e:
+                    _logger.error('[CURP-RECOVERY] Error verifying %s (%s): %s', curp, username, e)
+                    errors += 1
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    # Attempt to delete user that could not be verified
+                    try:
+                        user = User.query.filter_by(username=username).first()
+                        if user:
+                            GroupMember.query.filter_by(user_id=user.id).delete()
+                            rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
+                            if rec:
+                                rec.status = 'curp_invalid'
+                                rec.error_message = f'Error verificando CURP (recovery): {str(e)[:300]}'
+                            db.session.delete(user)
+                            db.session.commit()
+                    except Exception as del_err:
+                        _logger.error('[CURP-RECOVERY] Failed to delete %s after error: %s', username, del_err)
+                        try:
+                            db.session.rollback()
+                        except Exception:
+                            pass
+
+                # Rate limit between RENAPO calls
+                if i < len(users_data) - 1:
+                    time.sleep(2)
+
+    except Exception as outer:
+        _logger.error('[CURP-RECOVERY] Fatal error in recovery thread: %s', outer)
+
+    _logger.info(
+        '[CURP-RECOVERY] Finished: %d verified, %d format invalid, %d rejected, %d errors',
+        verified, format_invalid, invalid, errors,
+    )
+
