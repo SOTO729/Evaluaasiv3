@@ -65,8 +65,22 @@ _CURP_REGEX = re.compile(
 )
 
 
+def _calcular_digito_verificador(curp17: str) -> Optional[int]:
+    """Calcula el dígito verificador de una CURP (primeros 17 caracteres).
+    Basado en: https://consultas.curp.gob.mx/CurpSP/"""
+    diccionario = "0123456789ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"
+    lng_suma = 0.0
+    for i in range(17):
+        try:
+            lng_suma += diccionario.index(curp17[i]) * (18 - i)
+        except (ValueError, IndexError):
+            return None
+    lng_digito = 10 - (int(lng_suma) % 10)
+    return 0 if lng_digito == 10 else lng_digito
+
+
 def validate_curp_format(curp: str) -> tuple:
-    """Valida el formato de una CURP mexicana.
+    """Valida el formato de una CURP mexicana (incluye dígito verificador).
     Retorna (is_valid: bool, error: str | None)"""
     if not curp:
         return False, 'CURP vacía'
@@ -83,6 +97,13 @@ def validate_curp_format(curp: str) -> tuple:
     state = curp[11:13]
     if state not in _VALID_STATES:
         return False, f'Entidad federativa inválida: {state}'
+
+    # Validar dígito verificador (checksum)
+    digito_esperado = _calcular_digito_verificador(curp[:17])
+    if digito_esperado is not None:
+        digito_real = int(curp[17])
+        if digito_esperado != digito_real:
+            return False, f'Dígito verificador incorrecto: esperado {digito_esperado}, obtuvo {digito_real}'
 
     return True, None
 

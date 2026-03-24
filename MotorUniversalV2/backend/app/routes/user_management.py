@@ -3013,29 +3013,32 @@ def bulk_upload_candidates():
             app = current_app._get_current_object()
 
             def _verify_curps_background(app_obj, users_data, batch_id):
-                """Verifica CURPs contra RENAPO en segundo plano.
-                Si la CURP es inválida → elimina al usuario y registra en el log.
-                Si es válida → aplica datos RENAPO al usuario."""
+                """Verifica CURPs contra RENAPO en segundo plano con 6 rondas iterativas.
+                RENAPO es inconsistente — una CURP válida puede fallar en una consulta
+                pero ser encontrada en otra. Por eso se hacen múltiples rondas:
+                  Ronda 1: verifica todos
+                  Ronda 2-6: re-verifica solo los rechazados de la ronda anterior
+                Solo después de 6 rondas fallidas se elimina al usuario."""
                 import time
                 import logging
+                MAX_ROUNDS = 6
                 _logger = logging.getLogger(__name__)
-                _logger.info(f'[BULK-CURP] Iniciando verificación RENAPO para {len(users_data)} usuarios (batch {batch_id})')
+                _logger.info(f'[BULK-CURP] Iniciando verificación RENAPO para {len(users_data)} usuarios (batch {batch_id}) — hasta {MAX_ROUNDS} rondas')
 
                 with app_obj.app_context():
                     from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user, is_generic_foreign_curp, validate_curp_format
                     from app.models.partner import BulkUploadMember, GroupMember
 
                     verified = 0
-                    invalid = 0
                     format_invalid = 0
-                    errors = 0
+                    pending_users = list(users_data)  # users still to verify
 
-                    for i, u_data in enumerate(users_data):
+                    # ── Pre-pass: mark all as curp_verifying & filter format-invalid ──
+                    valid_format_users = []
+                    for u_data in pending_users:
                         curp = u_data['curp']
                         username = u_data['username']
                         try:
-                            # Mark as 'curp_verifying' so recovery knows this user
-                            # is being actively processed by a live thread
                             _mark_user = User.query.filter_by(username=username).first()
                             if _mark_user:
                                 for _gm in GroupMember.query.filter_by(
@@ -3044,10 +3047,9 @@ def bulk_upload_candidates():
                                     _gm.status = 'curp_verifying'
                                 db.session.commit()
 
-                            # Primero validar formato antes de consultar RENAPO
                             fmt_valid, fmt_error = validate_curp_format(curp)
                             if not fmt_valid:
-                                _logger.warning(f'[BULK-CURP] ({i+1}/{len(users_data)}) Formato inválido para CURP {curp} de {username}: {fmt_error}')
+                                _logger.warning(f'[BULK-CURP] Formato inválido para CURP {curp} de {username}: {fmt_error}')
                                 user = User.query.filter_by(username=username).first()
                                 if user:
                                     GroupMember.query.filter_by(user_id=user.id).delete()
@@ -3061,87 +3063,106 @@ def bulk_upload_candidates():
                                     db.session.commit()
                                 format_invalid += 1
                                 continue
-                            
-                            result = validate_curp_renapo(curp)
+                            valid_format_users.append(u_data)
+                        except Exception as e:
+                            _logger.error(f'[BULK-CURP] Error pre-procesando {username}: {e}')
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+                            valid_format_users.append(u_data)  # give it a chance in RENAPO rounds
+
+                    # ── Iterative RENAPO rounds ──
+                    pending_users = valid_format_users
+                    for round_num in range(1, MAX_ROUNDS + 1):
+                        if not pending_users:
+                            break
+
+                        _logger.info(f'[BULK-CURP] Ronda {round_num}/{MAX_ROUNDS}: verificando {len(pending_users)} CURPs (batch {batch_id})')
+                        still_failing = []
+
+                        for i, u_data in enumerate(pending_users):
+                            curp = u_data['curp']
+                            username = u_data['username']
+                            try:
+                                result = validate_curp_renapo(curp)
+                                user = User.query.filter_by(username=username).first()
+                                if not user:
+                                    _logger.warning(f'[BULK-CURP] Usuario {username} ya no existe, saltando')
+                                    continue
+
+                                if result.valid:
+                                    apply_renapo_to_user(user, result)
+                                    user.is_active = True
+                                    pending_gms = GroupMember.query.filter_by(
+                                        user_id=user.id,
+                                    ).filter(
+                                        GroupMember.status.in_(['curp_pending', 'curp_verifying'])
+                                    ).all()
+                                    for gm in pending_gms:
+                                        gm.status = 'active'
+                                    member_rec = BulkUploadMember.query.filter_by(
+                                        batch_id=batch_id, username=username
+                                    ).first()
+                                    if member_rec:
+                                        member_rec.status = 'curp_verified'
+                                    db.session.commit()
+                                    verified += 1
+                                    _logger.info(f'[BULK-CURP] R{round_num} ({i+1}/{len(pending_users)}) CURP {curp} válida - {username}')
+                                else:
+                                    # Not valid yet — queue for next round
+                                    u_data['_last_error'] = result.error or 'no encontrada'
+                                    still_failing.append(u_data)
+                                    _logger.info(f'[BULK-CURP] R{round_num} ({i+1}/{len(pending_users)}) CURP {curp} rechazada - {username} (reintentará)')
+
+                            except Exception as e:
+                                _logger.error(f'[BULK-CURP] R{round_num} Error verificando {curp} de {username}: {e}')
+                                try:
+                                    db.session.rollback()
+                                except Exception:
+                                    pass
+                                u_data['_last_error'] = str(e)[:300]
+                                still_failing.append(u_data)
+
+                            # Rate limiting
+                            if i < len(pending_users) - 1:
+                                time.sleep(2)
+
+                        pending_users = still_failing
+                        if pending_users and round_num < MAX_ROUNDS:
+                            _logger.info(f'[BULK-CURP] Ronda {round_num} terminada: {len(pending_users)} CURPs pendientes, esperando 5s antes de ronda {round_num+1}')
+                            time.sleep(5)  # pause between rounds
+
+                    # ── After all rounds: delete users that failed every round ──
+                    final_rejected = 0
+                    for u_data in pending_users:
+                        username = u_data['username']
+                        curp = u_data['curp']
+                        last_error = u_data.get('_last_error', 'no encontrada')
+                        try:
                             user = User.query.filter_by(username=username).first()
-                            if not user:
-                                _logger.warning(f'[BULK-CURP] Usuario {username} ya no existe, saltando')
-                                continue
-
-                            if result.valid:
-                                apply_renapo_to_user(user, result)
-                                # Activar usuario y sus membresías pendientes
-                                user.is_active = True
-                                pending_gms = GroupMember.query.filter_by(
-                                    user_id=user.id,
-                                ).filter(
-                                    GroupMember.status.in_(['curp_pending', 'curp_verifying'])
-                                ).all()
-                                for gm in pending_gms:
-                                    gm.status = 'active'
-                                # Actualizar registro en historial de carga masiva
-                                member_rec = BulkUploadMember.query.filter_by(
-                                    batch_id=batch_id, username=username
-                                ).first()
-                                if member_rec:
-                                    member_rec.status = 'curp_verified'
-                                db.session.commit()
-                                verified += 1
-                                _logger.info(f'[BULK-CURP] ({i+1}/{len(users_data)}) CURP {curp} válida - usuario {username}')
-                            else:
-                                # CURP inválida → eliminar usuario
-                                _logger.warning(f'[BULK-CURP] ({i+1}/{len(users_data)}) CURP {curp} inválida: {result.error} - eliminando usuario {username}')
-
-                                # Eliminar membresías de grupo
+                            if user:
+                                _logger.warning(f'[BULK-CURP] CURP {curp} inválida tras {MAX_ROUNDS} rondas — eliminando {username}')
                                 GroupMember.query.filter_by(user_id=user.id).delete()
-
-                                # Actualizar registro en historial de carga masiva
                                 member_rec = BulkUploadMember.query.filter_by(
                                     batch_id=batch_id, username=username
                                 ).first()
                                 if member_rec:
                                     member_rec.status = 'curp_invalid'
-                                    member_rec.error_message = f'CURP rechazada por RENAPO: {(result.error or "no encontrada")[:300]}'
-
-                                # Eliminar usuario
+                                    member_rec.error_message = f'CURP rechazada tras {MAX_ROUNDS} rondas RENAPO: {last_error[:300]}'
                                 db.session.delete(user)
                                 db.session.commit()
-                                invalid += 1
-
-                        except Exception as e:
-                            _logger.error(f'[BULK-CURP] Error verificando CURP {curp} de {username}: {e}')
-                            errors += 1
+                                final_rejected += 1
+                        except Exception as del_err:
+                            _logger.error(f'[BULK-CURP] Error eliminando {username} tras rondas: {del_err}')
                             try:
                                 db.session.rollback()
                             except Exception:
                                 pass
-                            # Eliminar usuario que no pudo ser verificado
-                            try:
-                                user = User.query.filter_by(username=username).first()
-                                if user:
-                                    GroupMember.query.filter_by(user_id=user.id).delete()
-                                    member_rec = BulkUploadMember.query.filter_by(
-                                        batch_id=batch_id, username=username
-                                    ).first()
-                                    if member_rec:
-                                        member_rec.status = 'curp_invalid'
-                                        member_rec.error_message = f'Error al verificar CURP: {str(e)[:300]}'
-                                    db.session.delete(user)
-                                    db.session.commit()
-                                    _logger.info(f'[BULK-CURP] Usuario {username} eliminado tras error de verificación')
-                            except Exception as del_err:
-                                _logger.error(f'[BULK-CURP] Error eliminando usuario {username} tras fallo: {del_err}')
-                                try:
-                                    db.session.rollback()
-                                except Exception:
-                                    pass
+                            final_rejected += 1
 
-                        # Rate limiting entre consultas RENAPO
-                        if i < len(users_data) - 1:
-                            time.sleep(2)
-
-                    total_rejected = invalid + format_invalid + errors
-                    _logger.info(f'[BULK-CURP] Finalizado batch {batch_id}: {verified} verificados, {format_invalid} formato inválido, {invalid} rechazados RENAPO, {errors} errores eliminados')
+                    total_rejected = final_rejected + format_invalid
+                    _logger.info(f'[BULK-CURP] Finalizado batch {batch_id}: {verified} verificados, {format_invalid} formato inválido, {final_rejected} rechazados tras {MAX_ROUNDS} rondas')
 
                     # Actualizar contadores del batch
                     try:
@@ -3739,23 +3760,23 @@ def export_bulk_upload_batch(batch_id):
 # ---------------------------------------------------------------------------
 
 def _recover_orphaned_curp_users(app_obj, users_data):
-    """Re-verify CURPs for users stuck in curp_pending after a restart.
+    """Re-verify CURPs for users stuck in curp_pending/curp_verifying after a restart.
 
-    Mirrors the logic of _verify_curps_background but without batch_id
-    dependency. Looks up BulkUploadMember by user_id instead.
+    Uses 6-round iterative verification (same as bulk upload) because RENAPO
+    is inconsistent — a valid CURP can fail on one query but succeed on another.
+    Only after 6 failed rounds is the user deleted.
     """
     import time
     import logging
+    MAX_ROUNDS = 6
     _logger = logging.getLogger(__name__)
     _logger.info(
-        '[CURP-RECOVERY] Starting RENAPO verification for %d orphaned users',
-        len(users_data),
+        '[CURP-RECOVERY] Starting RENAPO verification for %d orphaned users — up to %d rounds',
+        len(users_data), MAX_ROUNDS,
     )
 
     verified = 0
-    invalid = 0
     format_invalid = 0
-    errors = 0
 
     try:
         with app_obj.app_context():
@@ -3764,17 +3785,15 @@ def _recover_orphaned_curp_users(app_obj, users_data):
             )
             from app.models.partner import BulkUploadMember, GroupMember
 
-            for i, u_data in enumerate(users_data):
+            # ── Pre-pass: filter format-invalid ──
+            valid_format_users = []
+            for u_data in users_data:
                 curp = u_data['curp']
                 username = u_data['username']
                 try:
-                    # 1. Validate format
                     fmt_valid, fmt_error = validate_curp_format(curp)
                     if not fmt_valid:
-                        _logger.warning(
-                            '[CURP-RECOVERY] (%d/%d) Invalid format %s (%s): %s',
-                            i + 1, len(users_data), curp, username, fmt_error,
-                        )
+                        _logger.warning('[CURP-RECOVERY] Invalid format %s (%s): %s', curp, username, fmt_error)
                         user = User.query.filter_by(username=username).first()
                         if user:
                             GroupMember.query.filter_by(user_id=user.id).delete()
@@ -3786,80 +3805,100 @@ def _recover_orphaned_curp_users(app_obj, users_data):
                             db.session.commit()
                         format_invalid += 1
                         continue
-
-                    # 2. Call RENAPO
-                    result = validate_curp_renapo(curp)
-                    user = User.query.filter_by(username=username).first()
-                    if not user:
-                        _logger.warning('[CURP-RECOVERY] User %s no longer exists, skipping', username)
-                        continue
-
-                    if result.valid:
-                        # 3a. Valid — activate user
-                        apply_renapo_to_user(user, result)
-                        user.is_active = True
-                        for gm in GroupMember.query.filter_by(user_id=user.id).filter(
-                            GroupMember.status.in_(['curp_pending', 'curp_verifying'])
-                        ).all():
-                            gm.status = 'active'
-                        rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
-                        if rec:
-                            rec.status = 'curp_verified'
-                        db.session.commit()
-                        verified += 1
-                        _logger.info(
-                            '[CURP-RECOVERY] (%d/%d) CURP %s valid — user %s activated',
-                            i + 1, len(users_data), curp, username,
-                        )
-                    else:
-                        # 3b. Invalid — delete user
-                        _logger.warning(
-                            '[CURP-RECOVERY] (%d/%d) CURP %s rejected: %s — deleting %s',
-                            i + 1, len(users_data), curp, result.error, username,
-                        )
-                        GroupMember.query.filter_by(user_id=user.id).delete()
-                        rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
-                        if rec:
-                            rec.status = 'curp_invalid'
-                            rec.error_message = f'CURP rechazada por RENAPO (recovery): {(result.error or "no encontrada")[:300]}'
-                        db.session.delete(user)
-                        db.session.commit()
-                        invalid += 1
-
+                    valid_format_users.append(u_data)
                 except Exception as e:
-                    _logger.error('[CURP-RECOVERY] Error verifying %s (%s): %s', curp, username, e)
-                    errors += 1
+                    _logger.error('[CURP-RECOVERY] Error pre-processing %s: %s', username, e)
                     try:
                         db.session.rollback()
                     except Exception:
                         pass
-                    # Attempt to delete user that could not be verified
+                    valid_format_users.append(u_data)
+
+            # ── Iterative RENAPO rounds ──
+            pending_users = valid_format_users
+            for round_num in range(1, MAX_ROUNDS + 1):
+                if not pending_users:
+                    break
+
+                _logger.info('[CURP-RECOVERY] Round %d/%d: verifying %d CURPs', round_num, MAX_ROUNDS, len(pending_users))
+                still_failing = []
+
+                for i, u_data in enumerate(pending_users):
+                    curp = u_data['curp']
+                    username = u_data['username']
                     try:
+                        result = validate_curp_renapo(curp)
                         user = User.query.filter_by(username=username).first()
-                        if user:
-                            GroupMember.query.filter_by(user_id=user.id).delete()
+                        if not user:
+                            _logger.warning('[CURP-RECOVERY] User %s no longer exists, skipping', username)
+                            continue
+
+                        if result.valid:
+                            apply_renapo_to_user(user, result)
+                            user.is_active = True
+                            for gm in GroupMember.query.filter_by(user_id=user.id).filter(
+                                GroupMember.status.in_(['curp_pending', 'curp_verifying'])
+                            ).all():
+                                gm.status = 'active'
                             rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
                             if rec:
-                                rec.status = 'curp_invalid'
-                                rec.error_message = f'Error verificando CURP (recovery): {str(e)[:300]}'
-                            db.session.delete(user)
+                                rec.status = 'curp_verified'
                             db.session.commit()
-                    except Exception as del_err:
-                        _logger.error('[CURP-RECOVERY] Failed to delete %s after error: %s', username, del_err)
+                            verified += 1
+                            _logger.info('[CURP-RECOVERY] R%d (%d/%d) CURP %s valid — %s activated', round_num, i + 1, len(pending_users), curp, username)
+                        else:
+                            u_data['_last_error'] = result.error or 'no encontrada'
+                            still_failing.append(u_data)
+                            _logger.info('[CURP-RECOVERY] R%d (%d/%d) CURP %s rejected — %s (will retry)', round_num, i + 1, len(pending_users), curp, username)
+
+                    except Exception as e:
+                        _logger.error('[CURP-RECOVERY] R%d Error verifying %s (%s): %s', round_num, curp, username, e)
                         try:
                             db.session.rollback()
                         except Exception:
                             pass
+                        u_data['_last_error'] = str(e)[:300]
+                        still_failing.append(u_data)
 
-                # Rate limit between RENAPO calls
-                if i < len(users_data) - 1:
-                    time.sleep(2)
+                    if i < len(pending_users) - 1:
+                        time.sleep(2)
+
+                pending_users = still_failing
+                if pending_users and round_num < MAX_ROUNDS:
+                    _logger.info('[CURP-RECOVERY] Round %d done: %d CURPs pending, waiting 5s before round %d', round_num, len(pending_users), round_num + 1)
+                    time.sleep(5)
+
+            # ── After all rounds: delete users that failed every round ──
+            final_rejected = 0
+            for u_data in pending_users:
+                username = u_data['username']
+                curp = u_data['curp']
+                last_error = u_data.get('_last_error', 'no encontrada')
+                try:
+                    user = User.query.filter_by(username=username).first()
+                    if user:
+                        _logger.warning('[CURP-RECOVERY] CURP %s invalid after %d rounds — deleting %s', curp, MAX_ROUNDS, username)
+                        GroupMember.query.filter_by(user_id=user.id).delete()
+                        rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
+                        if rec:
+                            rec.status = 'curp_invalid'
+                            rec.error_message = f'CURP rechazada tras {MAX_ROUNDS} rondas RENAPO (recovery): {last_error[:300]}'
+                        db.session.delete(user)
+                        db.session.commit()
+                        final_rejected += 1
+                except Exception as del_err:
+                    _logger.error('[CURP-RECOVERY] Failed to delete %s after rounds: %s', username, del_err)
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    final_rejected += 1
 
     except Exception as outer:
         _logger.error('[CURP-RECOVERY] Fatal error in recovery thread: %s', outer)
 
     _logger.info(
-        '[CURP-RECOVERY] Finished: %d verified, %d format invalid, %d rejected, %d errors',
-        verified, format_invalid, invalid, errors,
+        '[CURP-RECOVERY] Finished: %d verified, %d format invalid, %d rejected after %d rounds',
+        verified, format_invalid, final_rejected if 'final_rejected' in dir() else 0, MAX_ROUNDS,
     )
 
