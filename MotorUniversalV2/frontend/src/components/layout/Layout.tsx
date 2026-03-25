@@ -546,16 +546,16 @@ const Layout = ({ children }: LayoutProps) => {
                     Financiero
                   </Link>
                 )}
-                {['gerente', 'admin', 'developer', 'coordinator'].includes(user?.role ?? '') && (
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
                   <Link
-                    to={user?.role === 'coordinator' ? '/gerente/aprobaciones' : '/gerente'}
+                    to="/gerente"
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
                       location.pathname.startsWith('/gerente')
                         ? 'text-primary-600 font-semibold bg-primary-50'
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
                   >
-                    {user?.role === 'coordinator' ? 'Aprobar Saldo' : 'Gerencia'}
+                    Gerencia
                   </Link>
                 )}
                 {(user?.role === 'admin' || user?.role === 'developer') && (
@@ -1169,9 +1169,9 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['gerente', 'admin', 'developer', 'coordinator'].includes(user?.role ?? '') && (
+              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
                 <Link
-                  to={user?.role === 'coordinator' ? '/gerente/aprobaciones' : '/gerente'}
+                  to="/gerente"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
                     location.pathname.startsWith('/gerente')
                       ? 'bg-primary-50 text-primary-600 font-medium'
@@ -1182,7 +1182,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    {user?.role === 'coordinator' ? 'Aprobar Saldo' : 'Gerencia'}
+                    Gerencia
                   </div>
                 </Link>
               )}
