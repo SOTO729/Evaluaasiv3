@@ -300,7 +300,8 @@ def create_request():
                 coordinator_name = user.full_name or user.name or 'Coordinador'
                 campus_name = campus.name if campus else 'N/A'
                 group_name = group.name if group else 'Plantel general'
-                
+                cc_emails = [user.email] if user.email else []
+
                 for gerente in gerentes:
                     if gerente.email:
                         send_balance_approval_email(
@@ -314,6 +315,7 @@ def create_request():
                             request_type=balance_request.request_type or 'recarga',
                             justification=data['justification'],
                             has_financiero_review=False,
+                            cc_emails=cc_emails,
                         )
         except HTTPException:
             raise
@@ -431,6 +433,7 @@ def create_request_batch():
                 from app.services.email_service import send_balance_batch_approval_email
                 gerentes = User.query.filter_by(role='gerente', is_active=True).all()
                 coordinator_name = user.full_name or user.name or 'Coordinador'
+                cc_emails = [user.email] if user.email else []
 
                 for gerente in gerentes:
                     if gerente.email:
@@ -442,6 +445,7 @@ def create_request_batch():
                             justification=justification,
                             items=email_items,
                             has_financiero_review=False,
+                            cc_emails=cc_emails,
                         )
         except HTTPException:
             raise
@@ -761,7 +765,8 @@ def review_request(request_id):
                     gerentes = User.query.filter_by(role='gerente', is_active=True).all()
                     coordinator = User.query.get(balance_request.coordinator_id)
                     campus = Campus.query.get(coordinator.campus_id) if coordinator and coordinator.campus_id else None
-                    
+                    cc_emails = [coordinator.email] if coordinator and coordinator.email else []
+
                     for gerente in gerentes:
                         if gerente.email:
                             send_balance_approval_email(
@@ -777,6 +782,7 @@ def review_request(request_id):
                                 financiero_notes=balance_request.financiero_notes,
                                 recommended_amount=balance_request.financiero_recommended_amount,
                                 has_financiero_review=True,
+                                cc_emails=cc_emails,
                             )
             except HTTPException:
                 raise
@@ -2609,7 +2615,8 @@ def review_certificate_request(request_id):
                     campus_name = campus.name if campus else 'N/A'
                     group_obj = CandidateGroup.query.get(group_id) if group_id else None
                     group_name = group_obj.name if group_obj else 'Plantel general'
-                    
+                    cc_emails = [user.email] if user.email else []
+
                     for gerente in gerentes:
                         if gerente.email:
                             send_balance_approval_email(
@@ -2623,6 +2630,7 @@ def review_certificate_request(request_id):
                                 request_type='saldo',
                                 justification=combined_justification,
                                 has_financiero_review=False,
+                                cc_emails=cc_emails,
                             )
             except Exception:
                 pass

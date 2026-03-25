@@ -560,6 +560,7 @@ def send_balance_approval_email(
     financiero_notes: str = None,
     recommended_amount: float = None,
     has_financiero_review: bool = False,
+    cc_emails: list = None,
 ) -> bool:
     """
     Enviar email al gerente con botones para aprobar o rechazar solicitud de saldo.
@@ -651,6 +652,7 @@ def send_balance_approval_email(
         subject=f"[Evaluaasi] Nueva solicitud de {type_label} — {coordinator_name} — ${amount:,.2f}",
         html=_base_template("Solicitud de aprobación", body),
         plain_text=f"Solicitud de {type_label} por ${amount:,.2f} de {coordinator_name}. Aprueba: {approve_url} | Rechaza: {reject_url}",
+        cc=cc_emails,
     )
 
 
@@ -666,6 +668,7 @@ def send_balance_batch_approval_email(
     justification: str,
     items: list,  # [{request_id, campus_name, group_name, amount, request_type}]
     has_financiero_review: bool = False,
+    cc_emails: list = None,
 ) -> bool:
     """
     Enviar un solo email al gerente con TODAS las solicitudes en una tabla desglosada.
@@ -781,6 +784,7 @@ def send_balance_batch_approval_email(
         subject=f"[Evaluaasi] {count_label} de {coordinator_name} — ${total_amount:,.2f} pendiente{'s' if len(items) > 1 else ''} de aprobación",
         html=_base_template("Solicitudes de aprobación", body),
         plain_text=f"{count_label} por ${total_amount:,.2f} de {coordinator_name}. Aprobar: {approve_url} | Rechazar: {reject_url}",
+        cc=cc_emails,
     )
 
 
