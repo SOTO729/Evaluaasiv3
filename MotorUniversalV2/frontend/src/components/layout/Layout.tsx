@@ -546,16 +546,16 @@ const Layout = ({ children }: LayoutProps) => {
                     Financiero
                   </Link>
                 )}
-                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
-                  <Link 
-                    to="/gerente" 
+                {['gerente', 'admin', 'developer', 'coordinator'].includes(user?.role ?? '') && (
+                  <Link
+                    to={user?.role === 'coordinator' ? '/gerente/aprobaciones' : '/gerente'}
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                      location.pathname.startsWith('/gerente') 
-                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                      location.pathname.startsWith('/gerente')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
                   >
-                    Gerencia
+                    {user?.role === 'coordinator' ? 'Aprobar Saldo' : 'Gerencia'}
                   </Link>
                 )}
                 {(user?.role === 'admin' || user?.role === 'developer') && (
@@ -1169,12 +1169,12 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
-                <Link 
-                  to="/gerente"
+              {['gerente', 'admin', 'developer', 'coordinator'].includes(user?.role ?? '') && (
+                <Link
+                  to={user?.role === 'coordinator' ? '/gerente/aprobaciones' : '/gerente'}
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname.startsWith('/gerente') 
-                      ? 'bg-primary-50 text-primary-600 font-medium' 
+                    location.pathname.startsWith('/gerente')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -1182,7 +1182,7 @@ const Layout = ({ children }: LayoutProps) => {
                     <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    Gerencia
+                    {user?.role === 'coordinator' ? 'Aprobar Saldo' : 'Gerencia'}
                   </div>
                 </Link>
               )}

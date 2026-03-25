@@ -60,18 +60,18 @@ def financiero_required(f):
 
 
 def approver_required(f):
-    """Requiere rol de gerente o admin para aprobar, o financiero delegado"""
+    """Requiere rol de gerente, admin o coordinator para aprobar, o financiero delegado"""
     @wraps(f)
     def decorated(*args, **kwargs):
         if request.method == 'OPTIONS':
             return f(*args, **kwargs)
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        # Gerente, admin y developer siempre pueden aprobar
+        # Gerente, admin, developer y coordinator siempre pueden aprobar
         # Financiero solo si tiene delegación activa (can_approve_balance)
         is_delegated_financiero = user and user.role == 'financiero' and user.can_approve_balance
-        if not user or (user.role not in ['admin', 'developer', 'gerente'] and not is_delegated_financiero):
-            return jsonify({'error': 'Se requiere rol de gerente o administrador, o estar delegado como aprobador'}), 403
+        if not user or (user.role not in ['admin', 'developer', 'gerente', 'coordinator'] and not is_delegated_financiero):
+            return jsonify({'error': 'Se requiere rol de gerente, coordinador o administrador, o estar delegado como aprobador'}), 403
         return f(*args, **kwargs)
     return decorated
 
