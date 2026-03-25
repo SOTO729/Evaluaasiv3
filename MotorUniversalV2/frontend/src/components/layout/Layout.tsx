@@ -550,12 +550,60 @@ const Layout = ({ children }: LayoutProps) => {
                   <Link
                     to="/gerente"
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
-                      location.pathname.startsWith('/gerente')
+                      location.pathname === '/gerente'
                         ? 'text-primary-600 font-semibold bg-primary-50'
                         : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
                     }`}
                   >
                     Gerencia
+                  </Link>
+                )}
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/gerente/aprobaciones"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/gerente/aprobaciones')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Aprobaciones
+                  </Link>
+                )}
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/gerente/finanzas"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/gerente/finanzas')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Finanzas
+                  </Link>
+                )}
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/gerente/certificados"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/gerente/certificados')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Certificados
+                  </Link>
+                )}
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/gerente/monitoreo"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/gerente/monitoreo')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Monitoreo
                   </Link>
                 )}
                 {(user?.role === 'admin' || user?.role === 'developer') && (
@@ -1173,7 +1221,7 @@ const Layout = ({ children }: LayoutProps) => {
                 <Link
                   to="/gerente"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
-                    location.pathname.startsWith('/gerente')
+                    location.pathname === '/gerente'
                       ? 'bg-primary-50 text-primary-600 font-medium'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
@@ -1183,6 +1231,75 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                     Gerencia
+                  </div>
+                </Link>
+              )}
+              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                <Link
+                  to="/gerente/aprobaciones"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/gerente/aprobaciones')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Aprobaciones
+                  </div>
+                </Link>
+              )}
+              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                <Link
+                  to="/gerente/finanzas"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/gerente/finanzas')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Finanzas
+                  </div>
+                </Link>
+              )}
+              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                <Link
+                  to="/gerente/certificados"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/gerente/certificados')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                    Certificados
+                  </div>
+                </Link>
+              )}
+              {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                <Link
+                  to="/gerente/monitoreo"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/gerente/monitoreo')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    Monitoreo
                   </div>
                 </Link>
               )}
