@@ -35,6 +35,10 @@ const LoginPage = () => {
       const normalizedRole = String(response.user?.role || '').trim().toLowerCase()
       if (normalizedRole === 'soporte' || normalizedRole === 'support') {
         navigate('/support/dashboard')
+      } else if (normalizedRole === 'gerente') {
+        navigate('/gerente')
+      } else if (normalizedRole === 'financiero') {
+        navigate('/gerente/aprobaciones')
       } else {
         navigate('/dashboard')
       }

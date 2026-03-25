@@ -109,12 +109,18 @@ const RestrictedForGerenteFinOnly = ({ children }: { children: React.ReactNode }
   return <>{children}</>
 }
 
-// Redirección de dashboard por rol para evitar caer en vista de candidato cuando es soporte.
+// Redirección de dashboard por rol para evitar caer en vista de candidato.
 const DashboardRouter = () => {
   const { user } = useAuthStore()
   const normalizedRole = String(user?.role || '').trim().toLowerCase()
   if (normalizedRole === 'soporte' || normalizedRole === 'support') {
     return <Navigate to="/support/dashboard" replace />
+  }
+  if (normalizedRole === 'gerente') {
+    return <Navigate to="/gerente" replace />
+  }
+  if (normalizedRole === 'financiero') {
+    return <Navigate to="/gerente/aprobaciones" replace />
   }
   return <HomePage />
 }
