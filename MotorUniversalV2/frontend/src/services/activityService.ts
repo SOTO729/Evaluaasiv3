@@ -222,6 +222,54 @@ export async function getSecurityReport(params?: {
 }
 
 // =====================================================
+// ACTIVIDAD DE EDITORES
+// =====================================================
+
+export interface EditorInfo {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  exams_created: number;
+  exams_updated: number;
+  materials_created: number;
+  questions_created: number;
+  total_contributions: number;
+}
+
+export interface EditorTimelineItem {
+  type: 'exam' | 'material';
+  action: 'created' | 'updated';
+  id: number;
+  name: string;
+  is_published: boolean;
+  editor_name: string;
+  editor_email: string;
+  date: string | null;
+}
+
+export interface EditorActivity {
+  editors: EditorInfo[];
+  timeline: EditorTimelineItem[];
+  summary: {
+    total_editors: number;
+    total_exams: number;
+    published_exams: number;
+    total_materials: number;
+    published_materials: number;
+    total_questions: number;
+  };
+}
+
+export async function getEditorActivity(params?: {
+  days?: number;
+  limit?: number;
+}): Promise<EditorActivity> {
+  const response = await api.get('/activity/editor-activity', { params });
+  return response.data;
+}
+
+// =====================================================
 // HELPERS
 // =====================================================
 

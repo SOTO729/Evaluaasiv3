@@ -382,10 +382,135 @@ def get_security_report():
             'off_hours_actions': off_hours_actions,
             'recent_failed_logins': [log.to_dict() for log in recent_failed]
         })
-        
+
     except HTTPException:
-        
+
         raise
-        
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
+# ACTIVIDAD DE EDITORES
+# =====================================================
+
+@bp.route('/editor-activity', methods=['GET'])
+@jwt_required()
+@gerente_required
+def get_editor_activity():
+    """Actividad reciente de editores: exámenes y materiales creados/actualizados."""
+    try:
+        from app.models.exam import Exam
+        from app.models.study_content import StudyMaterial
+        from app.models.question import Question
+
+        days = request.args.get('days', 30, type=int)
+        limit_items = request.args.get('limit', 20, type=int)
+        since = datetime.utcnow() - timedelta(days=days)
+
+        editor_roles = ('editor', 'editor_invitado')
+
+        # --- Editors list with stats ---
+        editors = User.query.filter(User.role.in_(editor_roles), User.is_active == True).all()
+        editors_data = []
+        for ed in editors:
+            exams_created = Exam.query.filter(Exam.created_by == ed.id).count()
+            exams_updated = Exam.query.filter(
+                Exam.updated_by == ed.id, Exam.updated_by != Exam.created_by
+            ).count()
+            materials_created = StudyMaterial.query.filter(StudyMaterial.created_by == ed.id).count()
+            questions_created = Question.query.filter(Question.created_by == ed.id).count()
+            editors_data.append({
+                'id': ed.id,
+                'name': ed.full_name,
+                'email': ed.email,
+                'role': ed.role,
+                'exams_created': exams_created,
+                'exams_updated': exams_updated,
+                'materials_created': materials_created,
+                'questions_created': questions_created,
+                'total_contributions': exams_created + materials_created + questions_created,
+            })
+        editors_data.sort(key=lambda x: x['total_contributions'], reverse=True)
+
+        # --- Recent items (exams + materials merged timeline) ---
+        recent_exams = (
+            db.session.query(Exam, User)
+            .join(User, Exam.created_by == User.id)
+            .filter(User.role.in_(editor_roles), Exam.updated_at >= since)
+            .order_by(desc(Exam.updated_at))
+            .limit(limit_items)
+            .all()
+        )
+        recent_materials = (
+            db.session.query(StudyMaterial, User)
+            .join(User, StudyMaterial.created_by == User.id)
+            .filter(User.role.in_(editor_roles), StudyMaterial.updated_at >= since)
+            .order_by(desc(StudyMaterial.updated_at))
+            .limit(limit_items)
+            .all()
+        )
+
+        timeline = []
+        for exam, user in recent_exams:
+            is_new = exam.created_at and exam.updated_at and abs((exam.updated_at - exam.created_at).total_seconds()) < 60
+            timeline.append({
+                'type': 'exam',
+                'action': 'created' if is_new else 'updated',
+                'id': exam.id,
+                'name': exam.name,
+                'is_published': exam.is_published,
+                'editor_name': user.full_name,
+                'editor_email': user.email,
+                'date': exam.updated_at.isoformat() if exam.updated_at else None,
+            })
+        for mat, user in recent_materials:
+            is_new = mat.created_at and mat.updated_at and abs((mat.updated_at - mat.created_at).total_seconds()) < 60
+            timeline.append({
+                'type': 'material',
+                'action': 'created' if is_new else 'updated',
+                'id': mat.id,
+                'name': mat.title,
+                'is_published': mat.is_published,
+                'editor_name': user.full_name,
+                'editor_email': user.email,
+                'date': mat.updated_at.isoformat() if mat.updated_at else None,
+            })
+
+        timeline.sort(key=lambda x: x['date'] or '', reverse=True)
+        timeline = timeline[:limit_items]
+
+        # --- Summary counts ---
+        total_exams = Exam.query.join(User, Exam.created_by == User.id).filter(User.role.in_(editor_roles)).count()
+        published_exams = Exam.query.join(User, Exam.created_by == User.id).filter(
+            User.role.in_(editor_roles), Exam.is_published == True
+        ).count()
+        total_materials = StudyMaterial.query.join(User, StudyMaterial.created_by == User.id).filter(
+            User.role.in_(editor_roles)
+        ).count()
+        published_materials = StudyMaterial.query.join(User, StudyMaterial.created_by == User.id).filter(
+            User.role.in_(editor_roles), StudyMaterial.is_published == True
+        ).count()
+        total_questions = Question.query.join(User, Question.created_by == User.id).filter(
+            User.role.in_(editor_roles)
+        ).count()
+
+        return jsonify({
+            'editors': editors_data,
+            'timeline': timeline,
+            'summary': {
+                'total_editors': len(editors_data),
+                'total_exams': total_exams,
+                'published_exams': published_exams,
+                'total_materials': total_materials,
+                'published_materials': published_materials,
+                'total_questions': total_questions,
+            }
+        })
+
+    except HTTPException:
+        raise
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500

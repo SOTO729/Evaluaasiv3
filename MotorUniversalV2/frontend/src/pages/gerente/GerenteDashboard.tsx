@@ -1,9 +1,9 @@
 /**
- * Dashboard del Portal de Gerencia (Simplificado)
- * Hub de comando con KPIs, alertas críticas y accesos rápidos
- * Solo 3 secciones: Aprobaciones, Finanzas, Monitoreo
+ * Dashboard del Portal de Gerencia — Página de Inicio
+ * Saludo personalizado, KPIs, accesos rápidos, solicitudes,
+ * actividad del sistema y módulo de actividad de editores.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,8 +18,15 @@ import {
   RefreshCw,
   Shield,
   Award,
+  PenTool,
+  BookOpen,
+  HelpCircle,
+  Sun,
+  Moon,
+  Sunset,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useAuthStore } from '../../store/authStore';
 import {
   getBalanceStats,
   getRequestsForApproval,
@@ -29,16 +36,38 @@ import {
 } from '../../services/balanceService';
 import {
   getActivitySummary,
+  getEditorActivity,
   ActivitySummary,
+  EditorActivity,
+  formatRelativeTime,
 } from '../../services/activityService';
 
+function getGreeting(): { text: string; icon: typeof Sun } {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 12) return { text: 'Buenos días', icon: Sun };
+  if (hour >= 12 && hour < 19) return { text: 'Buenas tardes', icon: Sunset };
+  return { text: 'Buenas noches', icon: Moon };
+}
+
+function formatFirstName(name: string): string {
+  const first = (name || '').trim().split(/\s+/)[0] || '';
+  if (!first) return '';
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
+
 export default function GerenteDashboard() {
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<BalanceStats | null>(null);
   const [activitySummary, setActivitySummary] = useState<ActivitySummary | null>(null);
   const [pendingApprovals, setPendingApprovals] = useState<BalanceRequest[]>([]);
+  const [editorData, setEditorData] = useState<EditorActivity | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+
+  const greeting = useMemo(() => getGreeting(), []);
+  const firstName = useMemo(() => formatFirstName(user?.name || ''), [user?.name]);
+  const GreetingIcon = greeting.icon;
 
   useEffect(() => { loadData(); }, []);
 
@@ -46,14 +75,16 @@ export default function GerenteDashboard() {
     try {
       setLoading(true);
       setError(null);
-      const [statsData, activityData, approvalsData] = await Promise.all([
+      const [statsData, activityData, approvalsData, editorActivity] = await Promise.all([
         getBalanceStats(),
         getActivitySummary({ days: 7 }),
         getRequestsForApproval({ per_page: 5 }),
+        getEditorActivity({ days: 30, limit: 10 }).catch(() => null),
       ]);
       setStats(statsData);
       setActivitySummary(activityData);
       setPendingApprovals(approvalsData.requests);
+      setEditorData(editorActivity);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar datos');
     } finally {
@@ -94,7 +125,7 @@ export default function GerenteDashboard() {
 
   return (
     <div className="fluid-px-6 fluid-py-6 max-w-[2800px] mx-auto animate-fade-in-up">
-      {/* ===== HEADER GRADIENTE ===== */}
+      {/* ===== HEADER CON SALUDO ===== */}
       <div className="bg-gradient-to-r from-purple-600 via-violet-600 to-fuchsia-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden shadow-lg">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
@@ -104,11 +135,13 @@ export default function GerenteDashboard() {
           <div className="flex items-center justify-between fluid-mb-6">
             <div className="flex items-center fluid-gap-4">
               <div className="fluid-p-3 bg-white/15 rounded-fluid-xl backdrop-blur-sm">
-                <LayoutDashboard className="fluid-icon-xl text-white" />
+                <GreetingIcon className="fluid-icon-xl text-white" />
               </div>
               <div>
-                <h1 className="fluid-text-3xl font-bold text-white">Portal de Gerencia</h1>
-                <p className="fluid-text-base text-white/80">Supervisión y aprobación de operaciones</p>
+                <h1 className="fluid-text-3xl font-bold text-white">
+                  {greeting.text}{firstName ? `, ${firstName}` : ''}
+                </h1>
+                <p className="fluid-text-base text-white/80">Panel de gerencia — supervisión y aprobación de operaciones</p>
               </div>
             </div>
             <button
@@ -219,8 +252,8 @@ export default function GerenteDashboard() {
         </Link>
       </div>
 
-      {/* ===== CONTENIDO PRINCIPAL ===== */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
+      {/* ===== CONTENIDO PRINCIPAL — 2 columnas ===== */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6 fluid-mb-6">
         {/* Solicitudes Pendientes */}
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
           <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
@@ -293,7 +326,6 @@ export default function GerenteDashboard() {
             </Link>
           </div>
           <div className="fluid-p-5 space-y-4">
-            {/* Security Alert (if any) */}
             {failedLogins > 0 && (
               <Link
                 to="/gerente/monitoreo"
@@ -312,7 +344,6 @@ export default function GerenteDashboard() {
               </Link>
             )}
 
-            {/* Activity by type */}
             {activitySummary?.actions_by_type && Object.keys(activitySummary.actions_by_type).length > 0 ? (
               <div className="grid grid-cols-2 fluid-gap-3">
                 {Object.entries(activitySummary.actions_by_type).slice(0, 6).map(([type, count]) => (
@@ -329,15 +360,14 @@ export default function GerenteDashboard() {
               </div>
             )}
 
-            {/* Top active users */}
             {activitySummary?.top_users && activitySummary.top_users.length > 0 && (
               <div>
                 <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-2">Usuarios más activos</p>
                 <div className="space-y-2">
-                  {activitySummary.top_users.slice(0, 3).map((user) => (
-                    <div key={user.user_id} className="flex items-center justify-between fluid-text-sm fluid-p-2 rounded-fluid-lg hover:bg-gray-50">
-                      <span className="text-gray-600 truncate">{user.email}</span>
-                      <span className="font-medium text-gray-800 fluid-text-xs bg-gray-100 fluid-px-2 fluid-py-0.5 rounded-full">{user.action_count}</span>
+                  {activitySummary.top_users.slice(0, 3).map((u) => (
+                    <div key={u.user_id} className="flex items-center justify-between fluid-text-sm fluid-p-2 rounded-fluid-lg hover:bg-gray-50">
+                      <span className="text-gray-600 truncate">{u.email}</span>
+                      <span className="font-medium text-gray-800 fluid-text-xs bg-gray-100 fluid-px-2 fluid-py-0.5 rounded-full">{u.action_count}</span>
                     </div>
                   ))}
                 </div>
@@ -346,6 +376,148 @@ export default function GerenteDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ===== MÓDULO ACTIVIDAD EDITORES ===== */}
+      {editorData && (
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200/80 overflow-hidden">
+          <div className="fluid-p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex items-center justify-between">
+            <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
+              <PenTool className="fluid-icon-sm text-violet-500" />
+              Actividad de Editores
+            </h2>
+            <span className="fluid-text-xs text-gray-500">Últimos 30 días</span>
+          </div>
+
+          {/* KPIs de editores */}
+          <div className="fluid-p-5 border-b border-gray-50">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 fluid-gap-3">
+              <div className="text-center fluid-p-3 bg-violet-50 rounded-fluid-xl">
+                <p className="fluid-text-xl font-bold text-violet-700">{editorData.summary.total_editors}</p>
+                <p className="fluid-text-xs text-violet-600">Editores</p>
+              </div>
+              <div className="text-center fluid-p-3 bg-blue-50 rounded-fluid-xl">
+                <p className="fluid-text-xl font-bold text-blue-700">{editorData.summary.total_exams}</p>
+                <p className="fluid-text-xs text-blue-600">Exámenes</p>
+              </div>
+              <div className="text-center fluid-p-3 bg-green-50 rounded-fluid-xl">
+                <p className="fluid-text-xl font-bold text-green-700">{editorData.summary.published_exams}</p>
+                <p className="fluid-text-xs text-green-600">Publicados</p>
+              </div>
+              <div className="text-center fluid-p-3 bg-amber-50 rounded-fluid-xl">
+                <p className="fluid-text-xl font-bold text-amber-700">{editorData.summary.total_materials}</p>
+                <p className="fluid-text-xs text-amber-600">Materiales</p>
+              </div>
+              <div className="text-center fluid-p-3 bg-emerald-50 rounded-fluid-xl">
+                <p className="fluid-text-xl font-bold text-emerald-700">{editorData.summary.published_materials}</p>
+                <p className="fluid-text-xs text-emerald-600">Mat. Publicados</p>
+              </div>
+              <div className="text-center fluid-p-3 bg-indigo-50 rounded-fluid-xl">
+                <p className="fluid-text-xl font-bold text-indigo-700">{editorData.summary.total_questions}</p>
+                <p className="fluid-text-xs text-indigo-600">Preguntas</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+            {/* Timeline reciente */}
+            <div className="fluid-p-5">
+              <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-3">Actividad Reciente</p>
+              {editorData.timeline.length === 0 ? (
+                <div className="text-center fluid-py-6 text-gray-400">
+                  <BookOpen className="fluid-icon-xl mx-auto fluid-mb-2 text-gray-300" />
+                  <p className="fluid-text-sm">Sin actividad reciente</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {editorData.timeline.slice(0, 8).map((item, i) => (
+                    <div key={`${item.type}-${item.id}-${i}`} className="flex items-start fluid-gap-3 fluid-p-2 rounded-fluid-lg hover:bg-gray-50 transition-colors">
+                      <div className={`fluid-p-1.5 rounded-fluid-lg flex-shrink-0 ${
+                        item.type === 'exam' ? 'bg-blue-100' : 'bg-amber-100'
+                      }`}>
+                        {item.type === 'exam'
+                          ? <HelpCircle className="fluid-icon-xs text-blue-600" />
+                          : <BookOpen className="fluid-icon-xs text-amber-600" />
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="fluid-text-sm text-gray-800 truncate">
+                          <span className="font-medium">{item.editor_name}</span>
+                          <span className="text-gray-500"> {item.action === 'created' ? 'creó' : 'actualizó'} </span>
+                          <span className="font-medium">{item.name}</span>
+                        </p>
+                        <div className="flex items-center fluid-gap-2 fluid-mt-0.5">
+                          <span className={`fluid-text-xs fluid-px-1.5 fluid-py-0.5 rounded font-medium ${
+                            item.type === 'exam' ? 'bg-blue-50 text-blue-600' : 'bg-amber-50 text-amber-600'
+                          }`}>
+                            {item.type === 'exam' ? 'Examen' : 'Material'}
+                          </span>
+                          {item.is_published && (
+                            <span className="fluid-text-xs text-green-600 font-medium">Publicado</span>
+                          )}
+                          {item.date && (
+                            <span className="fluid-text-xs text-gray-400">{formatRelativeTime(item.date)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Editores + contribuciones */}
+            <div className="fluid-p-5">
+              <p className="fluid-text-xs font-semibold text-gray-500 uppercase tracking-wider fluid-mb-3">Productividad por Editor</p>
+              {editorData.editors.length === 0 ? (
+                <div className="text-center fluid-py-6 text-gray-400">
+                  <PenTool className="fluid-icon-xl mx-auto fluid-mb-2 text-gray-300" />
+                  <p className="fluid-text-sm">Sin editores activos</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {editorData.editors.map((ed) => {
+                    const maxContrib = Math.max(...editorData.editors.map(e => e.total_contributions), 1);
+                    const pct = (ed.total_contributions / maxContrib) * 100;
+                    return (
+                      <div key={ed.id} className="fluid-p-3 rounded-fluid-xl border border-gray-100 hover:border-violet-200 transition-colors">
+                        <div className="flex items-center justify-between fluid-mb-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="fluid-text-sm font-medium text-gray-800 truncate">{ed.name}</p>
+                            <p className="fluid-text-xs text-gray-400 truncate">{ed.email}</p>
+                          </div>
+                          <span className="fluid-text-sm font-bold text-violet-700 flex-shrink-0 ml-2">
+                            {ed.total_contributions}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden fluid-mb-1.5">
+                          <div
+                            className="h-full bg-gradient-to-r from-violet-400 to-fuchsia-500 rounded-full transition-all duration-700"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center fluid-gap-3 fluid-text-xs text-gray-500">
+                          <span className="flex items-center fluid-gap-1">
+                            <span className="w-2 h-2 bg-blue-400 rounded-full" />
+                            {ed.exams_created} exám.
+                          </span>
+                          <span className="flex items-center fluid-gap-1">
+                            <span className="w-2 h-2 bg-amber-400 rounded-full" />
+                            {ed.materials_created} mat.
+                          </span>
+                          <span className="flex items-center fluid-gap-1">
+                            <span className="w-2 h-2 bg-indigo-400 rounded-full" />
+                            {ed.questions_created} preg.
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
