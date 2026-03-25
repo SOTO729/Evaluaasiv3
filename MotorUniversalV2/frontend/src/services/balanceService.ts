@@ -826,3 +826,47 @@ export async function getMyCampusInfo(): Promise<MyCampusInfo> {
   const response = await api.get('/balance/my-campus-info');
   return response.data;
 }
+
+// ===== Certificate Analytics =====
+
+export interface CertificateAnalytics {
+  certificates: {
+    tier_basic: number;
+    tier_standard: number;
+    tier_advanced: number;
+    digital_badge: number;
+    total: number;
+  };
+  financials: {
+    total_approved: number;
+    total_certification_spent: number;
+    utilization_rate: number;
+    current_balance: number;
+  };
+  pass_fail: {
+    total_completed: number;
+    total_passed: number;
+    total_failed: number;
+    pass_rate: number;
+  };
+  monthly_trend: Array<{
+    year: number;
+    month: number;
+    count: number;
+  }>;
+  coordinators: Array<{
+    coordinator_id: string;
+    coordinator_name: string;
+    amount_approved: number;
+    amount_spent: number;
+    efficiency: number;
+  }>;
+}
+
+export async function getCertificateAnalytics(params?: {
+  date_from?: string;
+  date_to?: string;
+}): Promise<CertificateAnalytics> {
+  const response = await api.get('/balance/certificate-analytics', { params });
+  return response.data;
+}

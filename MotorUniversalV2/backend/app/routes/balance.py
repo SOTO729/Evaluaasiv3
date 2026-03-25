@@ -806,6 +806,207 @@ def review_request(request_id):
 
 
 # =====================================================
+# ANALYTICS DE CERTIFICADOS (Gerente)
+# =====================================================
+
+@bp.route('/certificate-analytics', methods=['GET'])
+@jwt_required()
+@financiero_required
+def get_certificate_analytics():
+    """Analytics de certificados emitidos vs dinero aprobado."""
+    try:
+        from sqlalchemy import func, extract
+        from app.models.result import Result
+        from app.models.badge import IssuedBadge
+        from datetime import datetime as dt, timedelta
+
+        # Parse optional date filters
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        df = dt.fromisoformat(date_from) if date_from else None
+        dto = dt.fromisoformat(date_to) if date_to else None
+
+        # --- A) Certificate counts by type ---
+
+        # Tier Basic: Results with result=1 AND certificate_code IS NOT NULL
+        basic_q = db.session.query(func.count(Result.id)).filter(
+            Result.result == 1,
+            Result.certificate_code.isnot(None),
+            Result.status == 1
+        )
+        # Tier Standard: Results with eduit_certificate_code IS NOT NULL
+        standard_q = db.session.query(func.count(Result.id)).filter(
+            Result.eduit_certificate_code.isnot(None),
+            Result.status == 1
+        )
+        # Tier Advanced: ConocerCertificate with status='active'
+        try:
+            from app.models.conocer_certificate import ConocerCertificate
+            advanced_q = db.session.query(func.count(ConocerCertificate.id)).filter(
+                ConocerCertificate.status == 'active'
+            )
+        except Exception:
+            advanced_q = None
+        # Digital Badge: IssuedBadge with status='active'
+        badge_q = db.session.query(func.count(IssuedBadge.id)).filter(
+            IssuedBadge.status == 'active'
+        )
+
+        # Apply date filters
+        if df:
+            basic_q = basic_q.filter(Result.created_at >= df)
+            standard_q = standard_q.filter(Result.created_at >= df)
+            if advanced_q is not None:
+                advanced_q = advanced_q.filter(ConocerCertificate.created_at >= df)
+            badge_q = badge_q.filter(IssuedBadge.created_at >= df)
+        if dto:
+            basic_q = basic_q.filter(Result.created_at <= dto)
+            standard_q = standard_q.filter(Result.created_at <= dto)
+            if advanced_q is not None:
+                advanced_q = advanced_q.filter(ConocerCertificate.created_at <= dto)
+            badge_q = badge_q.filter(IssuedBadge.created_at <= dto)
+
+        tier_basic = basic_q.scalar() or 0
+        tier_standard = standard_q.scalar() or 0
+        tier_advanced = (advanced_q.scalar() or 0) if advanced_q is not None else 0
+        digital_badge = badge_q.scalar() or 0
+        total_certs = tier_basic + tier_standard + tier_advanced + digital_badge
+
+        # --- B) Financial reconciliation ---
+        approved_q = db.session.query(
+            func.sum(BalanceRequest.amount_approved)
+        ).filter(BalanceRequest.status == 'approved')
+
+        spent_q = db.session.query(
+            func.sum(BalanceTransaction.amount)
+        ).filter(
+            BalanceTransaction.transaction_type == 'debit',
+            BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+        )
+
+        if df:
+            approved_q = approved_q.filter(BalanceRequest.approved_at >= df)
+            spent_q = spent_q.filter(BalanceTransaction.created_at >= df)
+        if dto:
+            approved_q = approved_q.filter(BalanceRequest.approved_at <= dto)
+            spent_q = spent_q.filter(BalanceTransaction.created_at <= dto)
+
+        total_approved = float(approved_q.scalar() or 0)
+        total_spent = float(spent_q.scalar() or 0)
+        utilization = round((total_spent / total_approved * 100), 1) if total_approved > 0 else 0
+        current_balance = float(db.session.query(
+            func.sum(CoordinatorBalance.current_balance)
+        ).scalar() or 0)
+
+        # --- C) Pass/Fail ---
+        completed_q = db.session.query(func.count(Result.id)).filter(Result.status == 1)
+        passed_q = db.session.query(func.count(Result.id)).filter(Result.status == 1, Result.result == 1)
+        if df:
+            completed_q = completed_q.filter(Result.created_at >= df)
+            passed_q = passed_q.filter(Result.created_at >= df)
+        if dto:
+            completed_q = completed_q.filter(Result.created_at <= dto)
+            passed_q = passed_q.filter(Result.created_at <= dto)
+
+        completed = completed_q.scalar() or 0
+        passed = passed_q.scalar() or 0
+        pass_rate = round((passed / completed * 100), 1) if completed > 0 else 0
+
+        # --- D) Monthly trend (last 6 months) ---
+        six_months_ago = dt.utcnow() - timedelta(days=180)
+        trend_q = db.session.query(
+            extract('year', Result.created_at).label('yr'),
+            extract('month', Result.created_at).label('mo'),
+            func.count(Result.id).label('cnt')
+        ).filter(
+            Result.result == 1,
+            Result.certificate_code.isnot(None),
+            Result.status == 1,
+            Result.created_at >= six_months_ago
+        ).group_by(
+            extract('year', Result.created_at),
+            extract('month', Result.created_at)
+        ).order_by(
+            extract('year', Result.created_at),
+            extract('month', Result.created_at)
+        ).all()
+
+        trend = [{'year': int(r.yr), 'month': int(r.mo), 'count': r.cnt} for r in trend_q]
+
+        # --- E) Per-coordinator breakdown ---
+        coord_spending = db.session.query(
+            BalanceTransaction.coordinator_id,
+            func.sum(BalanceTransaction.amount).label('total_spent')
+        ).filter(
+            BalanceTransaction.transaction_type == 'debit',
+            BalanceTransaction.concept.in_(['asignacion_certificacion', 'asignacion_retoma'])
+        )
+        if df:
+            coord_spending = coord_spending.filter(BalanceTransaction.created_at >= df)
+        if dto:
+            coord_spending = coord_spending.filter(BalanceTransaction.created_at <= dto)
+        coord_spending = coord_spending.group_by(BalanceTransaction.coordinator_id).all()
+        spending_map = {c.coordinator_id: float(c.total_spent) for c in coord_spending}
+
+        coord_approved = db.session.query(
+            BalanceRequest.coordinator_id,
+            func.sum(BalanceRequest.amount_approved).label('total_approved')
+        ).filter(BalanceRequest.status == 'approved')
+        if df:
+            coord_approved = coord_approved.filter(BalanceRequest.approved_at >= df)
+        if dto:
+            coord_approved = coord_approved.filter(BalanceRequest.approved_at <= dto)
+        coord_approved = coord_approved.group_by(BalanceRequest.coordinator_id).all()
+        approved_map = {c.coordinator_id: float(c.total_approved) for c in coord_approved}
+
+        # Get unique coordinator IDs from both maps
+        all_coord_ids = set(list(spending_map.keys()) + list(approved_map.keys()))
+        coordinators_data = []
+        if all_coord_ids:
+            coords = User.query.filter(User.id.in_(all_coord_ids)).all()
+            for u in coords:
+                sp = spending_map.get(u.id, 0)
+                ap = approved_map.get(u.id, 0)
+                coordinators_data.append({
+                    'coordinator_id': u.id,
+                    'coordinator_name': u.full_name or f"{u.name} {u.first_surname or ''}".strip(),
+                    'amount_approved': ap,
+                    'amount_spent': sp,
+                    'efficiency': round((sp / ap * 100), 1) if ap > 0 else 0
+                })
+            coordinators_data.sort(key=lambda x: x['amount_spent'], reverse=True)
+
+        return jsonify({
+            'certificates': {
+                'tier_basic': tier_basic,
+                'tier_standard': tier_standard,
+                'tier_advanced': tier_advanced,
+                'digital_badge': digital_badge,
+                'total': total_certs,
+            },
+            'financials': {
+                'total_approved': total_approved,
+                'total_certification_spent': total_spent,
+                'utilization_rate': utilization,
+                'current_balance': current_balance,
+            },
+            'pass_fail': {
+                'total_completed': completed,
+                'total_passed': passed,
+                'total_failed': completed - passed,
+                'pass_rate': pass_rate,
+            },
+            'monthly_trend': trend,
+            'coordinators': coordinators_data[:15],
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# =====================================================
 # ENDPOINTS PARA GERENTES/ADMIN (APROBACIÓN FINAL)
 # =====================================================
 

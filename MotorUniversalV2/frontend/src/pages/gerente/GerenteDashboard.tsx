@@ -17,6 +17,7 @@ import {
   ArrowUpRight,
   RefreshCw,
   Shield,
+  Award,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -145,8 +146,8 @@ export default function GerenteDashboard() {
         </div>
       </div>
 
-      {/* ===== 3 ACCIONES RÁPIDAS ===== */}
-      <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-6">
+      {/* ===== 4 ACCIONES RÁPIDAS ===== */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-6">
         <Link
           to="/gerente/aprobaciones"
           className="group flex items-center fluid-gap-4 fluid-p-5 bg-white rounded-fluid-2xl border border-gray-200/80 shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300 hover:border-purple-300"
@@ -201,6 +202,20 @@ export default function GerenteDashboard() {
             )}
             <ArrowUpRight className="fluid-icon-sm text-gray-400 group-hover:text-blue-600 transition-colors" />
           </div>
+        </Link>
+
+        <Link
+          to="/gerente/certificados"
+          className="group flex items-center fluid-gap-4 fluid-p-5 bg-white rounded-fluid-2xl border border-gray-200/80 shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300 hover:border-amber-300"
+        >
+          <div className="fluid-p-3 bg-gradient-to-br from-amber-500 to-orange-500 rounded-fluid-xl shadow-md group-hover:shadow-lg transition-shadow">
+            <Award className="fluid-icon-lg text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-800 fluid-text-lg group-hover:text-amber-700 transition-colors">Certificados</p>
+            <p className="fluid-text-sm text-gray-500">Analítica de emisión y reconciliación</p>
+          </div>
+          <ArrowUpRight className="fluid-icon-sm text-gray-400 group-hover:text-amber-600 transition-colors flex-shrink-0" />
         </Link>
       </div>
 
