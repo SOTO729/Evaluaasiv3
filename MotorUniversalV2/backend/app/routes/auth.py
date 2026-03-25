@@ -99,7 +99,10 @@ def register():
             return jsonify({'error': f'{field} es requerido'}), 400
     
     # Verificar si ya existe
-    if User.query.filter_by(email=data['email']).first():
+    # Roles soporte, editor, editor_invitado y coordinator pueden compartir email
+    SHARED_EMAIL_ROLES = ('soporte', 'editor', 'editor_invitado', 'coordinator')
+    user_role = data.get('role', 'candidato')
+    if user_role not in SHARED_EMAIL_ROLES and User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'El email ya está registrado'}), 400
     
     if User.query.filter_by(username=data['username']).first():
@@ -526,9 +529,12 @@ def request_email_change():
         return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
     
     # Verificar que el email no esté en uso
-    existing_user = User.query.filter_by(email=new_email).first()
-    if existing_user and existing_user.id != user.id:
-        return jsonify({'error': 'Este correo electrónico ya está registrado'}), 400
+    # Roles soporte, editor, editor_invitado y coordinator pueden compartir email
+    SHARED_EMAIL_ROLES = ('soporte', 'editor', 'editor_invitado', 'coordinator')
+    if user.role not in SHARED_EMAIL_ROLES:
+        existing_user = User.query.filter_by(email=new_email).first()
+        if existing_user and existing_user.id != user.id:
+            return jsonify({'error': 'Este correo electrónico ya está registrado'}), 400
     
     # En producción, aquí se enviaría un correo de verificación
     # Por ahora, actualizamos directamente

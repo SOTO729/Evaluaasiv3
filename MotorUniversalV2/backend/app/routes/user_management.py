@@ -797,8 +797,8 @@ def create_user():
                 return jsonify({'error': 'Formato de email inválido'}), 400
             
             # Verificar email único (solo si se proporciona)
-            # Roles soporte y editor_invitado pueden compartir email con otros usuarios
-            if role not in ('soporte', 'editor_invitado') and User.query.filter_by(email=email).first():
+            # Roles soporte, editor, editor_invitado y coordinator pueden compartir email con otros usuarios
+            if role not in ('soporte', 'editor', 'editor_invitado', 'coordinator') and User.query.filter_by(email=email).first():
                 return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
         
         # Generar contraseña automática para TODOS los usuarios
@@ -1086,8 +1086,8 @@ def update_user(user_id):
             email = data['email'].strip().lower()
             if not validate_email(email):
                 return jsonify({'error': 'Formato de email inválido'}), 400
-            # Roles soporte y editor_invitado pueden compartir email con otros usuarios
-            if user.role not in ('soporte', 'editor_invitado'):
+            # Roles soporte, editor, editor_invitado y coordinator pueden compartir email con otros usuarios
+            if user.role not in ('soporte', 'editor', 'editor_invitado', 'coordinator'):
                 existing = User.query.filter(User.email == email, User.id != user_id).first()
                 if existing:
                     return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
