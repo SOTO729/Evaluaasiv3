@@ -141,8 +141,8 @@ def get_countries():
 
 def _get_coordinator_filter(user):
     """
-    Retorna el coordinator_id para filtrar GRUPOS (aislados por coordinador).
-    Partners, campuses y usuarios son compartidos (sin filtro).
+    Retorna el coordinator_id para filtrar entidades aisladas por coordinador.
+    Partners, campuses y grupos están filtrados por coordinator_id.
     Auxiliar hereda el scope de su coordinador vinculado.
     """
     if user.role == 'coordinator':
@@ -159,23 +159,29 @@ def _is_admin_role(user):
 
 def _verify_partner_access(partner_id, user, require_admin_for_delete=False):
     """Verifica acceso al partner.
-    Partners son compartidos: todos los coordinadores pueden VER, CREAR y EDITAR.
+    Partners aislados por coordinator_id: coordinadores solo ven sus propios partners.
     Solo admin puede ELIMINAR (require_admin_for_delete=True)."""
     partner = Partner.query.get_or_404(partner_id)
     if require_admin_for_delete and not _is_admin_role(user):
         return None, (jsonify({'error': 'Solo administradores pueden eliminar partners'}), 403)
+    coord_id = _get_coordinator_filter(user)
+    if coord_id and partner.coordinator_id != coord_id:
+        return None, (jsonify({'error': 'No tienes acceso a este partner'}), 403)
     return partner, None
 
 
 def _verify_campus_access(campus_id, user, require_admin_for_delete=False):
     """Verifica acceso al campus.
-    Campuses son compartidos: todos los coordinadores pueden VER, CREAR y EDITAR.
+    Campuses aislados por coordinator_id: coordinadores solo ven sus propios campuses.
     Responsable solo puede acceder a su propio campus.
     Solo admin puede ELIMINAR (require_admin_for_delete=True)."""
     from app.models.partner import Campus
     campus = Campus.query.get_or_404(campus_id)
     if require_admin_for_delete and not _is_admin_role(user):
         return None, (jsonify({'error': 'Solo administradores pueden eliminar planteles'}), 403)
+    coord_id = _get_coordinator_filter(user)
+    if coord_id and campus.coordinator_id != coord_id:
+        return None, (jsonify({'error': 'No tienes acceso a este plantel'}), 403)
     if user.role == 'responsable' and campus_id != user.campus_id:
         return None, (jsonify({'error': 'No tienes acceso a este plantel'}), 403)
     return campus, None
@@ -212,9 +218,12 @@ def get_partners():
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         
         query = Partner.query
-        
-        # Partners son compartidos: todos los coordinadores ven todos los partners
-        
+
+        # Filtrar por coordinador (aislamiento multi-tenant)
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(Partner.coordinator_id == coord_id)
+
         if active_only:
             query = query.filter(Partner.is_active == True)
             
@@ -233,7 +242,7 @@ def get_partners():
         pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
         
         return jsonify({
-            'partners': [p.to_dict(include_states=True) for p in pagination.items],
+            'partners': [p.to_dict(include_states=True, coordinator_id=coord_id) for p in pagination.items],
             'total': pagination.total,
             'pages': pagination.pages,
             'current_page': page
@@ -496,7 +505,12 @@ def get_campuses(partner_id):
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         
         query = Campus.query.filter_by(partner_id=partner_id)
-        
+
+        # Filtrar por coordinador (aislamiento multi-tenant)
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            query = query.filter(Campus.coordinator_id == coord_id)
+
         if active_only:
             query = query.filter(Campus.is_active == True)
             
@@ -504,8 +518,7 @@ def get_campuses(partner_id):
             query = query.filter(Campus.state_name == state_filter)
         
         campuses = query.order_by(Campus.state_name, Campus.name).all()
-        coord_id = _get_coordinator_filter(g.current_user)
-        
+
         return jsonify({
             'partner_id': partner_id,
             'partner_name': partner.name,
@@ -658,7 +671,8 @@ def create_campus(partner_id):
             director_gender=data.get('director_gender'),
             director_date_of_birth=director_dob,
             is_active=False,  # Inactivo hasta completar activación
-            activation_status='pending'  # Estado inicial de activación
+            activation_status='pending',  # Estado inicial de activación
+            coordinator_id=_get_coordinator_filter(g.current_user) or data.get('coordinator_id')
         )
         
         db.session.flush()  # Para obtener el ID del campus
@@ -17659,17 +17673,24 @@ def get_report_filters():
 
         # ── Partners ──
         partners_data = []
+        coord_id = _get_coordinator_filter(user)
         if not is_resp:
-            partners = Partner.query.order_by(Partner.name).all()
+            pq = Partner.query.order_by(Partner.name)
+            if coord_id:
+                pq = pq.filter(Partner.coordinator_id == coord_id)
+            partners = pq.all()
             partners_data = [{'id': p.id, 'name': p.name} for p in partners]
 
         # ── Planteles ──
         if is_resp:
             campuses = Campus.query.filter_by(id=user.campus_id).all() if user.campus_id else []
         else:
-            campuses = Campus.query.filter(
+            campus_q = Campus.query.filter(
                 Campus.partner_id.in_([p['id'] for p in partners_data])
-            ).order_by(Campus.name).all() if partners_data else []
+            ).order_by(Campus.name) if partners_data else Campus.query.filter(db.literal(False))
+            if coord_id:
+                campus_q = campus_q.filter(Campus.coordinator_id == coord_id)
+            campuses = campus_q.all() if partners_data else []
         campuses_data = [{'id': c.id, 'name': c.name, 'partner_id': c.partner_id} for c in campuses]
         campus_ids = [c.id for c in campuses]
 
@@ -17768,9 +17789,12 @@ def _build_reports_query(user, params):
         else:
             partner_id_filter = params.get('partner_id', type=int)
             if partner_id_filter:
-                accessible_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=partner_id_filter).all()]
+                campus_q = Campus.query.filter_by(partner_id=partner_id_filter)
             else:
-                accessible_campus_ids = [c.id for c in Campus.query.all()]
+                campus_q = Campus.query
+            if coord_id:
+                campus_q = campus_q.filter_by(coordinator_id=coord_id)
+            accessible_campus_ids = [c.id for c in campus_q.all()]
 
         campus_filter = params.get('campus_id', type=int)
         if campus_filter and campus_filter in accessible_campus_ids:

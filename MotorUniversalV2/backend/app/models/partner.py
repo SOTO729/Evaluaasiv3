@@ -74,7 +74,7 @@ class Partner(db.Model):
     # Relación con el coordinador dueño
     coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('owned_partners', lazy='dynamic'))
     
-    def to_dict(self, include_states=False, include_campuses=False):
+    def to_dict(self, include_states=False, include_campuses=False, coordinator_id=None):
         """Convertir a diccionario"""
         data = {
             'id': self.id,
@@ -92,21 +92,30 @@ class Partner(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
-        
+
         # Siempre incluir campus_count (es solo un COUNT, muy ligero)
-        data['campus_count'] = self.campuses.count()
+        if coordinator_id:
+            data['campus_count'] = self.campuses.filter_by(coordinator_id=coordinator_id).count()
+        else:
+            data['campus_count'] = self.campuses.count()
 
         if include_states:
             # Obtener estados únicos desde los campus del partner
-            campus_states = db.session.query(Campus.state_name).filter(
+            state_query = db.session.query(Campus.state_name).filter(
                 Campus.partner_id == self.id
-            ).distinct().all()
+            )
+            if coordinator_id:
+                state_query = state_query.filter(Campus.coordinator_id == coordinator_id)
+            campus_states = state_query.distinct().all()
             unique_states = sorted(set([s[0] for s in campus_states if s[0]]))
             data['states'] = [{'state_name': state, 'from_campuses': True} for state in unique_states]
             data['state_count'] = len(unique_states)
-            
+
         if include_campuses:
-            data['campuses'] = [c.to_dict() for c in self.campuses.all()]
+            campus_query = self.campuses
+            if coordinator_id:
+                campus_query = campus_query.filter_by(coordinator_id=coordinator_id)
+            data['campuses'] = [c.to_dict() for c in campus_query.all()]
             
         return data
 
@@ -182,6 +191,9 @@ class Campus(db.Model):
     
     # Responsable del plantel (usuario del sistema - para activación)
     responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'))
+
+    # Coordinador dueño (multi-tenant)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Estado de activación del plantel
     # pending: Recién creado, sin responsable
@@ -253,6 +265,7 @@ class Campus(db.Model):
     
     # Relaciones
     responsable = db.relationship('User', foreign_keys=[responsable_id], backref='managed_campuses')
+    coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('owned_campuses', lazy='dynamic'))
     groups = db.relationship('CandidateGroup', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     school_cycles = db.relationship('SchoolCycle', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     # Relación muchos-a-muchos con estándares de competencia (ECM)
@@ -283,6 +296,7 @@ class Campus(db.Model):
             'director_date_of_birth': self.director_date_of_birth.isoformat() if self.director_date_of_birth else None,
             'director_full_name': ' '.join(filter(None, [self.director_name, self.director_first_surname, self.director_second_surname])) if self.director_name else None,
             'responsable_id': self.responsable_id,
+            'coordinator_id': self.coordinator_id,
             'activation_status': self.activation_status,
             'activated_at': self.activated_at.isoformat() if self.activated_at else None,
             'is_active': self.is_active,

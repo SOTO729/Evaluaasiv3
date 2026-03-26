@@ -549,6 +549,7 @@ def check_and_add_campus_activation_columns():
                 'responsable_id': 'NVARCHAR(36)' if db_type == 'mssql' else 'VARCHAR(36)',
                 'activation_status': "NVARCHAR(20) DEFAULT 'pending'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'pending'",
                 'activated_at': 'DATETIME' if db_type == 'mssql' else 'TIMESTAMP',
+                'coordinator_id': 'NVARCHAR(36)' if db_type == 'mssql' else 'VARCHAR(36)',
             }
             
             for column_name, column_def in campus_columns.items():
@@ -645,6 +646,25 @@ def check_and_add_campus_activation_columns():
                         db.session.rollback()
         
         print("✅ Verificación de esquema activación de planteles completada")
+
+        # ============== BACKFILL: campus.coordinator_id desde partner ==============
+        if 'campuses' in tables:
+            try:
+                result = db.session.execute(text(
+                    "SELECT COUNT(*) FROM campuses WHERE coordinator_id IS NULL"
+                )).scalar()
+                if result and result > 0:
+                    print(f"  📝 [campuses] Backfill coordinator_id para {result} campuses sin coordinador...")
+                    db.session.execute(text("""
+                        UPDATE campuses SET coordinator_id = (
+                            SELECT p.coordinator_id FROM partners p WHERE p.id = campuses.partner_id
+                        ) WHERE coordinator_id IS NULL AND partner_id IS NOT NULL
+                    """))
+                    db.session.commit()
+                    print(f"     ✓ Backfill completado")
+            except Exception as e:
+                print(f"     ⚠️  Error en backfill coordinator_id: {e}")
+                db.session.rollback()
         
         # ============== CANDIDATE_GROUPS - Campo require_exam_pin_override ==============
         if 'candidate_groups' in tables:
