@@ -22,6 +22,12 @@ bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 # Roles disponibles en el sistema (sin alumno)
 AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
 
+# Roles que soporte puede VER (todos menos admin, developer, gerente)
+SOPORTE_VISIBLE_ROLES = ['financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
+
+# Roles que soporte puede EDITAR, ver contraseñas y activar/desactivar
+SOPORTE_EDITABLE_ROLES = ['candidato', 'responsable', 'responsable_partner']
+
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
     'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
@@ -195,9 +201,9 @@ def list_users():
                 User.coordinator_id == coord_id
             )
 
-        # Soporte solo ve responsables, responsables_partner y candidatos
+        # Soporte ve todos los usuarios excepto admin, developer y gerente
         if current_user.role == 'soporte':
-            query = query.filter(User.role.in_(['responsable', 'responsable_partner', 'candidato']))
+            query = query.filter(User.role.in_(SOPORTE_VISIBLE_ROLES))
 
         # Responsables solo ven candidatos de su plantel (por grupo O por campus_id directo)
         if current_user.role == 'responsable':
@@ -402,7 +408,7 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
         if coordinator_id:
             query = query.filter(User.coordinator_id == coordinator_id)
     if user_role == 'soporte':
-        query = query.filter(User.role.in_(['responsable', 'responsable_partner', 'candidato']))
+        query = query.filter(User.role.in_(SOPORTE_VISIBLE_ROLES))
     if user_role == 'responsable' and campus_id:
         from app.models.partner import GroupMember, CandidateGroup
         campus_user_ids = db.session.query(GroupMember.user_id).join(
@@ -444,9 +450,9 @@ def get_user_detail(user_id):
             if err:
                 return err
 
-        # Soporte solo puede ver responsables, responsables_partner y candidatos
+        # Soporte puede ver todos los usuarios excepto admin, developer y gerente
         if current_user.role == 'soporte':
-            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
+            if user.role not in SOPORTE_VISIBLE_ROLES:
                 return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
 
         # Responsable solo puede ver candidatos de su plantel
@@ -1046,10 +1052,10 @@ def update_user(user_id):
             if err:
                 return err
 
-        # Soporte solo puede editar responsables, responsables_partner y candidatos
+        # Soporte solo puede editar candidatos, responsables y responsables_partner
         if current_user.role == 'soporte':
-            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
-                return jsonify({'error': 'Solo puedes editar responsables, responsables del partner y candidatos'}), 403
+            if user.role not in SOPORTE_EDITABLE_ROLES:
+                return jsonify({'error': 'Solo puedes editar candidatos, responsables y responsables del partner'}), 403
 
         # Responsable solo puede editar candidatos de su plantel
         if current_user.role == 'responsable':
@@ -1278,10 +1284,10 @@ def change_user_password(user_id):
             if err:
                 return err
 
-        # Soporte solo puede cambiar contraseñas de responsables, responsables_partner y candidatos
+        # Soporte solo puede cambiar contraseñas de candidatos, responsables y responsables_partner
         if current_user.role == 'soporte':
-            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
-                return jsonify({'error': 'Solo puedes cambiar contraseñas de responsables, responsables del partner y candidatos'}), 403
+            if user.role not in SOPORTE_EDITABLE_ROLES:
+                return jsonify({'error': 'Solo puedes cambiar contraseñas de candidatos, responsables y responsables del partner'}), 403
 
         new_password = data.get('new_password')
         if not new_password:
@@ -1326,10 +1332,10 @@ def generate_temp_password(user_id):
             if err:
                 return err
 
-        # Soporte solo puede generar contraseñas de responsables, responsables_partner y candidatos
+        # Soporte solo puede generar contraseñas de candidatos, responsables y responsables_partner
         if current_user.role == 'soporte':
-            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
-                return jsonify({'error': 'Solo puedes generar contraseñas de responsables, responsables del partner y candidatos'}), 403
+            if user.role not in SOPORTE_EDITABLE_ROLES:
+                return jsonify({'error': 'Solo puedes generar contraseñas de candidatos, responsables y responsables del partner'}), 403
 
         # Generar contraseña segura de 12 caracteres
         temp_password = generate_secure_password(12)
@@ -1370,10 +1376,10 @@ def get_user_password(user_id):
             if err:
                 return err
 
-        # Soporte solo puede ver contraseñas de responsables, responsables_partner y candidatos
+        # Soporte solo puede ver contraseñas de candidatos, responsables y responsables_partner
         if current_user.role == 'soporte':
-            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
-                return jsonify({'error': 'Solo puedes ver contraseñas de responsables, responsables del partner y candidatos'}), 403
+            if user.role not in SOPORTE_EDITABLE_ROLES:
+                return jsonify({'error': 'Solo puedes ver contraseñas de candidatos, responsables y responsables del partner'}), 403
 
         # Responsable solo puede ver contraseñas de candidatos de su plantel
         if current_user.role == 'responsable':
@@ -1437,10 +1443,10 @@ def toggle_user_active(user_id):
             if err:
                 return err
 
-        # Soporte solo puede activar/desactivar responsables, responsables_partner y candidatos
+        # Soporte solo puede activar/desactivar candidatos, responsables y responsables_partner
         if current_user.role == 'soporte':
-            if user.role not in ['responsable', 'responsable_partner', 'candidato']:
-                return jsonify({'error': 'Solo puedes activar/desactivar responsables, responsables del partner y candidatos'}), 403
+            if user.role not in SOPORTE_EDITABLE_ROLES:
+                return jsonify({'error': 'Solo puedes activar/desactivar candidatos, responsables y responsables del partner'}), 403
         
         # No se puede desactivar a uno mismo
         if user_id == current_user.id:
@@ -1702,7 +1708,7 @@ def get_user_stats():
         if _is_coordinator_role(current_user.role):
             allowed_roles = ['candidato', 'responsable', 'responsable_partner', 'auxiliar']
         elif current_user.role == 'soporte':
-            allowed_roles = ['responsable', 'responsable_partner', 'candidato']
+            allowed_roles = SOPORTE_VISIBLE_ROLES
         elif current_user.role == 'responsable':
             allowed_roles = ['candidato']
         else:
