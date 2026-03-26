@@ -48,6 +48,19 @@ def _get_effective_coordinator_id(user):
     return None
 
 
+def _verify_coordinator_user_access(current_user, target_user):
+    """Verifica que un coordinador/auxiliar tiene acceso al usuario objetivo.
+    Retorna None si OK, o (response, status_code) si no tiene acceso."""
+    if not _is_coordinator_role(current_user.role):
+        return None
+    if target_user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+        return jsonify({'error': 'No tienes permiso para acceder a este usuario'}), 403
+    coord_id = _get_effective_coordinator_id(current_user)
+    if target_user.coordinator_id != coord_id:
+        return jsonify({'error': 'No tienes acceso a este usuario'}), 403
+    return None
+
+
 def management_required(f):
     """Decorador que requiere rol de admin, developer, coordinator, auxiliar, soporte o responsable"""
     @wraps(f)
@@ -174,10 +187,13 @@ def list_users():
         
         query = db.session.query(*columns)
         
-        # Coordinadores y auxiliares ven candidatos, responsables y responsables del partner
-        # Usuarios son compartidos: todos los coordinadores ven todos (sin filtro coordinator_id)
+        # Coordinadores y auxiliares ven SOLO sus propios candidatos, responsables, responsables_partner y auxiliares
         if _is_coordinator_role(current_user.role):
-            query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
+            coord_id = _get_effective_coordinator_id(current_user)
+            query = query.filter(
+                User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']),
+                User.coordinator_id == coord_id
+            )
 
         # Soporte solo ve responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -383,7 +399,8 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     query = User.query
     if _is_coordinator_role(user_role):
         query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
-        # Usuarios compartidos: sin filtro por coordinator_id
+        if coordinator_id:
+            query = query.filter(User.coordinator_id == coordinator_id)
     if user_role == 'soporte':
         query = query.filter(User.role.in_(['responsable', 'responsable_partner', 'candidato']))
     if user_role == 'responsable' and campus_id:
@@ -423,9 +440,9 @@ def get_user_detail(user_id):
         
         # Coordinadores y auxiliares pueden ver candidatos, responsables y responsables del partner
         if _is_coordinator_role(current_user.role):
-            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
-                return jsonify({'error': 'No tienes permiso para ver este usuario'}), 403
-            # Usuarios son compartidos: sin filtro por coordinator_id
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
 
         # Soporte solo puede ver responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -474,7 +491,9 @@ def get_user_group_history(user_id):
 
         # Permisos: misma lógica que get_user_detail
         if _is_coordinator_role(current_user.role):
-            pass  # coordinadores pueden ver candidatos
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
         elif current_user.role == 'responsable':
             from app.models.partner import GroupMember as GM2, CandidateGroup as CG2
             is_in_campus = db.session.query(GM2.id).join(
@@ -1023,8 +1042,9 @@ def update_user(user_id):
         
         # Coordinadores solo pueden editar candidatos, responsables y responsables del partner
         if _is_coordinator_role(current_user.role):
-            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
-                return jsonify({'error': 'Solo puedes editar candidatos, responsables y responsables del partner'}), 403
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
 
         # Soporte solo puede editar responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -1252,10 +1272,11 @@ def change_user_password(user_id):
         user = User.query.get_or_404(user_id)
         data = request.get_json()
         
-        # Coordinadores/auxiliares solo pueden cambiar contraseñas de candidatos/responsables (usuarios compartidos)
+        # Coordinadores/auxiliares solo pueden cambiar contraseñas de sus propios candidatos/responsables
         if _is_coordinator_role(current_user.role):
-            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
-                return jsonify({'error': 'Solo puedes cambiar contraseñas de candidatos y responsables'}), 403
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
 
         # Soporte solo puede cambiar contraseñas de responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -1299,10 +1320,11 @@ def generate_temp_password(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores/auxiliares solo pueden generar contraseñas de candidatos/responsables (usuarios compartidos)
+        # Coordinadores/auxiliares solo pueden generar contraseñas de sus propios candidatos/responsables
         if _is_coordinator_role(current_user.role):
-            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
-                return jsonify({'error': 'Solo puedes generar contraseñas de candidatos y responsables'}), 403
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
 
         # Soporte solo puede generar contraseñas de responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -1342,10 +1364,11 @@ def get_user_password(user_id):
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
         
-        # Coordinadores/auxiliares solo pueden ver contraseñas de candidatos/responsables (usuarios compartidos)
+        # Coordinadores/auxiliares solo pueden ver contraseñas de sus propios candidatos/responsables
         if _is_coordinator_role(current_user.role):
-            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
-                return jsonify({'error': 'Solo puedes ver contraseñas de candidatos y responsables'}), 403
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
 
         # Soporte solo puede ver contraseñas de responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -1410,8 +1433,9 @@ def toggle_user_active(user_id):
             return jsonify({'error': 'Solo administradores, coordinadores o soporte pueden activar/desactivar usuarios'}), 403
 
         if _is_coordinator_role(current_user.role):
-            if user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
-                return jsonify({'error': 'Solo puedes activar/desactivar candidatos, responsables y responsables del partner'}), 403
+            err = _verify_coordinator_user_access(current_user, user)
+            if err:
+                return err
 
         # Soporte solo puede activar/desactivar responsables, responsables_partner y candidatos
         if current_user.role == 'soporte':
@@ -1669,14 +1693,14 @@ def get_user_stats():
         current_user = g.current_user
         
         # Intentar obtener del caché primero
-        cache_key = f'user_stats_{current_user.role}_{current_user.id if current_user.role in ("coordinator", "responsable") else "all"}'
+        cache_key = f'user_stats_{current_user.role}_{_get_effective_coordinator_id(current_user) or current_user.id if _is_coordinator_role(current_user.role) or current_user.role == "responsable" else "all"}'
         cached_stats = cache.get(cache_key)
         if cached_stats is not None:
             return jsonify(cached_stats)
         
         # Query optimizada: obtener todos los conteos en una sola consulta
-        if current_user.role == 'coordinator':
-            allowed_roles = ['candidato', 'responsable', 'responsable_partner']
+        if _is_coordinator_role(current_user.role):
+            allowed_roles = ['candidato', 'responsable', 'responsable_partner', 'auxiliar']
         elif current_user.role == 'soporte':
             allowed_roles = ['responsable', 'responsable_partner', 'candidato']
         elif current_user.role == 'responsable':
@@ -1692,9 +1716,12 @@ def get_user_stats():
             func.sum(case((User.is_verified == True, 1), else_=0)).label('verified')
         )
         
-        if current_user.role == 'coordinator':
-            stats_query = stats_query.filter(User.role.in_(allowed_roles))
-            # Usuarios compartidos: sin filtro por coordinator_id
+        if _is_coordinator_role(current_user.role):
+            coord_id = _get_effective_coordinator_id(current_user)
+            stats_query = stats_query.filter(
+                User.role.in_(allowed_roles),
+                User.coordinator_id == coord_id
+            )
         elif current_user.role == 'soporte':
             stats_query = stats_query.filter(User.role.in_(allowed_roles))
         elif current_user.role == 'responsable':
@@ -1835,12 +1862,18 @@ def get_available_campuses():
     """
     try:
         from app.models.partner import Campus, Partner
-        
+
+        current_user = g.current_user
         for_responsable = request.args.get('for_responsable', 'false').lower() == 'true'
-        
+
         # Usar outerjoin para incluir campus aunque no tengan partner asociado
         query = Campus.query.outerjoin(Partner)
-        
+
+        # Coordinadores solo ven sus propios campuses
+        if _is_coordinator_role(current_user.role):
+            coord_id = _get_effective_coordinator_id(current_user)
+            query = query.filter(Campus.coordinator_id == coord_id)
+
         if for_responsable:
             # Solo planteles pendientes de activación (para asignar responsables)
             query = query.filter(Campus.is_active == False)
@@ -1881,8 +1914,16 @@ def get_available_partners():
     """Obtener lista de partners disponibles para asignar a responsable_partner"""
     try:
         from app.models.partner import Partner
-        
-        partners = Partner.query.filter_by(is_active=True).order_by(Partner.name).all()
+
+        current_user = g.current_user
+        query = Partner.query.filter_by(is_active=True)
+
+        # Coordinadores solo ven sus propios partners
+        if _is_coordinator_role(current_user.role):
+            coord_id = _get_effective_coordinator_id(current_user)
+            query = query.filter(Partner.coordinator_id == coord_id)
+
+        partners = query.order_by(Partner.name).all()
         
         return jsonify({
             'partners': [{
@@ -3356,8 +3397,12 @@ def export_user_credentials():
         for i in range(0, len(user_ids), CHUNK):
             chunk = user_ids[i:i + CHUNK]
             q = User.query.filter(User.id.in_(chunk))
-            if current_user.role == 'coordinator':
-                q = q.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner']))
+            if _is_coordinator_role(current_user.role):
+                coord_id = _get_effective_coordinator_id(current_user)
+                q = q.filter(
+                    User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']),
+                    User.coordinator_id == coord_id
+                )
             for u in q.all():
                 users_map[u.id] = u
         
