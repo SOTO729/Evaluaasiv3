@@ -126,6 +126,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_login = db.Column(db.DateTime)
+    last_seen = db.Column(db.DateTime)
     
     # Relaciones
     vouchers = db.relationship('Voucher', backref='user', lazy='dynamic', cascade='all, delete-orphan')

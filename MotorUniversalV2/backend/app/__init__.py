@@ -241,6 +241,27 @@ def create_app(config_name='development'):
             'Exercise': Exercise
         }
     
+    # Actualizar last_seen en cada request autenticado (lightweight)
+    @app.before_request
+    def _update_last_seen():
+        from flask import request as req
+        auth_header = req.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return
+        try:
+            from flask_jwt_extended import decode_token
+            from datetime import datetime
+            token_data = decode_token(auth_header.split(' ', 1)[1])
+            user_id = token_data.get('sub')
+            if user_id:
+                db.session.execute(
+                    db.text("UPDATE users SET last_seen = :now WHERE id = :uid"),
+                    {"now": datetime.utcnow(), "uid": user_id},
+                )
+                db.session.commit()
+        except Exception:
+            pass
+
     return app
 
 

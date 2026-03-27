@@ -103,6 +103,43 @@ const formatDateTime = (value?: string | null) => {
   })
 }
 
+/** Check if user is online (last_seen within 5 minutes) */
+const isUserOnline = (lastSeen?: string | null): boolean => {
+  if (!lastSeen) return false
+  const seen = new Date(lastSeen + (lastSeen.endsWith('Z') ? '' : 'Z'))
+  return Date.now() - seen.getTime() < 5 * 60 * 1000
+}
+
+/** Format last_seen as Mexico City time */
+const formatLastSeen = (lastSeen?: string | null): string => {
+  if (!lastSeen) return 'Sin conexión registrada'
+  const seen = new Date(lastSeen + (lastSeen.endsWith('Z') ? '' : 'Z'))
+  if (Number.isNaN(seen.getTime())) return 'Sin conexión registrada'
+  const now = new Date()
+  const diffMs = now.getTime() - seen.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'En línea ahora'
+  if (diffMin < 60) return `Hace ${diffMin} min`
+  const diffHrs = Math.floor(diffMin / 60)
+  if (diffHrs < 24) return `Hace ${diffHrs}h`
+  return seen.toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+/** Green/red status dot */
+const OnlineIndicator = ({ online, size = 'sm' }: { online: boolean; size?: 'sm' | 'md' }) => {
+  const px = size === 'md' ? 'h-3 w-3' : 'h-2.5 w-2.5'
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full ${px} ${online ? 'bg-emerald-500' : 'bg-red-400'}`}
+      title={online ? 'En línea' : 'Desconectado'}
+    />
+  )
+}
+
 const shortName = (name?: string | null) => {
   if (!name) return 'U'
   const parts = name.trim().split(' ').filter(Boolean)
@@ -617,8 +654,9 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
+                      <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-700">
                         {shortName(conversation.subject || `C ${conversation.id}`)}
+                        <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${isUserOnline(conversation.candidate?.last_seen) ? 'bg-emerald-500' : 'bg-red-400'}`} />
                       </span>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-gray-800">
@@ -682,7 +720,12 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                       </h3>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                         {isSupportMode && selectedConversation.subject && <span>Asunto: {selectedConversation.subject}</span>}
-                        <span>Última actividad: {formatDateTime(selectedConversation.last_message_at)}</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <OnlineIndicator online={isUserOnline(selectedConversation.candidate?.last_seen)} />
+                          {isUserOnline(selectedConversation.candidate?.last_seen)
+                            ? 'En línea'
+                            : `Última conexión: ${formatLastSeen(selectedConversation.candidate?.last_seen)}`}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1021,6 +1064,14 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                     </span>
                     <span className="rounded-full bg-white/15 px-2.5 py-1">
                       {selectedConversation?.candidate?.username || 'sin-usuario'}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-primary-100">
+                    <OnlineIndicator online={isUserOnline(selectedConversation?.candidate?.last_seen)} size="md" />
+                    <span>
+                      {isUserOnline(selectedConversation?.candidate?.last_seen)
+                        ? 'En línea ahora'
+                        : `Última conexión: ${formatLastSeen(selectedConversation?.candidate?.last_seen)}`}
                     </span>
                   </div>
                 </div>

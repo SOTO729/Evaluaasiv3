@@ -98,6 +98,7 @@ def _serialize_user_summary(user: User | None) -> dict | None:
         "curp": user.curp,
         "phone": user.phone,
         "role": user.role,
+        "last_seen": user.last_seen.isoformat() if getattr(user, 'last_seen', None) else None,
     }
 
 

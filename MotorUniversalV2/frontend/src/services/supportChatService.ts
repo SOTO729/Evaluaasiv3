@@ -21,6 +21,7 @@ export interface SupportChatUserSummary {
   curp?: string | null
   phone?: string | null
   role: string
+  last_seen?: string | null
 }
 
 export interface ChatAttachment {
