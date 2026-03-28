@@ -132,7 +132,7 @@ const ResponsableDashboard = () => {
             <div className="flex-1">
               <div className="flex items-center fluid-gap-3 fluid-mb-2">
                 {campusLogo ? (
-                  <img src={campusLogo} alt={campus.name} className="h-12 w-auto object-contain rounded-lg bg-white/10 p-1" />
+                  <img src={campusLogo} alt={campus.name} className="h-16 w-auto object-contain rounded-lg bg-white/10 p-1.5" />
                 ) : (
                   <Building2 className="fluid-icon-lg text-primary-200" />
                 )}

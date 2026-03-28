@@ -325,10 +325,15 @@ const Layout = ({ children }: LayoutProps) => {
                 </span>
               </Link>
               
-              {/* Nombre del plantel para responsables y candidatos */}
-              {hasBranding && campusName && (
-                <div className="hidden md:flex items-center fluid-ml-4 fluid-pl-4 border-l border-gray-200">
-                  <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
+              {/* Logo y nombre del plantel para responsables y candidatos */}
+              {hasBranding && (campusLogo || campusName) && (
+                <div className="hidden md:flex items-center fluid-ml-4 fluid-pl-4 border-l border-gray-200 fluid-gap-2">
+                  {campusLogo && (
+                    <img src={campusLogo} alt={campusName || 'Campus'} className="h-[clamp(1.75rem,1.5rem+1vw,2.75rem)] w-auto object-contain" />
+                  )}
+                  {campusName && (
+                    <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
+                  )}
                 </div>
               )}
               {/* Navegación desktop con scroll horizontal y flechas */}
