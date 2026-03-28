@@ -64,6 +64,20 @@ vi.mock('../components/LoadingSpinner', () => ({
   default: () => <div data-testid="loading-spinner">Cargando...</div>,
 }));
 
+// Mock dashboardService para tests de HomePage
+const mockGetDashboard = vi.fn();
+vi.mock('../services/dashboardService', () => ({
+  dashboardService: { getDashboard: () => mockGetDashboard() },
+  __esModule: true,
+}));
+
+// Mock sub-dashboards importados por HomePage
+vi.mock('../pages/EditorDashboard', () => ({ default: () => <div>Editor</div> }));
+vi.mock('../pages/coordinador/CoordinatorDashboard', () => ({ default: () => <div>Coord</div> }));
+vi.mock('../pages/responsable/ResponsableDashboard', () => ({ default: () => <div>Resp</div> }));
+vi.mock('../pages/responsable_partner/ResponsablePartnerDashboard', () => ({ default: () => <div>RespP</div> }));
+vi.mock('../components/candidate/CertificationPathCard', () => ({ default: () => <div>CertCard</div>, __esModule: true }));
+
 // ─── Datos de prueba ───────────────────────────────────────────────────────
 
 const CANDIDATO_USER = {
@@ -153,6 +167,9 @@ describe('Branding para Candidatos', () => {
     });
     mockGetCandidatoBranding.mockResolvedValue(MOCK_BRANDING_FULL);
     mockGetMiPlantel.mockResolvedValue({ campus: null, group_count: 0, members_count: 0 });
+    mockGetDashboard.mockResolvedValue({
+      exams: [], materials: [], exam_materials_map: {},
+    });
 
     // Asegurar link[rel=icon]
     let iconLink = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
@@ -394,6 +411,108 @@ describe('Branding para Candidatos', () => {
       await new Promise(r => setTimeout(r, 150));
 
       expect(mockGetMiPlantel).not.toHaveBeenCalled();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 6. LOGO DEL CAMPUS EN HOMEPAGE DEL CANDIDATO
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('6. Logo del campus en HomePage del candidato', () => {
+    function renderHomePage() {
+      const qc = createQueryClient();
+      return import('../pages/HomePage').then(({ default: HomePage }) => {
+        return render(
+          <QueryClientProvider client={qc}>
+            <MemoryRouter initialEntries={['/dashboard']}>
+              <Routes>
+                <Route path="*" element={<HomePage />} />
+              </Routes>
+            </MemoryRouter>
+          </QueryClientProvider>
+        );
+      });
+    }
+
+    it('6a. Muestra el logo del campus en el hero cuando tiene branding', async () => {
+      await renderHomePage();
+
+      await waitFor(() => {
+        const imgs = screen.getAllByRole('img');
+        const campusLogo = imgs.find(
+          img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
+        );
+        expect(campusLogo).toBeDefined();
+        expect(campusLogo).toHaveAttribute('alt', 'Campus Guadalajara');
+      });
+    });
+
+    it('6b. Muestra el nombre del campus en el hero', async () => {
+      await renderHomePage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Campus Guadalajara')).toBeInTheDocument();
+      });
+    });
+
+    it('6c. No muestra logo cuando branding es null', async () => {
+      mockGetCandidatoBranding.mockResolvedValue(MOCK_BRANDING_NULL);
+
+      await renderHomePage();
+
+      await waitFor(() => {
+        expect(screen.getByText('¡Bienvenido!')).toBeInTheDocument();
+      });
+
+      const imgs = screen.queryAllByRole('img');
+      const campusLogo = imgs.find(
+        img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
+      );
+      expect(campusLogo).toBeUndefined();
+    });
+
+    it('6d. Muestra icono fallback cuando no hay logo_url pero sí branding', async () => {
+      mockGetCandidatoBranding.mockResolvedValue(MOCK_BRANDING_PARTIAL);
+
+      await renderHomePage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Campus Veracruz')).toBeInTheDocument();
+      });
+
+      // No debe haber img del campus
+      const imgs = screen.queryAllByRole('img');
+      const campusLogo = imgs.find(
+        img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
+      );
+      expect(campusLogo).toBeUndefined();
+    });
+
+    it('6e. Hero usa colores de branding cuando tiene primary_color', async () => {
+      await renderHomePage();
+
+      await waitFor(() => {
+        expect(screen.getByText('¡Bienvenido!')).toBeInTheDocument();
+      });
+
+      // El hero debe tener clases de primary (branding), no blue
+      const hero = screen.getByText('¡Bienvenido!').closest('.rounded-fluid-xl');
+      expect(hero?.className).toContain('from-primary-700');
+      expect(hero?.className).not.toContain('from-blue-600');
+    });
+
+    it('6f. Hero usa colores blue por defecto cuando no hay branding', async () => {
+      mockGetCandidatoBranding.mockResolvedValue(MOCK_BRANDING_NULL);
+
+      await renderHomePage();
+
+      await waitFor(() => {
+        expect(screen.getByText('¡Bienvenido!')).toBeInTheDocument();
+      });
+
+      const hero = screen.getByText('¡Bienvenido!').closest('.rounded-fluid-xl');
+      expect(hero?.className).toContain('from-blue-600');
+      expect(hero?.className).not.toContain('from-primary-700');
     });
   });
 });

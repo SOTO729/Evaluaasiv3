@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../store/authStore'
 import { dashboardService, DashboardData, DashboardExam, DashboardMaterial } from '../services/dashboardService'
+import { getCandidatoBranding } from '../services/partnersService'
 import EditorDashboard from './EditorDashboard'
 import CoordinatorDashboard from './coordinador/CoordinatorDashboard'
 import ResponsableDashboard from './responsable/ResponsableDashboard'
@@ -13,7 +15,8 @@ import {
   Award,
   ArrowRight,
   Trophy,
-  CheckCircle2
+  CheckCircle2,
+  GraduationCap
 } from 'lucide-react'
 
 /** Agrupa exámenes y materiales en certificaciones independientes */
@@ -136,6 +139,17 @@ const HomePage = () => {
   const isResponsable = user?.role === 'responsable'
   const isResponsablePartner = user?.role === 'responsable_partner'
 
+  // Branding del campus para candidatos (usa cache de Layout)
+  const { data: brandingData } = useQuery({
+    queryKey: ['candidato-branding'],
+    queryFn: getCandidatoBranding,
+    enabled: user?.role === 'candidato',
+    staleTime: 10 * 60 * 1000,
+  })
+  const campusLogo = brandingData?.branding?.logo_url
+  const campusName = brandingData?.branding?.campus_name
+  const hasCampusBranding = !!brandingData?.branding?.primary_color
+
   const loadDashboard = async () => {
     try {
       setLoading(true)
@@ -235,20 +249,37 @@ const HomePage = () => {
   return (
     <div className="fluid-gap-5 flex flex-col">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden">
+      <div className={`rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden ${
+        hasCampusBranding
+          ? 'bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500'
+          : 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700'
+      }`}>
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
         <div className="relative z-10">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-4">
             <div className="flex-1">
+              {/* Logo y nombre del campus */}
+              {(campusLogo || campusName) && (
+                <div className="flex items-center fluid-gap-3 fluid-mb-3">
+                  {campusLogo ? (
+                    <img src={campusLogo} alt={campusName || 'Campus'} className="h-12 w-auto object-contain rounded-lg bg-white/10 p-1" />
+                  ) : (
+                    <GraduationCap className="fluid-icon-lg text-white/60" />
+                  )}
+                  {campusName && (
+                    <span className="fluid-text-sm text-white/70 font-medium">{campusName}</span>
+                  )}
+                </div>
+              )}
               <h1 className="fluid-text-4xl font-bold fluid-mb-2">
                 {motivationalMessage.title}
               </h1>
-              <p className="text-blue-100 fluid-text-base">
+              <p className={`fluid-text-base ${hasCampusBranding ? 'text-primary-100' : 'text-blue-100'}`}>
                 {motivationalMessage.subtitle}
               </p>
-              <p className="text-blue-200 fluid-text-sm fluid-mt-1">
+              <p className={`fluid-text-sm fluid-mt-1 ${hasCampusBranding ? 'text-primary-200' : 'text-blue-200'}`}>
                 Hola, <span className="font-medium text-white">{user?.name}</span>
               </p>
             </div>
@@ -266,7 +297,7 @@ const HomePage = () => {
                 </div>
               </div>
               <div className="fluid-text-sm">
-                <p className="text-blue-100">Progreso</p>
+                <p className={hasCampusBranding ? 'text-primary-100' : 'text-blue-100'}>Progreso</p>
                 <p className="font-semibold">General</p>
               </div>
             </div>
@@ -295,7 +326,7 @@ const HomePage = () => {
                 onClick={() => setActiveTab(cert.id)}
                 className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-md'
+                    ? 'bg-primary-600 text-white shadow-md'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
