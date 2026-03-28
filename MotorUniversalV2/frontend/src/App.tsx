@@ -28,6 +28,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const ExamsListPage = lazy(() => import('./pages/exams/ExamsListPage'))
 const ExamCreatePage = lazy(() => import('./pages/exams/ExamCreatePage'))
 const ExamEditPage = lazy(() => import('./pages/exams/ExamEditPage'))
+const ExamConfigPage = lazy(() => import('./pages/exams/ExamConfigPage'))
 const CategoryDetailPage = lazy(() => import('./pages/categories/CategoryDetailPage'))
 const TopicDetailPage = lazy(() => import('./pages/topics/TopicDetailPage'))
 const TrueFalseAnswerPage = lazy(() => import('./pages/answers/TrueFalseAnswerPage'))
@@ -342,6 +343,7 @@ function App() {
               <Route path="/exams" element={<RestrictedForGerenteFin><ExamsListPage /></RestrictedForGerenteFin>} />
               <Route path="/exams/create" element={<RestrictedForGerenteFin><ExamCreatePage /></RestrictedForGerenteFin>} />
               <Route path="/exams/:id/edit" element={<RestrictedForGerenteFin><ExamEditPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/:id/config" element={<RestrictedForGerenteFin><ExamConfigPage /></RestrictedForGerenteFin>} />
               <Route path="/exams/:id/select-mode" element={<RestrictedForGerenteFin><ExamModeSelectorPage /></RestrictedForGerenteFin>} />
               <Route path="/exams/:id/preview/:mode" element={<RestrictedForGerenteFin><ExamPreviewPage /></RestrictedForGerenteFin>} />
               <Route path="/exams/:id/preview" element={<RestrictedForGerenteFin><ExamPreviewPage /></RestrictedForGerenteFin>} />
