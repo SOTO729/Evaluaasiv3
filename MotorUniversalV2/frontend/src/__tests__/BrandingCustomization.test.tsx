@@ -43,6 +43,7 @@ const mockGetMiPlantelEvaluations = vi.fn();
 const mockGetMiPlantelExams = vi.fn();
 const mockGetMiPlantelGroups = vi.fn();
 const mockExportMiPlantelEvaluations = vi.fn();
+const mockGetCandidatoBranding = vi.fn();
 
 vi.mock('../services/partnersService', () => ({
   getMiPlantel: (...args: unknown[]) => mockGetMiPlantel(...args),
@@ -51,6 +52,7 @@ vi.mock('../services/partnersService', () => ({
   getMiPlantelExams: (...args: unknown[]) => mockGetMiPlantelExams(...args),
   getMiPlantelGroups: (...args: unknown[]) => mockGetMiPlantelGroups(...args),
   exportMiPlantelEvaluations: (...args: unknown[]) => mockExportMiPlantelEvaluations(...args),
+  getCandidatoBranding: (...args: unknown[]) => mockGetCandidatoBranding(...args),
 }));
 
 const mockUseAuthStore = vi.fn();
@@ -177,6 +179,7 @@ describe('Personalización Avanzada del Branding', () => {
     mockGetMiPlantelEvaluations.mockResolvedValue({ evaluations: [], total: 0, pages: 0 });
     mockGetMiPlantelExams.mockResolvedValue({ exams: [] });
     mockGetMiPlantelGroups.mockResolvedValue({ groups: [] });
+    mockGetCandidatoBranding.mockResolvedValue({ branding: null });
   });
 
   afterEach(() => {
