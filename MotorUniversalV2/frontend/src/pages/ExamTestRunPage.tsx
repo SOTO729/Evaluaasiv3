@@ -2667,7 +2667,7 @@ const ExamTestRunPage: React.FC = () => {
                 ¿Finalizar examen?
               </h3>
               <p className="fluid-text-xs sm:fluid-text-sm text-gray-500 fluid-mb-2">
-                Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> ítems.
+                Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> reactivos.
               </p>
               {getAnsweredCount() < selectedItems.length && (
                 <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 bg-amber-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-3 sm:fluid-mb-4">
