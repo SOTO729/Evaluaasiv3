@@ -171,7 +171,7 @@ def send_email(
             ]
 
         poller = client.begin_send(message)
-        result = poller.result()
+        result = poller.result(timeout=10)
         logger.info(f"[EMAIL OK] to={to} subject={subject} id={result.get('id', 'n/a')}")
         return True
     except Exception as e:
