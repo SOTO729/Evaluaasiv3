@@ -718,6 +718,9 @@ def create_campus(partner_id):
         
         db.session.add(director_user)
         
+        # Asignar el responsable al plantel
+        campus.responsable_id = director_user.id
+        
         db.session.commit()
         
         # Obtener los estados actualizados del partner
@@ -3913,6 +3916,17 @@ def bulk_assign_by_criteria(group_id):
             User.is_active == True
         )
         
+        # Responsables solo pueden asignar candidatos de su propio plantel
+        current_user = g.current_user
+        if current_user.role == 'responsable':
+            campus_group_ids = db.session.query(CandidateGroup.id).filter(
+                CandidateGroup.campus_id == current_user.campus_id
+            ).subquery()
+            campus_candidate_ids = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(campus_group_ids)
+            ).distinct().subquery()
+            query = query.filter(User.id.in_(campus_candidate_ids))
+        
         # Usuarios son compartidos: sin filtro por coordinator_id
         
         # Filtro de búsqueda textual
@@ -4170,6 +4184,17 @@ def search_candidates():
             User.role == 'candidato',
             User.is_active == True
         )
+        
+        # Responsables solo ven candidatos de su propio plantel
+        current_user = g.current_user
+        if current_user.role == 'responsable':
+            campus_group_ids = db.session.query(CandidateGroup.id).filter(
+                CandidateGroup.campus_id == current_user.campus_id
+            ).subquery()
+            campus_candidate_ids = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(campus_group_ids)
+            ).distinct().subquery()
+            query = query.filter(User.id.in_(campus_candidate_ids))
         
         # Usuarios son compartidos: todos los coordinadores ven todos los candidatos
         
@@ -9333,6 +9358,17 @@ def search_candidates_advanced():
             User.is_active == True
         )
         
+        # Responsables solo ven candidatos de su propio plantel
+        current_user = g.current_user
+        if current_user.role == 'responsable':
+            campus_group_ids = db.session.query(CandidateGroup.id).filter(
+                CandidateGroup.campus_id == current_user.campus_id
+            ).subquery()
+            campus_candidate_ids = db.session.query(GroupMember.user_id).filter(
+                GroupMember.group_id.in_(campus_group_ids)
+            ).distinct().subquery()
+            query = query.filter(User.id.in_(campus_candidate_ids))
+        
         # Usuarios son compartidos: todos los coordinadores ven todos los candidatos
         
         # Filtro de búsqueda textual
@@ -10163,7 +10199,11 @@ def update_mi_plantel_branding():
         user = g.current_user
         campus = Campus.query.get(user.campus_id)
         
-        if not campus or campus.responsable_id != user.id:
+        if not campus:
+            return jsonify({'error': 'No tienes acceso a este plantel'}), 403
+        
+        # Verificar que el responsable sea el asignado al plantel (si está asignado)
+        if campus.responsable_id and campus.responsable_id != user.id:
             return jsonify({'error': 'No tienes acceso a este plantel'}), 403
         
         data = request.get_json()
