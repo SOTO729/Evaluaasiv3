@@ -21,9 +21,9 @@ const DEFAULT_SETTINGS: SupportSettings = {
   supportTimezone: 'America/Mexico_City',
   supportWeekdays: [1, 2, 3, 4, 5],
   supportStartHour: '09:00',
-  supportEndHour: '23:30',
+  supportEndHour: '17:00',
   supportOfflineMessage:
-    'Horario de atencion de soporte: lunes a viernes de 9:00 a 23:30 hrs (Ciudad de Mexico).',
+    'El chat de soporte solo esta habilitado de lunes a viernes de 9:00 a 17:00 hrs (centro de Mexico).',
 }
 
 export const getDefaultSupportSettings = (): SupportSettings => ({ ...DEFAULT_SETTINGS })
@@ -46,10 +46,10 @@ export const loadSupportSettings = (): SupportSettings => {
         ? parsed.supportWeekdays.filter((day: unknown) => Number.isInteger(day)).map((day: number) => Number(day))
         : [1, 2, 3, 4, 5],
       supportStartHour: String(parsed?.supportStartHour || '09:00'),
-      supportEndHour: String(parsed?.supportEndHour || '23:30'),
+      supportEndHour: String(parsed?.supportEndHour || '17:00'),
       supportOfflineMessage: String(
         parsed?.supportOfflineMessage ||
-          'Horario de atencion de soporte: lunes a viernes de 9:00 a 23:30 hrs (Ciudad de Mexico).'
+          'El chat de soporte solo esta habilitado de lunes a viernes de 9:00 a 17:00 hrs (centro de Mexico).'
       ),
     }
   } catch (_error) {
