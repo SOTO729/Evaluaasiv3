@@ -295,9 +295,9 @@ const Layout = ({ children }: LayoutProps) => {
   }
 
   return (
-    <div className={isFullContentPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen bg-gray-50'}>
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-40 flex-shrink-0">
+    <div className="h-screen flex flex-col overflow-hidden bg-gray-50">
+      {/* Header — siempre visible, fuera del área de scroll */}
+      <header className="bg-white shadow-sm border-b flex-shrink-0 z-40">
         <div className="w-full fluid-px-4">
           <div className="flex justify-between items-center fluid-header-height">
             <div className="flex items-center">
@@ -1415,8 +1415,14 @@ const Layout = ({ children }: LayoutProps) => {
       )}
 
       {/* Main Content */}
-      <main className={isFullContentPage ? 'flex-1 overflow-hidden' : 'max-w-fluid-full mx-auto fluid-px-4 fluid-py-4'}>
-        {children || <Outlet />}
+      <main className={isFullContentPage ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto'}>
+        {isFullContentPage ? (
+          children || <Outlet />
+        ) : (
+          <div className="max-w-fluid-full mx-auto fluid-px-4 fluid-py-4">
+            {children || <Outlet />}
+          </div>
+        )}
       </main>
     </div>
   )
