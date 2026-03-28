@@ -2961,7 +2961,9 @@ def get_group_members_count(group_id):
     """Obtener solo el conteo y lista de IDs de miembros (endpoint ligero)"""
     try:
         from sqlalchemy import text
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         status_filter = request.args.get('status', 'active')
         
@@ -3077,7 +3079,9 @@ def delete_group(group_id):
 def get_group_config(group_id):
     """Obtener configuración del grupo con valores heredados del campus"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         campus = group.campus
         
         if not campus:
@@ -3217,7 +3221,9 @@ def get_group_config(group_id):
 def update_group_config(group_id):
     """Actualizar configuración del grupo (overrides)"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         # Bloquear si el grupo ya tiene asignaciones
         from app.models import GroupExam
@@ -3297,7 +3303,9 @@ def update_group_config(group_id):
 def reset_group_config(group_id):
     """Resetear configuración del grupo a valores del campus"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         # Bloquear si el grupo ya tiene asignaciones
         from app.models import GroupExam
@@ -3685,7 +3693,9 @@ def get_group_campus_responsables(group_id):
     """Obtener los responsables del plantel al que pertenece el grupo,
     indicando cuáles ya son miembros del grupo."""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         if not group.campus_id:
             return jsonify({'responsables': [], 'total': 0})
 
@@ -3732,7 +3742,9 @@ def get_group_campus_responsables(group_id):
 def add_group_member(group_id):
     """Agregar un candidato o responsable del plantel al grupo"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         user_id = data.get('user_id')
@@ -3793,7 +3805,9 @@ def add_group_members_bulk(group_id):
       Para asignaciones 'all', no hace falta (ya están cubiertos).
     """
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         user_ids = data.get('user_ids', [])
@@ -3906,7 +3920,9 @@ def add_group_members_bulk(group_id):
 def bulk_assign_by_criteria(group_id):
     """Asignar masivamente candidatos por criterios de búsqueda - optimizado para cientos de miles"""
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json() or {}
         
         # Mismos filtros que search_candidates_advanced
@@ -4553,7 +4569,9 @@ def upload_group_members(group_id):
     MAX_FILE_MB = 20
     
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         if 'file' not in request.files:
             return jsonify({'error': 'No se envió ningún archivo'}), 400
@@ -5252,7 +5270,9 @@ def get_group_exam_detail(group_id, exam_id):
         from app.models.study_content import StudyMaterial
         from sqlalchemy import func
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         group_exam = GroupExam.query.filter_by(
             group_id=group_id, exam_id=exam_id, is_active=True
         ).first_or_404()
@@ -5463,7 +5483,9 @@ def assignment_cost_preview(group_id):
     Retorna el costo unitario, cantidad de unidades, total y saldo actual
     """
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         assignment_type = data.get('assignment_type', 'all')
@@ -5562,7 +5584,9 @@ def assign_exam_to_group(group_id):
         from app.models.partner import GroupExamMember
         from app.models.study_content import StudyMaterial
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         exam_id = data.get('exam_id')
@@ -6108,7 +6132,9 @@ def update_group_exam_members(group_id, exam_id):
         from app.models import GroupExam
         from app.models.partner import GroupExamMember
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         group_exam = GroupExam.query.filter_by(
             group_id=group_id, 
@@ -6252,7 +6278,9 @@ def add_assignments_to_exam(group_id, exam_id):
         from app.models.partner import GroupExamMember, EcmCandidateAssignment
         from dateutil.relativedelta import relativedelta
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         group_exam = GroupExam.query.filter_by(
             group_id=group_id,
             exam_id=exam_id,
@@ -7643,7 +7671,9 @@ def apply_ecm_retake(group_id, exam_id, user_id):
         from app.models.result import Result
         from app.models.balance import CoordinatorBalance, create_balance_transaction
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         campus = Campus.query.get(group.campus_id)
 
         group_exam = GroupExam.query.filter_by(
@@ -7818,7 +7848,9 @@ def preview_ecm_retake(group_id, exam_id):
         if not user_id:
             return jsonify({'error': 'Se requiere user_id'}), 400
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         campus = Campus.query.get(group.campus_id)
         
         group_exam = GroupExam.query.filter_by(
@@ -7977,7 +8009,9 @@ def assign_study_materials_to_group(group_id):
         from app.models import GroupStudyMaterial, GroupStudyMaterialMember
         from app.models.study_content import StudyMaterial
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         data = request.get_json()
         
         material_ids = data.get('material_ids', [])
@@ -9198,7 +9232,9 @@ def preview_group_members_upload(group_id):
     MAX_FILE_MB = 20
     
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         if 'file' not in request.files:
             return jsonify({'error': 'No se envió ningún archivo'}), 400
@@ -9749,7 +9785,9 @@ def export_group_certifications(group_id):
         from app.models.result import Result
         from app.models.exam import Exam
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         members = GroupMember.query.filter_by(group_id=group_id).all()
         group_exams = GroupExam.query.filter_by(group_id=group_id, is_active=True).all()
         real_exam_ids = [ge.exam_id for ge in group_exams]
@@ -12279,7 +12317,9 @@ def download_bulk_exam_assign_template(group_id):
     from flask import send_file
     
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         # Obtener miembros del grupo (status='active')
         members = group.members.filter_by(status='active').all()
@@ -12408,7 +12448,9 @@ def bulk_assign_exams_by_ecm(group_id):
     from app.models.competency_standard import CompetencyStandard
     
     try:
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         # Verificar que se envió un archivo
         if 'file' not in request.files:
@@ -12713,7 +12755,9 @@ def get_group_certificates_stats(group_id):
         from app.models.badge import IssuedBadge
         from sqlalchemy import and_, or_
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         cert_type = request.args.get('cert_type', None)
         include_candidates = request.args.get('page') is not None
@@ -12995,7 +13039,9 @@ def download_group_certificates_zip(group_id):
         import re
         import os
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         data = request.get_json() or {}
         certificate_types = data.get('certificate_types', ['tier_basic', 'tier_standard'])
@@ -13577,7 +13623,9 @@ def generate_group_certificates(group_id):
         from sqlalchemy import and_, or_
         from flask import current_app
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         data = request.get_json() or {}
         certificate_type = data.get('certificate_type', 'tier_basic')
@@ -13674,7 +13722,9 @@ def clear_group_certificates_urls(group_id):
         from app.models.result import Result
         from sqlalchemy import and_
         
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         
         data = request.get_json() or {}
         clear_reports = data.get('clear_reports', True)  # tier_basic
@@ -13751,7 +13801,9 @@ def get_group_analytics(group_id):
         from datetime import datetime, timedelta
         from collections import defaultdict
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
 
         # Parámetros de filtro
         exam_id_filter = request.args.get('exam_id', type=int)
@@ -14114,7 +14166,9 @@ def get_candidate_certification_detail(group_id, user_id):
         from app.models.partner import EcmCandidateAssignment
         from sqlalchemy import and_
 
-        group = CandidateGroup.query.get_or_404(group_id)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
 
         # Verificar que el usuario es miembro activo del grupo
         member = GroupMember.query.filter_by(group_id=group_id, user_id=user_id, status='active').first()
