@@ -15,7 +15,7 @@ const SYNC_EVENT = 'support-settings-updated'
 
 const DEFAULT_SETTINGS: SupportSettings = {
   criticalNotifications: true,
-  autoRefreshEnabled: false,
+  autoRefreshEnabled: true,
   escalationChannel: '',
   supportAvailabilityEnabled: true,
   supportTimezone: 'America/Mexico_City',
@@ -37,7 +37,8 @@ export const loadSupportSettings = (): SupportSettings => {
     const parsed = JSON.parse(raw)
     return {
       criticalNotifications: Boolean(parsed?.criticalNotifications),
-      autoRefreshEnabled: Boolean(parsed?.autoRefreshEnabled),
+      autoRefreshEnabled:
+        parsed?.autoRefreshEnabled === undefined ? true : Boolean(parsed?.autoRefreshEnabled),
       escalationChannel: String(parsed?.escalationChannel || ''),
       supportAvailabilityEnabled:
         parsed?.supportAvailabilityEnabled === undefined ? true : Boolean(parsed?.supportAvailabilityEnabled),

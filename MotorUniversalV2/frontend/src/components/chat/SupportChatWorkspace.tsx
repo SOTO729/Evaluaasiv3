@@ -333,14 +333,18 @@ const SupportChatWorkspace = ({ mode }: Props) => {
     setStatusFilter(mode === 'support' ? 'open' : 'all')
   }, [mode])
 
+  // Polling: coordinador=siempre, candidato=siempre, soporte=según config autoRefreshEnabled
+  const pollingEnabled = !isSupportMode || isCoordinatorMode || supportSettings.autoRefreshEnabled
+
   useEffect(() => {
+    if (!pollingEnabled) return
     const interval = window.setInterval(async () => {
       await loadConversations(true)
       if (selectedConversationId) await loadMessages(selectedConversationId)
     }, POLL_INTERVAL_MS)
 
     return () => window.clearInterval(interval)
-  }, [selectedConversationId, statusFilter])
+  }, [selectedConversationId, statusFilter, pollingEnabled])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })

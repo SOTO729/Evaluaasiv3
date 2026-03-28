@@ -53,8 +53,8 @@ const SupportSettingsPage = () => {
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-900">Actualización automática</p>
-            <p className="text-xs text-gray-500">Refrescar datos cada 5 minutos</p>
+            <p className="text-sm font-semibold text-gray-900">Actualización automática del chat</p>
+            <p className="text-xs text-gray-500">Refrescar conversaciones y mensajes en tiempo real (cada 7s)</p>
           </div>
           <input
             type="checkbox"
