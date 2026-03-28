@@ -99,7 +99,7 @@ export default function MiPlantelCicloDetailPage() {
   return (
     <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
       {/* Header con degradado */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
             <div className="fluid-p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">

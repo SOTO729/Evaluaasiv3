@@ -16,8 +16,8 @@ import {
   CheckCircle2, ArrowRight, Building2, FileText
 } from 'lucide-react'
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
-const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
+// Chart colors are built dynamically in the component from the branding primary color
+const SEMANTIC_COLORS = { green: '#10b981', amber: '#f59e0b', red: '#ef4444', purple: '#8b5cf6', pink: '#ec4899' }
 
 /** Read computed CSS variable or return fallback */
 function getCSSColor(varName: string, fallback: string): string {
@@ -98,6 +98,11 @@ const ResponsableDashboard = () => {
   // Read the branding primary color for charts (falls back to blue-500)
   const primaryHex = getCSSColor('--color-primary-500', '#3b82f6')
   const primaryDarkHex = getCSSColor('--color-primary-700', '#1d4ed8')
+  const primaryLightHex = getCSSColor('--color-primary-400', '#60a5fa')
+
+  // Build dynamic chart palettes from the theme
+  const COLORS = [primaryHex, SEMANTIC_COLORS.green, SEMANTIC_COLORS.amber, SEMANTIC_COLORS.red, SEMANTIC_COLORS.purple, SEMANTIC_COLORS.pink]
+  const PIE_COLORS = [primaryHex, SEMANTIC_COLORS.green, SEMANTIC_COLORS.amber, SEMANTIC_COLORS.purple]
 
   const certTypeData = [
     { name: 'Constancia Eduit', value: charts.certification_by_type.constancia_eduit },

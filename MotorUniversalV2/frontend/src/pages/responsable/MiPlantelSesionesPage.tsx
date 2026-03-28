@@ -295,7 +295,7 @@ export default function MiPlantelSesionesPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-teal-600 via-emerald-600 to-green-700 rounded-fluid-2xl fluid-p-6 text-white fluid-mb-6 shadow-lg">
+      <div className="bg-gradient-to-br from-primary-700 via-primary-600 to-primary-500 rounded-fluid-2xl fluid-p-6 text-white fluid-mb-6 shadow-lg">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between fluid-gap-4">
           <div>
             <h1 className="fluid-text-2xl font-bold flex items-center fluid-gap-2">
@@ -431,10 +431,10 @@ export default function MiPlantelSesionesPage() {
         <div className="xl:col-span-3">
           <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
             {/* Week nav */}
-            <div className="flex items-center justify-between fluid-px-5 fluid-py-3 bg-gradient-to-r from-teal-600 to-emerald-600 text-white">
+            <div className="flex items-center justify-between fluid-px-5 fluid-py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white">
               <button onClick={prevWeek} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5" /></button>
               <div className="flex items-center fluid-gap-3">
-                <Calendar className="w-5 h-5 text-teal-200" />
+                <Calendar className="w-5 h-5 text-white/60" />
                 <span className="font-semibold fluid-text-base">
                   {weekDays[0].getDate()} {MONTHS_ES[weekDays[0].getMonth()].substring(0, 3)} — {weekDays[6].getDate()} {MONTHS_ES[weekDays[6].getMonth()].substring(0, 3)} {weekDays[6].getFullYear()}
                 </span>
