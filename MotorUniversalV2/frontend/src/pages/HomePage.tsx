@@ -109,18 +109,25 @@ export function buildCertifications(
 }
 
 /** Encuentra el tab con actividad más reciente */
-function findMostRecentTab(certs: Certification[]): string {
+export function findMostRecentTab(certs: Certification[]): string {
   if (certs.length === 0) return ''
   let best = certs[0]
   for (const c of certs) {
-    if (c.lastActivity && (!best.lastActivity || c.lastActivity < best.lastActivity)) {
-      best = c
-    }
-    // Priorizar el que tiene actividad in-progress
+    // Priorizar el que tiene exámenes in-progress (intentados pero no aprobados ni completados)
     const hasInProgress = c.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)
     if (hasInProgress) {
+      // Si hay varios in-progress, elegir el de actividad más reciente
+      if (best === certs[0] || !best.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)) {
+        best = c
+      } else if (c.lastActivity && (!best.lastActivity || c.lastActivity > best.lastActivity)) {
+        best = c
+      }
+      continue
+    }
+    // Si no hay in-progress aún, elegir por fecha más reciente
+    const bestIsInProgress = best.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)
+    if (!bestIsInProgress && c.lastActivity && (!best.lastActivity || c.lastActivity > best.lastActivity)) {
       best = c
-      break
     }
   }
   return best.id
@@ -316,32 +323,110 @@ const HomePage = () => {
 
       {/* Tabs de certificación (solo si hay más de 1) */}
       {certifications.length > 1 && (
-        <div className="flex flex-wrap items-center fluid-gap-2 bg-white rounded-fluid-xl border border-gray-200 fluid-p-3">
-          {certifications.map(cert => {
-            const isActive = cert.id === activeTab
-            const certApproved = cert.exams.length > 0 && cert.exams.every(e => e.user_stats.is_approved)
-            return (
-              <button
-                key={cert.id}
-                onClick={() => setActiveTab(cert.id)}
-                className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-primary-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {certApproved ? (
-                  <CheckCircle2 className="fluid-icon-sm text-current opacity-80" />
-                ) : (
-                  <Trophy className="fluid-icon-sm text-current opacity-60" />
-                )}
-                <span className="truncate max-w-[200px]">{cert.label}</span>
-                {certApproved && !isActive && (
-                  <span className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
-                )}
-              </button>
-            )
-          })}
+        <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4">
+          <div className="flex items-center fluid-gap-2 fluid-mb-3">
+            <GraduationCap className="fluid-icon text-blue-600" />
+            <h2 className="font-semibold fluid-text-sm text-gray-700">Mis Certificaciones</h2>
+            <span className="fluid-text-xs text-gray-400 font-normal">({certifications.length})</span>
+          </div>
+          <div className={`grid grid-cols-1 ${certifications.length === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'} fluid-gap-3`}>
+            {certifications.map(cert => {
+              const isActive = cert.id === activeTab
+              const certApproved = cert.exams.length > 0 && cert.exams.every(e => e.user_stats.is_approved)
+              const certApprovedExams = cert.exams.filter(e => e.user_stats.is_approved)
+              const certCompletedMats = cert.materials.filter(m => m.progress.percentage === 100)
+              const certAvgMat = cert.materials.length > 0
+                ? Math.round(cert.materials.reduce((a, m) => a + m.progress.percentage, 0) / cert.materials.length)
+                : 0
+              const certExamRate = cert.exams.length > 0 ? Math.round((certApprovedExams.length / cert.exams.length) * 100) : 0
+              const certProgress = Math.round((certAvgMat * 0.4) + (certExamRate * 0.6))
+              const certHasActivity = cert.exams.some(e => e.user_stats.last_attempt)
+              const isLastActive = cert.id === findMostRecentTab(certifications)
+
+              return (
+                <button
+                  key={cert.id}
+                  onClick={() => setActiveTab(cert.id)}
+                  className={`relative text-left fluid-p-4 rounded-fluid-xl border-2 transition-all duration-200 ${
+                    isActive
+                      ? 'border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-200'
+                      : certApproved
+                        ? 'border-green-200 bg-green-50/50 hover:border-green-300 hover:shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  }`}
+                >
+                  {/* Badge "Última actividad" */}
+                  {isLastActive && !isActive && (
+                    <span className="absolute -top-2 right-3 fluid-text-xs bg-amber-100 text-amber-700 fluid-px-2 py-0.5 rounded-full font-medium border border-amber-200">
+                      Última actividad
+                    </span>
+                  )}
+
+                  {/* Cabecera: ícono + nombre */}
+                  <div className="flex items-start fluid-gap-3 fluid-mb-3">
+                    <div className={`w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] rounded-fluid-lg flex items-center justify-center flex-shrink-0 ${
+                      certApproved
+                        ? 'bg-green-100'
+                        : isActive ? 'bg-blue-100' : 'bg-gray-100'
+                    }`}>
+                      {certApproved ? (
+                        <CheckCircle2 className={`fluid-icon text-green-600`} />
+                      ) : (
+                        <Trophy className={`fluid-icon ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className={`font-semibold fluid-text-sm truncate ${
+                        isActive ? 'text-blue-900' : 'text-gray-800'
+                      }`}>
+                        {cert.label}
+                      </h3>
+                      {cert.code && (
+                        <span className="fluid-text-xs bg-blue-100 text-blue-600 fluid-px-2 py-0.5 rounded-full font-medium inline-block fluid-mt-1">
+                          {cert.code}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Barra de progreso */}
+                  <div className="fluid-mb-2">
+                    <div className="flex justify-between fluid-text-xs text-gray-500 mb-1">
+                      <span>Progreso</span>
+                      <span className={`font-semibold ${
+                        certApproved ? 'text-green-600' : isActive ? 'text-blue-600' : 'text-gray-600'
+                      }`}>{certProgress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-[clamp(0.25rem,0.2rem+0.1vw,0.375rem)]">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          certApproved ? 'bg-green-500' : isActive ? 'bg-blue-500' : 'bg-gray-400'
+                        }`}
+                        style={{ width: `${certProgress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Estado / Detalle */}
+                  <div className="flex items-center justify-between fluid-text-xs">
+                    {certApproved ? (
+                      <span className="text-green-600 font-medium flex items-center fluid-gap-1">
+                        <CheckCircle2 className="fluid-icon-xs" />
+                        Completada
+                      </span>
+                    ) : certHasActivity ? (
+                      <span className="text-blue-600 font-medium">En progreso</span>
+                    ) : (
+                      <span className="text-gray-400">Sin iniciar</span>
+                    )}
+                    <span className="text-gray-400">
+                      {cert.exams.length} exam{cert.exams.length !== 1 ? '.' : ''} · {cert.materials.length} mat.
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
 
