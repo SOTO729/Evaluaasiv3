@@ -257,6 +257,19 @@ describe('Branding para Candidatos', () => {
         expect(screen.getByText('Campus Guadalajara')).toBeInTheDocument();
       });
     });
+
+    it('1f. Muestra logo del campus en el navbar con tamaño responsive', async () => {
+      await renderLayout();
+
+      await waitFor(() => {
+        const imgs = screen.getAllByRole('img');
+        const campusLogo = imgs.find(
+          img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
+        );
+        expect(campusLogo).toBeDefined();
+        expect(campusLogo?.className).toContain('h-[clamp(1.75rem,1.5rem+1vw,2.75rem)]');
+      });
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -444,6 +457,21 @@ describe('Branding para Candidatos', () => {
         );
         expect(campusLogo).toBeDefined();
         expect(campusLogo).toHaveAttribute('alt', 'Campus Guadalajara');
+      });
+    });
+
+    it('6a2. Logo del campus en hero usa h-16 (tamaño aumentado)', async () => {
+      await renderHomePage();
+
+      await waitFor(() => {
+        const imgs = screen.getAllByRole('img');
+        const campusLogo = imgs.find(
+          img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
+        );
+        expect(campusLogo).toBeDefined();
+        expect(campusLogo?.className).toContain('h-16');
+        expect(campusLogo?.className).toContain('p-1.5');
+        expect(campusLogo?.className).toContain('rounded-lg');
       });
     });
 

@@ -4,7 +4,7 @@
  *
  * Cubre los 7 ítems de personalización implementados:
  *
- *   A. Navbar: Logo siempre es Evaluaasi, NO muestra logo del campus
+ *   A. Navbar: Logo Evaluaasi + logo del campus cuando hay branding
  *   B. Dashboard: Hero muestra logo del campus cuando existe
  *   C. Reportes: Header muestra logo del campus cuando existe
  *   D. Favicon dinámico: Se actualiza con el logo del campus
@@ -197,11 +197,11 @@ describe('Personalización Avanzada del Branding', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // A. NAVBAR: Logo siempre Evaluaasi, NO muestra logo del campus
+  // A. NAVBAR: Logo Evaluaasi + logo del campus cuando hay branding
   // ═══════════════════════════════════════════════════════════════════════
 
-  describe('A. Navbar — siempre muestra logo Evaluaasi', () => {
-    it('A1. Navbar muestra logo Evaluaasi incluso si el campus tiene logo', async () => {
+  describe('A. Navbar — muestra logo Evaluaasi y logo del campus', () => {
+    it('A1. Navbar muestra logo Evaluaasi y logo del campus cuando existe', async () => {
       const Layout = (await import('../components/layout/Layout')).default;
 
       renderWithProviders(
@@ -221,13 +221,15 @@ describe('Personalización Avanzada del Branding', () => {
         expect(evaluaasiLogo).toHaveAttribute('src', '/logo.webp');
       });
 
-      // NO debe haber un img con src del campus en el navbar
-      const allImgs = screen.getAllByRole('img');
-      const campusNavLogo = allImgs.find(
-        img => img.getAttribute('src') === MOCK_PLANTEL_WITH_BRANDING.campus.logo_url &&
-               img.closest('header') !== null
-      );
-      expect(campusNavLogo).toBeUndefined();
+      // AHORA SÍ debe haber un img del campus en el navbar
+      await waitFor(() => {
+        const allImgs = screen.getAllByRole('img');
+        const campusNavLogo = allImgs.find(
+          img => img.getAttribute('src') === MOCK_PLANTEL_WITH_BRANDING.campus.logo_url
+        );
+        expect(campusNavLogo).toBeDefined();
+        expect(campusNavLogo).toHaveAttribute('alt', 'Campus Monterrey');
+      });
     });
 
     it('A2. Nombre del plantel sigue visible en el navbar', async () => {
