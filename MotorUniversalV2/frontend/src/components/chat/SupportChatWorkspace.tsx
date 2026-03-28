@@ -15,9 +15,13 @@ import {
   ExternalLink,
   X,
   Phone,
+  FileText,
+  Smile,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { loadSupportSettings, subscribeSupportSettings } from '../../support/supportSettings'
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react'
+import ChatTemplateManager from './ChatTemplateManager'
 import {
   supportChatService,
   type SupportChatConversation,
@@ -199,7 +203,11 @@ const SupportChatWorkspace = ({ mode }: Props) => {
   const [surveyInitializedForConversationId, setSurveyInitializedForConversationId] = useState<number | null>(null)
   const [profileOpen, setProfileOpen] = useState(false)
   const [supportSettings, setSupportSettings] = useState(() => loadSupportSettings())
+  const [templateManagerOpen, setTemplateManagerOpen] = useState(false)
+  const [showChatEmoji, setShowChatEmoji] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const chatTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const chatEmojiRef = useRef<HTMLDivElement>(null)
 
   const selectedConversation = useMemo(
     () => conversations.find((item) => item.id === selectedConversationId) || null,
@@ -361,6 +369,38 @@ const SupportChatWorkspace = ({ mode }: Props) => {
     surveyInitializedForConversationId,
     surveyPendingForCandidate,
   ])
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (chatEmojiRef.current && !chatEmojiRef.current.contains(e.target as Node)) {
+        setShowChatEmoji(false)
+      }
+    }
+    if (showChatEmoji) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showChatEmoji])
+
+  const handleChatEmojiClick = (emojiData: EmojiClickData) => {
+    const ta = chatTextareaRef.current
+    if (ta) {
+      const start = ta.selectionStart
+      const end = ta.selectionEnd
+      const newVal = messageText.slice(0, start) + emojiData.emoji + messageText.slice(end)
+      setMessageText(newVal)
+      setTimeout(() => {
+        ta.focus()
+        ta.setSelectionRange(start + emojiData.emoji.length, start + emojiData.emoji.length)
+      }, 0)
+    } else {
+      setMessageText((prev) => prev + emojiData.emoji)
+    }
+    setShowChatEmoji(false)
+  }
+
+  const handleInsertTemplate = (content: string) => {
+    setMessageText((prev) => (prev ? prev + '\n' + content : content))
+  }
 
   const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault()
@@ -898,8 +938,43 @@ const SupportChatWorkspace = ({ mode }: Props) => {
               </div>
 
               <form onSubmit={handleSendMessage} className="border-t border-gray-100 bg-white p-4">
+                {/* Template + Emoji buttons (staff only) */}
+                {isSupportMode && (
+                  <div className="mb-2 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setTemplateManagerOpen(true)}
+                      disabled={selectedConversation.status === 'closed' || supportConversationTransferred}
+                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-primary-600 disabled:opacity-40"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> Plantillas
+                    </button>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowChatEmoji(!showChatEmoji)}
+                        disabled={selectedConversation.status === 'closed' || candidateChatBlocked || supportConversationTransferred}
+                        className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-amber-500 disabled:opacity-40"
+                      >
+                        <Smile className="h-3.5 w-3.5" /> Emoji
+                      </button>
+                      {showChatEmoji && (
+                        <div ref={chatEmojiRef} className="absolute bottom-8 left-0 z-50">
+                          <EmojiPicker
+                            onEmojiClick={handleChatEmojiClick}
+                            width={320}
+                            height={350}
+                            searchPlaceholder="Buscar emoji..."
+                            lazyLoadEmojis
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <textarea
+                    ref={chatTextareaRef}
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     maxLength={MESSAGE_MAX_LENGTH}
@@ -1111,6 +1186,19 @@ const SupportChatWorkspace = ({ mode }: Props) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Template Manager Modal */}
+      {templateManagerOpen && isSupportMode && (
+        <ChatTemplateManager
+          open={templateManagerOpen}
+          onClose={() => setTemplateManagerOpen(false)}
+          onInsert={(content) => {
+            handleInsertTemplate(content)
+            setTemplateManagerOpen(false)
+          }}
+          isAdmin={isSupportLike}
+        />
       )}
     </div>
   )

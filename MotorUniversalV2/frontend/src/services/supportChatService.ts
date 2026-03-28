@@ -86,6 +86,17 @@ export interface SupportConversationSatisfactionResponse {
   satisfaction?: SupportConversationSatisfaction | null
 }
 
+export interface ChatMessageTemplate {
+  id: number
+  title: string
+  content: string
+  is_global: boolean
+  owner_user_id: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
 export const supportChatService = {
   async listConversations(params?: {
     status?: SupportConversationStatus
@@ -213,5 +224,32 @@ export const supportChatService = {
   async getUnreadCount(): Promise<number> {
     const response = await api.get('/support/chat/unread-count')
     return Number(response.data?.unread_count || 0)
+  },
+
+  async listTemplates(): Promise<ChatMessageTemplate[]> {
+    const response = await api.get('/support/chat/templates')
+    return Array.isArray(response.data?.templates) ? response.data.templates : []
+  },
+
+  async createTemplate(payload: {
+    title: string
+    content: string
+    is_global?: boolean
+    sort_order?: number
+  }): Promise<ChatMessageTemplate> {
+    const response = await api.post('/support/chat/templates', payload)
+    return response.data.template
+  },
+
+  async updateTemplate(
+    templateId: number,
+    payload: { title?: string; content?: string; is_global?: boolean; sort_order?: number }
+  ): Promise<ChatMessageTemplate> {
+    const response = await api.put(`/support/chat/templates/${templateId}`, payload)
+    return response.data.template
+  },
+
+  async deleteTemplate(templateId: number): Promise<void> {
+    await api.delete(`/support/chat/templates/${templateId}`)
   },
 }

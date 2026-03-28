@@ -165,3 +165,23 @@ class SupportConversationSatisfaction(db.Model):
     __table_args__ = (
         db.CheckConstraint("rating >= 1 AND rating <= 5", name="ck_support_satisfaction_rating"),
     )
+
+
+class ChatMessageTemplate(db.Model):
+    """Plantilla de mensaje reutilizable para chat de soporte."""
+
+    __tablename__ = "chat_message_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    owner_user_id = db.Column(
+        db.String(36),
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    title = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.UnicodeText, nullable=False)
+    is_global = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

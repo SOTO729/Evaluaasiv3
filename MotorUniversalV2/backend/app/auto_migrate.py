@@ -1391,6 +1391,7 @@ def check_and_create_support_chat_tables():
             SupportConversationParticipant,
             SupportConversationSatisfaction,
             SupportMessage,
+            ChatMessageTemplate,
         )
 
         inspector = inspect(db.engine)
@@ -1443,6 +1444,16 @@ def check_and_create_support_chat_tables():
                     print(f"  ⚠️ No se pudo agregar current_handler_role: {col_err}")
                     db.session.rollback()
 
+            # Crear tabla de plantillas de mensajes si no existe
+            if "chat_message_templates" not in existing_tables:
+                try:
+                    ChatMessageTemplate.__table__.create(bind=db.engine, checkfirst=True)
+                    db.session.commit()
+                    print("  ✅ Tabla chat_message_templates creada")
+                except Exception as tpl_err:
+                    print(f"  ⚠️ No se pudo crear chat_message_templates: {tpl_err}")
+                    db.session.rollback()
+
             return
 
         print("  📝 Creando tablas support chat faltantes...")
@@ -1450,6 +1461,7 @@ def check_and_create_support_chat_tables():
         SupportMessage.__table__.create(bind=db.engine, checkfirst=True)
         SupportConversationParticipant.__table__.create(bind=db.engine, checkfirst=True)
         SupportConversationSatisfaction.__table__.create(bind=db.engine, checkfirst=True)
+        ChatMessageTemplate.__table__.create(bind=db.engine, checkfirst=True)
         db.session.commit()
         print("  ✅ Tablas support chat listas")
 

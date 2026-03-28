@@ -14,6 +14,7 @@ from app.models.support_chat import (
     SupportConversationParticipant,
     SupportConversationSatisfaction,
     SupportMessage,
+    ChatMessageTemplate,
 )
 
 
@@ -711,3 +712,161 @@ def transfer_conversation(conversation_id: int):
             "message": _serialize_message(system_message),
         }
     ), 200
+
+
+# ---------------------------------------------------------------------------
+# Plantillas de mensajes
+# ---------------------------------------------------------------------------
+
+MAX_TEMPLATE_TITLE_LENGTH = 100
+MAX_TEMPLATE_CONTENT_LENGTH = 4000
+
+
+def _serialize_template(t: ChatMessageTemplate) -> dict:
+    return {
+        "id": t.id,
+        "title": t.title,
+        "content": t.content,
+        "is_global": t.is_global,
+        "owner_user_id": t.owner_user_id,
+        "sort_order": t.sort_order,
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+    }
+
+
+@bp.route("/templates", methods=["GET"])
+@chat_user_required
+def list_templates():
+    current_user: User = g.current_user
+    if not _is_staff_like(current_user):
+        return jsonify({"error": "No autorizado"}), 403
+
+    templates = (
+        ChatMessageTemplate.query.filter(
+            db.or_(
+                ChatMessageTemplate.is_global == True,  # noqa: E712
+                ChatMessageTemplate.owner_user_id == current_user.id,
+            )
+        )
+        .order_by(
+            ChatMessageTemplate.is_global.desc(),
+            ChatMessageTemplate.sort_order.asc(),
+            ChatMessageTemplate.title.asc(),
+        )
+        .all()
+    )
+
+    return jsonify({"templates": [_serialize_template(t) for t in templates]}), 200
+
+
+@bp.route("/templates", methods=["POST"])
+@chat_user_required
+def create_template():
+    current_user: User = g.current_user
+    if not _is_staff_like(current_user):
+        return jsonify({"error": "No autorizado"}), 403
+
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    content = (data.get("content") or "").strip()
+    is_global = bool(data.get("is_global", False))
+    sort_order = int(data.get("sort_order", 0))
+
+    if not title:
+        return jsonify({"error": "El titulo es requerido"}), 400
+    if len(title) > MAX_TEMPLATE_TITLE_LENGTH:
+        return jsonify({"error": f"Titulo maximo {MAX_TEMPLATE_TITLE_LENGTH} caracteres"}), 400
+    if not content:
+        return jsonify({"error": "El contenido es requerido"}), 400
+    if len(content) > MAX_TEMPLATE_CONTENT_LENGTH:
+        return jsonify({"error": f"Contenido maximo {MAX_TEMPLATE_CONTENT_LENGTH} caracteres"}), 400
+
+    if is_global and not _is_support_like(current_user):
+        return jsonify({"error": "Solo soporte/admin puede crear plantillas globales"}), 403
+
+    template = ChatMessageTemplate(
+        owner_user_id=None if is_global else current_user.id,
+        title=title,
+        content=content,
+        is_global=is_global,
+        sort_order=sort_order,
+    )
+    db.session.add(template)
+    db.session.commit()
+
+    return jsonify({"template": _serialize_template(template)}), 201
+
+
+@bp.route("/templates/<int:template_id>", methods=["PUT"])
+@chat_user_required
+def update_template(template_id: int):
+    current_user: User = g.current_user
+    if not _is_staff_like(current_user):
+        return jsonify({"error": "No autorizado"}), 403
+
+    template = ChatMessageTemplate.query.get(template_id)
+    if not template:
+        return jsonify({"error": "Plantilla no encontrada"}), 404
+
+    if template.is_global:
+        if not _is_support_like(current_user):
+            return jsonify({"error": "Solo soporte/admin puede editar plantillas globales"}), 403
+    else:
+        if template.owner_user_id != current_user.id:
+            return jsonify({"error": "No tienes permiso para editar esta plantilla"}), 403
+
+    data = request.get_json(silent=True) or {}
+
+    if "title" in data:
+        title = (data["title"] or "").strip()
+        if not title:
+            return jsonify({"error": "El titulo es requerido"}), 400
+        if len(title) > MAX_TEMPLATE_TITLE_LENGTH:
+            return jsonify({"error": f"Titulo maximo {MAX_TEMPLATE_TITLE_LENGTH} caracteres"}), 400
+        template.title = title
+
+    if "content" in data:
+        content = (data["content"] or "").strip()
+        if not content:
+            return jsonify({"error": "El contenido es requerido"}), 400
+        if len(content) > MAX_TEMPLATE_CONTENT_LENGTH:
+            return jsonify({"error": f"Contenido maximo {MAX_TEMPLATE_CONTENT_LENGTH} caracteres"}), 400
+        template.content = content
+
+    if "sort_order" in data:
+        template.sort_order = int(data["sort_order"])
+
+    if "is_global" in data:
+        new_global = bool(data["is_global"])
+        if new_global and not _is_support_like(current_user):
+            return jsonify({"error": "Solo soporte/admin puede marcar como global"}), 403
+        template.is_global = new_global
+        template.owner_user_id = None if new_global else current_user.id
+
+    db.session.commit()
+    return jsonify({"template": _serialize_template(template)}), 200
+
+
+@bp.route("/templates/<int:template_id>", methods=["DELETE"])
+@chat_user_required
+def delete_template(template_id: int):
+    current_user: User = g.current_user
+    if not _is_staff_like(current_user):
+        return jsonify({"error": "No autorizado"}), 403
+
+    template = ChatMessageTemplate.query.get(template_id)
+    if not template:
+        return jsonify({"error": "Plantilla no encontrada"}), 404
+
+    if template.is_global:
+        if not _is_support_like(current_user):
+            return jsonify({"error": "Solo soporte/admin puede eliminar plantillas globales"}), 403
+    else:
+        if template.owner_user_id != current_user.id:
+            return jsonify({"error": "No tienes permiso para eliminar esta plantilla"}), 403
+
+    db.session.delete(template)
+    db.session.commit()
+
+    return jsonify({"ok": True}), 200
