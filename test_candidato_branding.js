@@ -224,6 +224,13 @@ async function main() {
   assert(brandFromA.data.branding?.secondary_color === '#0891b2', `Candidato in A: secondary_color = #0891b2 (got ${brandFromA.data.branding?.secondary_color})`);
   assert(brandFromA.data.branding?.campus_name?.includes('CampusBrand_'), `Candidato in A: campus_name includes 'CampusBrand_' (got ${brandFromA.data.branding?.campus_name})`);
   assert(brandFromA.data.branding?.logo_url !== undefined, `Candidato in A: logo_url field exists`);
+  assert(brandFromA.data.branding?.logo_url === null || typeof brandFromA.data.branding?.logo_url === 'string',
+    `Candidato in A: logo_url is null or string (got ${typeof brandFromA.data.branding?.logo_url})`);
+
+  // Verify the full response structure has exactly the expected keys
+  const brandingKeys = Object.keys(brandFromA.data.branding || {}).sort().join(',');
+  assert(brandingKeys === 'campus_name,logo_url,primary_color,secondary_color',
+    `Branding response has correct keys (got ${brandingKeys})`);
 
   // ============================================================
   // TEST 4: Add candidato to group B (more recent) → gets campus B branding
