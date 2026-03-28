@@ -208,6 +208,7 @@ const GerenteApprovalDetailPage = lazy(() => import('./pages/gerente/GerenteAppr
 const GerenteFinanzasPage = lazy(() => import('./pages/gerente/GerenteFinanzasPage'))
 const GerenteMonitoreoPage = lazy(() => import('./pages/gerente/GerenteMonitoreoPage'))
 const GerenteCertificadosPage = lazy(() => import('./pages/gerente/GerenteCertificadosPage'))
+const ChatAuditPage = lazy(() => import('./pages/gerente/ChatAuditPage'))
 
 // Coordinador - Saldo
 const MiSaldoPage = lazy(() => import('./pages/coordinador/MiSaldoPage'))
@@ -481,6 +482,7 @@ function App() {
               <Route path="/gerente/finanzas" element={<GerenteFinanzasPage />} />
               <Route path="/gerente/monitoreo" element={<GerenteMonitoreoPage />} />
               <Route path="/gerente/certificados" element={<GerenteCertificadosPage />} />
+              <Route path="/gerente/chat-audit" element={<ChatAuditPage />} />
               
               {/* Coordinador - Gestión de Saldo */}
               <Route path="/mi-saldo" element={<MiSaldoPage />} />

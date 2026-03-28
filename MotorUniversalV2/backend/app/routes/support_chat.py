@@ -22,6 +22,7 @@ bp = Blueprint("support_chat", __name__, url_prefix="/api/support/chat")
 
 SUPPORT_ROLES = {"soporte", "admin", "developer"}
 COORDINATOR_ROLES = {"coordinator"}
+AUDIT_ROLES = {"gerente"}
 ALLOWED_CONVERSATION_STATUSES = {"open", "resolved", "closed"}
 ALLOWED_PRIORITIES = {"low", "normal", "high"}
 ALLOWED_SATISFACTION_RATINGS = {1, 2, 3, 4, 5}
@@ -50,6 +51,10 @@ def _is_coordinator_like(user: User) -> bool:
 
 def _is_staff_like(user: User) -> bool:
     return _is_support_like(user) or _is_coordinator_like(user)
+
+
+def _is_audit_like(user: User) -> bool:
+    return bool(user and user.role in AUDIT_ROLES)
 
 
 def _serialize_message(message: SupportMessage) -> dict:
@@ -129,7 +134,7 @@ def _conversation_for_user_or_403(conversation_id: int, current_user: User):
     if not conversation:
         return None, (jsonify({"error": "Conversación no encontrada"}), 404)
 
-    if _is_support_like(current_user):
+    if _is_support_like(current_user) or _is_audit_like(current_user):
         return conversation, None
 
     participant = SupportConversationParticipant.query.filter_by(
@@ -197,7 +202,7 @@ def chat_user_required(func_handler):
         user = db.session.get(User, user_id)
         if not user or not user.is_active:
             return jsonify({"error": "No autorizado"}), 401
-        if user.role not in SUPPORT_ROLES and user.role not in COORDINATOR_ROLES and user.role != "candidato":
+        if user.role not in SUPPORT_ROLES and user.role not in COORDINATOR_ROLES and user.role not in AUDIT_ROLES and user.role != "candidato":
             return jsonify({"error": "Rol no permitido para chat"}), 403
         g.current_user = user
         return func_handler(*args, **kwargs)
@@ -325,7 +330,7 @@ def list_conversations():
     if status:
         query = query.filter(SupportConversation.status == status)
 
-    if _is_support_like(current_user):
+    if _is_support_like(current_user) or _is_audit_like(current_user):
         assigned_to_me = (request.args.get("assigned_to_me") or "false").lower() in {"1", "true", "yes"}
         if assigned_to_me:
             query = query.filter(SupportConversation.assigned_support_user_id == current_user.id)

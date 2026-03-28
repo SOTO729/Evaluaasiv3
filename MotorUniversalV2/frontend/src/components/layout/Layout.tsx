@@ -594,6 +594,18 @@ const Layout = ({ children }: LayoutProps) => {
                     Monitoreo
                   </Link>
                 )}
+                {['gerente', 'soporte', 'coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/gerente/chat-audit"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/gerente/chat-audit')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Auditoría Chat
+                  </Link>
+                )}
                 {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/grupos" 
@@ -1271,6 +1283,23 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
                     Monitoreo
+                  </div>
+                </Link>
+              )}
+              {['gerente', 'soporte', 'coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
+                <Link
+                  to="/gerente/chat-audit"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/gerente/chat-audit')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    Auditoría Chat
                   </div>
                 </Link>
               )}
