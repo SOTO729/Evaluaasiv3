@@ -173,7 +173,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
           className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlay}
         >
-          <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-700 transition-colors">
+          <div className="w-20 h-20 bg-primary-600 rounded-full flex items-center justify-center shadow-lg hover:bg-primary-700 transition-colors">
             <Play className="w-10 h-10 text-white ml-1" fill="currentColor" />
           </div>
         </div>
@@ -192,10 +192,10 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
           onClick={handleProgressClick}
         >
           <div
-            className="h-full bg-blue-500 rounded-full relative"
+            className="h-full bg-primary-500 rounded-full relative"
             style={{ width: `${progressPercent}%` }}
           >
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-blue-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary-500 rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
           </div>
         </div>
 
@@ -206,7 +206,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
             {/* Play/Pause */}
             <button
               onClick={togglePlay}
-              className="text-white hover:text-blue-400 transition-colors p-1"
+              className="text-white hover:text-primary-400 transition-colors p-1"
             >
               {isPlaying ? (
                 <Pause className="w-6 h-6" fill="currentColor" />
@@ -219,7 +219,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
             <div className="flex items-center gap-2 group/volume">
               <button
                 onClick={toggleMute}
-                className="text-white hover:text-blue-400 transition-colors p-1"
+                className="text-white hover:text-primary-400 transition-colors p-1"
               >
                 {isMuted || volume === 0 ? (
                   <VolumeX className="w-5 h-5" />
@@ -248,7 +248,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
           <div className="flex items-center gap-2">
             <button
               onClick={toggleFullscreen}
-              className="text-white hover:text-blue-400 transition-colors p-1"
+              className="text-white hover:text-primary-400 transition-colors p-1"
             >
               {isFullscreen ? (
                 <Minimize className="w-5 h-5" />

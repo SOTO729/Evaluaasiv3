@@ -159,8 +159,8 @@ const StudyContentCandidatePage = () => {
   // Contar tipos de contenido en un tema
   const getTopicContentTypes = (topic: any) => {
     const types = [];
-    if (topic.reading) types.push({ icon: FileText, label: 'Lectura', color: 'text-blue-600' });
-    if (topic.video) types.push({ icon: Video, label: 'Video', color: 'text-purple-600' });
+    if (topic.reading) types.push({ icon: FileText, label: 'Lectura', color: 'text-primary-600' });
+    if (topic.video) types.push({ icon: Video, label: 'Video', color: 'text-primary-600' });
     if (topic.downloadable_exercise) types.push({ icon: Download, label: 'Recursos', color: 'text-green-600' });
     if (topic.interactive_exercise) types.push({ icon: Gamepad2, label: 'Ejercicio', color: 'text-orange-600' });
     return types;
@@ -181,7 +181,7 @@ const StudyContentCandidatePage = () => {
         <p className="text-gray-500 fluid-text-lg">Material no encontrado</p>
         <button
           onClick={() => navigate('/study-contents')}
-          className="fluid-mt-4 text-blue-600 hover:underline">
+          className="fluid-mt-4 text-primary-600 hover:underline">
           Volver a materiales
         </button>
       </div>
@@ -197,12 +197,12 @@ const StudyContentCandidatePage = () => {
             {/* Botón volver */}
             <button
               onClick={() => navigate('/study-contents')}
-              className="group inline-flex items-center fluid-gap-3 fluid-px-4 fluid-py-2 rounded-fluid-xl bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 shadow-sm hover:shadow-md transition-all duration-200"
+              className="group inline-flex items-center fluid-gap-3 fluid-px-4 fluid-py-2 rounded-fluid-xl bg-white hover:bg-primary-50 border border-gray-200 hover:border-primary-300 shadow-sm hover:shadow-md transition-all duration-200"
             >
-              <div className="fluid-p-2 rounded-fluid-lg bg-gray-100 group-hover:bg-blue-100 transition-colors">
-                <ArrowLeft className="fluid-icon-base text-gray-600 group-hover:text-blue-600 transition-colors" />
+              <div className="fluid-p-2 rounded-fluid-lg bg-gray-100 group-hover:bg-primary-100 transition-colors">
+                <ArrowLeft className="fluid-icon-base text-gray-600 group-hover:text-primary-600 transition-colors" />
               </div>
-              <span className="fluid-text-sm font-medium text-gray-700 group-hover:text-blue-700 transition-colors">
+              <span className="fluid-text-sm font-medium text-gray-700 group-hover:text-primary-700 transition-colors">
                 Volver a materiales
               </span>
             </button>
@@ -281,7 +281,7 @@ const StudyContentCandidatePage = () => {
                 onClick={() => navigate(`/study-contents/${materialId}/preview`)}
                 className="w-full sm:w-auto flex items-center justify-center fluid-gap-3 bg-white hover:bg-gray-100 text-gray-900 fluid-px-8 fluid-py-4 rounded-fluid-xl font-semibold fluid-text-base shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
               >
-                <PlayCircle className="fluid-icon-lg text-blue-600" />
+                <PlayCircle className="fluid-icon-lg text-primary-600" />
                 Iniciar Material de Estudio
               </button>
             </div>
@@ -299,7 +299,7 @@ const StudyContentCandidatePage = () => {
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="fluid-p-8 border-b border-gray-100">
             <h2 className="fluid-text-2xl font-bold text-gray-900 flex items-center fluid-gap-3">
-              <BookOpen className="fluid-icon-lg text-blue-600" />
+              <BookOpen className="fluid-icon-lg text-primary-600" />
               Contenido de estudio
             </h2>
             <p className="text-gray-500 fluid-text-base fluid-mt-2">
@@ -320,7 +320,7 @@ const StudyContentCandidatePage = () => {
                       className="w-full flex items-center justify-between fluid-p-6 hover:bg-gray-50 transition-colors text-left"
                     >
                       <div className="flex items-center fluid-gap-5">
-                        <div className="flex-shrink-0 w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold fluid-text-base">
+                        <div className="flex-shrink-0 w-[clamp(2rem,3vw,2.5rem)] h-[clamp(2rem,3vw,2.5rem)] bg-primary-100 text-primary-600 rounded-full flex items-center justify-center font-bold fluid-text-base">
                           {sessionIndex + 1}
                         </div>
                         <div>
@@ -406,7 +406,7 @@ const StudyContentCandidatePage = () => {
           <button
             ref={startButtonRef}
             onClick={() => navigate(`/study-contents/${materialId}/preview`)}
-            className="inline-flex items-center justify-center fluid-gap-4 bg-blue-600 hover:bg-blue-700 text-white fluid-px-10 fluid-py-5 rounded-fluid-2xl font-semibold fluid-text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
+            className="inline-flex items-center justify-center fluid-gap-4 bg-primary-600 hover:bg-primary-700 text-white fluid-px-10 fluid-py-5 rounded-fluid-2xl font-semibold fluid-text-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5"
           >
             <PlayCircle className="fluid-icon-lg" />
             Iniciar Material de Estudio
@@ -421,7 +421,7 @@ const StudyContentCandidatePage = () => {
             onClick={() => {
               startButtonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }}
-            className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce"
+            className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce"
             title="Ver botón de inicio"
           >
             <ChevronDown className="fluid-icon-lg" />

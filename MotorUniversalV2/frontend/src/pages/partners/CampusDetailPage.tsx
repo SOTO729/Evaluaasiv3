@@ -445,7 +445,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       )}
       
       {/* Header con Gradiente */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg">
+      <div className="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500 rounded-fluid-2xl fluid-p-6 fluid-mb-6 shadow-lg">
         <div className="flex items-center fluid-gap-5 flex-wrap">
           {!isResponsable && (
             <Link
@@ -472,7 +472,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                 )}
                 {campus.name}
               </h1>
-              <span className="fluid-text-sm font-mono font-semibold text-blue-100 bg-white/20 fluid-px-3 fluid-py-1 rounded-full border border-white/30">{campus.code}</span>
+              <span className="fluid-text-sm font-mono font-semibold text-primary-100 bg-white/20 fluid-px-3 fluid-py-1 rounded-full border border-white/30">{campus.code}</span>
               {campus.is_active ? (
                 <span className="inline-flex items-center fluid-gap-1 fluid-text-sm font-medium text-green-100 bg-green-500/30 fluid-px-3 fluid-py-1 rounded-full border border-green-400/50">
                   <CheckCircle2 className="fluid-icon-sm" />Activo
@@ -503,7 +503,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
             {!isResponsable && (
               <Link
                 to={`/partners/campuses/${campusId}/edit`}
-                className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-blue-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
+                className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 bg-white hover:bg-gray-100 text-primary-600 rounded-fluid-xl font-semibold fluid-text-base transition-all duration-300 hover:scale-105 shadow-lg"
               >
                 <Edit className="fluid-icon-base" />
                 Editar
@@ -578,10 +578,10 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       {/* SECCIÓN SUPERIOR: Información, Configuración, Costos, Responsable */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 fluid-gap-6 fluid-mb-6">
         {/* Información del plantel */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-blue-200 transition-all duration-300">
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
           <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
-            <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
-              <Building2 className="fluid-icon-sm text-blue-600" />
+            <div className="fluid-p-2 bg-primary-100 rounded-fluid-lg">
+              <Building2 className="fluid-icon-sm text-primary-600" />
             </div>
             Información
           </h3>
@@ -594,16 +594,16 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               </div>
             </div>
             {campus.director_name && (
-              <div className="fluid-p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-fluid-xl border border-purple-100">
+              <div className="fluid-p-4 bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-xl border border-primary-100">
                 <div className="flex items-center fluid-gap-2 fluid-mb-2">
-                  <UserCog className="fluid-icon-base text-purple-500" />
-                  <span className="fluid-text-xs font-bold text-purple-700 uppercase">Director / Contacto</span>
+                  <UserCog className="fluid-icon-base text-primary-500" />
+                  <span className="fluid-text-xs font-bold text-primary-700 uppercase">Director / Contacto</span>
                 </div>
                 <p className="fluid-text-sm font-semibold text-gray-900">{campus.director_full_name || campus.director_name}</p>
                 {campus.director_email && (
                   <div className="flex items-center fluid-gap-2 fluid-mt-2">
                     <Mail className="fluid-icon-xs text-gray-400" />
-                    <a href={`mailto:${campus.director_email}`} className="fluid-text-xs text-blue-600 hover:underline">{campus.director_email}</a>
+                    <a href={`mailto:${campus.director_email}`} className="fluid-text-xs text-primary-600 hover:underline">{campus.director_email}</a>
                   </div>
                 )}
                 {campus.director_phone && (
@@ -639,8 +639,8 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
           </h3>
           <div className="fluid-space-y-5">
             {/* Versión de Office */}
-            <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100">
-              <Monitor className="fluid-icon-base text-blue-600" />
+            <div className="flex items-center fluid-gap-4 fluid-p-4 bg-gradient-to-r from-primary-50 to-primary-100 rounded-fluid-xl border border-primary-100">
+              <Monitor className="fluid-icon-base text-primary-600" />
               <span className="fluid-text-sm font-bold text-gray-900">{formatOfficeVersion(campus.office_version)}</span>
             </div>
             
@@ -802,17 +802,17 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                       </p>
                       <p className="text-[11px] text-amber-600 font-semibold mt-0.5">Consumidas</p>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-lg p-3 text-center border border-blue-100">
-                      <p className="text-2xl font-black text-blue-700 leading-tight">
+                    <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-lg p-3 text-center border border-primary-100">
+                      <p className="text-2xl font-black text-primary-700 leading-tight">
                         {(campus.certification_cost || 0) > 0 && balanceSummary
                           ? Math.floor(balanceSummary.totals.total_received / (campus.certification_cost || 1))
                           : 0}
                       </p>
-                      <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Total recibidas</p>
+                      <p className="text-[11px] text-primary-600 font-semibold mt-0.5">Total recibidas</p>
                     </div>
-                    <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-3 text-center border border-purple-100">
-                      <p className="text-2xl font-black text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
-                      <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
+                    <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-lg p-3 text-center border border-primary-100">
+                      <p className="text-2xl font-black text-primary-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
+                      <p className="text-[11px] text-primary-600 font-semibold mt-0.5">Máx. Retomas</p>
                     </div>
                   </div>
                 )}
@@ -829,24 +829,24 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   <p className="text-lg font-bold text-green-700 leading-tight">${campus.certification_cost || 0}</p>
                   <p className="text-[11px] text-green-600 font-semibold mt-0.5">Certificación</p>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-fluid-lg p-2.5 text-center border border-blue-100">
-                  <p className="text-lg font-bold text-blue-700 leading-tight">${campus.retake_cost || 0}</p>
-                  <p className="text-[11px] text-blue-600 font-semibold mt-0.5">Retoma</p>
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-lg p-2.5 text-center border border-primary-100">
+                  <p className="text-lg font-bold text-primary-700 leading-tight">${campus.retake_cost || 0}</p>
+                  <p className="text-[11px] text-primary-600 font-semibold mt-0.5">Retoma</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-fluid-lg p-2.5 text-center border border-purple-100">
-                  <p className="text-lg font-bold text-purple-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
-                  <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Máx. Retomas</p>
+                <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-lg p-2.5 text-center border border-primary-100">
+                  <p className="text-lg font-bold text-primary-700 leading-tight">{campus.max_retakes === 0 || campus.max_retakes == null ? '∞' : campus.max_retakes}</p>
+                  <p className="text-[11px] text-primary-600 font-semibold mt-0.5">Máx. Retomas</p>
                 </div>
               </div>
             )}
 
             {/* Vigencia */}
             {campus.assignment_validity_months ? (
-              <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-fluid-lg p-3 border border-purple-100">
+              <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-fluid-lg p-3 border border-primary-100">
                 <div className="flex items-center gap-2">
-                  <CalendarRange className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                  <span className="text-xs font-bold text-purple-700">Vigencia</span>
-                  <span className="text-xs text-purple-900 font-medium ml-auto">
+                  <CalendarRange className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                  <span className="text-xs font-bold text-primary-700">Vigencia</span>
+                  <span className="text-xs text-primary-900 font-medium ml-auto">
                     {campus.assignment_validity_months} {campus.assignment_validity_months === 1 ? 'mes' : 'meses'}
                   </span>
                 </div>
@@ -862,8 +862,8 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
 
             {/* Ciclos Activos */}
             <div className="pt-2 border-t border-gray-100">
-              <div className="text-center p-3 bg-blue-50/50 rounded-fluid-lg border border-blue-100/50">
-                <p className="text-lg font-bold text-blue-700">{cycles.filter(c => c.is_active).length}</p>
+              <div className="text-center p-3 bg-primary-50/50 rounded-fluid-lg border border-primary-100/50">
+                <p className="text-lg font-bold text-primary-700">{cycles.filter(c => c.is_active).length}</p>
                 <p className="text-[11px] text-gray-600 font-semibold mt-0.5">Ciclos Activos</p>
               </div>
             </div>
@@ -894,9 +894,9 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                     </div>
                     {(balanceSummary.totals.total_received > 0 || balanceSummary.totals.total_spent > 0) && (
                       <div className="grid grid-cols-2 gap-1.5">
-                        <div className="bg-blue-50/60 rounded-lg p-2 text-center border border-blue-100/60">
-                          <p className="text-xs font-bold text-blue-700">${balanceSummary.totals.total_received.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
-                          <p className="text-[10px] text-blue-600 font-medium">Recibido</p>
+                        <div className="bg-primary-50/60 rounded-lg p-2 text-center border border-primary-100/60">
+                          <p className="text-xs font-bold text-primary-700">${balanceSummary.totals.total_received.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
+                          <p className="text-[10px] text-primary-600 font-medium">Recibido</p>
                         </div>
                         <div className="bg-orange-50/60 rounded-lg p-2 text-center border border-orange-100/60">
                           <p className="text-xs font-bold text-orange-700">${balanceSummary.totals.total_spent.toLocaleString('es-MX', { minimumFractionDigits: 0 })}</p>
@@ -919,17 +919,17 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
         </div>
 
         {/* Responsable */}
-        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-300">
+        <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
           <h3 className="fluid-text-sm font-bold text-gray-700 uppercase tracking-wide fluid-mb-4 flex items-center fluid-gap-2">
-            <div className="fluid-p-2 bg-indigo-100 rounded-fluid-lg">
-              <Shield className="fluid-icon-sm text-indigo-600" />
+            <div className="fluid-p-2 bg-primary-100 rounded-fluid-lg">
+              <Shield className="fluid-icon-sm text-primary-600" />
             </div>
             Responsable
           </h3>
           {campus.responsable ? (
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-fluid-xl fluid-p-5 border border-indigo-100">
+            <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-xl fluid-p-5 border border-primary-100">
               <div className="flex items-center fluid-gap-4 fluid-mb-4">
-                <div className="fluid-w-12 fluid-h-12 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                <div className="fluid-w-12 fluid-h-12 bg-gradient-to-br from-primary-400 to-primary-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
                   <UserCog className="fluid-icon-base text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -938,9 +938,9 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                 </div>
               </div>
               <div className="flex flex-wrap fluid-gap-3">
-                {campus.responsable.can_manage_groups && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-indigo-200">Grupos</span>}
-                {campus.responsable.can_bulk_create_candidates && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-indigo-200">Altas masivas</span>}
-                {campus.responsable.can_view_reports && <span className="fluid-text-xs bg-indigo-100 text-indigo-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-indigo-200">Reportes</span>}
+                {campus.responsable.can_manage_groups && <span className="fluid-text-xs bg-primary-100 text-primary-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-primary-200">Grupos</span>}
+                {campus.responsable.can_bulk_create_candidates && <span className="fluid-text-xs bg-primary-100 text-primary-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-primary-200">Altas masivas</span>}
+                {campus.responsable.can_view_reports && <span className="fluid-text-xs bg-primary-100 text-primary-700 fluid-px-3 fluid-py-1.5 rounded-full font-semibold border border-primary-200">Reportes</span>}
               </div>
             </div>
           ) : (
@@ -948,7 +948,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               <AlertCircle className="fluid-icon-xl text-amber-400 mx-auto fluid-mb-4" />
               <p className="fluid-text-sm font-bold text-amber-800">Sin responsable asignado</p>
               {!isResponsable && (
-                <Link to={`/partners/campuses/${campus.id}/assign-responsable`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-indigo-600 hover:text-indigo-700 fluid-mt-4 font-semibold hover:underline">
+                <Link to={`/partners/campuses/${campus.id}/assign-responsable`} className="inline-flex items-center fluid-gap-2 fluid-text-sm text-primary-600 hover:text-primary-700 fluid-mt-4 font-semibold hover:underline">
                   <Plus className="fluid-icon-sm" />Asignar responsable
                 </Link>
               )}
@@ -969,10 +969,10 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
         {/* Columna Izquierda: Estándares de Competencia (ECM) */}
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300">
-          <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-white">
+          <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-white">
             <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-purple-100 rounded-fluid-lg">
-                <Award className="fluid-icon-base text-purple-600" />
+              <div className="fluid-p-2 bg-primary-100 rounded-fluid-lg">
+                <Award className="fluid-icon-base text-primary-600" />
               </div>
               Certificaciones Asignadas
               <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">{competencyStandards.length}</span>
@@ -990,7 +990,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                 {competencyStandards.map((ecm) => (
                   <div
                     key={ecm.id}
-                    className="fluid-p-4 transition-all duration-200 hover:bg-purple-50 border-l-4 border-transparent hover:border-purple-500"
+                    className="fluid-p-4 transition-all duration-200 hover:bg-primary-50 border-l-4 border-transparent hover:border-primary-500"
                   >
                     <div className="flex items-center fluid-gap-4">
                       {/* Logo */}
@@ -1000,14 +1000,14 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                         ) : ecm.brand_logo_url ? (
                           <img src={ecm.brand_logo_url} alt={ecm.brand || ''} className="w-9 h-9 object-contain" />
                         ) : (
-                          <Award className="fluid-icon-base text-purple-400" />
+                          <Award className="fluid-icon-base text-primary-400" />
                         )}
                       </div>
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center fluid-gap-2 flex-wrap">
                           <span className="fluid-text-base font-semibold text-gray-900 truncate">{ecm.name}</span>
-                          <span className="fluid-text-xs font-mono font-bold text-purple-700 bg-purple-100 fluid-px-2 fluid-py-0.5 rounded-full border border-purple-200">{ecm.code}</span>
+                          <span className="fluid-text-xs font-mono font-bold text-primary-700 bg-primary-100 fluid-px-2 fluid-py-0.5 rounded-full border border-primary-200">{ecm.code}</span>
                         </div>
                         <div className="flex items-center fluid-gap-3 fluid-text-sm text-gray-500 fluid-mt-1">
                           {ecm.brand && (
@@ -1017,7 +1017,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                             <span className="text-gray-400">{ecm.sector}</span>
                           )}
                           {ecm.level && (
-                            <span className="fluid-text-xs text-blue-600 bg-blue-50 fluid-px-2 fluid-py-0.5 rounded-full font-medium">Nivel {ecm.level}</span>
+                            <span className="fluid-text-xs text-primary-600 bg-primary-50 fluid-px-2 fluid-py-0.5 rounded-full font-medium">Nivel {ecm.level}</span>
                           )}
                         </div>
                       </div>
@@ -1035,8 +1035,8 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               <div className="fluid-p-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
                   <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-3">
-                    <div className="fluid-p-2 bg-blue-100 rounded-fluid-lg">
-                      <GraduationCap className="fluid-icon-base text-blue-600" />
+                    <div className="fluid-p-2 bg-primary-100 rounded-fluid-lg">
+                      <GraduationCap className="fluid-icon-base text-primary-600" />
                     </div>
                     Ciclos Escolares
                     <span className="fluid-text-sm font-medium text-gray-400 bg-gray-100 fluid-px-2 fluid-py-1 rounded-full">{cycles.length}</span>
@@ -1050,7 +1050,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                         placeholder="Buscar ciclo..."
                         value={cycleSearchTerm}
                         onChange={(e) => setCycleSearchTerm(e.target.value)}
-                        className="w-full sm:w-48 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-sm"
+                        className="w-full sm:w-48 fluid-pl-10 fluid-pr-8 fluid-py-2 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-sm"
                       />
                       {cycleSearchTerm && (
                         <button
@@ -1064,7 +1064,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                     {(!isResponsable || user?.can_manage_groups) && (
                       <button
                         onClick={() => setShowNewCycleModal(true)}
-                        className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
+                        className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-xl fluid-text-sm font-semibold transition-all duration-300 hover:scale-105 shadow-md"
                       >
                         <Plus className="fluid-icon-sm" />Nuevo
                       </button>
@@ -1092,7 +1092,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                         <p className="fluid-text-sm text-gray-400 fluid-mt-1">No hay resultados para "{cycleSearchTerm}"</p>
                         <button
                           onClick={() => setCycleSearchTerm('')}
-                          className="fluid-mt-3 fluid-text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          className="fluid-mt-3 fluid-text-sm text-primary-600 hover:text-primary-700 font-medium"
                         >
                           Limpiar búsqueda
                         </button>
@@ -1103,7 +1103,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                       <div
                         key={cycle.id}
                         onClick={() => navigate(isResponsable ? `/mi-plantel/ciclos/${cycle.id}` : `/partners/cycles/${cycle.id}`)}
-                        className={`fluid-p-4 cursor-pointer transition-all duration-200 hover:bg-blue-50 border-l-4 border-transparent hover:border-blue-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
+                        className={`fluid-p-4 cursor-pointer transition-all duration-200 hover:bg-primary-50 border-l-4 border-transparent hover:border-primary-500 ${!cycle.is_active ? 'opacity-50' : ''}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
@@ -1158,10 +1158,10 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       {showNewCycleModal && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:fluid-p-4 overflow-y-auto" onClick={handleModalBackdropClick}>
           <div ref={modalRef} className="bg-white rounded-3xl shadow-2xl max-w-xl w-full my-auto overflow-visible animate-fade-in-up border border-gray-100">
-            <div className="fluid-p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-3xl">
+            <div className="fluid-p-6 border-b border-gray-200 bg-gradient-to-r from-primary-50 to-primary-100 rounded-t-3xl">
               <h3 className="fluid-text-xl font-bold text-gray-900 flex items-center fluid-gap-3">
-                <div className="fluid-p-2 bg-blue-100 rounded-fluid-xl">
-                  <CalendarRange className="fluid-icon-lg text-blue-600" />
+                <div className="fluid-p-2 bg-primary-100 rounded-fluid-xl">
+                  <CalendarRange className="fluid-icon-lg text-primary-600" />
                 </div>
                 Nuevo Ciclo Escolar
               </h3>
@@ -1188,21 +1188,21 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   <button
                     type="button"
                     onClick={() => applyDatePreset('sem1')}
-                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors"
                   >
                     Semestre Ene-Jun {new Date().getFullYear()}
                   </button>
                   <button
                     type="button"
                     onClick={() => applyDatePreset('sem2')}
-                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors"
                   >
                     Semestre Ago-Ene {new Date().getFullYear()}-{new Date().getFullYear() + 1}
                   </button>
                   <button
                     type="button"
                     onClick={() => applyDatePreset('annual')}
-                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors"
+                    className="fluid-px-3 fluid-py-1.5 fluid-text-xs font-semibold rounded-full border border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100 transition-colors"
                   >
                     Anual {new Date().getFullYear()}-{new Date().getFullYear() + 1}
                   </button>
@@ -1232,7 +1232,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                 </div>
                 <div>
                   <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
-                    <Calendar className="fluid-icon-sm text-indigo-500" />
+                    <Calendar className="fluid-icon-sm text-primary-500" />
                     Fecha fin *
                   </label>
                   <DatePickerInput
@@ -1246,7 +1246,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                     colorScheme="indigo"
                   />
                   {newCycleForm.end_date && (
-                    <p className="fluid-text-xs text-indigo-600 fluid-mt-2 font-medium">
+                    <p className="fluid-text-xs text-primary-600 fluid-mt-2 font-medium">
                       {new Date(newCycleForm.end_date + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                   )}
@@ -1259,7 +1259,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   <div className="flex items-center justify-between fluid-mb-2">
                     <label className="fluid-text-sm font-bold text-gray-700 flex items-center fluid-gap-2">
                       Nombre del ciclo
-                      <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 fluid-py-0.5 rounded-full font-semibold">
+                      <span className="fluid-text-xs bg-primary-100 text-primary-700 fluid-px-2 fluid-py-0.5 rounded-full font-semibold">
                         {Math.ceil((new Date(newCycleForm.end_date).getTime() - new Date(newCycleForm.start_date).getTime()) / (1000 * 60 * 60 * 24 * 30))} meses
                       </span>
                     </label>
@@ -1271,7 +1271,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                           const generatedName = generateCycleName(newCycleForm.start_date, newCycleForm.end_date);
                           setNewCycleForm(prev => ({ ...prev, name: generatedName }));
                         }}
-                        className="fluid-text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        className="fluid-text-xs text-primary-600 hover:text-primary-700 font-medium"
                       >
                         Restaurar nombre automático
                       </button>
@@ -1284,7 +1284,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                       setNameManuallyEdited(true);
                       setNewCycleForm(prev => ({ ...prev, name: e.target.value }));
                     }}
-                    className="w-full fluid-px-4 fluid-py-3 border-2 border-blue-200 rounded-fluid-xl fluid-text-base font-semibold text-blue-900 bg-blue-50/50 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                    className="w-full fluid-px-4 fluid-py-3 border-2 border-primary-200 rounded-fluid-xl fluid-text-base font-semibold text-primary-900 bg-primary-50/50 focus:outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 transition-all"
                     placeholder="Nombre del ciclo escolar"
                   />
                 </div>
@@ -1302,7 +1302,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               <button
                 onClick={handleCreateCycle}
                 disabled={isCreatingCycle || !newCycleForm.start_date || !newCycleForm.end_date}
-                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-fluid-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
                 {isCreatingCycle ? (
                   <>
@@ -1331,7 +1331,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               </div>
               <h3 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-3">¡Ciclo Escolar Creado!</h3>
               <p className="fluid-text-base text-gray-600 fluid-mb-2">
-                El ciclo escolar <span className="font-bold text-blue-600">"{createdCycleName}"</span> ha sido creado exitosamente.
+                El ciclo escolar <span className="font-bold text-primary-600">"{createdCycleName}"</span> ha sido creado exitosamente.
               </p>
               <p className="fluid-text-sm text-gray-500 fluid-mb-6">Ya puedes agregar grupos a este ciclo escolar.</p>
               <div className="flex flex-col fluid-gap-3">
@@ -1369,7 +1369,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
               </p>
               <button
                 onClick={() => setShowSavedModal(false)}
-                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
                 Aceptar
               </button>
@@ -1482,7 +1482,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                 {cycleDeleteStats ? '¡Ciclo Eliminado!' : '¡Ciclo Desactivado!'}
               </h3>
               <p className="fluid-text-base text-gray-600 fluid-mb-4">
-                El ciclo escolar <span className="font-bold text-blue-600">"{deletedCycleName}"</span> ha sido {cycleDeleteStats ? 'eliminado permanentemente' : 'desactivado'}.
+                El ciclo escolar <span className="font-bold text-primary-600">"{deletedCycleName}"</span> ha sido {cycleDeleteStats ? 'eliminado permanentemente' : 'desactivado'}.
               </p>
               
               {cycleDeleteStats && (
@@ -1494,7 +1494,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                       <span><strong>{cycleDeleteStats.groups_deleted}</strong> grupos eliminados</span>
                     </li>
                     <li className="flex items-center fluid-gap-2">
-                      <Users className="fluid-icon-xs text-blue-500" />
+                      <Users className="fluid-icon-xs text-primary-500" />
                       <span><strong>{cycleDeleteStats.members_removed}</strong> membresías de grupo eliminadas</span>
                     </li>
                     <li className="flex items-center fluid-gap-2">
@@ -1502,7 +1502,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                       <span><strong>{cycleDeleteStats.exams_unassigned}</strong> exámenes desasignados</span>
                     </li>
                     <li className="flex items-center fluid-gap-2">
-                      <GraduationCap className="fluid-icon-xs text-purple-500" />
+                      <GraduationCap className="fluid-icon-xs text-primary-500" />
                       <span><strong>{cycleDeleteStats.materials_unassigned}</strong> materiales desasignados</span>
                     </li>
                   </ul>
@@ -1511,7 +1511,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
 
               <button
                 onClick={() => setShowCycleDeleteSuccessModal(false)}
-                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                className="fluid-px-6 fluid-py-3 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white rounded-fluid-xl transition-all fluid-text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
                 Entendido
               </button>

@@ -286,22 +286,22 @@ const ResultDetailPage = () => {
               <div className="font-bold fluid-text-lg text-emerald-800 truncate">{formatDuration(result.duration_seconds)}</div>
             </div>
           </div>
-          <div className="flex items-center fluid-gap-3 fluid-p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-fluid-lg border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <div className="fluid-w-10 fluid-h-10 bg-blue-500 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+          <div className="flex items-center fluid-gap-3 fluid-p-4 bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-lg border border-primary-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <div className="fluid-w-10 fluid-h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
               <HelpCircle className="fluid-icon-sm text-white" />
             </div>
             <div className="min-w-0">
-              <div className="fluid-text-xs text-blue-600 font-medium uppercase tracking-wide">Preguntas</div>
-              <div className="font-bold fluid-text-lg text-blue-800">{summary.total_questions || 'N/A'}</div>
+              <div className="fluid-text-xs text-primary-600 font-medium uppercase tracking-wide">Preguntas</div>
+              <div className="font-bold fluid-text-lg text-primary-800">{summary.total_questions || 'N/A'}</div>
             </div>
           </div>
-          <div className="flex items-center fluid-gap-3 fluid-p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-fluid-lg border border-purple-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <div className="fluid-w-10 fluid-h-10 bg-purple-500 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+          <div className="flex items-center fluid-gap-3 fluid-p-4 bg-gradient-to-br from-primary-50 to-primary-100 rounded-fluid-lg border border-primary-200 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-[1.02] animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <div className="fluid-w-10 fluid-h-10 bg-primary-500 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
               <Puzzle className="fluid-icon-sm text-white" />
             </div>
             <div className="min-w-0">
-              <div className="fluid-text-xs text-purple-600 font-medium uppercase tracking-wide">Ejercicios</div>
-              <div className="font-bold fluid-text-lg text-purple-800">{summary.total_exercises || 'N/A'}</div>
+              <div className="fluid-text-xs text-primary-600 font-medium uppercase tracking-wide">Ejercicios</div>
+              <div className="font-bold fluid-text-lg text-primary-800">{summary.total_exercises || 'N/A'}</div>
             </div>
           </div>
         </div>
@@ -311,7 +311,7 @@ const ResultDetailPage = () => {
       <button
         onClick={downloadPDF}
         disabled={downloading}
-        className="w-full flex items-center justify-center fluid-gap-3 fluid-px-6 fluid-py-4 rounded-fluid-lg text-white font-semibold fluid-text-lg transition-all transform hover:scale-[1.02] bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+        className="w-full flex items-center justify-center fluid-gap-3 fluid-px-6 fluid-py-4 rounded-fluid-lg text-white font-semibold fluid-text-lg transition-all transform hover:scale-[1.02] bg-gradient-to-r from-primary-500 via-primary-600 to-primary-700 hover:from-primary-600 hover:via-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
       >
         {downloading ? (
           <div className="fluid-icon-md border-3 border-white border-t-transparent rounded-full animate-spin" />

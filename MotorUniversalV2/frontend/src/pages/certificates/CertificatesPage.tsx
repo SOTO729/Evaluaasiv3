@@ -716,7 +716,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
             {/* Template Image — imagen de la plantilla de la insignia (snapshot inmutable) */}
             {(badge as any).template_image_url ? (
               <div className="relative mx-auto fluid-mb-4 z-10">
-                <div className="absolute -inset-2 bg-gradient-to-br from-primary-100 via-blue-50 to-primary-200 rounded-2xl opacity-0 group-hover:opacity-60 blur-md transition-opacity duration-500" />
+                <div className="absolute -inset-2 bg-gradient-to-br from-primary-100 via-primary-50 to-primary-200 rounded-2xl opacity-0 group-hover:opacity-60 blur-md transition-opacity duration-500" />
                 <img
                   src={(badge as any).template_image_url}
                   alt={badge.template_name || 'Insignia'}
@@ -984,7 +984,7 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
                   ${isCompleted 
                     ? 'bg-green-500 text-white shadow-lg shadow-green-200' 
                     : isCurrent 
-                      ? 'bg-blue-500 text-white shadow-lg shadow-blue-200 ring-2 ring-blue-100 animate-pulse' 
+                      ? 'bg-primary-500 text-white shadow-lg shadow-primary-200 ring-2 ring-primary-100 animate-pulse' 
                       : 'bg-gray-100 text-gray-400 border-2 border-gray-200'
                   }
                 `}>
@@ -1002,7 +1002,7 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
                       isCompleted 
                         ? 'bg-green-100 text-green-700' 
                         : isCurrent 
-                          ? 'bg-blue-100 text-blue-700' 
+                          ? 'bg-primary-100 text-primary-700' 
                           : 'bg-gray-100 text-gray-500'
                     }`}>
                       Paso {step.id}
@@ -1011,12 +1011,12 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
                       <span className="fluid-text-xs text-green-600 font-medium">✓ Completado</span>
                     )}
                     {isCurrent && (
-                      <span className="fluid-text-xs text-blue-600 font-medium">● En progreso</span>
+                      <span className="fluid-text-xs text-primary-600 font-medium">● En progreso</span>
                     )}
                   </div>
                   
                   <h4 className={`fluid-text-base font-semibold fluid-mb-1 ${
-                    isCompleted ? 'text-green-700' : isCurrent ? 'text-blue-700' : 'text-gray-500'
+                    isCompleted ? 'text-green-700' : isCurrent ? 'text-primary-700' : 'text-gray-500'
                   }`}>
                     {step.title}
                   </h4>
@@ -1029,10 +1029,10 @@ const ConocerTimeline = ({ currentStep, approvedExamsCount }: { currentStep: 1 |
                     <div className={`fluid-mt-2 fluid-p-2 rounded-fluid-lg ${
                       currentStep === 1 
                         ? 'bg-yellow-50 border border-yellow-200' 
-                        : 'bg-blue-50 border border-blue-200'
+                        : 'bg-primary-50 border border-primary-200'
                     }`}>
                       <p className={`fluid-text-sm font-medium ${
-                        currentStep === 1 ? 'text-yellow-800' : 'text-blue-800'
+                        currentStep === 1 ? 'text-yellow-800' : 'text-primary-800'
                       }`}>
                         {step.activeMessage}
                       </p>
@@ -1170,7 +1170,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
   return (
     <div className="flex flex-col fluid-gap-6">
       {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-5 animate-fade-in">
+      <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-5 animate-fade-in">
         <div className="flex flex-col sm:flex-row items-start fluid-gap-4">
           <div className="fluid-icon-xl rounded-fluid-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-sm">
             <img 
@@ -1180,8 +1180,8 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
             />
           </div>
           <div>
-            <h3 className="font-bold text-blue-900 fluid-mb-2">Certificados CONOCER México</h3>
-            <p className="text-blue-700 fluid-text-sm fluid-mb-4">
+            <h3 className="font-bold text-primary-900 fluid-mb-2">Certificados CONOCER México</h3>
+            <p className="text-primary-700 fluid-text-sm fluid-mb-4">
               El Consejo Nacional de Normalización y Certificación de Competencias Laborales (CONOCER) 
               es una entidad del Gobierno Federal que certifica las habilidades y conocimientos de las personas.
             </p>
@@ -1189,7 +1189,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
               href="https://conocer.gob.mx" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center fluid-gap-2 text-blue-600 hover:text-blue-800 fluid-text-sm font-medium"
+              className="inline-flex items-center fluid-gap-2 text-primary-600 hover:text-primary-800 fluid-text-sm font-medium"
             >
               Visitar sitio oficial de CONOCER
               <ExternalLink className="fluid-icon-xs" />
@@ -1208,7 +1208,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
           {certificates.map((cert) => (
             <div
               key={cert.id}
-              className="border-2 border-gray-200 rounded-fluid-xl fluid-p-5 hover:border-blue-300 hover:shadow-lg transition-all duration-300 animate-stagger-in"
+              className="border-2 border-gray-200 rounded-fluid-xl fluid-p-5 hover:border-primary-300 hover:shadow-lg transition-all duration-300 animate-stagger-in"
               style={{ animationDelay: `${exams.indexOf(exams[0]) * 50}ms` }}
             >
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between fluid-gap-4">
@@ -1222,7 +1222,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center fluid-gap-2 fluid-mb-1">
-                      <span className="fluid-text-xs font-medium text-blue-600 bg-blue-100 fluid-px-2 py-0.5 rounded">
+                      <span className="fluid-text-xs font-medium text-primary-600 bg-primary-100 fluid-px-2 py-0.5 rounded">
                         CONOCER
                       </span>
                       <span className="fluid-text-xs text-gray-500 hidden sm:inline">•</span>
@@ -1264,7 +1264,7 @@ const ConocerCertificateSection = ({ exams, formatDate }: { exams: any[], format
                   <button 
                     onClick={() => handleDownloadCertificate(cert)}
                     disabled={downloadingId === cert.id}
-                    className="flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 text-white rounded-fluid-lg hover:bg-blue-700 transition-all duration-200 fluid-text-sm disabled:opacity-50 hover:shadow-md active:scale-95"
+                    className="flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 transition-all duration-200 fluid-text-sm disabled:opacity-50 hover:shadow-md active:scale-95"
                   >
                     {downloadingId === cert.id ? (
                       <>

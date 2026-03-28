@@ -16,7 +16,7 @@ const Breadcrumb = ({ items }: BreadcrumbProps) => {
     <nav className="flex items-center flex-wrap fluid-gap-1 fluid-text-sm fluid-mb-4 bg-white/80  rounded-fluid-xl fluid-px-4 fluid-py-3 shadow-sm border border-gray-100">
       <Link 
         to="/exams" 
-        className="flex items-center text-gray-500 hover:text-blue-600 transition-colors duration-200"
+        className="flex items-center text-gray-500 hover:text-primary-600 transition-colors duration-200"
       >
         <Home className="fluid-icon-sm" />
       </Link>
@@ -27,12 +27,12 @@ const Breadcrumb = ({ items }: BreadcrumbProps) => {
           {item.path && !item.isActive ? (
             <Link
               to={item.path}
-              className="text-gray-500 hover:text-blue-600 transition-colors duration-200 font-medium hover:underline underline-offset-2"
+              className="text-gray-500 hover:text-primary-600 transition-colors duration-200 font-medium hover:underline underline-offset-2"
             >
               {item.label}
             </Link>
           ) : (
-            <span className={`font-medium ${item.isActive ? 'text-blue-600' : 'text-gray-700'}`}>
+            <span className={`font-medium ${item.isActive ? 'text-primary-600' : 'text-gray-700'}`}>
               {item.label}
             </span>
           )}

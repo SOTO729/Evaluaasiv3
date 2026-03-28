@@ -152,7 +152,7 @@ export default function AssignmentDetailPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-violet-600 rounded-2xl p-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500 rounded-2xl p-6 text-white shadow-xl">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -189,7 +189,7 @@ export default function AssignmentDetailPage() {
             </Link>
             <Link
               to={`${basePath}/assignments/${examId}/edit-members?type=exam&name=${encodeURIComponent(exam?.name || 'Examen')}`}
-              className="px-4 py-2 bg-white text-indigo-700 hover:bg-indigo-50 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
+              className="px-4 py-2 bg-white text-primary-700 hover:bg-primary-50 rounded-xl text-sm font-semibold transition-colors flex items-center gap-2 shadow-sm"
             >
               <Users className="w-4 h-4" /> Ver Miembros
             </Link>
@@ -205,31 +205,31 @@ export default function AssignmentDetailPage() {
 
           {/* Configuración del Examen */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-white">
               <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                <div className="p-1.5 bg-indigo-100 rounded-lg">
-                  <Settings className="w-4 h-4 text-indigo-600" />
+                <div className="p-1.5 bg-primary-100 rounded-lg">
+                  <Settings className="w-4 h-4 text-primary-600" />
                 </div>
                 Configuración del Examen
               </h2>
             </div>
             <div className="p-4 space-y-0.5">
-              <ConfigRow icon={Clock} label="Tiempo límite" value={`${assignment.time_limit_minutes || exam?.duration_minutes || 0} min`} color="purple" />
+              <ConfigRow icon={Clock} label="Tiempo límite" value={`${assignment.time_limit_minutes || exam?.duration_minutes || 0} min`} color="primary" />
               <ConfigRow icon={Target} label="Calificación mínima" value={`${assignment.passing_score ?? exam?.passing_score ?? 70}%`} color="green" />
               <ConfigRow icon={RefreshCw} label="Intentos permitidos" value={assignment.max_attempts || 1} color="amber" />
               <ConfigRow icon={AlertCircle} label="Desconexiones permitidas" value={assignment.max_disconnections || 3} color="red" />
-              <ConfigRow icon={Layers} label="Tipo de contenido" value={contentTypeLabels[assignment.exam_content_type || 'questions_only'] || assignment.exam_content_type} color="blue" />
+              <ConfigRow icon={Layers} label="Tipo de contenido" value={contentTypeLabels[assignment.exam_content_type || 'questions_only'] || assignment.exam_content_type} color="primary" />
               {(assignment.exam_questions_count || 0) > 0 && (
-                <ConfigRow icon={FileText} label="Preguntas de examen" value={assignment.exam_questions_count} color="blue" />
+                <ConfigRow icon={FileText} label="Preguntas de examen" value={assignment.exam_questions_count} color="primary" />
               )}
               {(assignment.exam_exercises_count || 0) > 0 && (
-                <ConfigRow icon={Monitor} label="Ejercicios de examen" value={assignment.exam_exercises_count} color="blue" />
+                <ConfigRow icon={Monitor} label="Ejercicios de examen" value={assignment.exam_exercises_count} color="primary" />
               )}
               {(assignment.simulator_questions_count || 0) > 0 && (
-                <ConfigRow icon={FileText} label="Preguntas simulador" value={assignment.simulator_questions_count} color="violet" />
+                <ConfigRow icon={FileText} label="Preguntas simulador" value={assignment.simulator_questions_count} color="primary" />
               )}
               {(assignment.simulator_exercises_count || 0) > 0 && (
-                <ConfigRow icon={Monitor} label="Ejercicios simulador" value={assignment.simulator_exercises_count} color="violet" />
+                <ConfigRow icon={Monitor} label="Ejercicios simulador" value={assignment.simulator_exercises_count} color="primary" />
               )}
               <ConfigRow icon={Lock} label="Requiere PIN de seguridad" value={<BoolBadge value={assignment.require_security_pin || false} />} color="amber" />
               {assignment.require_security_pin && assignment.security_pin && (
@@ -243,10 +243,10 @@ export default function AssignmentDetailPage() {
           {/* ECM Info */}
           {ecm && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex-1 flex flex-col">
-              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-white">
+              <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-white">
                 <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <div className="p-1.5 bg-violet-100 rounded-lg">
-                    <Shield className="w-4 h-4 text-violet-600" />
+                  <div className="p-1.5 bg-primary-100 rounded-lg">
+                    <Shield className="w-4 h-4 text-primary-600" />
                   </div>
                   Estándar de Competencia (ECM)
                 </h2>
@@ -256,12 +256,12 @@ export default function AssignmentDetailPage() {
                   {ecm.logo_url ? (
                     <img src={ecm.logo_url} alt={ecm.code} className="w-16 h-16 rounded-xl object-contain border border-gray-200 bg-white p-1" />
                   ) : (
-                    <div className="w-16 h-16 bg-violet-100 rounded-xl flex items-center justify-center">
-                      <Shield className="w-8 h-8 text-violet-500" />
+                    <div className="w-16 h-16 bg-primary-100 rounded-xl flex items-center justify-center">
+                      <Shield className="w-8 h-8 text-primary-500" />
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className="font-bold text-violet-700 text-lg">{ecm.code}</p>
+                    <p className="font-bold text-primary-700 text-lg">{ecm.code}</p>
                     <p className="text-sm text-gray-700 mt-0.5">{ecm.name}</p>
                     {ecm.brand_name && (
                       <div className="flex items-center gap-2 mt-2">
@@ -275,9 +275,9 @@ export default function AssignmentDetailPage() {
                 </div>
                 {ecm_stats.total_assignments !== undefined && (
                   <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="text-center p-3 bg-violet-50 rounded-xl border border-violet-100">
-                      <p className="text-2xl font-bold text-violet-700">{ecm_stats.total_assignments}</p>
-                      <p className="text-xs text-violet-600 mt-1">Asignaciones</p>
+                    <div className="text-center p-3 bg-primary-50 rounded-xl border border-primary-100">
+                      <p className="text-2xl font-bold text-primary-700">{ecm_stats.total_assignments}</p>
+                      <p className="text-xs text-primary-600 mt-1">Asignaciones</p>
                     </div>
                     <div className="text-center p-3 bg-green-50 rounded-xl border border-green-100">
                       <p className="text-2xl font-bold text-green-700">{ecm_stats.active_count ?? 0}</p>
@@ -287,9 +287,9 @@ export default function AssignmentDetailPage() {
                       <p className="text-2xl font-bold text-orange-700">{ecm_stats.expired_count ?? 0}</p>
                       <p className="text-xs text-orange-600 mt-1">Expiradas</p>
                     </div>
-                    <div className="text-center p-3 bg-blue-50 rounded-xl border border-blue-100">
-                      <p className="text-2xl font-bold text-blue-700">{ecm_stats.total_retakes ?? 0}</p>
-                      <p className="text-xs text-blue-600 mt-1">Retomas</p>
+                    <div className="text-center p-3 bg-primary-50 rounded-xl border border-primary-100">
+                      <p className="text-2xl font-bold text-primary-700">{ecm_stats.total_retakes ?? 0}</p>
+                      <p className="text-xs text-primary-600 mt-1">Retomas</p>
                     </div>
                   </div>
                 )}
@@ -299,16 +299,16 @@ export default function AssignmentDetailPage() {
 
           {/* Vigencia */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-white">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-white">
               <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                <div className="p-1.5 bg-purple-100 rounded-lg">
-                  <Calendar className="w-4 h-4 text-purple-600" />
+                <div className="p-1.5 bg-primary-100 rounded-lg">
+                  <Calendar className="w-4 h-4 text-primary-600" />
                 </div>
                 Vigencia de la Asignación
               </h2>
             </div>
             <div className="p-4 space-y-0.5">
-              <ConfigRow icon={Calendar} label="Meses de vigencia" value={`${assignment.validity_months || 0} meses`} color="purple" />
+              <ConfigRow icon={Calendar} label="Meses de vigencia" value={`${assignment.validity_months || 0} meses`} color="primary" />
               <ConfigRow icon={Calendar} label="Fecha de expiración" value={
                 assignment.expires_at ? (
                   <span className={assignment.is_expired ? 'text-orange-600 font-semibold' : 'text-green-600'}>
@@ -316,7 +316,7 @@ export default function AssignmentDetailPage() {
                     {assignment.is_expired && ' (Expirada)'}
                   </span>
                 ) : '—'
-              } color="purple" />
+              } color="primary" />
               {(assignment.extended_months || 0) > 0 && (
                 <ConfigRow icon={RefreshCw} label="Meses extendidos" value={`+${assignment.extended_months} meses`} color="green" />
               )}
@@ -331,35 +331,35 @@ export default function AssignmentDetailPage() {
 
           {/* Configuración del Grupo (Efectiva) */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex-1">
-            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+            <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-white">
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <div className="p-1.5 bg-blue-100 rounded-lg">
-                    <Users className="w-4 h-4 text-blue-600" />
+                  <div className="p-1.5 bg-primary-100 rounded-lg">
+                    <Users className="w-4 h-4 text-primary-600" />
                   </div>
                   Configuración del Grupo
                 </h2>
                 {group.use_custom_config && (
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg">Personalizada</span>
+                  <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-semibold rounded-lg">Personalizada</span>
                 )}
               </div>
             </div>
             <div className="p-4 space-y-0.5">
-              <ConfigRow icon={Monitor} label="Versión de Office" value={officeLabels[eff.office_version] || eff.office_version} color="blue" />
+              <ConfigRow icon={Monitor} label="Versión de Office" value={officeLabels[eff.office_version] || eff.office_version} color="primary" />
               <div className="pt-2 pb-1">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3">Niveles de Certificación</p>
               </div>
               <ConfigRow icon={Award} label="Constancia de Evaluación" value={<BoolBadge value={eff.enable_tier_basic} />} color="amber" />
               <ConfigRow icon={Award} label="Certificado Eduit" value={<BoolBadge value={eff.enable_tier_standard} />} color="amber" />
-              <ConfigRow icon={Shield} label="Certificado CONOCER" value={<BoolBadge value={eff.enable_tier_advanced} />} color="violet" />
+              <ConfigRow icon={Shield} label="Certificado CONOCER" value={<BoolBadge value={eff.enable_tier_advanced} />} color="primary" />
               <ConfigRow icon={Zap} label="Insignia Digital" value={<BoolBadge value={eff.enable_digital_badge} />} color="yellow" />
               <div className="pt-2 pb-1">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3">Funcionalidades</p>
               </div>
-              <ConfigRow icon={FileText} label="Evaluaciones Parciales" value={<BoolBadge value={eff.enable_partial_evaluations} />} color="blue" />
-              <ConfigRow icon={Calendar} label="Parciales Sin Agendar" value={<BoolBadge value={eff.enable_unscheduled_partials} />} color="blue" />
-              <ConfigRow icon={Monitor} label="Máquinas Virtuales" value={<BoolBadge value={eff.enable_virtual_machines} />} color="blue" />
-              <ConfigRow icon={CreditCard} label="Pagos en Línea" value={<BoolBadge value={eff.enable_online_payments} />} color="blue" />
+              <ConfigRow icon={FileText} label="Evaluaciones Parciales" value={<BoolBadge value={eff.enable_partial_evaluations} />} color="primary" />
+              <ConfigRow icon={Calendar} label="Parciales Sin Agendar" value={<BoolBadge value={eff.enable_unscheduled_partials} />} color="primary" />
+              <ConfigRow icon={Monitor} label="Máquinas Virtuales" value={<BoolBadge value={eff.enable_virtual_machines} />} color="primary" />
+              <ConfigRow icon={CreditCard} label="Pagos en Línea" value={<BoolBadge value={eff.enable_online_payments} />} color="primary" />
               <ConfigRow icon={Award} label="Certificados Visibles" value={<BoolBadge value={eff.enable_candidate_certificates} />} color="emerald" />
               <ConfigRow icon={Calendar} label="Calendario de Sesiones" value={<BoolBadge value={eff.enable_session_calendar} />} color="cyan" />
               {eff.enable_session_calendar && (
@@ -457,7 +457,7 @@ export default function AssignmentDetailPage() {
                   <p className="text-xs text-gray-500 truncate">{member.user?.email}</p>
                 </div>
                 {member.assignment_number && (
-                  <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-mono font-bold rounded-md flex-shrink-0">
+                  <span className="px-2 py-0.5 bg-primary-50 text-primary-700 text-xs font-mono font-bold rounded-md flex-shrink-0">
                     {member.assignment_number}
                   </span>
                 )}

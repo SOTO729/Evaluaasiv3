@@ -19,7 +19,7 @@ interface DatePickerInputProps {
   placeholder?: string;
   minDate?: Date | null;
   maxDate?: Date | null;
-  colorScheme?: 'green' | 'indigo' | 'blue';
+  colorScheme?: 'green' | 'primary' | 'blue' | 'indigo';
   className?: string;
   disabled?: boolean;
 }
@@ -29,19 +29,18 @@ const CustomInput = forwardRef<HTMLButtonElement, {
   value?: string; 
   onClick?: () => void; 
   placeholder?: string;
-  colorScheme: 'green' | 'indigo' | 'blue';
+  colorScheme: 'green' | 'primary' | 'blue' | 'indigo';
   disabled?: boolean;
 }>(({ value, onClick, placeholder, colorScheme, disabled }, ref) => {
+  const resolvedScheme = (colorScheme === 'blue' || colorScheme === 'indigo') ? 'primary' : colorScheme;
   const colorClasses = {
     green: 'focus:ring-green-500 focus:border-green-500 hover:border-green-300 from-green-50/30',
-    indigo: 'focus:ring-indigo-500 focus:border-indigo-500 hover:border-indigo-300 from-indigo-50/30',
-    blue: 'focus:ring-blue-500 focus:border-blue-500 hover:border-blue-300 from-blue-50/30',
+    primary: 'focus:ring-primary-500 focus:border-primary-500 hover:border-primary-300 from-primary-50/30',
   };
   
   const iconColors = {
     green: 'text-green-500',
-    indigo: 'text-indigo-500',
-    blue: 'text-blue-500',
+    primary: 'text-primary-500',
   };
 
   return (
@@ -50,12 +49,12 @@ const CustomInput = forwardRef<HTMLButtonElement, {
       ref={ref}
       onClick={onClick}
       disabled={disabled}
-      className={`w-full fluid-px-4 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 ${colorClasses[colorScheme]} fluid-text-base transition-all bg-gradient-to-r ${colorClasses[colorScheme]} to-transparent cursor-pointer flex items-center justify-between text-left disabled:opacity-50 disabled:cursor-not-allowed`}
+      className={`w-full fluid-px-4 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 ${colorClasses[resolvedScheme]} fluid-text-base transition-all bg-gradient-to-r ${colorClasses[resolvedScheme]} to-transparent cursor-pointer flex items-center justify-between text-left disabled:opacity-50 disabled:cursor-not-allowed`}
     >
       <span className={value ? 'text-gray-900' : 'text-gray-400'}>
         {value || placeholder || 'Seleccionar fecha'}
       </span>
-      <Calendar className={`fluid-icon-base ${iconColors[colorScheme]}`} />
+      <Calendar className={`fluid-icon-base ${iconColors[resolvedScheme]}`} />
     </button>
   );
 });
@@ -68,7 +67,7 @@ export default function DatePickerInput({
   placeholder = 'Seleccionar fecha',
   minDate,
   maxDate,
-  colorScheme = 'blue',
+  colorScheme = 'primary',
   className = '',
   disabled = false,
 }: DatePickerInputProps) {
@@ -108,7 +107,7 @@ export default function DatePickerInput({
           ];
 
           return (
-            <div className="flex flex-col gap-1 px-2 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-lg">
+            <div className="flex flex-col gap-1 px-2 py-2 bg-gradient-to-r from-primary-600 to-primary-700 rounded-t-lg">
               {/* Year and month selectors */}
               <div className="flex items-center gap-1.5 justify-center">
                 <select
