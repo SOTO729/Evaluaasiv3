@@ -10105,6 +10105,54 @@ def get_mi_plantel():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/candidato-branding', methods=['GET'])
+@jwt_required()
+def get_candidato_branding():
+    """Obtener branding del campus más reciente para un candidato"""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role != 'candidato':
+            return jsonify({'error': 'Acceso denegado'}), 403
+
+        # Buscar la membresía más reciente del candidato (por joined_at DESC)
+        membership = (
+            GroupMember.query
+            .filter_by(user_id=str(user_id))
+            .order_by(GroupMember.joined_at.desc())
+            .first()
+        )
+
+        if not membership:
+            return jsonify({'branding': None})
+
+        group = CandidateGroup.query.get(membership.group_id)
+        if not group:
+            return jsonify({'branding': None})
+
+        campus = Campus.query.get(group.campus_id)
+        if not campus:
+            return jsonify({'branding': None})
+
+        # Solo devolver branding si el campus tiene al menos color primario
+        if not campus.primary_color:
+            return jsonify({'branding': None})
+
+        return jsonify({
+            'branding': {
+                'campus_name': campus.name,
+                'logo_url': campus.logo_url,
+                'primary_color': campus.primary_color,
+                'secondary_color': campus.secondary_color,
+            }
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/mi-plantel/branding', methods=['PUT'])
 @jwt_required()
 @responsable_required

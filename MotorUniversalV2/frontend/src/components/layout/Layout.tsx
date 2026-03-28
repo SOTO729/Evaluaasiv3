@@ -3,7 +3,7 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
-import { getMiPlantel } from '../../services/partnersService'
+import { getMiPlantel, getCandidatoBranding } from '../../services/partnersService'
 import { supportChatService } from '../../services/supportChatService'
 import ExamInProgressWidget from '../ExamInProgressWidget'
 
@@ -66,14 +66,31 @@ const Layout = ({ children }: LayoutProps) => {
     staleTime: 5 * 60 * 1000, // 5 minutos
   })
 
-  const campusName = plantelData?.campus?.name
-  const campusLogo = plantelData?.campus?.logo_url
-  const campusPrimaryColor = plantelData?.campus?.primary_color
-  const campusSecondaryColor = plantelData?.campus?.secondary_color
+  // Obtener branding del campus más reciente para candidatos
+  const { data: candidatoBrandingData } = useQuery({
+    queryKey: ['candidato-branding'],
+    queryFn: getCandidatoBranding,
+    enabled: user?.role === 'candidato',
+    staleTime: 10 * 60 * 1000, // 10 minutos
+  })
 
-  // Favicon dinámico: usar logo del plantel como favicon para responsables
+  const hasBranding = user?.role === 'responsable' || user?.role === 'candidato'
+  const campusName = user?.role === 'responsable'
+    ? plantelData?.campus?.name
+    : candidatoBrandingData?.branding?.campus_name
+  const campusLogo = user?.role === 'responsable'
+    ? plantelData?.campus?.logo_url
+    : candidatoBrandingData?.branding?.logo_url
+  const campusPrimaryColor = user?.role === 'responsable'
+    ? plantelData?.campus?.primary_color
+    : candidatoBrandingData?.branding?.primary_color
+  const campusSecondaryColor = user?.role === 'responsable'
+    ? plantelData?.campus?.secondary_color
+    : candidatoBrandingData?.branding?.secondary_color
+
+  // Favicon dinámico: usar logo del plantel como favicon
   useEffect(() => {
-    if (user?.role !== 'responsable' || !campusLogo) return
+    if (!hasBranding || !campusLogo) return
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
     const appleLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
     const originalHref = link?.href || '/logo.png'
@@ -84,15 +101,15 @@ const Layout = ({ children }: LayoutProps) => {
       if (link) link.href = originalHref
       if (appleLink) appleLink.href = originalAppleHref
     }
-  }, [user?.role, campusLogo])
+  }, [hasBranding, campusLogo])
 
   // Título de pestaña dinámico: mostrar nombre del plantel
   useEffect(() => {
-    if (user?.role !== 'responsable' || !campusName) return
+    if (!hasBranding || !campusName) return
     const originalTitle = document.title
     document.title = `${campusName} — Evaluaasi`
     return () => { document.title = originalTitle }
-  }, [user?.role, campusName])
+  }, [hasBranding, campusName])
 
   // Generar paleta de 10 tonos desde un color HEX
   const generatePalette = useCallback((hex: string) => {
@@ -122,7 +139,7 @@ const Layout = ({ children }: LayoutProps) => {
     const root = document.documentElement
     const shades = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900']
 
-    if (user?.role !== 'responsable' || !campusPrimaryColor) {
+    if (!hasBranding || !campusPrimaryColor) {
       shades.forEach(s => {
         root.style.removeProperty(`--color-primary-${s}`)
         root.style.removeProperty(`--color-secondary-${s}`)
@@ -152,7 +169,7 @@ const Layout = ({ children }: LayoutProps) => {
         root.style.removeProperty(`--color-secondary-${s}`)
       })
     }
-  }, [user?.role, campusPrimaryColor, campusSecondaryColor, generatePalette])
+  }, [hasBranding, campusPrimaryColor, campusSecondaryColor, generatePalette])
 
   // Cerrar dropdown y menú móvil al hacer clic fuera
   useEffect(() => {
@@ -308,8 +325,8 @@ const Layout = ({ children }: LayoutProps) => {
                 </span>
               </Link>
               
-              {/* Nombre del plantel para responsables */}
-              {user?.role === 'responsable' && campusName && (
+              {/* Nombre del plantel para responsables y candidatos */}
+              {hasBranding && campusName && (
                 <div className="hidden md:flex items-center fluid-ml-4 fluid-pl-4 border-l border-gray-200">
                   <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
                 </div>
