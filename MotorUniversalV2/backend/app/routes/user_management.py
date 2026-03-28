@@ -193,12 +193,17 @@ def list_users():
         
         query = db.session.query(*columns)
         
-        # Coordinadores y auxiliares ven SOLO sus propios candidatos, responsables, responsables_partner y auxiliares
+        # Coordinadores y auxiliares: ven TODOS los candidatos (compartidos) + sus propios responsables/auxiliares
         if _is_coordinator_role(current_user.role):
             coord_id = _get_effective_coordinator_id(current_user)
             query = query.filter(
-                User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']),
-                User.coordinator_id == coord_id
+                or_(
+                    User.role == 'candidato',
+                    and_(
+                        User.role.in_(['responsable', 'responsable_partner', 'auxiliar']),
+                        User.coordinator_id == coord_id
+                    )
+                )
             )
 
         # Soporte ve todos los usuarios excepto admin, developer y gerente
@@ -1726,7 +1731,13 @@ def get_user_stats():
             coord_id = _get_effective_coordinator_id(current_user)
             stats_query = stats_query.filter(
                 User.role.in_(allowed_roles),
-                User.coordinator_id == coord_id
+                or_(
+                    User.role == 'candidato',
+                    and_(
+                        User.role.in_(['responsable', 'responsable_partner', 'auxiliar']),
+                        User.coordinator_id == coord_id
+                    )
+                )
             )
         elif current_user.role == 'soporte':
             stats_query = stats_query.filter(User.role.in_(allowed_roles))
@@ -3406,8 +3417,13 @@ def export_user_credentials():
             if _is_coordinator_role(current_user.role):
                 coord_id = _get_effective_coordinator_id(current_user)
                 q = q.filter(
-                    User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']),
-                    User.coordinator_id == coord_id
+                    or_(
+                        User.role == 'candidato',
+                        and_(
+                            User.role.in_(['responsable', 'responsable_partner', 'auxiliar']),
+                            User.coordinator_id == coord_id
+                        )
+                    )
                 )
             for u in q.all():
                 users_map[u.id] = u

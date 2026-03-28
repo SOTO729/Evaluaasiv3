@@ -695,6 +695,10 @@ def create_campus(partner_id):
         
         # Crear el usuario del director con rol responsable
         # El usuario del director se identifica porque su CURP coincide con director_curp del campus
+        # Determinar coordinator_id del creador
+        creator = g.current_user
+        effective_coord_id = creator.id if creator.role == 'coordinator' else creator.coordinator_id
+        
         director_user = User(
             id=str(uuid.uuid4()),
             email=data.get('director_email'),
@@ -707,6 +711,7 @@ def create_campus(partner_id):
             date_of_birth=director_dob,
             role='responsable',
             campus_id=campus.id,  # Asociado al plantel
+            coordinator_id=effective_coord_id,
             is_active=True,
             is_verified=True,
             can_bulk_create_candidates=False,
@@ -9977,9 +9982,15 @@ def _get_cert_status_map(user_ids, exam_ids):
 def export_campus_report(campus_id):
     """Exportar reporte del plantel a Excel — todos los grupos y miembros"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, error = _verify_campus_access(campus_id, g.current_user)
+        if error:
+            return error
         partner = Partner.query.get(campus.partner_id)
-        groups = CandidateGroup.query.filter_by(campus_id=campus_id).all()
+        group_query = CandidateGroup.query.filter_by(campus_id=campus_id)
+        coord_id = _get_coordinator_filter(g.current_user)
+        if coord_id:
+            group_query = group_query.filter(CandidateGroup.coordinator_id == coord_id)
+        groups = group_query.all()
 
         # Recolectar todos los miembros y exam_ids
         all_members = []  # [(member, group)]
@@ -10039,13 +10050,19 @@ def export_campus_report(campus_id):
 def export_partner_report(partner_id):
     """Exportar reporte del partner a Excel — todos los planteles, todos los grupos, todos los miembros"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, error = _verify_partner_access(partner_id, g.current_user)
+        if error:
+            return error
+        coord_id = _get_coordinator_filter(g.current_user)
         campuses = Campus.query.filter_by(partner_id=partner_id).all()
 
         all_members = []  # [(member, group, campus, cycle_name)]
         all_exam_ids = set()
         for campus in campuses:
-            groups = CandidateGroup.query.filter_by(campus_id=campus.id).all()
+            group_query = CandidateGroup.query.filter_by(campus_id=campus.id)
+            if coord_id:
+                group_query = group_query.filter(CandidateGroup.coordinator_id == coord_id)
+            groups = group_query.all()
             for grp in groups:
                 cycle_name = grp.school_cycle.name if grp.school_cycle else 'Sin ciclo'
                 members = GroupMember.query.filter_by(group_id=grp.id).all()
