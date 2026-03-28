@@ -31,6 +31,9 @@ export interface DashboardExam {
   passing_score: number
   is_published: boolean
   categories_count: number
+  competency_standard_id: number | null
+  competency_standard_name: string | null
+  competency_standard_code: string | null
   user_stats: ExamUserStats
 }
 
@@ -77,6 +80,7 @@ export interface DashboardData {
   stats: DashboardStats
   exams: DashboardExam[]
   materials: DashboardMaterial[]
+  exam_materials_map: Record<number, number[]>
 }
 
 export const dashboardService = {

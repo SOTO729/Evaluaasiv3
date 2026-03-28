@@ -322,6 +322,7 @@ def get_dashboard():
         # Para admin/coordinator/editor: todos los publicados
         assigned_exam_ids = None  # None = sin filtro (todos los publicados)
         assigned_material_ids = None
+        exam_materials_map = {}  # exam_id -> set of material_ids (solo candidatos)
         
         if current_user.role == 'candidato':
             from app.models.partner import GroupExam, GroupMember, GroupExamMember, GroupExamMaterial, CandidateGroup
@@ -359,6 +360,8 @@ def get_dashboard():
                     
                     if has_access:
                         assigned_exam_ids.add(ge.exam_id)
+                        if ge.exam_id not in exam_materials_map:
+                            exam_materials_map[ge.exam_id] = set()
                         # Materiales asociados al examen grupal
                         gem_list = GroupExamMaterial.query.filter_by(
                             group_exam_id=ge.id,
@@ -366,9 +369,11 @@ def get_dashboard():
                         ).all()
                         for gem in gem_list:
                             assigned_material_ids.add(gem.study_material_id)
-            
+                            exam_materials_map[ge.exam_id].add(gem.study_material_id)
+
             assigned_exam_ids = list(assigned_exam_ids)
             assigned_material_ids = list(assigned_material_ids)
+            exam_materials_map = {k: list(v) for k, v in exam_materials_map.items()}
         
         # ========== OPTIMIZACIÓN: Query única para exámenes con conteo de categorías ==========
         # Usamos subquery para contar categorías en lugar de lazy loading
@@ -379,11 +384,17 @@ def get_dashboard():
             func.count(Category.id).label('count')
         ).group_by(Category.exam_id).subquery()
         
+        from app.models.competency_standard import CompetencyStandard
+
         exam_query = db.session.query(
             Exam,
             func.coalesce(category_counts.c.count, 0).label('categories_count')
         ).outerjoin(
             category_counts, Exam.id == category_counts.c.exam_id
+        ).outerjoin(
+            CompetencyStandard, Exam.competency_standard_id == CompetencyStandard.id
+        ).options(
+            joinedload(Exam.competency_standard)
         ).filter(
             Exam.is_published == True
         )
@@ -443,6 +454,8 @@ def get_dashboard():
                 'is_published': exam.is_published,
                 'categories_count': categories_count,
                 'competency_standard_id': exam.competency_standard_id,
+                'competency_standard_name': exam.competency_standard.name if exam.competency_standard_id and exam.competency_standard else None,
+                'competency_standard_code': exam.competency_standard.code if exam.competency_standard_id and exam.competency_standard else None,
                 'user_stats': {
                     'attempts': attempts,
                     'best_score': best_score,
@@ -741,7 +754,8 @@ def get_dashboard():
                 'average_score': round(average_score, 1)
             },
             'exams': exams_data,
-            'materials': materials_data
+            'materials': materials_data,
+            'exam_materials_map': exam_materials_map if current_user.role == 'candidato' else {}
         }), 200
         
     except HTTPException:
