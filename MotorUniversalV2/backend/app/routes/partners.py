@@ -15879,7 +15879,7 @@ def get_candidate_assignment_detail(eca_id):
 # =====================================================
 
 def responsable_partner_required(f):
-    """Decorador que requiere rol de responsable_partner (o admin/developer) y asocia el partner"""
+    """Decorador que requiere rol de responsable_partner o responsable_estatal (o admin/developer) y asocia el partner"""
     @wraps(f)
     def decorated(*args, **kwargs):
         user_id = get_jwt_identity()
@@ -15896,6 +15896,7 @@ def responsable_partner_required(f):
                     return jsonify({'error': 'Partner no encontrado'}), 404
                 g.current_user = user
                 g.partner = partner
+                g.forced_state = None
                 return f(*args, **kwargs)
             # Si es admin sin partner_id, buscar si tiene asociación en user_partners
             from app.models.partner import user_partners
@@ -15907,17 +15908,19 @@ def responsable_partner_required(f):
                 if partner:
                     g.current_user = user
                     g.partner = partner
+                    g.forced_state = None
                     return f(*args, **kwargs)
             # Si admin no tiene partner asociado, mostrar el primer partner
             first_partner = Partner.query.filter_by(is_active=True).first()
             if first_partner:
                 g.current_user = user
                 g.partner = first_partner
+                g.forced_state = None
                 return f(*args, **kwargs)
             return jsonify({'error': 'No hay partners disponibles'}), 404
         
-        if user.role != 'responsable_partner':
-            return jsonify({'error': 'Acceso denegado. Se requiere rol de responsable_partner'}), 403
+        if user.role not in ('responsable_partner', 'responsable_estatal'):
+            return jsonify({'error': 'Acceso denegado. Se requiere rol de responsable_partner o responsable_estatal'}), 403
         # Buscar el partner asociado en la tabla user_partners
         from app.models.partner import user_partners
         partner_row = db.session.query(user_partners).filter(
@@ -15930,6 +15933,8 @@ def responsable_partner_required(f):
             return jsonify({'error': 'Partner no encontrado'}), 404
         g.current_user = user
         g.partner = partner
+        # Para responsable_estatal, forzar filtro por estado asignado
+        g.forced_state = user.assigned_state if user.role == 'responsable_estatal' else None
         return f(*args, **kwargs)
     return decorated
 
@@ -15941,7 +15946,11 @@ def get_mi_partner():
     """Obtener información del partner y sus planteles"""
     try:
         partner = g.partner
-        campuses = Campus.query.filter_by(partner_id=partner.id).all()
+        forced_state = getattr(g, 'forced_state', None)
+        campus_query = Campus.query.filter_by(partner_id=partner.id)
+        if forced_state:
+            campus_query = campus_query.filter_by(state_name=forced_state)
+        campuses = campus_query.all()
         
         # Obtener estados únicos de los campus
         states = sorted(set([c.state_name for c in campuses if c.state_name]))
@@ -15949,7 +15958,8 @@ def get_mi_partner():
         return jsonify({
             'partner': partner.to_dict(include_states=True),
             'campuses': [c.to_dict() for c in campuses],
-            'states': states
+            'states': states,
+            'forced_state': forced_state
         })
     except HTTPException:
         raise
@@ -15969,7 +15979,8 @@ def get_mi_partner_dashboard():
     
     try:
         partner = g.partner
-        state_filter = request.args.get('state', '')
+        forced_state = getattr(g, 'forced_state', None)
+        state_filter = forced_state or request.args.get('state', '')
         
         # Obtener campuses del partner (opcionalmente filtrados por estado)
         campus_query = Campus.query.filter_by(partner_id=partner.id)
@@ -16170,7 +16181,7 @@ def get_mi_partner_dashboard():
         
         return jsonify({
             'partner': {'id': partner.id, 'name': partner.name, 'logo_url': partner.logo_url},
-            'filter': {'state': state_filter, 'available_states': all_states},
+            'filter': {'state': state_filter, 'available_states': all_states, 'forced_state': forced_state},
             'stats': {
                 'total_campuses': len(campuses),
                 'total_groups': len(groups),
@@ -16209,9 +16220,10 @@ def get_mi_partner_certificates():
     
     try:
         partner = g.partner
+        forced_state = getattr(g, 'forced_state', None)
         
         # Filtros
-        state_filter = request.args.get('state', '')
+        state_filter = forced_state or request.args.get('state', '')
         campus_filter = request.args.get('campus_id', '', type=str)
         group_filter = request.args.get('group_id', '', type=str)
         cert_type_filter = request.args.get('cert_type', '')  # reporte_evaluacion, certificado_eduit, certificado_conocer, insignia_digital
@@ -16259,7 +16271,7 @@ def get_mi_partner_certificates():
         if not candidate_ids:
             return jsonify({
                 'certificates': [], 'pagination': {'total': 0, 'page': page, 'per_page': per_page, 'pages': 0},
-                'filters': _get_partner_cert_filters(partner.id)
+                'filters': _get_partner_cert_filters(partner.id, forced_state)
             })
         
         # Precomputar configuración de certificados por grupo
@@ -16490,7 +16502,7 @@ def get_mi_partner_certificates():
         return jsonify({
             'certificates': paginated,
             'pagination': {'total': total, 'page': page, 'per_page': per_page, 'pages': pages},
-            'filters': _get_partner_cert_filters(partner.id)
+            'filters': _get_partner_cert_filters(partner.id, forced_state)
         })
     except HTTPException:
         raise
@@ -16500,9 +16512,12 @@ def get_mi_partner_certificates():
         return jsonify({'error': str(e)}), 500
 
 
-def _get_partner_cert_filters(partner_id):
+def _get_partner_cert_filters(partner_id, forced_state=None):
     """Helper: obtener opciones de filtro disponibles para certificados del partner"""
-    campuses = Campus.query.filter_by(partner_id=partner_id).all()
+    campus_query = Campus.query.filter_by(partner_id=partner_id)
+    if forced_state:
+        campus_query = campus_query.filter_by(state_name=forced_state)
+    campuses = campus_query.all()
     campus_ids = [c.id for c in campuses]
     states = sorted(set([c.state_name for c in campuses if c.state_name]))
     
@@ -16534,7 +16549,8 @@ def export_mi_partner_certificates_excel():
     
     try:
         partner = g.partner
-        state_filter = request.args.get('state', '')
+        forced_state = getattr(g, 'forced_state', None)
+        state_filter = forced_state or request.args.get('state', '')
         campus_filter = request.args.get('campus_id', '')
         group_filter = request.args.get('group_id', '')
         cert_type_filter = request.args.get('cert_type', '')
@@ -16733,7 +16749,8 @@ def download_mi_partner_certificates_zip():
     
     try:
         partner = g.partner
-        state_filter = request.args.get('state', '')
+        forced_state = getattr(g, 'forced_state', None)
+        state_filter = forced_state or request.args.get('state', '')
         campus_filter = request.args.get('campus_id', '')
         group_filter = request.args.get('group_id', '')
         cert_type_filter = request.args.get('cert_type', '')

@@ -3487,7 +3487,7 @@ export async function downloadMiPartnerCertificatesZip(params: {
 
 export interface PartnerDashboardData {
   partner: { id: number; name: string; logo_url: string | null }
-  filter: { state: string; available_states: string[] }
+  filter: { state: string; available_states: string[]; forced_state?: string | null }
   stats: {
     total_campuses: number; total_groups: number; total_candidates: number
     total_evaluations: number; passed_evaluations: number; failed_evaluations: number

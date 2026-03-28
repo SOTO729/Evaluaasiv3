@@ -20,20 +20,20 @@ import re
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
 # Roles disponibles en el sistema (sin alumno)
-AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
+AVAILABLE_ROLES = ['admin', 'developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'responsable_estatal', 'candidato', 'auxiliar']
 
 # Roles que soporte puede VER (todos menos admin, developer, gerente)
-SOPORTE_VISIBLE_ROLES = ['financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar']
+SOPORTE_VISIBLE_ROLES = ['financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'responsable_estatal', 'candidato', 'auxiliar']
 
 # Roles que soporte puede EDITAR, ver contraseñas y activar/desactivar
-SOPORTE_EDITABLE_ROLES = ['candidato', 'responsable', 'responsable_partner']
+SOPORTE_EDITABLE_ROLES = ['candidato', 'responsable', 'responsable_partner', 'responsable_estatal']
 
 # Roles que puede crear cada tipo de usuario
 ROLE_CREATE_PERMISSIONS = {
-    'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin
-    'developer': ['gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Todo menos admin y developer
-    'soporte': ['responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Soporte puede crear responsables, responsables del partner, candidatos y auxiliares
-    'coordinator': ['responsable', 'responsable_partner', 'candidato', 'auxiliar'],  # Responsables, Responsables del Partner, candidatos y auxiliares
+    'admin': ['developer', 'gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'responsable_estatal', 'candidato', 'auxiliar'],  # Todo menos admin
+    'developer': ['gerente', 'financiero', 'editor', 'editor_invitado', 'soporte', 'coordinator', 'responsable', 'responsable_partner', 'responsable_estatal', 'candidato', 'auxiliar'],  # Todo menos admin y developer
+    'soporte': ['responsable', 'responsable_partner', 'responsable_estatal', 'candidato', 'auxiliar'],  # Soporte puede crear responsables, responsables del partner/estatal, candidatos y auxiliares
+    'coordinator': ['responsable', 'responsable_partner', 'responsable_estatal', 'candidato', 'auxiliar'],  # Responsables, Responsables del Partner/Estatal, candidatos y auxiliares
     'responsable': ['candidato']  # Solo candidatos
 }
 
@@ -59,7 +59,7 @@ def _verify_coordinator_user_access(current_user, target_user):
     Retorna None si OK, o (response, status_code) si no tiene acceso."""
     if not _is_coordinator_role(current_user.role):
         return None
-    if target_user.role not in ['candidato', 'responsable', 'responsable_partner', 'auxiliar']:
+    if target_user.role not in ['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']:
         return jsonify({'error': 'No tienes permiso para acceder a este usuario'}), 403
     coord_id = _get_effective_coordinator_id(current_user)
     if target_user.coordinator_id != coord_id:
@@ -200,7 +200,7 @@ def list_users():
                 or_(
                     User.role == 'candidato',
                     and_(
-                        User.role.in_(['responsable', 'responsable_partner', 'auxiliar']),
+                        User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
                         User.coordinator_id == coord_id
                     )
                 )
@@ -409,7 +409,7 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     
     query = User.query
     if _is_coordinator_role(user_role):
-        query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'auxiliar']))
+        query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']))
         if coordinator_id:
             query = query.filter(User.coordinator_id == coordinator_id)
     if user_role == 'soporte':
@@ -808,14 +808,17 @@ def create_user():
             if data['gender'] not in ['M', 'F', 'O']:
                 return jsonify({'error': 'Género inválido. Use M (masculino), F (femenino) u O (otro)'}), 400
         
-        # Para responsable_partner, partner_id es obligatorio
-        if role == 'responsable_partner':
+        # Para responsable_partner o responsable_estatal, partner_id es obligatorio
+        if role in ('responsable_partner', 'responsable_estatal'):
             if not data.get('partner_id'):
-                return jsonify({'error': 'Debe seleccionar un partner para el responsable del partner'}), 400
+                return jsonify({'error': 'Debe seleccionar un partner para el responsable'}), 400
             from app.models.partner import Partner
             partner = Partner.query.get(data['partner_id'])
             if not partner:
                 return jsonify({'error': 'El partner especificado no existe'}), 404
+            # Para responsable_estatal, assigned_state es obligatorio
+            if role == 'responsable_estatal' and not data.get('assigned_state'):
+                return jsonify({'error': 'Debe seleccionar un estado para el responsable estatal'}), 400
         
         # Email es opcional para candidatos
         email = None
@@ -908,7 +911,7 @@ def create_user():
                 user_coordinator_id = data['coordinator_id']
             else:
                 return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
-        elif current_user.role == 'coordinator' and role in ['candidato', 'responsable_partner']:
+        elif current_user.role == 'coordinator' and role in ['candidato', 'responsable_partner', 'responsable_estatal']:
             user_coordinator_id = current_user.id
         elif current_user.role in ['admin', 'developer', 'soporte'] and role == 'candidato' and user_campus_id:
             # Admin/developer creando responsable/candidato: buscar el coordinador del campus
@@ -925,8 +928,8 @@ def create_user():
                 ).first()
                 if coord_row:
                     user_coordinator_id = coord_row[0]
-        elif current_user.role in ['admin', 'developer'] and role == 'responsable_partner' and data.get('partner_id'):
-            # Admin creando responsable_partner: buscar el coordinador del partner
+        elif current_user.role in ['admin', 'developer'] and role in ('responsable_partner', 'responsable_estatal') and data.get('partner_id'):
+            # Admin creando responsable_partner/estatal: buscar el coordinador del partner
             from app.models.partner import user_partners as up_table2
             coord_row2 = db.session.query(up_table2.c.user_id).join(
                 User, User.id == up_table2.c.user_id
@@ -975,7 +978,8 @@ def create_user():
             is_verified=True if role == 'responsable' else data.get('is_verified', False),
             can_bulk_create_candidates=data.get('can_bulk_create_candidates', False) if role == 'responsable' else False,
             can_manage_groups=data.get('can_manage_groups', False) if role == 'responsable' else False,
-            can_view_reports=data.get('can_view_reports', True) if role == 'responsable' else True
+            can_view_reports=data.get('can_view_reports', True) if role == 'responsable' else True,
+            assigned_state=data.get('assigned_state', '').strip() or None if role == 'responsable_estatal' else None
         )
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
         
@@ -987,8 +991,8 @@ def create_user():
         db.session.add(new_user)
         db.session.flush()  # Persistir el user para que exista antes de la FK en user_partners
         
-        # Para responsable_partner, crear la asociación en user_partners
-        if role == 'responsable_partner' and data.get('partner_id'):
+        # Para responsable_partner o responsable_estatal, crear la asociación en user_partners
+        if role in ('responsable_partner', 'responsable_estatal') and data.get('partner_id'):
             from app.models.partner import user_partners
             db.session.execute(user_partners.insert().values(
                 user_id=new_user.id,
@@ -1158,8 +1162,8 @@ def update_user(user_id):
             else:
                 return jsonify({'error': 'No tienes permisos para cambiar el coordinador asignado'}), 403
         
-        # Campos de responsable_partner (editables por admin, developer y coordinator)
-        if user.role == 'responsable_partner' and current_user.role in ['admin', 'developer', 'coordinator']:
+        # Campos de responsable_partner/responsable_estatal (editables por admin, developer y coordinator)
+        if user.role in ('responsable_partner', 'responsable_estatal') and current_user.role in ['admin', 'developer', 'coordinator']:
             if 'partner_id' in data and data['partner_id']:
                 from app.models.partner import Partner, user_partners
                 partner = Partner.query.get(data['partner_id'])
@@ -1169,6 +1173,8 @@ def update_user(user_id):
                 db.session.execute(user_partners.delete().where(user_partners.c.user_id == user.id))
                 # Crear nueva relación
                 db.session.execute(user_partners.insert().values(user_id=user.id, partner_id=data['partner_id']))
+            if 'assigned_state' in data and user.role == 'responsable_estatal':
+                user.assigned_state = data['assigned_state'].strip() if data['assigned_state'] else None
         
         # Campos que solo admin puede cambiar
         if current_user.role in ['admin', 'developer']:
@@ -1711,7 +1717,7 @@ def get_user_stats():
         
         # Query optimizada: obtener todos los conteos en una sola consulta
         if _is_coordinator_role(current_user.role):
-            allowed_roles = ['candidato', 'responsable', 'responsable_partner', 'auxiliar']
+            allowed_roles = ['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']
         elif current_user.role == 'soporte':
             allowed_roles = SOPORTE_VISIBLE_ROLES
         elif current_user.role == 'responsable':
@@ -1734,7 +1740,7 @@ def get_user_stats():
                 or_(
                     User.role == 'candidato',
                     and_(
-                        User.role.in_(['responsable', 'responsable_partner', 'auxiliar']),
+                        User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
                         User.coordinator_id == coord_id
                     )
                 )

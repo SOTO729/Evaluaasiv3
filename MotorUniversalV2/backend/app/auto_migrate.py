@@ -1555,6 +1555,31 @@ def _create_support_table_raw(table_name: str):
 
 
 # ---------------------------------------------------------------------------
+# Responsable Estatal: add assigned_state column to users
+# ---------------------------------------------------------------------------
+
+def check_and_add_assigned_state_column():
+    """Add assigned_state column to users table if it doesn't exist"""
+    print("🔍 Verificando columna assigned_state en users...")
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('users')]
+        if 'assigned_state' not in existing_columns:
+            print("  📝 Agregando columna assigned_state a users...")
+            db.session.execute(text("ALTER TABLE users ADD assigned_state VARCHAR(50) NULL"))
+            db.session.commit()
+            print("  ✓ Columna assigned_state agregada")
+        else:
+            print("  ✓ Columna assigned_state ya existe")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna assigned_state ya existe")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
+# ---------------------------------------------------------------------------
 # CURP recovery: detect and re-verify orphaned curp_pending users
 # ---------------------------------------------------------------------------
 

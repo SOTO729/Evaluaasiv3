@@ -39,6 +39,8 @@ const LoginPage = () => {
         navigate('/gerente')
       } else if (normalizedRole === 'financiero') {
         navigate('/gerente/aprobaciones')
+      } else if (normalizedRole === 'responsable_estatal') {
+        navigate('/mi-estado')
       } else {
         navigate('/dashboard')
       }

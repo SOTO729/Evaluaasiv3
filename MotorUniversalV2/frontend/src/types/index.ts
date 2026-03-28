@@ -11,7 +11,7 @@ export interface User {
   second_surname?: string
   full_name: string
   gender?: string
-  role: 'admin' | 'developer' | 'editor' | 'editor_invitado' | 'soporte' | 'candidato' | 'auxiliar' | 'coordinator' | 'responsable' | 'responsable_partner' | 'financiero' | 'gerente'
+  role: 'admin' | 'developer' | 'editor' | 'editor_invitado' | 'soporte' | 'candidato' | 'auxiliar' | 'coordinator' | 'responsable' | 'responsable_partner' | 'responsable_estatal' | 'financiero' | 'gerente'
   is_active: boolean
   is_verified: boolean
   created_at: string
@@ -24,6 +24,7 @@ export interface User {
   can_bulk_create_candidates?: boolean
   can_view_reports?: boolean
   can_approve_balance?: boolean | null
+  assigned_state?: string
 }
 
 export interface Exam {

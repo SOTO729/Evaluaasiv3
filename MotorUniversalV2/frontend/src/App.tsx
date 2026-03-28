@@ -122,6 +122,9 @@ const DashboardRouter = () => {
   if (normalizedRole === 'financiero') {
     return <Navigate to="/gerente/aprobaciones" replace />
   }
+  if (normalizedRole === 'responsable_estatal') {
+    return <Navigate to="/mi-estado" replace />
+  }
   return <HomePage />
 }
 
@@ -469,6 +472,10 @@ function App() {
               {/* Responsable de Partner */}
               <Route path="/mi-partner" element={<ResponsablePartnerDashboard />} />
               <Route path="/mi-partner/certificados" element={<ResponsablePartnerCertificadosPage />} />
+              
+              {/* Responsable Estatal */}
+              <Route path="/mi-estado" element={<ResponsablePartnerDashboard />} />
+              <Route path="/mi-estado/certificados" element={<ResponsablePartnerCertificadosPage />} />
               
               {/* Financiero - Gestión de Solicitudes de Saldo */}
               <Route path="/financiero" element={<FinancieroDashboard />} />

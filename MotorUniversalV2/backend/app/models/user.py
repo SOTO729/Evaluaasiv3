@@ -96,12 +96,15 @@ class User(db.Model):
     date_of_birth = db.Column(db.Date)
     
     # Rol y permisos
-    role = db.Column(db.String(25), nullable=False, default='candidato', index=True)  # admin, developer, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable, responsable_partner
+    role = db.Column(db.String(25), nullable=False, default='candidato', index=True)  # admin, developer, gerente, financiero, editor, editor_invitado, soporte, coordinator, candidato, auxiliar, responsable, responsable_partner, responsable_estatal
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     
     # Multi-tenant: coordinador que creó/gestiona este usuario
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    
+    # Estado asignado para responsable_estatal (filtra planteles por estado)
+    assigned_state = db.Column(db.String(50), nullable=True)
     
     # Permisos específicos para responsables de plantel
     can_bulk_create_candidates = db.Column(db.Boolean, default=False, nullable=False)  # Puede crear altas masivas de candidatos
@@ -181,6 +184,7 @@ class User(db.Model):
             'coordinator': ['users:read', 'users:create', 'exams:read', 'groups:manage', 'balance:request'],
             'responsable': ['users:read', 'users:create', 'exams:read', 'groups:manage'],  # Permisos base, extendidos por can_bulk_create_candidates y can_manage_groups
             'responsable_partner': ['users:read', 'exams:read', 'groups:manage', 'reports:read', 'certificates:read'],  # Ve todos los planteles de su partner
+            'responsable_estatal': ['users:read', 'exams:read', 'groups:manage', 'reports:read', 'certificates:read'],  # Ve planteles de su partner filtrados por estado
             'candidato': ['exams:read', 'evaluations:create'],
             'auxiliar': ['users:read', 'exams:read']
         }
@@ -237,7 +241,8 @@ class User(db.Model):
                 'can_manage_groups': self.can_manage_groups,
                 'can_view_reports': self.can_view_reports,
                 'coordinator_id': self.coordinator_id,
-                'coordinator_name': coordinator_name
+                'coordinator_name': coordinator_name,
+                'assigned_state': self.assigned_state
             })
         
         if include_partners:

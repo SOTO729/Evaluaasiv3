@@ -16,6 +16,7 @@ import {
   ChevronLeft, ChevronRight, Building2, MapPin,
   RefreshCw, ExternalLink, FolderArchive
 } from 'lucide-react'
+import { useAuthStore } from '../../store/authStore'
 
 const CERT_TYPE_COLORS: Record<string, string> = {
   reporte_evaluacion: 'bg-blue-100 text-blue-800',
@@ -25,6 +26,8 @@ const CERT_TYPE_COLORS: Record<string, string> = {
 }
 
 const ResponsablePartnerCertificadosPage = () => {
+  const { user } = useAuthStore()
+  const isEstatal = user?.role === 'responsable_estatal'
   const [data, setData] = useState<PartnerCertificatesResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
@@ -162,10 +165,12 @@ const ResponsablePartnerCertificadosPage = () => {
         <div>
           <h1 className="fluid-text-2xl font-bold text-gray-900 flex items-center fluid-gap-2">
             <Award className="fluid-icon-lg text-amber-600" />
-            Certificados del Partner
+            {isEstatal ? `Certificados — ${user?.assigned_state || 'Estado'}` : 'Certificados del Partner'}
           </h1>
           <p className="fluid-text-sm text-gray-500 mt-1">
-            Todos los certificados emitidos en los planteles del partner
+            {isEstatal
+              ? 'Certificados emitidos en los planteles de tu estado'
+              : 'Todos los certificados emitidos en los planteles del partner'}
           </p>
         </div>
         <div className="flex fluid-gap-2 flex-wrap">
@@ -212,8 +217,9 @@ const ResponsablePartnerCertificadosPage = () => {
             </button>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 fluid-gap-3">
-          {/* Estado */}
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${isEstatal ? 'lg:grid-cols-4' : 'lg:grid-cols-5'} fluid-gap-3`}>
+          {/* Estado (oculto para responsable_estatal) */}
+          {!isEstatal && (
           <div>
             <label className="fluid-text-xs text-gray-500 font-medium fluid-mb-1.5 block">Estado</label>
             <select
@@ -227,6 +233,7 @@ const ResponsablePartnerCertificadosPage = () => {
               ))}
             </select>
           </div>
+          )}
           
           {/* Plantel */}
           <div>

@@ -25,6 +25,8 @@ const ResponsablePartnerDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedState, setSelectedState] = useState('')
+  const isEstatal = user?.role === 'responsable_estatal'
+  const certsRoute = isEstatal ? '/mi-estado/certificados' : '/mi-partner/certificados'
 
   useEffect(() => {
     loadDashboard()
@@ -108,15 +110,20 @@ const ResponsablePartnerDashboard = () => {
             <div className="flex-1">
               <div className="flex items-center fluid-gap-2 fluid-mb-2">
                 <Building className="fluid-icon-lg text-purple-200" />
-                <span className="fluid-text-sm text-purple-200 font-medium tracking-wide uppercase">Responsable de Partner</span>
+                <span className="fluid-text-sm text-purple-200 font-medium tracking-wide uppercase">
+                  {isEstatal ? 'Responsable Estatal' : 'Responsable de Partner'}
+                </span>
               </div>
-              <h1 className="fluid-text-3xl font-bold fluid-mb-1 tracking-tight">{partner.name}</h1>
+              <h1 className="fluid-text-3xl font-bold fluid-mb-1 tracking-tight">
+                {isEstatal ? `${partner.name} — ${data.filter.forced_state || user?.assigned_state || ''}` : partner.name}
+              </h1>
               <p className="text-white/80 fluid-text-base">
                 Hola, <span className="font-semibold text-white">{user?.name}</span> — Panel de gestión
               </p>
             </div>
             <div className="flex fluid-gap-3 flex-wrap">
-              {/* Filtro por estado */}
+              {/* Filtro por estado (oculto para responsable_estatal, su estado está forzado) */}
+              {!isEstatal && (
               <div className="relative">
                 <select
                   value={selectedState}
@@ -130,8 +137,9 @@ const ResponsablePartnerDashboard = () => {
                 </select>
                 <Filter className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/70 pointer-events-none" />
               </div>
+              )}
               <button
-                onClick={() => navigate('/mi-partner/certificados')}
+                onClick={() => navigate(certsRoute)}
                 className="inline-flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 bg-white/15 hover:bg-white/25 rounded-fluid-lg font-semibold fluid-text-sm transition-all border border-white/30 backdrop-blur-sm hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Award className="fluid-icon" />
@@ -321,7 +329,7 @@ const ResponsablePartnerDashboard = () => {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-4">
         <div
-          onClick={() => navigate('/mi-partner/certificados')}
+          onClick={() => navigate(certsRoute)}
           className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:shadow-lg hover:border-amber-200 transition-all active:scale-[0.98]"
         >
           <div className="flex items-start justify-between fluid-mb-3">
