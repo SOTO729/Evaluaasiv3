@@ -2595,15 +2595,9 @@ const ExamTestRunPage: React.FC = () => {
                   </span>
                 </div>
               
-                {/* Indicador de estado y pasos - solo para ejercicios */}
+                {/* Indicador de estado - solo para ejercicios */}
                 {currentItem?.type === 'exercise' && (
                   <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
-                    {/* Indicador de pasos sutil */}
-                    {currentItem.steps && currentItem.steps.length > 1 && (
-                      <span className="inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-2xs sm:fluid-text-xs font-medium text-gray-500 bg-gray-100 rounded-fluid-sm">
-                        <span className="hidden sm:inline">Paso</span> {currentStepIndex + 1}/{currentItem.steps.length}
-                      </span>
-                    )}
                     {/* Estado */}
                     <span className={`inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-2xs sm:fluid-text-xs font-medium rounded-fluid-sm ${
                       isExerciseCompleted(currentItem)
