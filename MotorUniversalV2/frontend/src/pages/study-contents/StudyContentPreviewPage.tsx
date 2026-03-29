@@ -1303,15 +1303,15 @@ const StudyContentPreviewPage: React.FC = () => {
             <div className="hidden md:flex items-center fluid-gap-3">
               <div className="w-[clamp(7rem,12vw,12rem)] h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                  className="h-full bg-primary-600 rounded-full transition-all duration-500"
                   style={{ width: `${progressStats.percentage}%` }}
                 />
               </div>
-              <span className="fluid-text-sm font-medium text-blue-600">{progressStats.percentage}%</span>
+              <span className="fluid-text-sm font-medium text-primary-600">{progressStats.percentage}%</span>
             </div>
             {/* Progreso compacto en móvil */}
             <div className="flex md:hidden items-center">
-              <span className="fluid-text-xs font-medium text-blue-600 bg-blue-50 fluid-px-2 fluid-py-1 rounded-full">{progressStats.percentage}%</span>
+              <span className="fluid-text-xs font-medium text-primary-600 bg-primary-50 fluid-px-2 fluid-py-1 rounded-full">{progressStats.percentage}%</span>
             </div>
           </div>
         </div>
@@ -1332,7 +1332,7 @@ const StudyContentPreviewPage: React.FC = () => {
         >
           {/* Header del sidebar - fijo */}
           <div className="fluid-p-4 border-b border-gray-200 bg-white flex-shrink-0">
-            <div className="text-blue-600 fluid-mb-1">
+            <div className="text-primary-600 fluid-mb-1">
               <span className="fluid-text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
             </div>
             <p className="fluid-text-xs text-gray-500">
@@ -1389,12 +1389,12 @@ const StudyContentPreviewPage: React.FC = () => {
                             className={`
                               w-full fluid-p-3 fluid-pl-4 text-left transition-colors
                               ${isActive 
-                                ? 'bg-blue-50 border-l-2 border-blue-600 -ml-0.5' 
+                                ? 'bg-primary-50 border-l-2 border-primary-600 -ml-0.5' 
                                 : 'hover:bg-gray-100 border-l-2 border-transparent -ml-0.5'
                               }
                             `}
                           >
-                            <div className={`fluid-text-sm flex items-center fluid-gap-2 ${isActive ? 'font-medium text-blue-600' : 'text-gray-700'}`}>
+                            <div className={`fluid-text-sm flex items-center fluid-gap-2 ${isActive ? 'font-medium text-primary-600' : 'text-gray-700'}`}>
                               <span className="flex-1">
                                 <span className="text-gray-400 fluid-mr-1">{session.session_number}.{tIdx + 1}</span> {topic.title}
                               </span>               
@@ -1457,7 +1457,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       onClick={() => handleTabChange('reading')}
                       className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'reading'
-                          ? 'border-blue-600 text-blue-600'
+                          ? 'border-primary-600 text-primary-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
@@ -1477,7 +1477,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       onClick={() => handleTabChange('video')}
                       className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'video'
-                          ? 'border-blue-600 text-blue-600'
+                          ? 'border-primary-600 text-primary-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
@@ -1497,7 +1497,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       onClick={() => handleTabChange('interactive')}
                       className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'interactive'
-                          ? 'border-blue-600 text-blue-600'
+                          ? 'border-primary-600 text-primary-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
@@ -1517,7 +1517,7 @@ const StudyContentPreviewPage: React.FC = () => {
                       onClick={() => handleTabChange('downloadable')}
                       className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
                         activeTab === 'downloadable'
-                          ? 'border-blue-600 text-blue-600'
+                          ? 'border-primary-600 text-primary-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
@@ -1558,7 +1558,7 @@ const StudyContentPreviewPage: React.FC = () => {
                               {videoUrlLoading ? (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                                   <div className="text-center">
-                                    <div className="animate-spin rounded-full fluid-icon-lg border-b-2 border-blue-600 mx-auto fluid-mb-2"></div>
+                                    <div className="animate-spin rounded-full fluid-icon-lg border-b-2 border-primary-600 mx-auto fluid-mb-2"></div>
                                     <p className="text-gray-400 fluid-text-xs">Cargando video...</p>
                                   </div>
                                 </div>
@@ -1623,7 +1623,7 @@ const StudyContentPreviewPage: React.FC = () => {
                           </div>
                         ) : (
                           // Para YouTube/Vimeo - se marca automáticamente al entrar
-                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-blue-50 text-blue-600 rounded-fluid-lg fluid-text-sm">
+                          <div className="flex items-center justify-center fluid-gap-2 fluid-py-2 fluid-px-3 bg-primary-50 text-primary-600 rounded-fluid-lg fluid-text-sm">
                             <Video className="fluid-icon-sm" />
                             <span>Marcando video como completado...</span>
                           </div>
@@ -1646,7 +1646,7 @@ const StudyContentPreviewPage: React.FC = () => {
                     <article className="w-full">
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 fluid-mb-2 border-b border-gray-300">{currentTopic.reading.title}</h2>
                       <div 
-                        className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto [&_img]:rounded-lg [&_img]:my-2 fluid-text-sm"
+                        className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto [&_img]:rounded-lg [&_img]:my-2 fluid-text-sm"
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.reading.content || '') }}
                       />
                       
@@ -1694,7 +1694,7 @@ const StudyContentPreviewPage: React.FC = () => {
                             Instrucciones
                           </h3>
                           <div 
-                            className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 fluid-text-sm"
+                            className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 fluid-text-sm"
                             style={{ wordBreak: 'normal', overflowWrap: 'anywhere' }}
                             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.downloadable_exercise.description.replace(/\u00a0/g, ' ')) }}
                           />
@@ -1724,7 +1724,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                 isAnimatingRef.current = false;
                               }, 1200);
                             }}
-                            className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                            className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                             title="Ver sección de descarga"
                           >
                             <ChevronDown className="fluid-icon-lg" />
@@ -1733,15 +1733,15 @@ const StudyContentPreviewPage: React.FC = () => {
                       )}
                       
                       {/* Botón de descarga */}
-                      <div ref={downloadButtonRef} className="bg-blue-50 rounded-fluid-lg fluid-p-3 border border-blue-200">
+                      <div ref={downloadButtonRef} className="bg-primary-50 rounded-fluid-lg fluid-p-3 border border-primary-200">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between fluid-gap-2">
                           <div className="flex items-center fluid-gap-2">
-                            <div className="fluid-p-1 bg-blue-100 rounded-fluid-md flex-shrink-0">
-                              <Download className="fluid-icon-sm text-blue-600" />
+                            <div className="fluid-p-1 bg-primary-100 rounded-fluid-md flex-shrink-0">
+                              <Download className="fluid-icon-sm text-primary-600" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-blue-900 fluid-text-xs">Archivo listo para descargar</p>
-                              <p className="fluid-text-xs text-blue-600 truncate">{currentTopic.downloadable_exercise.file_name}</p>
+                              <p className="font-medium text-primary-900 fluid-text-xs">Archivo listo para descargar</p>
+                              <p className="fluid-text-xs text-primary-600 truncate">{currentTopic.downloadable_exercise.file_name}</p>
                             </div>
                           </div>
                           <a
@@ -1754,7 +1754,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                 markContentCompleted('downloadable', currentTopic.downloadable_exercise.id);
                               }
                             }}
-                            className="fluid-px-3 fluid-py-1 bg-blue-600 text-white fluid-text-xs rounded-fluid-md font-medium hover:bg-blue-700 transition-colors flex items-center fluid-gap-1 shadow-sm"
+                            className="fluid-px-3 fluid-py-1 bg-primary-600 text-white fluid-text-xs rounded-fluid-md font-medium hover:bg-primary-700 transition-colors flex items-center fluid-gap-1 shadow-sm"
                           >
                             <Download className="fluid-icon-xs" />
                             Descargar
@@ -1798,7 +1798,7 @@ const StudyContentPreviewPage: React.FC = () => {
                               Instrucciones
                             </h3>
                             <div 
-                              className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 fluid-text-sm"
+                              className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 fluid-text-sm"
                               style={{ wordBreak: 'normal', overflowWrap: 'anywhere' }}
                               dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                             />
@@ -1828,7 +1828,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                   isAnimatingRef.current = false;
                                 }, 1200);
                               }}
-                              className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
+                              className="w-[clamp(2.5rem,4vw,3.5rem)] h-[clamp(2.5rem,4vw,3.5rem)] bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 border-2 border-white animate-bounce-in"
                               title="Ver sección para iniciar ejercicio"
                             >
                               <ChevronDown className="fluid-icon-lg" />
@@ -1837,18 +1837,18 @@ const StudyContentPreviewPage: React.FC = () => {
                         )}
                         
                         {/* Botón para comenzar - Diseño llamativo */}
-                        <div ref={startExerciseRef} className="bg-blue-50 rounded-fluid-lg fluid-p-3 border border-blue-200">
+                        <div ref={startExerciseRef} className="bg-primary-50 rounded-fluid-lg fluid-p-3 border border-primary-200">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center fluid-gap-3">
-                              <div className="fluid-p-2 bg-blue-100 rounded-fluid-md">
-                                <Gamepad2 className="fluid-icon-md text-blue-600" />
+                              <div className="fluid-p-2 bg-primary-100 rounded-fluid-md">
+                                <Gamepad2 className="fluid-icon-md text-primary-600" />
                               </div>
-                              <p className="font-medium text-blue-900 fluid-text-sm">Listo para comenzar</p>
+                              <p className="font-medium text-primary-900 fluid-text-sm">Listo para comenzar</p>
                             </div>
                             <button
                               onClick={startExercise}
                               disabled={!currentTopic.interactive_exercise.steps?.length}
-                              className="fluid-px-4 fluid-py-2 bg-blue-600 text-white fluid-text-sm rounded-fluid-md font-medium hover:bg-blue-700 transition-colors flex items-center fluid-gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="fluid-px-4 fluid-py-2 bg-primary-600 text-white fluid-text-sm rounded-fluid-md font-medium hover:bg-primary-700 transition-colors flex items-center fluid-gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               <PlayCircle className="fluid-icon-sm" />
                               Comenzar
@@ -1996,8 +1996,8 @@ const StudyContentPreviewPage: React.FC = () => {
                               <div className="bg-white border border-gray-200 rounded-fluid-lg shadow-sm overflow-hidden flex-shrink-0">
                                 <div className="flex items-center justify-between fluid-px-4 fluid-py-2">
                                   <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
-                                    <div className="fluid-p-2 bg-blue-100 rounded-fluid-md flex-shrink-0">
-                                      <Gamepad2 className="fluid-icon-md text-blue-600" />
+                                    <div className="fluid-p-2 bg-primary-100 rounded-fluid-md flex-shrink-0">
+                                      <Gamepad2 className="fluid-icon-md text-primary-600" />
                                     </div>
                                     <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentTopic.interactive_exercise.title}</h3>
                                   </div>
@@ -2013,21 +2013,21 @@ const StudyContentPreviewPage: React.FC = () => {
 
                               {/* Instrucciones del ejercicio - colapsables */}
                               {currentTopic.interactive_exercise.description && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg overflow-hidden flex-shrink-0">
+                                <div className="bg-primary-50 border border-primary-200 rounded-fluid-lg overflow-hidden flex-shrink-0">
                                   <button
                                     onClick={() => setInstructionsExpanded(!instructionsExpanded)}
-                                    className="w-full flex items-center justify-between fluid-px-4 fluid-py-2 hover:bg-blue-100/50 transition-colors"
+                                    className="w-full flex items-center justify-between fluid-px-4 fluid-py-2 hover:bg-primary-100/50 transition-colors"
                                   >
                                     <div className="flex items-center fluid-gap-2">
-                                      <FileText className="fluid-icon-sm text-blue-600" />
-                                      <span className="fluid-text-sm font-medium text-blue-800">Instrucciones</span>
+                                      <FileText className="fluid-icon-sm text-primary-600" />
+                                      <span className="fluid-text-sm font-medium text-primary-800">Instrucciones</span>
                                     </div>
-                                    <ChevronDown className={`fluid-icon-sm text-blue-600 transition-transform ${instructionsExpanded ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`fluid-icon-sm text-primary-600 transition-transform ${instructionsExpanded ? 'rotate-180' : ''}`} />
                                   </button>
                                   {instructionsExpanded && (
-                                    <div className="fluid-px-4 fluid-pb-4 border-t border-blue-200">
+                                    <div className="fluid-px-4 fluid-pb-4 border-t border-primary-200">
                                       <div 
-                                        className="prose prose-sm max-w-none text-blue-900 reading-content fluid-pt-2 fluid-text-sm"
+                                        className="prose prose-sm max-w-none text-primary-900 reading-content fluid-pt-2 fluid-text-sm"
                                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                                       />
                                     </div>
@@ -2141,7 +2141,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                     disabled={!isStepDone}
                                     className={`fluid-px-4 fluid-py-1 fluid-text-xs font-semibold rounded-fluid-md flex items-center fluid-gap-1 transition-colors shadow-sm ${
                                       isStepDone
-                                        ? 'text-white bg-blue-600 hover:bg-blue-700'
+                                        ? 'text-white bg-primary-600 hover:bg-primary-700'
                                         : 'text-gray-400 bg-gray-200 cursor-not-allowed'
                                     }`}
                                   >
@@ -2219,7 +2219,7 @@ const StudyContentPreviewPage: React.FC = () => {
               disabled={!hasNextContent()}
               className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm rounded-fluid-md font-medium transition-colors ${
                 hasNextContent()
-                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                  ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
               }`}
             >
@@ -2273,7 +2273,7 @@ const StudyContentPreviewPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className="w-full fluid-px-3 fluid-py-2 bg-blue-600 text-white rounded-fluid-md font-medium hover:bg-blue-700 transition-colors fluid-text-sm"
+                className="w-full fluid-px-3 fluid-py-2 bg-primary-600 text-white rounded-fluid-md font-medium hover:bg-primary-700 transition-colors fluid-text-sm"
               >
                 Intentar de nuevo
               </button>
