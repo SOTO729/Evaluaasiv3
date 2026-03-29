@@ -538,33 +538,49 @@ def generate_certificate_pdf(result, exam, user):
             c.setFont('Helvetica', 4)
             c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, 'Escanea para verificar')
 
-    # === LOGO/ESCUDO DEL PARTNER ===
-    # Obtener el partner a través de: Result.group_id → CandidateGroup → Campus → Partner
+    # === LOGOS DEL PARTNER Y CAMPUS ===
+    # Obtener partner y campus a través de: Result.group_id → CandidateGroup → Campus → Partner
     try:
         if getattr(result, 'group_id', None):
             from app.models.partner import CandidateGroup, Campus, Partner
+            import requests as req_lib
             group = CandidateGroup.query.get(result.group_id)
             if group and group.campus_id:
                 campus = Campus.query.get(group.campus_id)
-                if campus and campus.partner_id:
-                    partner = Partner.query.get(campus.partner_id)
-                    if partner and partner.logo_url:
+                if campus:
+                    # Logo del campus/plantel (posición izquierda)
+                    if getattr(campus, 'logo_url', None) and campus.logo_url:
                         try:
-                            import requests as req_lib
-                            logo_resp = req_lib.get(partner.logo_url, timeout=10)
+                            logo_resp = req_lib.get(campus.logo_url, timeout=10)
                             if logo_resp.status_code == 200:
                                 logo_bytes = BytesIO(logo_resp.content)
-                                partner_logo = ImageReader(logo_bytes)
-                                # Dibujar logo del partner en posición indicada
+                                campus_logo = ImageReader(logo_bytes)
                                 logo_w = 80
                                 logo_h = 80
-                                c.drawImage(partner_logo, 910, 1135,
+                                c.drawImage(campus_logo, 820, 1135,
                                             width=logo_w, height=logo_h,
                                             preserveAspectRatio=True, mask='auto')
                         except Exception:
                             pass  # Si falla la descarga del logo, continuar sin él
+
+                    # Logo del partner (posición derecha)
+                    if campus.partner_id:
+                        partner = Partner.query.get(campus.partner_id)
+                        if partner and partner.logo_url:
+                            try:
+                                logo_resp = req_lib.get(partner.logo_url, timeout=10)
+                                if logo_resp.status_code == 200:
+                                    logo_bytes = BytesIO(logo_resp.content)
+                                    partner_logo = ImageReader(logo_bytes)
+                                    logo_w = 80
+                                    logo_h = 80
+                                    c.drawImage(partner_logo, 910, 1135,
+                                                width=logo_w, height=logo_h,
+                                                preserveAspectRatio=True, mask='auto')
+                            except Exception:
+                                pass  # Si falla la descarga del logo, continuar sin él
     except Exception:
-        pass  # Si falla la búsqueda del partner, continuar sin logo
+        pass  # Si falla la búsqueda, continuar sin logos
 
     c.save()
 

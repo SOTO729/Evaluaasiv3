@@ -92,7 +92,7 @@ def _create_base_data(flask_db):
     return user, exam, result
 
 
-def _create_partner_chain(flask_db, coordinator_id, logo_url='https://blob.example.com/logo.png'):
+def _create_partner_chain(flask_db, coordinator_id, logo_url='https://blob.example.com/logo.png', campus_logo_url=None):
     """Crea Partner → Campus → CandidateGroup. Retorna (partner, campus, group)."""
     from app.models.partner import Partner, Campus, CandidateGroup
 
@@ -110,6 +110,8 @@ def _create_partner_chain(flask_db, coordinator_id, logo_url='https://blob.examp
         code=f'CC-{uuid.uuid4().hex[:6].upper()}',
         coordinator_id=coordinator_id,
     )
+    if campus_logo_url is not None:
+        campus.logo_url = campus_logo_url
     flask_db.session.add(campus)
     flask_db.session.flush()
 
@@ -323,3 +325,117 @@ class TestCertificatePartnerLogo:
 
                 assert pdf is not None
                 mock_get.assert_not_called()
+
+
+class TestCertificateCampusLogo:
+    """Tests para el logo del campus/plantel en certificados EUIT."""
+
+    def test_09_campus_logo_drawn_at_correct_position(self, flask_app):
+        """Con campus con logo_url, drawImage se llama en (820, 1135)."""
+        app, flask_db = flask_app
+        with app.app_context():
+            user, exam, result = _create_base_data(flask_db)
+            _, campus, group = _create_partner_chain(
+                flask_db, user.id,
+                campus_logo_url='https://blob.example.com/campus_logo.png'
+            )
+            result.group_id = group.id
+            flask_db.session.commit()
+
+            fake_resp = MagicMock()
+            fake_resp.status_code = 200
+            fake_resp.content = _fake_png()
+
+            with patch('requests.get', return_value=fake_resp) as mock_get, \
+                 patch('reportlab.pdfgen.canvas.Canvas.drawImage') as mock_draw:
+                from app.utils.pdf_generator import generate_certificate_pdf
+                pdf = generate_certificate_pdf(result, exam, user)
+
+                assert pdf is not None
+
+                # Verificar campus logo en (820, 1135)
+                campus_logo_calls = [
+                    c for c in mock_draw.call_args_list
+                    if len(c[0]) >= 3 and c[0][1] == 820 and c[0][2] == 1135
+                ]
+                assert len(campus_logo_calls) == 1, \
+                    f"Se esperaba 1 llamada a drawImage(_, 820, 1135, ...), " \
+                    f"pero se encontraron {len(campus_logo_calls)}"
+
+                # Verificar partner logo en (910, 1135)
+                partner_logo_calls = [
+                    c for c in mock_draw.call_args_list
+                    if len(c[0]) >= 3 and c[0][1] == 910 and c[0][2] == 1135
+                ]
+                assert len(partner_logo_calls) == 1
+
+    def test_10_campus_without_logo_no_download(self, flask_app):
+        """Campus sin logo_url no intenta descarga para campus logo."""
+        app, flask_db = flask_app
+        with app.app_context():
+            user, exam, result = _create_base_data(flask_db)
+            _, _, group = _create_partner_chain(flask_db, user.id, campus_logo_url=None)
+            result.group_id = group.id
+            flask_db.session.commit()
+
+            fake_resp = MagicMock()
+            fake_resp.status_code = 200
+            fake_resp.content = _fake_png()
+
+            with patch('requests.get', return_value=fake_resp) as mock_get, \
+                 patch('reportlab.pdfgen.canvas.Canvas.drawImage') as mock_draw:
+                from app.utils.pdf_generator import generate_certificate_pdf
+                pdf = generate_certificate_pdf(result, exam, user)
+
+                assert pdf is not None
+
+                # Solo debe haber llamada para partner logo, no campus
+                campus_logo_calls = [
+                    c for c in mock_draw.call_args_list
+                    if len(c[0]) >= 3 and c[0][1] == 820 and c[0][2] == 1135
+                ]
+                assert len(campus_logo_calls) == 0
+
+    def test_11_campus_logo_http_error_does_not_fail(self, flask_app):
+        """Si descarga del campus logo falla HTTP, el PDF se genera igual."""
+        app, flask_db = flask_app
+        with app.app_context():
+            user, exam, result = _create_base_data(flask_db)
+            _, _, group = _create_partner_chain(
+                flask_db, user.id,
+                logo_url=None,
+                campus_logo_url='https://blob.example.com/campus_logo.png'
+            )
+            result.group_id = group.id
+            flask_db.session.commit()
+
+            fake_resp = MagicMock()
+            fake_resp.status_code = 404
+            fake_resp.content = b''
+
+            with patch('requests.get', return_value=fake_resp):
+                from app.utils.pdf_generator import generate_certificate_pdf
+                pdf = generate_certificate_pdf(result, exam, user)
+
+                assert pdf is not None
+                assert pdf.getbuffer().nbytes > 0
+
+    def test_12_campus_logo_network_error_does_not_fail(self, flask_app):
+        """Si descarga del campus logo lanza excepción, el PDF se genera igual."""
+        app, flask_db = flask_app
+        with app.app_context():
+            user, exam, result = _create_base_data(flask_db)
+            _, _, group = _create_partner_chain(
+                flask_db, user.id,
+                logo_url=None,
+                campus_logo_url='https://blob.example.com/campus_logo.png'
+            )
+            result.group_id = group.id
+            flask_db.session.commit()
+
+            with patch('requests.get', side_effect=ConnectionError('timeout')):
+                from app.utils.pdf_generator import generate_certificate_pdf
+                pdf = generate_certificate_pdf(result, exam, user)
+
+                assert pdf is not None
+                assert pdf.getbuffer().nbytes > 0
