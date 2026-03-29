@@ -196,7 +196,7 @@ const PendingExamsPage = () => {
           <p className="text-gray-500 fluid-mb-4">No tienes ningún examen interrumpido o en pausa.</p>
           <button
             onClick={() => navigate('/exams')}
-            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-6 fluid-py-2 rounded-lg inline-flex items-center fluid-gap-2 transition-colors"
+            className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-6 fluid-py-2 rounded-lg inline-flex items-center fluid-gap-2 transition-colors"
           >
             <BookOpen className="w-4 h-4" />
             Ver exámenes disponibles
@@ -216,7 +216,7 @@ const PendingExamsPage = () => {
               <div 
                 key={key}
                 className={`bg-white rounded-xl shadow-sm border-l-4 overflow-hidden transition-all hover:shadow-md ${
-                  session.mode === 'simulator' ? 'border-l-amber-500' : 'border-l-blue-500'
+                  session.mode === 'simulator' ? 'border-l-amber-500' : 'border-l-primary-500'
                 }`}
               >
                 <div className="fluid-p-5">
@@ -227,7 +227,7 @@ const PendingExamsPage = () => {
                         <span className={`fluid-px-2 py-0.5 rounded fluid-text-xs font-bold uppercase ${
                           session.mode === 'simulator' 
                             ? 'bg-amber-100 text-amber-800' 
-                            : 'bg-blue-100 text-blue-800'
+                            : 'bg-primary-100 text-primary-800'
                         }`}>
                           {session.mode === 'simulator' ? (
                             <span className="flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> Simulador</span>
@@ -276,7 +276,7 @@ const PendingExamsPage = () => {
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div 
                             className={`h-full rounded-full transition-all ${
-                              session.mode === 'simulator' ? 'bg-amber-500' : 'bg-blue-500'
+                              session.mode === 'simulator' ? 'bg-amber-500' : 'bg-primary-500'
                             }`}
                             style={{ width: `${progress}%` }}
                           />

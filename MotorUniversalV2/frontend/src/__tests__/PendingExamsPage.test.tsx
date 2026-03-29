@@ -241,6 +241,32 @@ describe('PendingExamsPage', () => {
     fireEvent.click(screen.getByText('Volver a exámenes'))
     expect(mockNavigate).toHaveBeenCalledWith('/exams')
   })
+
+  it('T18: usa clases primary (branding) en sesión de examen, no blue hardcodeado', () => {
+    setSession('42', 'exam', makeSessionData({ examName: 'Branding Test' }))
+    const { container } = renderPending()
+    // Border izquierdo del card debe usar primary
+    expect(container.querySelector('.border-l-primary-500')).toBeTruthy()
+    // Badge de modo examen debe usar primary
+    expect(container.querySelector('.bg-primary-100')).toBeTruthy()
+    // No debe haber clases blue hardcodeadas
+    expect(container.querySelector('.bg-blue-500')).toBeNull()
+    expect(container.querySelector('.bg-blue-600')).toBeNull()
+    expect(container.querySelector('.border-l-blue-500')).toBeNull()
+  })
+
+  it('T19: sesión de simulador mantiene colores amber (no primary)', () => {
+    setSession('42', 'simulator', makeSessionData({ examName: 'Sim Test' }))
+    const { container } = renderPending()
+    expect(container.querySelector('.border-l-amber-500')).toBeTruthy()
+    expect(container.querySelector('.bg-amber-100')).toBeTruthy()
+  })
+
+  it('T20: botón "Ver exámenes disponibles" usa clases primary', () => {
+    const { container } = renderPending()
+    const btn = screen.getByText('Ver exámenes disponibles').closest('button')
+    expect(btn?.className).toContain('bg-primary-600')
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════════════════
