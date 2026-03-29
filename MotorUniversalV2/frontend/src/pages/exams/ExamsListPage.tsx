@@ -100,7 +100,7 @@ const ExamCard = ({
     >
       {/* Card Image - altura fija para consistencia */}
       <div 
-        className="relative h-40 bg-gradient-to-br from-blue-600 to-blue-800 cursor-pointer"
+        className="relative h-40 bg-gradient-to-br from-primary-600 to-primary-800 cursor-pointer"
         onClick={handleCardClick}
       >
         {exam.image_url ? (
@@ -172,7 +172,7 @@ const ExamCard = ({
       {/* Card Content */}
       <div className="fluid-p-4">
         <h3 
-          className="font-semibold text-gray-900 mb-2 fluid-text-base line-clamp-1 transition-colors cursor-pointer hover:text-blue-600"
+          className="font-semibold text-gray-900 mb-2 fluid-text-base line-clamp-1 transition-colors cursor-pointer hover:text-primary-600"
           onClick={handleCardClick}
         >
           {exam.name}
@@ -220,7 +220,7 @@ const ExamCard = ({
             {/* Stats Grid para admin/editor */}
             <div className="grid grid-cols-2 gap-2 mb-3 fluid-text-xs text-gray-500">
               <div className="flex items-center gap-1">
-                <BookOpen className="fluid-icon-xs text-blue-500" />
+                <BookOpen className="fluid-icon-xs text-primary-500" />
                 <span>{exam.total_topics || 0} temas</span>
               </div>
               <div className="flex items-center gap-1">
@@ -428,7 +428,7 @@ const ExamsListPage = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-4 fluid-mb-6">
         <div>
           <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-3">
-            <FileText className="fluid-icon-xl text-blue-600" />
+            <FileText className="fluid-icon-xl text-primary-600" />
             {isCandidate ? 'Exámenes Disponibles' : 'Exámenes'}
           </h1>
           <p className="fluid-text-base text-gray-600 fluid-mt-2">
@@ -441,7 +441,7 @@ const ExamsListPage = () => {
         {canCreateExam && (
           <button 
             onClick={() => navigate('/exams/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-6 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base"
+            className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-6 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base"
           >
             <Plus className="fluid-icon-lg" />
             Nuevo Examen
@@ -473,7 +473,7 @@ const ExamsListPage = () => {
                   refetch()
                 }
               }}
-              className="w-full pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
+              className="w-full pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-base"
             />
           </div>
           <button
@@ -481,7 +481,7 @@ const ExamsListPage = () => {
               // Forzar la búsqueda inmediatamente
               refetch()
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-8 fluid-py-3 rounded-fluid-lg transition-colors w-full sm:w-auto flex items-center justify-center fluid-gap-2 font-medium fluid-text-base"
+            className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-8 fluid-py-3 rounded-fluid-lg transition-colors w-full sm:w-auto flex items-center justify-center fluid-gap-2 font-medium fluid-text-base"
           >
             <Search className="fluid-icon" />
             Buscar
@@ -502,7 +502,7 @@ const ExamsListPage = () => {
           {canCreateExam && (
             <button
               onClick={() => navigate('/exams/create')}
-              className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2"
+              className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2"
             >
               <Plus className="fluid-icon" />
               Crear Examen
