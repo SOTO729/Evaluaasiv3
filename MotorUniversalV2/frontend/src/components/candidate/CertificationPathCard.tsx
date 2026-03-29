@@ -58,10 +58,10 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
       {/* Timeline de Progreso */}
       <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-8">
         <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-5 flex items-center fluid-gap-2">
-          <Target className="fluid-icon text-blue-600" />
+          <Target className="fluid-icon text-primary-600" />
           Tu ruta de certificación
           {certification.code && (
-            <span className="fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 py-0.5 rounded-full font-medium">
+            <span className="fluid-text-xs bg-primary-100 text-primary-700 fluid-px-2 py-0.5 rounded-full font-medium">
               {certification.code}
             </span>
           )}
@@ -70,7 +70,7 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
         <div className="relative">
           <div className="absolute top-7 left-7 right-7 h-[clamp(0.125rem,0.1rem+0.1vw,0.25rem)] bg-gray-200 rounded-full">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-1000"
+              className="h-full bg-gradient-to-r from-primary-500 to-green-500 rounded-full transition-all duration-1000"
               style={{ width: `${(currentStep - 1) * 50}%` }}
             />
           </div>
@@ -82,7 +82,7 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
                 currentStep >= 1
                   ? materialCompleted
                     ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-[clamp(2px,0.15rem+0.1vw,4px)] ring-blue-100'
+                    : 'bg-primary-500 text-white shadow-lg shadow-primary-500/30 ring-[clamp(2px,0.15rem+0.1vw,4px)] ring-primary-100'
                   : 'bg-gray-100 text-gray-400'
               }`}>
                 {materialCompleted ? (
@@ -98,7 +98,7 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
                 {completedMaterials.length}/{materials.length} materiales
               </p>
               {currentStep === 1 && !materialCompleted && (
-                <span className="fluid-mt-1 fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 py-0.5 rounded-full font-medium">
+                <span className="fluid-mt-1 fluid-text-xs bg-primary-100 text-primary-700 fluid-px-2 py-0.5 rounded-full font-medium">
                   En progreso
                 </span>
               )}
@@ -110,7 +110,7 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
                 currentStep >= 2
                   ? allExamsApproved
                     ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
-                    : 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 ring-[clamp(2px,0.15rem+0.1vw,4px)] ring-blue-100'
+                    : 'bg-primary-500 text-white shadow-lg shadow-primary-500/30 ring-[clamp(2px,0.15rem+0.1vw,4px)] ring-primary-100'
                   : 'bg-gray-100 text-gray-400'
               }`}>
                 {allExamsApproved ? (
@@ -126,7 +126,7 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
                 {approvedExams.length}/{exams.length} aprobados
               </p>
               {currentStep === 2 && !allExamsApproved && (
-                <span className="fluid-mt-1 fluid-text-xs bg-blue-100 text-blue-700 fluid-px-2 py-0.5 rounded-full font-medium">
+                <span className="fluid-mt-1 fluid-text-xs bg-primary-100 text-primary-700 fluid-px-2 py-0.5 rounded-full font-medium">
                   En progreso
                 </span>
               )}
@@ -167,15 +167,15 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
         {/* Materiales de Estudio */}
         <div
           onClick={() => navigate('/study-contents')}
-          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:border-blue-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:border-primary-300 hover:shadow-lg transition-all duration-300 active:scale-[0.98]"
         >
           <div className="flex items-start justify-between fluid-mb-4">
             <div className={`w-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] h-[clamp(2.75rem,2.5rem+0.5vw,3.5rem)] rounded-fluid-lg flex items-center justify-center ${
-              materialCompleted ? 'bg-green-100' : 'bg-blue-100'
+              materialCompleted ? 'bg-green-100' : 'bg-primary-100'
             }`}>
-              <BookOpen className={`fluid-icon-lg ${materialCompleted ? 'text-green-600' : 'text-blue-600'}`} />
+              <BookOpen className={`fluid-icon-lg ${materialCompleted ? 'text-green-600' : 'text-primary-600'}`} />
             </div>
-            <ChevronRight className="fluid-icon text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+            <ChevronRight className="fluid-icon text-gray-300 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
           </div>
 
           <h3 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-1">Materiales</h3>
@@ -189,7 +189,7 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
             <div className="w-full bg-gray-100 rounded-full h-[clamp(0.375rem,0.3rem+0.1vw,0.5rem)]">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
-                  materialCompleted ? 'bg-green-500' : 'bg-blue-500'
+                  materialCompleted ? 'bg-green-500' : 'bg-primary-500'
                 }`}
                 style={{ width: `${avgMaterialProgress}%` }}
               />
@@ -294,8 +294,8 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
       {/* Estadisticas Rapidas */}
       <div className="grid grid-cols-2 sm:grid-cols-4 fluid-gap-4">
         <div className="bg-white rounded-fluid-lg border border-gray-200 fluid-p-4 text-center">
-          <div className="w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] mx-auto fluid-mb-2 bg-blue-100 rounded-full flex items-center justify-center">
-            <BookOpen className="fluid-icon text-blue-600" />
+          <div className="w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] mx-auto fluid-mb-2 bg-primary-100 rounded-full flex items-center justify-center">
+            <BookOpen className="fluid-icon text-primary-600" />
           </div>
           <p className="fluid-text-2xl font-bold text-gray-800">{materials.length}</p>
           <p className="fluid-text-xs text-gray-500">Materiales</p>
@@ -332,9 +332,9 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
 
       {/* Proximos Pasos - Recomendaciones */}
       {!allExamsApproved && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-fluid-xl border border-blue-100 fluid-p-5">
+        <div className="bg-gradient-to-r from-primary-50 to-primary-50 rounded-fluid-xl border border-primary-100 fluid-p-5">
           <h2 className="fluid-text-lg font-semibold text-gray-800 fluid-mb-4 flex items-center fluid-gap-2">
-            <Zap className="fluid-icon text-blue-600" />
+            <Zap className="fluid-icon text-primary-600" />
             Proximos pasos recomendados
           </h2>
 
@@ -342,16 +342,16 @@ const CertificationPathCard = ({ certification }: CertificationPathCardProps) =>
             {!materialCompleted && materials.length > 0 && (
               <div
                 onClick={() => navigate('/study-contents')}
-                className="flex items-center fluid-gap-4 fluid-p-4 bg-white rounded-fluid-lg border border-blue-100 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group active:scale-[0.98]"
+                className="flex items-center fluid-gap-4 fluid-p-4 bg-white rounded-fluid-lg border border-primary-100 cursor-pointer hover:border-primary-300 hover:shadow-md transition-all group active:scale-[0.98]"
               >
-                <div className="w-[clamp(2.25rem,2rem+0.5vw,2.5rem)] h-[clamp(2.25rem,2rem+0.5vw,2.5rem)] bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Play className="fluid-icon text-blue-600" />
+                <div className="w-[clamp(2.25rem,2rem+0.5vw,2.5rem)] h-[clamp(2.25rem,2rem+0.5vw,2.5rem)] bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Play className="fluid-icon text-primary-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium fluid-text-base text-gray-800">Continua estudiando</p>
                   <p className="fluid-text-sm text-gray-500">Te falta completar {pendingMaterials} material{pendingMaterials !== 1 ? 'es' : ''}</p>
                 </div>
-                <ArrowRight className="fluid-icon text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="fluid-icon text-gray-300 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
               </div>
             )}
 
