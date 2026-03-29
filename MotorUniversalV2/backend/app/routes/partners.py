@@ -10215,19 +10215,26 @@ def get_candidato_branding():
         )
 
         if not membership:
-            return jsonify({'branding': None})
+            return jsonify({'branding': None, 'enable_session_calendar': False})
 
         group = CandidateGroup.query.get(membership.group_id)
         if not group:
-            return jsonify({'branding': None})
+            return jsonify({'branding': None, 'enable_session_calendar': False})
 
         campus = Campus.query.get(group.campus_id)
         if not campus:
-            return jsonify({'branding': None})
+            return jsonify({'branding': None, 'enable_session_calendar': False})
+
+        # Determinar enable_session_calendar con override del grupo
+        enable_sessions = False
+        if hasattr(group, 'enable_session_calendar_override') and group.enable_session_calendar_override is not None:
+            enable_sessions = group.enable_session_calendar_override
+        elif campus.enable_session_calendar:
+            enable_sessions = campus.enable_session_calendar
 
         # Solo devolver branding si el campus tiene al menos color primario
         if not campus.primary_color:
-            return jsonify({'branding': None})
+            return jsonify({'branding': None, 'enable_session_calendar': bool(enable_sessions)})
 
         return jsonify({
             'branding': {
@@ -10235,7 +10242,8 @@ def get_candidato_branding():
                 'logo_url': campus.logo_url,
                 'primary_color': campus.primary_color,
                 'secondary_color': campus.secondary_color,
-            }
+            },
+            'enable_session_calendar': bool(enable_sessions),
         })
 
     except HTTPException:

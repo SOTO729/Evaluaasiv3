@@ -271,7 +271,7 @@ const HomePage = () => {
               {(campusLogo || campusName) && (
                 <div className="flex items-center fluid-gap-3 fluid-mb-3">
                   {campusLogo ? (
-                    <img src={campusLogo} alt={campusName || 'Campus'} className="h-16 w-auto object-contain rounded-lg bg-white/10 p-1.5" />
+                    <img src={campusLogo} alt={campusName || 'Campus'} className="h-24 sm:h-28 w-auto object-contain rounded-lg bg-white/10 p-2" />
                   ) : (
                     <GraduationCap className="fluid-icon-lg text-white/60" />
                   )}

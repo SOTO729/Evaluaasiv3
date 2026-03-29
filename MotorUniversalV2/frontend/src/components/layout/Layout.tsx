@@ -437,7 +437,19 @@ const Layout = ({ children }: LayoutProps) => {
                     Materiales
                   </Link>
                 )}
-                {['candidato', 'admin', 'developer'].includes(user?.role ?? '') && (
+                {['admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link 
+                    to="/vm-sessions" 
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/vm-sessions') 
+                        ? 'text-primary-600 font-semibold bg-primary-50' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Sesiones
+                  </Link>
+                )}
+                {user?.role === 'candidato' && candidatoBrandingData?.enable_session_calendar && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${

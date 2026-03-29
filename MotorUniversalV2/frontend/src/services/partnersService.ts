@@ -2380,7 +2380,7 @@ export async function getMiPlantel(): Promise<{ campus: Campus }> {
 /**
  * Obtener branding del campus más reciente para un candidato
  */
-export async function getCandidatoBranding(): Promise<{ branding: { campus_name: string; logo_url: string | null; primary_color: string; secondary_color: string | null } | null }> {
+export async function getCandidatoBranding(): Promise<{ branding: { campus_name: string; logo_url: string | null; primary_color: string; secondary_color: string | null } | null; enable_session_calendar?: boolean }> {
   const response = await api.get('/partners/candidato-branding');
   return response.data;
 }
