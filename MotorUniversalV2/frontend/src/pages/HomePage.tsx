@@ -153,7 +153,6 @@ const HomePage = () => {
   })
   const campusLogo = brandingData?.branding?.logo_url
   const campusName = brandingData?.branding?.campus_name
-  const hasCampusBranding = !!brandingData?.branding?.primary_color
 
   const loadDashboard = async () => {
     try {
@@ -220,8 +219,8 @@ const HomePage = () => {
 
   const getNextAction = () => {
     if (globalAllExamsApproved) return { text: 'Ver mis certificados', route: '/certificates', icon: Award, color: 'bg-green-600 hover:bg-green-700' }
-    if (globalMatsCompleted || allMaterials.length === 0) return { text: 'Presentar examen', route: '/exams', icon: FileText, color: 'bg-blue-600 hover:bg-blue-700' }
-    return { text: 'Continuar estudiando', route: '/study-contents', icon: BookOpen, color: 'bg-blue-600 hover:bg-blue-700' }
+    if (globalMatsCompleted || allMaterials.length === 0) return { text: 'Presentar examen', route: '/exams', icon: FileText, color: 'bg-primary-600 hover:bg-primary-700' }
+    return { text: 'Continuar estudiando', route: '/study-contents', icon: BookOpen, color: 'bg-primary-600 hover:bg-primary-700' }
   }
   const nextAction = getNextAction()
 
@@ -234,7 +233,7 @@ const HomePage = () => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-blue-900"></div>
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-primary-900"></div>
         <p className="mt-4 text-base font-medium text-gray-700">Cargando panel...</p>
       </div>
     )
@@ -254,11 +253,7 @@ const HomePage = () => {
   return (
     <div className="fluid-gap-5 flex flex-col">
       {/* Hero Section */}
-      <div className={`rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden ${
-        hasCampusBranding
-          ? 'bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500'
-          : 'bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700'
-      }`}>
+      <div className="rounded-fluid-xl fluid-p-8 text-white relative overflow-hidden bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500">
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
@@ -281,10 +276,10 @@ const HomePage = () => {
               <h1 className="fluid-text-4xl font-bold fluid-mb-2">
                 {motivationalMessage.title}
               </h1>
-              <p className={`fluid-text-base ${hasCampusBranding ? 'text-primary-100' : 'text-blue-100'}`}>
+              <p className="fluid-text-base text-primary-100">
                 {motivationalMessage.subtitle}
               </p>
-              <p className={`fluid-text-sm fluid-mt-1 ${hasCampusBranding ? 'text-primary-200' : 'text-blue-200'}`}>
+              <p className="fluid-text-sm fluid-mt-1 text-primary-200">
                 Hola, <span className="font-medium text-white">{user?.name}</span>
               </p>
             </div>
@@ -302,7 +297,7 @@ const HomePage = () => {
                 </div>
               </div>
               <div className="fluid-text-sm">
-                <p className={hasCampusBranding ? 'text-primary-100' : 'text-blue-100'}>Progreso</p>
+                <p className="text-primary-100">Progreso</p>
                 <p className="font-semibold">General</p>
               </div>
             </div>
@@ -323,7 +318,7 @@ const HomePage = () => {
       {certifications.length > 1 && (
         <div className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-4">
           <div className="flex items-center fluid-gap-2 fluid-mb-3">
-            <GraduationCap className="fluid-icon text-blue-600" />
+            <GraduationCap className="fluid-icon text-primary-600" />
             <h2 className="font-semibold fluid-text-sm text-gray-700">Mis Certificaciones</h2>
             <span className="fluid-text-xs text-gray-400 font-normal">({certifications.length})</span>
           </div>
@@ -347,7 +342,7 @@ const HomePage = () => {
                   onClick={() => setActiveTab(cert.id)}
                   className={`relative text-left fluid-p-4 rounded-fluid-xl border-2 transition-all duration-200 ${
                     isActive
-                      ? 'border-blue-500 bg-blue-50 shadow-md ring-1 ring-blue-200'
+                      ? 'border-primary-500 bg-primary-50 shadow-md ring-1 ring-primary-200'
                       : certApproved
                         ? 'border-green-200 bg-green-50/50 hover:border-green-300 hover:shadow-sm'
                         : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
@@ -365,22 +360,22 @@ const HomePage = () => {
                     <div className={`w-[clamp(2rem,1.75rem+0.5vw,2.5rem)] h-[clamp(2rem,1.75rem+0.5vw,2.5rem)] rounded-fluid-lg flex items-center justify-center flex-shrink-0 ${
                       certApproved
                         ? 'bg-green-100'
-                        : isActive ? 'bg-blue-100' : 'bg-gray-100'
+                        : isActive ? 'bg-primary-100' : 'bg-gray-100'
                     }`}>
                       {certApproved ? (
                         <CheckCircle2 className={`fluid-icon text-green-600`} />
                       ) : (
-                        <Trophy className={`fluid-icon ${isActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <Trophy className={`fluid-icon ${isActive ? 'text-primary-600' : 'text-gray-400'}`} />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className={`font-semibold fluid-text-sm truncate ${
-                        isActive ? 'text-blue-900' : 'text-gray-800'
+                        isActive ? 'text-primary-900' : 'text-gray-800'
                       }`}>
                         {cert.label}
                       </h3>
                       {cert.code && (
-                        <span className="fluid-text-xs bg-blue-100 text-blue-600 fluid-px-2 py-0.5 rounded-full font-medium inline-block fluid-mt-1">
+                        <span className="fluid-text-xs bg-primary-100 text-primary-600 fluid-px-2 py-0.5 rounded-full font-medium inline-block fluid-mt-1">
                           {cert.code}
                         </span>
                       )}
@@ -392,13 +387,13 @@ const HomePage = () => {
                     <div className="flex justify-between fluid-text-xs text-gray-500 mb-1">
                       <span>Progreso</span>
                       <span className={`font-semibold ${
-                        certApproved ? 'text-green-600' : isActive ? 'text-blue-600' : 'text-gray-600'
+                        certApproved ? 'text-green-600' : isActive ? 'text-primary-600' : 'text-gray-600'
                       }`}>{certProgress}%</span>
                     </div>
                     <div className="w-full bg-gray-100 rounded-full h-[clamp(0.25rem,0.2rem+0.1vw,0.375rem)]">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          certApproved ? 'bg-green-500' : isActive ? 'bg-blue-500' : 'bg-gray-400'
+                          certApproved ? 'bg-green-500' : isActive ? 'bg-primary-500' : 'bg-gray-400'
                         }`}
                         style={{ width: `${certProgress}%` }}
                       />
@@ -413,7 +408,7 @@ const HomePage = () => {
                         Completada
                       </span>
                     ) : certHasActivity ? (
-                      <span className="text-blue-600 font-medium">En progreso</span>
+                      <span className="text-primary-600 font-medium">En progreso</span>
                     ) : (
                       <span className="text-gray-400">Sin iniciar</span>
                     )}
