@@ -62,7 +62,7 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
   >
     {/* Card Image - altura fija para consistencia */}
     <div 
-      className="relative h-40 bg-gradient-to-br from-blue-500 to-blue-700 cursor-pointer"
+      className="relative h-40 bg-gradient-to-br from-primary-500 to-primary-700 cursor-pointer"
       onClick={() => navigate(`/study-contents/${material.id}`)}
     >
       {material.image_url ? (
@@ -107,7 +107,7 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
     {/* Card Content */}
     <div className="fluid-p-4">
       <h3 
-        className="font-semibold text-gray-900 mb-2 fluid-text-base line-clamp-2 cursor-pointer hover:text-blue-600 transition-colors"
+        className="font-semibold text-gray-900 mb-2 fluid-text-base line-clamp-2 cursor-pointer hover:text-primary-600 transition-colors"
         onClick={() => navigate(`/study-contents/${material.id}`)}
         title={material.title}
       >
@@ -169,7 +169,7 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
           <div className="w-full bg-gray-100 rounded-full h-1.5">
             <div 
               className={`h-full rounded-full transition-all duration-500 ${
-                (material as any).progress.percentage === 100 ? 'bg-green-500' : 'bg-blue-500'
+                (material as any).progress.percentage === 100 ? 'bg-green-500' : 'bg-primary-500'
               }`}
               style={{ width: `${(material as any).progress.percentage}%` }}
             />
@@ -291,7 +291,7 @@ const StudyContentsListPage = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-4 fluid-mb-6">
         <div>
           <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-3">
-            <BookOpen className="fluid-icon-xl text-blue-600" />
+            <BookOpen className="fluid-icon-xl text-primary-600" />
             {isCandidate ? 'Materiales Disponibles' : 'Materiales de Estudio'}
           </h1>
           <p className="fluid-text-base text-gray-600 fluid-mt-2">
@@ -303,7 +303,7 @@ const StudyContentsListPage = () => {
         {canCreate && (
           <button
             onClick={() => navigate('/study-contents/create')}
-            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-6 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base"
+            className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-6 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base"
           >
             <Plus className="fluid-icon" />
             Nuevo Material
@@ -326,12 +326,12 @@ const StudyContentsListPage = () => {
                   fetchMaterials()
                 }
               }}
-              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
+              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-base"
             />
           </div>
           <button
             onClick={() => fetchMaterials()}
-            className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-8 fluid-py-3 rounded-fluid-lg transition-colors w-full sm:w-auto flex items-center justify-center fluid-gap-2 font-medium fluid-text-base"
+            className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-8 fluid-py-3 rounded-fluid-lg transition-colors w-full sm:w-auto flex items-center justify-center fluid-gap-2 font-medium fluid-text-base"
           >
             <Search className="fluid-icon-sm" />
             Buscar
@@ -358,7 +358,7 @@ const StudyContentsListPage = () => {
           {canCreate && (
             <button
               onClick={() => navigate('/study-contents/create')}
-              className="bg-blue-600 hover:bg-blue-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2"
+              className="bg-primary-600 hover:bg-primary-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg inline-flex items-center fluid-gap-2"
             >
               <Plus className="fluid-icon" />
               Crear Material
