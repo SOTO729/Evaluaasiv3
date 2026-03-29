@@ -665,10 +665,15 @@ export async function getBulkUploadDetail(batchId: number): Promise<BulkUploadBa
   return response.data;
 }
 
-export async function exportBulkUploadBatch(batchId: number, groupName?: string): Promise<void> {
+export async function exportBulkUploadBatch(batchId: number, groupName?: string, statusFilter?: string): Promise<void> {
   try {
+    const params: Record<string, string> = {};
+    if (statusFilter && statusFilter !== 'all') {
+      params.status = statusFilter;
+    }
     const response = await api.get(`/user-management/bulk-history/${batchId}/export`, {
       responseType: 'blob',
+      params,
     });
 
     if (response.data.type === 'application/json') {

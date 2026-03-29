@@ -3702,8 +3702,15 @@ def export_bulk_upload_batch(batch_id):
             if batch.uploaded_by_id != eff_id:
                 return jsonify({'error': 'No tienes acceso a este registro'}), 403
 
+        # Filtro opcional por status
+        status_filter = request.args.get('status', '').strip()
+        valid_statuses = {'created', 'existing_assigned', 'error', 'skipped', 'curp_invalid', 'curp_verified'}
+
         # Obtener miembros con sus usuarios
-        members = BulkUploadMember.query.filter_by(batch_id=batch_id).order_by(BulkUploadMember.row_number).all()
+        members_query = BulkUploadMember.query.filter_by(batch_id=batch_id)
+        if status_filter and status_filter in valid_statuses:
+            members_query = members_query.filter(BulkUploadMember.status == status_filter)
+        members = members_query.order_by(BulkUploadMember.row_number).all()
 
         # Fetch users for getting passwords
         user_ids = [m.user_id for m in members if m.user_id]

@@ -108,7 +108,7 @@ export default function BulkUploadDetailPage() {
     if (!batch) return;
     try {
       setExporting(true);
-      await exportBulkUploadBatch(batch.id, batch.group_name || undefined);
+      await exportBulkUploadBatch(batch.id, batch.group_name || undefined, statusFilter);
     } catch (err: any) {
       alert(err.message || 'Error al exportar');
     } finally {
@@ -215,7 +215,9 @@ export default function BulkUploadDetailPage() {
               ) : (
                 <Download className="fluid-icon-sm" />
               )}
-              Descargar Excel
+              {statusFilter !== 'all'
+                ? `Descargar ${STATUS_CONFIG[statusFilter]?.label || statusFilter}`
+                : 'Descargar Excel'}
             </button>
             <Link
               to="/user-management/bulk-history"
