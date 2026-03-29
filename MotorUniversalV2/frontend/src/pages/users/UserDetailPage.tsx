@@ -1030,7 +1030,6 @@ export default function UserDetailPage() {
 
                   <button
                     onClick={() => {
-                      setShowGeneratedPasswordModal(false);
                       handleGenerateTempPassword();
                     }}
                     disabled={generatingPassword}
