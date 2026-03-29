@@ -42,6 +42,7 @@ const ExamTestResultsPage = lazy(() => import('./pages/ExamTestResultsPage'))
 const ExamPreviewPage = lazy(() => import('./pages/exams/ExamPreviewPage'))
 const ExamModeSelectorPage = lazy(() => import('./pages/exams/ExamModeSelectorPage'))
 const ExamOnboardingPage = lazy(() => import('./pages/exams/ExamOnboardingPage'))
+const PendingExamsPage = lazy(() => import('./pages/exams/PendingExamsPage'))
 
 // Study Contents
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
@@ -341,6 +342,7 @@ function App() {
               
               {/* Exams - Restringido para coordinador, gerente y financiero */}
               <Route path="/exams" element={<RestrictedForGerenteFin><ExamsListPage /></RestrictedForGerenteFin>} />
+              <Route path="/exams/pending" element={<RestrictedForGerenteFin><PendingExamsPage /></RestrictedForGerenteFin>} />
               <Route path="/exams/create" element={<RestrictedForGerenteFin><ExamCreatePage /></RestrictedForGerenteFin>} />
               <Route path="/exams/:id/edit" element={<RestrictedForGerenteFin><ExamEditPage /></RestrictedForGerenteFin>} />
               <Route path="/exams/:id/config" element={<RestrictedForGerenteFin><ExamConfigPage /></RestrictedForGerenteFin>} />

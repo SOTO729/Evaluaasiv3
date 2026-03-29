@@ -40,7 +40,8 @@ import {
   Trophy,
   ArrowRight,
   X,
-  Clock
+  Clock,
+  AlertTriangle
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -321,6 +322,33 @@ const ExamsListPage = () => {
   const ITEMS_PER_PAGE = 12;
   const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
   
+  // Detectar sesiones pendientes en localStorage
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    const countPending = () => {
+      let count = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('exam_session_')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '');
+            if (data && data.timeRemaining > 0) {
+              let remaining = data.timeRemaining;
+              if (!data.pauseOnDisconnect && data.savedAt) {
+                remaining = Math.max(0, remaining - Math.floor((Date.now() - data.savedAt) / 1000));
+              }
+              if (remaining > 0) count++;
+            }
+          } catch { /* ignore */ }
+        }
+      }
+      setPendingCount(count);
+    };
+    countPending();
+    const interval = setInterval(countPending, 10000);
+    return () => clearInterval(interval);
+  }, []);
+  
   // Debounce del término de búsqueda (300ms)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   
@@ -417,6 +445,15 @@ const ExamsListPage = () => {
           >
             <Plus className="fluid-icon-lg" />
             Nuevo Examen
+          </button>
+        )}
+        {isCandidate && pendingCount > 0 && (
+          <button
+            onClick={() => navigate('/exams/pending')}
+            className="bg-red-600 hover:bg-red-700 text-white fluid-px-5 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base animate-pulse shadow-lg shadow-red-200"
+          >
+            <AlertTriangle className="fluid-icon-lg" />
+            {pendingCount} {pendingCount === 1 ? 'Examen Pendiente' : 'Exámenes Pendientes'}
           </button>
         )}
       </div>
