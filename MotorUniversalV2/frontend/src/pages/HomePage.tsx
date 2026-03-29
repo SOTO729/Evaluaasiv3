@@ -276,7 +276,7 @@ const HomePage = () => {
                     <GraduationCap className="fluid-icon-lg text-white/60" />
                   )}
                   {campusName && (
-                    <span className="fluid-text-sm text-white/70 font-medium">{campusName}</span>
+                    <span className="fluid-text-lg text-white/80 font-semibold">{campusName}</span>
                   )}
                 </div>
               )}
