@@ -111,26 +111,24 @@ export function buildCertifications(
 /** Encuentra el tab con actividad más reciente */
 export function findMostRecentTab(certs: Certification[]): string {
   if (certs.length === 0) return ''
-  let best = certs[0]
-  for (const c of certs) {
-    // Priorizar el que tiene exámenes in-progress (intentados pero no aprobados ni completados)
-    const hasInProgress = c.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)
-    if (hasInProgress) {
-      // Si hay varios in-progress, elegir el de actividad más reciente
-      if (best === certs[0] || !best.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)) {
-        best = c
-      } else if (c.lastActivity && (!best.lastActivity || c.lastActivity > best.lastActivity)) {
-        best = c
-      }
-      continue
-    }
-    // Si no hay in-progress aún, elegir por fecha más reciente
-    const bestIsInProgress = best.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)
-    if (!bestIsInProgress && c.lastActivity && (!best.lastActivity || c.lastActivity > best.lastActivity)) {
-      best = c
-    }
+
+  // Separar en dos grupos: con exámenes in-progress y sin
+  const inProgress = certs.filter(c =>
+    c.exams.some(e => e.user_stats.last_attempt && !e.user_stats.is_approved && !e.user_stats.is_completed)
+  )
+  const withActivity = certs.filter(c => c.lastActivity)
+
+  // Priorizar in-progress con actividad más reciente
+  if (inProgress.length > 0) {
+    return inProgress.sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || ''))[0].id
   }
-  return best.id
+
+  // Si no hay in-progress, elegir por última actividad más reciente
+  if (withActivity.length > 0) {
+    return withActivity.sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || ''))[0].id
+  }
+
+  return certs[0].id
 }
 
 const HomePage = () => {
