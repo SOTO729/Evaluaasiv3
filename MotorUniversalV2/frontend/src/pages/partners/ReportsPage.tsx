@@ -146,9 +146,12 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
   const { user } = useAuthStore();
   const isResponsable = user?.role === 'responsable';
 
-  // Columnas visibles según rol (certification_cost solo para coordinadores)
+  // Columnas ocultas para responsable
+  const HIDDEN_FOR_RESPONSABLE = ['certification_cost', 'partner_name', 'campus_code', 'campus_name', 'campus_state', 'campus_city', 'director_name'];
+
+  // Columnas visibles según rol
   const visibleColumns = useMemo(() =>
-    ALL_COLUMNS.filter(c => !(c.key === 'certification_cost' && isResponsable)),
+    ALL_COLUMNS.filter(c => !(isResponsable && HIDDEN_FOR_RESPONSABLE.includes(c.key))),
     [isResponsable]
   );
 
@@ -377,7 +380,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
   return (
     <div className="space-y-4">
       {/* ══ Header ══ */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-fluid-2xl shadow-lg fluid-p-6 text-white">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-500 rounded-fluid-2xl shadow-lg fluid-p-6 text-white">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link to={backPath} className="p-2 hover:bg-white/10 rounded-fluid-lg transition-colors">
@@ -409,11 +412,11 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
       <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Columns3 className="w-5 h-5 text-indigo-600" />
+            <Columns3 className="w-5 h-5 text-primary-600" />
             <h2 className="font-semibold text-gray-900 fluid-text-base">1. Selecciona las columnas del reporte</h2>
           </div>
           <div className="flex gap-2">
-            <button onClick={selectAll} className="fluid-text-xs text-indigo-600 hover:underline font-medium">Todas</button>
+            <button onClick={selectAll} className="fluid-text-xs text-primary-600 hover:underline font-medium">Todas</button>
             <span className="text-gray-300">|</span>
             <button onClick={selectNone} className="fluid-text-xs text-gray-500 hover:underline font-medium">Ninguna</button>
           </div>
@@ -430,9 +433,9 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                   onClick={() => toggleGroup(group)}
                   className="flex items-center gap-2 mb-2 group"
                 >
-                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${allSel ? 'bg-indigo-600 border-indigo-600' : someSel ? 'bg-indigo-200 border-indigo-400' : 'border-gray-300 group-hover:border-indigo-400'}`}>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${allSel ? 'bg-primary-600 border-primary-600' : someSel ? 'bg-primary-200 border-primary-400' : 'border-gray-300 group-hover:border-primary-400'}`}>
                     {allSel && <Check className="w-3 h-3 text-white" />}
-                    {someSel && !allSel && <Minus className="w-2.5 h-2.5 text-indigo-600" />}
+                    {someSel && !allSel && <Minus className="w-2.5 h-2.5 text-primary-600" />}
                   </div>
                   <span className="font-semibold text-gray-700 fluid-text-sm">{group}</span>
                   <span className="text-[10px] text-gray-400">({cols.filter(c => selectedCols.includes(c.key)).length}/{cols.length})</span>
@@ -446,7 +449,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                         onClick={() => toggleCol(col.key)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full fluid-text-xs font-medium border transition-all ${
                           active
-                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm'
+                            ? 'bg-primary-50 border-primary-300 text-primary-700 shadow-sm'
                             : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
                         }`}
                       >
@@ -470,7 +473,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
             className="w-full fluid-px-5 fluid-py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4 text-indigo-600" />
+              <ArrowUpDown className="w-4 h-4 text-primary-600" />
               <h2 className="font-semibold text-gray-900 fluid-text-sm">Orden de columnas</h2>
               <span className="text-[10px] text-gray-400">Usa las flechas para reordenar</span>
             </div>
@@ -489,7 +492,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                       <button
                         onClick={() => moveCol(idx, 'up')}
                         disabled={idx === 0}
-                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-600"
+                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed text-gray-500 hover:text-primary-600"
                         aria-label={`Mover ${col.label} arriba`}
                       >
                         <ArrowUp className="w-3 h-3" />
@@ -497,7 +500,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                       <button
                         onClick={() => moveCol(idx, 'down')}
                         disabled={idx === selectedCols.length - 1}
-                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed text-gray-500 hover:text-indigo-600"
+                        className="p-0.5 rounded hover:bg-gray-100 disabled:opacity-20 disabled:cursor-not-allowed text-gray-500 hover:text-primary-600"
                         aria-label={`Mover ${col.label} abajo`}
                       >
                         <ArrowDown className="w-3 h-3" />
@@ -518,10 +521,10 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
           className="w-full fluid-px-5 fluid-py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
         >
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-indigo-600" />
+            <Filter className="w-5 h-5 text-primary-600" />
             <h2 className="font-semibold text-gray-900 fluid-text-base">2. Filtros opcionales</h2>
             {activeFilterCount > 0 && (
-              <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-[10px] font-bold">{activeFilterCount} activo{activeFilterCount !== 1 ? 's' : ''}</span>
+              <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-[10px] font-bold">{activeFilterCount} activo{activeFilterCount !== 1 ? 's' : ''}</span>
             )}
           </div>
           {showFilters ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
@@ -540,34 +543,36 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                   onChange={e => setSearchInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') setSearch(searchInput); }}
                   onBlur={() => setSearch(searchInput)}
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
 
               {/* Partner */}
               {!isResponsable && filtersData && filtersData.partners.length > 0 && (
-                <select value={partnerId} onChange={e => { setPartnerId(e.target.value); setCampusId(''); setCycleId(''); setGroupId(''); }} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[160px] focus:ring-2 focus:ring-indigo-500">
+                <select value={partnerId} onChange={e => { setPartnerId(e.target.value); setCampusId(''); setCycleId(''); setGroupId(''); }} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[160px] focus:ring-2 focus:ring-primary-500">
                   <option value="">Todos los partners</option>
                   {filtersData.partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               )}
 
               {/* Campus */}
-              <select value={campusId} onChange={e => { setCampusId(e.target.value); setCycleId(''); setGroupId(''); }} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[160px] focus:ring-2 focus:ring-indigo-500">
+              {!isResponsable && (
+              <select value={campusId} onChange={e => { setCampusId(e.target.value); setCycleId(''); setGroupId(''); }} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[160px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Todos los planteles</option>
                 {filteredCampuses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
+              )}
 
               {/* Cycle */}
               {filteredCycles.length > 0 && (
-                <select value={cycleId} onChange={e => setCycleId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-indigo-500">
+                <select value={cycleId} onChange={e => setCycleId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-primary-500">
                   <option value="">Todos los ciclos</option>
                   {filteredCycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               )}
 
               {/* Group */}
-              <select value={groupId} onChange={e => setGroupId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-indigo-500">
+              <select value={groupId} onChange={e => setGroupId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Todos los grupos</option>
                 {filteredGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
@@ -575,33 +580,33 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
             <div className="flex flex-wrap gap-3">
               {/* Standard */}
-              <select value={standardId} onChange={e => setStandardId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[200px] focus:ring-2 focus:ring-indigo-500">
+              <select value={standardId} onChange={e => setStandardId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[200px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Todos los estándares</option>
                 {filtersData?.standards.map(s => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
               </select>
 
               {/* Brand */}
-              <select value={brandId} onChange={e => setBrandId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-indigo-500">
+              <select value={brandId} onChange={e => setBrandId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Todas las marcas</option>
                 {filtersData?.brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
 
               {/* Result */}
-              <select value={resultFilter} onChange={e => setResultFilter(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-indigo-500">
+              <select value={resultFilter} onChange={e => setResultFilter(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[140px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Todos los resultados</option>
                 <option value="approved">Aprobado (Certificado)</option>
                 <option value="rejected">Reprobado (No certificado)</option>
               </select>
 
               {/* Role */}
-              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[130px] focus:ring-2 focus:ring-indigo-500">
+              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[130px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Tipo de usuario</option>
                 <option value="candidato">Candidato</option>
                 <option value="responsable">Responsable</option>
               </select>
 
               {/* Active */}
-              <select value={isActiveFilter} onChange={e => setIsActiveFilter(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[110px] focus:ring-2 focus:ring-indigo-500">
+              <select value={isActiveFilter} onChange={e => setIsActiveFilter(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[110px] focus:ring-2 focus:ring-primary-500">
                 <option value="">Estado</option>
                 <option value="1">Activo</option>
                 <option value="0">Inactivo</option>
@@ -622,7 +627,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
         <button
           onClick={handleGenerate}
           disabled={loading || !hasUserCols}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-xl font-semibold fluid-text-sm shadow-md transition-all disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-xl font-semibold fluid-text-sm shadow-md transition-all disabled:opacity-50"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
           Previsualizar Reporte
@@ -641,7 +646,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
           </p>
         )}
         {hasUserCols && depthLabel && (
-          <p className="fluid-text-xs text-indigo-600 flex items-center gap-1">
+          <p className="fluid-text-xs text-primary-600 flex items-center gap-1">
             <Eye className="w-3.5 h-3.5" /> {depthLabel}
           </p>
         )}
@@ -699,10 +704,10 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-indigo-50/80">
+              <thead className="bg-primary-50/80">
                 <tr>
                   {activeCols.map(col => (
-                    <th key={col.key} className="px-3 py-3 text-left text-[11px] font-bold text-indigo-700 uppercase tracking-wider whitespace-nowrap">
+                    <th key={col.key} className="px-3 py-3 text-left text-[11px] font-bold text-primary-700 uppercase tracking-wider whitespace-nowrap">
                       {col.label}
                     </th>
                   ))}

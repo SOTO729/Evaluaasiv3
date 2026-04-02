@@ -701,7 +701,7 @@ export default function GroupEditAssignmentMembersPage() {
       )}
 
       {/* ===== HEADER CON GRADIENTE ===== */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
 
@@ -787,7 +787,7 @@ export default function GroupEditAssignmentMembersPage() {
         </div>
         <Link
           to={`${basePath}/assignments/${assignmentId}/swap-history?name=${encodeURIComponent(assignmentName)}`}
-          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors"
         >
           <ClipboardList className="w-3.5 h-3.5" />
           Historial
@@ -805,7 +805,7 @@ export default function GroupEditAssignmentMembersPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por nombre, email, CURP o n° de asignación..."
-              className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm"
+              className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 fluid-text-sm"
             />
             {searchQuery && (
               <button
@@ -822,7 +822,7 @@ export default function GroupEditAssignmentMembersPage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm font-medium transition-colors ${
               filterStatus !== 'all'
-                ? 'bg-blue-100 border-blue-300 text-blue-700'
+                ? 'bg-primary-100 border-primary-300 text-primary-700'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -840,7 +840,7 @@ export default function GroupEditAssignmentMembersPage() {
               onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
               onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
               onBlur={handlePageSizeInputSubmit}
-              className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               title="Registros por página (máx 1000)"
             />
           </div>
@@ -896,7 +896,7 @@ export default function GroupEditAssignmentMembersPage() {
             {filterStatus !== 'all' && (
               <button
                 onClick={() => setFilterStatus('all')}
-                className="fluid-text-sm text-blue-600 hover:text-blue-700"
+                className="fluid-text-sm text-primary-600 hover:text-primary-700"
               >
                 Limpiar filtros
               </button>
@@ -907,29 +907,29 @@ export default function GroupEditAssignmentMembersPage() {
 
       {/* ===== BARRA DE SELECCIÓN MASIVA ===== */}
       {selectedForSwap.size > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-xl fluid-p-3 fluid-mb-4 flex flex-wrap items-center justify-between fluid-gap-3 animate-fade-in-up">
+        <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-3 fluid-mb-4 flex flex-wrap items-center justify-between fluid-gap-3 animate-fade-in-up">
           <div className="flex items-center fluid-gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-              <Users className="w-4 h-4 text-indigo-600" />
+            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+              <Users className="w-4 h-4 text-primary-600" />
             </div>
             <div>
-              <p className="fluid-text-sm font-semibold text-indigo-800">
+              <p className="fluid-text-sm font-semibold text-primary-800">
                 {selectedForSwap.size} candidato{selectedForSwap.size > 1 ? 's' : ''} seleccionado{selectedForSwap.size > 1 ? 's' : ''}
               </p>
-              <p className="fluid-text-xs text-indigo-600">Selecciona los que deseas reasignar en lote</p>
+              <p className="fluid-text-xs text-primary-600">Selecciona los que deseas reasignar en lote</p>
             </div>
           </div>
           <div className="flex items-center fluid-gap-2">
             <button
               onClick={() => setSelectedForSwap(new Set())}
-              className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 border border-indigo-300 text-indigo-700 rounded-fluid-lg hover:bg-indigo-100 fluid-text-sm font-medium transition-colors"
+              className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-2 border border-primary-300 text-primary-700 rounded-fluid-lg hover:bg-primary-100 fluid-text-sm font-medium transition-colors"
             >
               <X className="h-4 w-4" />
               Deseleccionar
             </button>
             <button
               onClick={handleBulkSwapInit}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors shadow-sm"
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors shadow-sm"
             >
               <Repeat2 className="h-4 w-4" />
               Reasignar {selectedForSwap.size} seleccionado{selectedForSwap.size > 1 ? 's' : ''}
@@ -941,8 +941,8 @@ export default function GroupEditAssignmentMembersPage() {
       {/* ===== TABLA DE CANDIDATOS ASIGNADOS ===== */}
       {totalResults === 0 && !searching && !searchQuery && filterStatus === 'all' ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-12">
-          <div className="w-20 h-20 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
-            <Users className="w-10 h-10 text-blue-400" />
+          <div className="w-20 h-20 mx-auto mb-4 bg-primary-100 rounded-full flex items-center justify-center">
+            <Users className="w-10 h-10 text-primary-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Sin candidatos asignados</h3>
           <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
@@ -1001,7 +1001,7 @@ export default function GroupEditAssignmentMembersPage() {
                   onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
                   onBlur={handlePageInputSubmit}
-                  className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   title="Escribe el número de página y presiona Enter"
                 />
                 <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
@@ -1033,7 +1033,7 @@ export default function GroupEditAssignmentMembersPage() {
                       type="checkbox"
                       checked={swappableMembers.length > 0 && swappableMembers.every(m => selectedForSwap.has(m.user_id))}
                       onChange={handleSelectAllSwappable}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
                       title="Seleccionar/deseleccionar todos los reasignables"
                     />
                   </th>
@@ -1067,13 +1067,13 @@ export default function GroupEditAssignmentMembersPage() {
                 {searching && members.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="py-12 text-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-2" />
+                      <Loader2 className="h-8 w-8 animate-spin text-primary-500 mx-auto mb-2" />
                       <p className="text-gray-500 text-sm">Cargando candidatos...</p>
                     </td>
                   </tr>
                 ) : (
                   members.map((member) => (
-                    <tr key={member.user_id} className={`transition-colors ${selectedForSwap.has(member.user_id) ? 'bg-indigo-50/60' : member.is_locked ? 'bg-gray-50/50' : 'hover:bg-blue-50/30'}`}>
+                    <tr key={member.user_id} className={`transition-colors ${selectedForSwap.has(member.user_id) ? 'bg-primary-50/60' : member.is_locked ? 'bg-gray-50/50' : 'hover:bg-primary-50/30'}`}>
                       {/* Checkbox */}
                       <td className="fluid-px-3 fluid-py-3 text-center w-10">
                         {!member.is_locked && member.assignment_number ? (
@@ -1081,7 +1081,7 @@ export default function GroupEditAssignmentMembersPage() {
                             type="checkbox"
                             checked={selectedForSwap.has(member.user_id)}
                             onChange={() => handleToggleSelect(member.user_id)}
-                            className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                            className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500 cursor-pointer"
                           />
                         ) : (
                           <span className="w-4 h-4 inline-block" />
@@ -1093,7 +1093,7 @@ export default function GroupEditAssignmentMembersPage() {
                           <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${
                             member.is_locked
                               ? 'bg-gradient-to-br from-gray-400 to-gray-500'
-                              : 'bg-gradient-to-br from-blue-500 to-indigo-500'
+                              : 'bg-gradient-to-br from-primary-500 to-primary-500'
                           }`}>
                             {member.user?.name?.charAt(0).toUpperCase() || '?'}
                           </div>
@@ -1107,7 +1107,7 @@ export default function GroupEditAssignmentMembersPage() {
                       {/* Número de asignación */}
                       <td className="fluid-px-4 fluid-py-3">
                         {member.assignment_number ? (
-                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-indigo-50 border border-indigo-200 rounded-fluid-lg font-mono fluid-text-xs font-bold text-indigo-700">
+                          <span className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 bg-primary-50 border border-primary-200 rounded-fluid-lg font-mono fluid-text-xs font-bold text-primary-700">
                             <Hash className="h-3 w-3" />
                             {member.assignment_number}
                           </span>
@@ -1142,7 +1142,7 @@ export default function GroupEditAssignmentMembersPage() {
                           </span>
                         </div>
                         {member.has_opened_exam && (
-                          <span className="inline-flex items-center fluid-gap-1 fluid-text-xs text-blue-600 fluid-mt-0.5">
+                          <span className="inline-flex items-center fluid-gap-1 fluid-text-xs text-primary-600 fluid-mt-0.5">
                             <FileSpreadsheet className="h-3 w-3" />
                             Examen abierto
                           </span>
@@ -1188,7 +1188,7 @@ export default function GroupEditAssignmentMembersPage() {
                             {member.results_count} / {member.total_allowed_attempts}
                           </span>
                           {member.retakes_count > 0 && (
-                            <span className="fluid-text-xs text-purple-600 fluid-mt-0.5">
+                            <span className="fluid-text-xs text-primary-600 fluid-mt-0.5">
                               +{member.retakes_count} retoma{member.retakes_count > 1 ? 's' : ''}
                             </span>
                           )}
@@ -1211,7 +1211,7 @@ export default function GroupEditAssignmentMembersPage() {
                           {!member.is_locked && member.assignment_number && (
                             <button
                               onClick={() => handleInitSwap(member)}
-                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-indigo-200 hover:border-indigo-300"
+                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-primary-600 hover:bg-primary-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-primary-200 hover:border-primary-300"
                               title="Reasignar a otro candidato"
                             >
                               <Repeat2 className="h-3.5 w-3.5" />
@@ -1221,7 +1221,7 @@ export default function GroupEditAssignmentMembersPage() {
                           {member.can_retake && (
                             <button
                               onClick={() => handleInitRetake(member)}
-                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-purple-600 hover:bg-purple-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-purple-200 hover:border-purple-300"
+                              className="inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1.5 text-primary-600 hover:bg-primary-50 rounded-fluid-lg transition-colors fluid-text-xs font-medium border border-primary-200 hover:border-primary-300"
                               title="Aplicar retoma (1 intento adicional)"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
@@ -1273,7 +1273,7 @@ export default function GroupEditAssignmentMembersPage() {
                     onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
                     onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
                     onBlur={handlePageInputSubmit}
-                    className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   />
                   <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
                   <button
@@ -1308,7 +1308,7 @@ export default function GroupEditAssignmentMembersPage() {
           <span>Reasignable: sin avance significativo</span>
         </div>
         <div className="flex items-center fluid-gap-2">
-          <Hash className="h-3.5 w-3.5 text-indigo-500" />
+          <Hash className="h-3.5 w-3.5 text-primary-500" />
           <span>N° Asignación: identificador ECM permanente</span>
         </div>
       </div>
@@ -1326,8 +1326,8 @@ export default function GroupEditAssignmentMembersPage() {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <Repeat2 className="w-5 h-5 text-indigo-600" />
+                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                  <Repeat2 className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Reasignar Candidato</h2>
@@ -1348,7 +1348,7 @@ export default function GroupEditAssignmentMembersPage() {
             <div className="p-4 bg-gray-50 border-b border-gray-200 flex-shrink-0">
               <p className="text-xs text-gray-500 font-semibold uppercase mb-2">Candidato Actual</p>
               <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                   {swapFrom.user?.name?.charAt(0).toUpperCase() || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1356,7 +1356,7 @@ export default function GroupEditAssignmentMembersPage() {
                   <p className="text-xs text-gray-500">{swapFrom.user?.email}</p>
                 </div>
                 {swapFrom.assignment_number && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 border border-indigo-200 rounded-lg font-mono text-xs font-bold text-indigo-700">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary-50 border border-primary-200 rounded-lg font-mono text-xs font-bold text-primary-700">
                     <Hash className="h-3 w-3" />
                     {swapFrom.assignment_number}
                   </span>
@@ -1383,7 +1383,7 @@ export default function GroupEditAssignmentMembersPage() {
                   value={swapSearch}
                   onChange={(e) => setSwapSearch(e.target.value)}
                   placeholder="Buscar miembro del grupo..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                 />
               </div>
               {swapTotalResults > 0 && (
@@ -1395,7 +1395,7 @@ export default function GroupEditAssignmentMembersPage() {
             <div className="overflow-y-auto flex-1" style={{ maxHeight: '320px' }}>
               {swapSearching ? (
                 <div className="p-8 text-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mx-auto mb-2" />
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-500 mx-auto mb-2" />
                   <p className="text-gray-500 text-sm">Buscando candidatos...</p>
                 </div>
               ) : swapCandidates.length === 0 ? (
@@ -1412,16 +1412,16 @@ export default function GroupEditAssignmentMembersPage() {
                         key={member.user_id}
                         onClick={() => setSwapToUserId(selected ? '' : member.user_id)}
                         className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
-                          selected ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'
+                          selected ? 'bg-primary-50 border-l-4 border-l-primary-500' : 'hover:bg-gray-50 border-l-4 border-l-transparent'
                         }`}
                       >
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
-                          selected ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                          selected ? 'bg-gradient-to-br from-primary-500 to-primary-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
                         }`}>
                           {member.user?.name?.charAt(0).toUpperCase() || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium text-sm ${selected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                          <p className={`font-medium text-sm ${selected ? 'text-primary-900' : 'text-gray-900'}`}>
                             {member.user?.full_name || 'Desconocido'}
                           </p>
                           <p className="text-xs text-gray-500 truncate">{member.user?.email || '-'}</p>
@@ -1430,7 +1430,7 @@ export default function GroupEditAssignmentMembersPage() {
                           <span className="text-xs text-gray-400 font-mono hidden lg:block">{member.user.curp}</span>
                         )}
                         {selected && (
-                          <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                          <CheckCircle2 className="w-5 h-5 text-primary-600 flex-shrink-0" />
                         )}
                       </button>
                     );
@@ -1451,7 +1451,7 @@ export default function GroupEditAssignmentMembersPage() {
               <button
                 onClick={handleConfirmSwap}
                 disabled={swapping || !swapToUserId}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
               >
                 {swapping ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1478,8 +1478,8 @@ export default function GroupEditAssignmentMembersPage() {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                  <RotateCcw className="w-5 h-5 text-purple-600" />
+                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                  <RotateCcw className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Aplicar Retoma</h2>
@@ -1500,14 +1500,14 @@ export default function GroupEditAssignmentMembersPage() {
             <div className="p-6">
               {retakeLoading ? (
                 <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-3" />
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-500 mx-auto mb-3" />
                   <p className="text-gray-500 text-sm">Calculando retoma...</p>
                 </div>
               ) : retakePreview ? (
                 <div className="space-y-4">
                   {/* Info candidato */}
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                       {retakeTarget.user?.name?.charAt(0).toUpperCase() || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1520,15 +1520,15 @@ export default function GroupEditAssignmentMembersPage() {
 
                   {/* Detalles */}
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-blue-50 rounded-xl">
-                      <p className="text-xs text-blue-600 font-medium">Intentos usados</p>
-                      <p className="text-lg font-bold text-blue-800">
+                    <div className="p-3 bg-primary-50 rounded-xl">
+                      <p className="text-xs text-primary-600 font-medium">Intentos usados</p>
+                      <p className="text-lg font-bold text-primary-800">
                         {retakePreview.results_count} / {retakePreview.max_attempts + retakePreview.retakes_count}
                       </p>
                     </div>
-                    <div className="p-3 bg-purple-50 rounded-xl">
-                      <p className="text-xs text-purple-600 font-medium">Retomas aplicadas</p>
-                      <p className="text-lg font-bold text-purple-800">
+                    <div className="p-3 bg-primary-50 rounded-xl">
+                      <p className="text-xs text-primary-600 font-medium">Retomas aplicadas</p>
+                      <p className="text-lg font-bold text-primary-800">
                         {retakePreview.retakes_count} / {retakePreview.max_retakes === 0 ? '∞' : retakePreview.max_retakes}
                       </p>
                     </div>
@@ -1580,7 +1580,7 @@ export default function GroupEditAssignmentMembersPage() {
               <button
                 onClick={handleConfirmRetake}
                 disabled={applyingRetake || retakeLoading || !retakePreview?.can_apply}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
               >
                 {applyingRetake ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1607,8 +1607,8 @@ export default function GroupEditAssignmentMembersPage() {
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <Repeat2 className="w-5 h-5 text-indigo-600" />
+                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+                  <Repeat2 className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">Reasignación Masiva</h2>
@@ -1620,7 +1620,7 @@ export default function GroupEditAssignmentMembersPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-2.5 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                <span className="inline-flex items-center px-2.5 py-1 bg-primary-100 text-primary-700 rounded-full text-xs font-semibold">
                   Paso {bulkSwapStep} de 2
                 </span>
                 <button
@@ -1640,12 +1640,12 @@ export default function GroupEditAssignmentMembersPage() {
               <div className="flex flex-wrap gap-2">
                 {members.filter(m => selectedForSwap.has(m.user_id)).map(m => (
                   <span key={m.user_id} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs">
-                    <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
                       {m.user?.name?.charAt(0).toUpperCase() || '?'}
                     </span>
                     <span className="font-medium text-gray-700 max-w-[120px] truncate">{m.user?.full_name || 'Desconocido'}</span>
                     {m.assignment_number && (
-                      <span className="text-indigo-500 font-mono text-[10px]">#{m.assignment_number}</span>
+                      <span className="text-primary-500 font-mono text-[10px]">#{m.assignment_number}</span>
                     )}
                   </span>
                 ))}
@@ -1674,7 +1674,7 @@ export default function GroupEditAssignmentMembersPage() {
                       value={bulkSwapSearch}
                       onChange={(e) => setBulkSwapSearch(e.target.value)}
                       placeholder="Buscar miembro del grupo..."
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
                     />
                   </div>
                   {bulkSwapTotalResults > 0 && (
@@ -1689,7 +1689,7 @@ export default function GroupEditAssignmentMembersPage() {
                 <div className="px-4 pt-2 flex-shrink-0">
                   <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                      className="h-full bg-primary-500 rounded-full transition-all duration-300"
                       style={{ width: `${selectedForSwap.size > 0 ? (bulkReplacements.length / selectedForSwap.size) * 100 : 0}%` }}
                     />
                   </div>
@@ -1699,7 +1699,7 @@ export default function GroupEditAssignmentMembersPage() {
                 <div className="overflow-y-auto flex-1" style={{ maxHeight: '320px' }}>
                   {bulkSwapSearching ? (
                     <div className="p-8 text-center">
-                      <Loader2 className="w-6 h-6 animate-spin text-indigo-500 mx-auto mb-2" />
+                      <Loader2 className="w-6 h-6 animate-spin text-primary-500 mx-auto mb-2" />
                       <p className="text-gray-500 text-sm">Buscando candidatos...</p>
                     </div>
                   ) : bulkSwapCandidates.length === 0 ? (
@@ -1724,19 +1724,19 @@ export default function GroupEditAssignmentMembersPage() {
                               disabled={isFull}
                               className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${
                                 isSelected
-                                  ? 'bg-indigo-50 border-l-4 border-l-indigo-500'
+                                  ? 'bg-primary-50 border-l-4 border-l-primary-500'
                                   : isFull
                                     ? 'opacity-40 cursor-not-allowed border-l-4 border-l-transparent'
                                     : 'hover:bg-gray-50 border-l-4 border-l-transparent'
                               }`}
                             >
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
-                                isSelected ? 'bg-gradient-to-br from-indigo-500 to-purple-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
+                                isSelected ? 'bg-gradient-to-br from-primary-500 to-primary-500' : 'bg-gradient-to-br from-gray-400 to-gray-500'
                               }`}>
                                 {isSelected ? orderIndex + 1 : candidate.user?.name?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className={`font-medium text-sm ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                <p className={`font-medium text-sm ${isSelected ? 'text-primary-900' : 'text-gray-900'}`}>
                                   {candidate.user?.full_name || 'Desconocido'}
                                 </p>
                                 <p className="text-xs text-gray-500 truncate">{candidate.user?.email || '-'}</p>
@@ -1745,7 +1745,7 @@ export default function GroupEditAssignmentMembersPage() {
                                 <span className="text-xs text-gray-400 font-mono hidden lg:block">{candidate.user.curp}</span>
                               )}
                               {isSelected && (
-                                <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                                <CheckCircle2 className="w-5 h-5 text-primary-600 flex-shrink-0" />
                               )}
                             </button>
                           );
@@ -1784,25 +1784,25 @@ export default function GroupEditAssignmentMembersPage() {
                       <div key={fromMember.user_id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
                         {/* FROM */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                             {fromMember.user?.name?.charAt(0).toUpperCase() || '?'}
                           </div>
                           <div className="min-w-0">
                             <p className="font-medium text-sm text-gray-900 truncate">{fromMember.user?.full_name}</p>
                             {fromMember.assignment_number && (
-                              <p className="text-[10px] text-indigo-500 font-mono">#{fromMember.assignment_number}</p>
+                              <p className="text-[10px] text-primary-500 font-mono">#{fromMember.assignment_number}</p>
                             )}
                           </div>
                         </div>
 
                         {/* Arrow */}
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                          <Repeat2 className="w-4 h-4 text-indigo-600" />
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center">
+                          <Repeat2 className="w-4 h-4 text-primary-600" />
                         </div>
 
                         {/* TO */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                             {toCandidate?.user?.name?.charAt(0).toUpperCase() || '?'}
                           </div>
                           <div className="min-w-0">
@@ -1862,7 +1862,7 @@ export default function GroupEditAssignmentMembersPage() {
                   <button
                     onClick={() => setBulkSwapStep(2)}
                     disabled={bulkReplacements.length !== selectedForSwap.size}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
                   >
                     Siguiente
                     <ChevronRight className="w-4 h-4" />
@@ -1873,7 +1873,7 @@ export default function GroupEditAssignmentMembersPage() {
                   <button
                     onClick={handleConfirmBulkSwap}
                     disabled={bulkSwapping}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
                   >
                     {bulkSwapping ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -2125,9 +2125,9 @@ export default function GroupEditAssignmentMembersPage() {
             {/* PASO 1: Seleccionar archivo */}
             {bulkUploadStep === 1 && (
               <div className="p-6 overflow-y-auto flex-1">
-                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                  <p className="text-sm text-blue-800 font-medium mb-2">Instrucciones:</p>
-                  <ul className="text-xs text-blue-700 space-y-1 list-disc list-inside">
+                <div className="mb-4 p-4 bg-primary-50 border border-primary-200 rounded-xl">
+                  <p className="text-sm text-primary-800 font-medium mb-2">Instrucciones:</p>
+                  <ul className="text-xs text-primary-700 space-y-1 list-disc list-inside">
                     <li>El archivo debe ser Excel (.xlsx)</li>
                     <li>Debe contener la columna "Nombre de Usuario" (username)</li>
                     <li>Los usuarios deben ser miembros activos del grupo</li>

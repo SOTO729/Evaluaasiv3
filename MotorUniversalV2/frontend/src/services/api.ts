@@ -68,6 +68,18 @@ api.interceptors.response.use(
           // Actualizar token en el store
           useAuthStore.setState({ accessToken: access_token })
           
+          // Refrescar datos del usuario (permisos pueden haber cambiado)
+          try {
+            const meResponse = await axios.get(`${API_URL}/auth/me`, {
+              headers: { Authorization: `Bearer ${access_token}` },
+            })
+            if (meResponse.data) {
+              useAuthStore.setState({ user: meResponse.data })
+            }
+          } catch {
+            // Si falla el /me, continuar con los datos actuales
+          }
+          
           // Reintentar la petición original
           originalRequest.headers.Authorization = `Bearer ${access_token}`
           return api(originalRequest)

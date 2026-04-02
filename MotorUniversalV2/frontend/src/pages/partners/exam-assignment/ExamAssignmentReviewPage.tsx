@@ -176,7 +176,7 @@ export default function ExamAssignmentReviewPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center fluid-gap-4">
           <button onClick={() => navigate(-1)} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"><ArrowLeft className="fluid-icon-lg" /></button>
           <div>
@@ -195,9 +195,9 @@ export default function ExamAssignmentReviewPage() {
             <div key={label} className="flex items-center">
               <div className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center fluid-text-sm font-semibold transition-all ${
-                i < 4 ? 'bg-green-500 text-white' : 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg'
+                i < 4 ? 'bg-green-500 text-white' : 'bg-primary-600 text-white ring-4 ring-primary-200 shadow-lg'
               }`}>{i < 4 ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
-              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 4 ? 'text-blue-600' : 'text-green-600'}`}>{label}</span>
+              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 4 ? 'text-primary-600' : 'text-green-600'}`}>{label}</span>
               </div>
               {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all bg-green-400`} />}
             </div>
@@ -229,7 +229,7 @@ export default function ExamAssignmentReviewPage() {
             <div>
               <p className="fluid-text-xs text-gray-400">Examen</p>
               <p className="font-medium text-gray-900 fluid-text-base">{selectedExam.name}</p>
-              {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-xs text-blue-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
+              {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-xs text-primary-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
             </div>
             <div>
               <p className="fluid-text-xs text-gray-400">Grupo</p>
@@ -286,9 +286,9 @@ export default function ExamAssignmentReviewPage() {
 
         {/* Balance cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-4">
-            <div className="flex items-center fluid-gap-2 mb-1"><Wallet className="fluid-icon-sm text-blue-500" /><p className="fluid-text-xs font-medium text-blue-600">{isResponsable ? 'Vouchers disponibles' : 'Saldo actual'}</p></div>
-            <p className="fluid-text-2xl font-bold text-blue-700">
+          <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-4">
+            <div className="flex items-center fluid-gap-2 mb-1"><Wallet className="fluid-icon-sm text-primary-500" /><p className="fluid-text-xs font-medium text-primary-600">{isResponsable ? 'Vouchers disponibles' : 'Saldo actual'}</p></div>
+            <p className="fluid-text-2xl font-bold text-primary-700">
               {isResponsable
                 ? (costPreview.unit_cost > 0 ? Math.floor(costPreview.current_balance / costPreview.unit_cost) : 0)
                 : formatCurrency(costPreview.current_balance)}

@@ -29,8 +29,11 @@ import {
   EcmBrand,
 } from '../../services/partnersService';
 import { formatCurrency } from '../../services/balanceService';
+import { useAuthStore } from '../../store/authStore';
 
 export default function EcmAssignmentsPage() {
+  const { user } = useAuthStore();
+  const isSoporte = user?.role === 'soporte';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ecms, setEcms] = useState<EcmAssignmentSummary[]>([]);
@@ -124,7 +127,7 @@ export default function EcmAssignmentsPage() {
       )}
 
       {/* Tarjetas de resumen global */}
-      <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-4 fluid-mb-6">
+      <div className={`grid ${isSoporte ? 'grid-cols-2 md:grid-cols-3' : 'grid-cols-2 md:grid-cols-4'} fluid-gap-4 fluid-mb-6`}>
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
           <div className="flex items-center fluid-gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-fluid-xl flex items-center justify-center">
@@ -147,6 +150,7 @@ export default function EcmAssignmentsPage() {
             </div>
           </div>
         </div>
+        {!isSoporte && (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
           <div className="flex items-center fluid-gap-3">
             <div className="w-10 h-10 bg-green-100 rounded-fluid-xl flex items-center justify-center">
@@ -158,6 +162,7 @@ export default function EcmAssignmentsPage() {
             </div>
           </div>
         </div>
+        )}
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
           <div className="flex items-center fluid-gap-3">
             <div className="w-10 h-10 bg-amber-100 rounded-fluid-xl flex items-center justify-center">
@@ -293,7 +298,7 @@ export default function EcmAssignmentsPage() {
                       </h3>
                       
                       {/* Métricas */}
-                      <div className="grid grid-cols-2 sm:grid-cols-5 fluid-gap-4 mt-3">
+                      <div className={`grid grid-cols-2 ${isSoporte ? 'sm:grid-cols-4' : 'sm:grid-cols-5'} fluid-gap-4 mt-3`}>
                         <div>
                           <p className="fluid-text-xs text-gray-400">Asignaciones</p>
                           <p className="fluid-text-base font-semibold text-gray-900">{ecm.total_assignments}</p>
@@ -305,12 +310,14 @@ export default function EcmAssignmentsPage() {
                             {ecm.total_candidates}
                           </p>
                         </div>
+                        {!isSoporte && (
                         <div>
                           <p className="fluid-text-xs text-gray-400">Inversión</p>
                           <p className="fluid-text-base font-semibold text-green-600">
                             {formatCurrency(ecm.total_cost)}
                           </p>
                         </div>
+                        )}
                         <div>
                           <p className="fluid-text-xs text-gray-400">Promedio</p>
                           <p className={`fluid-text-base font-semibold ${

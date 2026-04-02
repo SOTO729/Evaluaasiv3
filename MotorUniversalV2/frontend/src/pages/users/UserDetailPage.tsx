@@ -28,6 +28,7 @@ import {
   Clock,
   Hash,
   Calendar,
+  Send,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -49,6 +50,10 @@ import {
 import StyledSelect from '../../components/StyledSelect';
 import { useAuthStore } from '../../store/authStore';
 import CurpVerificationBadge from '../../components/users/CurpVerificationBadge';
+import { sendSupportUserEmail } from '../../services/supportService';
+
+// Roles sobre los que soporte solo puede VER (sin acciones excepto enviar contraseña por email)
+const SOPORTE_READONLY_ROLES = ['coordinator', 'editor', 'editor_invitado', 'financiero', 'auxiliar', 'soporte'];
 
 export default function UserDetailPage() {
   const { userId } = useParams();
@@ -89,6 +94,13 @@ export default function UserDetailPage() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const [expandedExams, setExpandedExams] = useState<Set<string>>(new Set());
+
+  // Estado para enviar contraseña por correo
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  // Permisos de soporte
+  const isSoporte = currentUser?.role === 'soporte';
+  const isSoporteReadonly = isSoporte && user ? SOPORTE_READONLY_ROLES.includes(user.role) : false;
 
   useEffect(() => {
     loadUser();
@@ -232,6 +244,24 @@ export default function UserDetailPage() {
     }
   };
 
+  const handleSendPasswordEmail = async () => {
+    if (!user) return;
+    const target = user.email || user.username;
+    if (!target) {
+      setError('Este usuario no tiene email ni username para enviar el correo');
+      return;
+    }
+    try {
+      setSendingEmail(true);
+      await sendSupportUserEmail({ target, template: 'reenvio' });
+      setSuccess(`Contraseña enviada por correo a ${user.email || user.username}`);
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Error al enviar el correo');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="fluid-p-6 max-w-[1920px] mx-auto">
@@ -349,6 +379,7 @@ export default function UserDetailPage() {
             </div>
 
             <div className="flex items-center fluid-gap-2">
+              {!isSoporteReadonly && (
               <Link
                 to={`/user-management/${user.id}/edit`}
                 className="fluid-p-2 bg-white/10 hover:bg-white/20 rounded-fluid-lg transition-colors"
@@ -356,7 +387,8 @@ export default function UserDetailPage() {
               >
                 <Edit className="fluid-icon-sm" />
               </Link>
-              {user.id !== currentUser?.id && currentUser?.role !== 'developer' && (
+              )}
+              {!isSoporteReadonly && user.id !== currentUser?.id && currentUser?.role !== 'developer' && (
                 <button
                   onClick={handleToggleActive}
                   className={`fluid-p-2 rounded-fluid-lg transition-colors ${
@@ -728,7 +760,14 @@ export default function UserDetailPage() {
                                           <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-3 fluid-text-xs">
                                             <div>
                                               <p className="text-indigo-400">No. Asignación</p>
-                                              <p className="font-mono font-bold text-indigo-800">{exam.ecm_assignment.assignment_number}</p>
+                                              <Link
+                                                to={`/asignaciones-ecm/candidato/${exam.ecm_assignment.id}`}
+                                                className="inline-flex items-center fluid-gap-1 font-mono font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2 py-0.5 rounded-md transition-colors group"
+                                                title="Ver detalle de asignación"
+                                              >
+                                                {exam.ecm_assignment.assignment_number}
+                                                <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                              </Link>
                                             </div>
                                             <div>
                                               <p className="text-indigo-400">Estado trámite</p>
@@ -819,6 +858,27 @@ export default function UserDetailPage() {
           )}
 
           <div className="fluid-mt-8 fluid-pt-6 border-t border-gray-200 flex flex-wrap fluid-gap-3">
+            {/* Si soporte ve un rol readonly, solo mostrar "Enviar contraseña por correo" */}
+            {isSoporteReadonly ? (
+              <button
+                onClick={handleSendPasswordEmail}
+                disabled={sendingEmail}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-fluid-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {sendingEmail ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="fluid-icon-sm" />
+                    Enviar Contraseña por Correo
+                  </>
+                )}
+              </button>
+            ) : (
+              <>
             <Link
               to={`/user-management/${user.id}/edit`}
               className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium transition-colors"
@@ -878,6 +938,27 @@ export default function UserDetailPage() {
               </button>
             )}
 
+            {/* Enviar contraseña por correo - Soporte sobre roles editables */}
+            {isSoporte && !isSoporteReadonly && (
+              <button
+                onClick={handleSendPasswordEmail}
+                disabled={sendingEmail}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-fluid-lg font-medium transition-colors disabled:opacity-50"
+              >
+                {sendingEmail ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-emerald-700 border-t-transparent rounded-full animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="fluid-icon-sm" />
+                    Enviar Contraseña por Correo
+                  </>
+                )}
+              </button>
+            )}
+
             {/* Botón Eliminar Usuario - Solo Admin */}
             {currentUser?.role === 'admin' && user.id !== currentUser?.id && (
               <button
@@ -887,6 +968,8 @@ export default function UserDetailPage() {
                 <Trash2 className="fluid-icon-sm" />
                 Eliminar Usuario
               </button>
+            )}
+              </>
             )}
           </div>
         </div>

@@ -62,8 +62,10 @@ export interface CreateUserData {
   can_manage_groups?: boolean;
   can_view_reports?: boolean;
   coordinator_id?: string;
-  // Campos adicionales para responsable_partner
+  // Campos adicionales para responsable_partner / responsable_estatal
   partner_id?: number;
+  // Campo adicional para responsable_estatal
+  assigned_state?: string;
 }
 
 export interface UpdateUserData {
@@ -83,8 +85,10 @@ export interface UpdateUserData {
   can_manage_groups?: boolean;
   can_view_reports?: boolean;
   coordinator_id?: string;
-  // Campos adicionales para responsable_partner
+  // Campos adicionales para responsable_partner / responsable_estatal
   partner_id?: number;
+  // Campo adicional para responsable_estatal
+  assigned_state?: string;
 }
 
 export interface RoleOption {
@@ -357,6 +361,16 @@ export async function getAvailablePartners(): Promise<{
   return response.data;
 }
 
+// ============== ESTADOS DISPONIBLES (para responsable_estatal) ==============
+
+export async function getAvailableStates(): Promise<{
+  states: string[];
+  total: number;
+}> {
+  const response = await api.get('/user-management/available-states');
+  return response.data;
+}
+
 // ============== COORDINADORES DISPONIBLES (para asignar a responsables) ==============
 
 export interface AvailableCoordinator {
@@ -387,6 +401,7 @@ export const ROLE_LABELS: Record<string, string> = {
   coordinator: 'Coordinador',
   responsable: 'Responsable',
   responsable_partner: 'Resp. Partner',
+  responsable_estatal: 'Resp. Estatal',
   candidato: 'Candidato',
   auxiliar: 'Auxiliar'
 };
@@ -402,6 +417,7 @@ export const ROLE_COLORS: Record<string, string> = {
   coordinator: 'bg-amber-100 text-amber-800',
   responsable: 'bg-indigo-100 text-indigo-800',
   responsable_partner: 'bg-violet-100 text-violet-800',
+  responsable_estatal: 'bg-pink-100 text-pink-800',
   candidato: 'bg-green-100 text-green-800',
   auxiliar: 'bg-gray-100 text-gray-800'
 };

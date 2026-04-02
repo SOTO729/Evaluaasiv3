@@ -255,6 +255,7 @@ def create_template():
         name=name,
         description=data.get('description', '').strip() or None,
         criteria_narrative=data.get('criteria_narrative', '').strip() or None,
+        criteria_url=data.get('criteria_url', '').strip() or None,
         exam_id=data.get('exam_id'),
         competency_standard_id=ecm_id,
         issuer_name='Grupo Eduit',
@@ -299,7 +300,7 @@ def update_template(template_id):
     template = BadgeTemplate.query.get_or_404(template_id)
     data = request.get_json(silent=True) or {}
 
-    for field in ('name', 'description', 'criteria_narrative'):
+    for field in ('name', 'description', 'criteria_narrative', 'criteria_url'):
         if field in data:
             val = data[field]
             if isinstance(val, str):
@@ -449,6 +450,86 @@ def delete_template_image(template_id):
     db.session.commit()
 
     return jsonify({'message': 'Imagen eliminada'})
+
+
+@bp.route('/templates/<int:template_id>/issuer-logo', methods=['POST'])
+@jwt_required()
+def upload_issuer_logo(template_id):
+    """Subir logo del emisor para la plantilla (convertido a WebP)."""
+    _require_roles('admin', 'editor', 'coordinator')
+    template = BadgeTemplate.query.get_or_404(template_id)
+
+    if 'image' not in request.files:
+        return jsonify({'error': 'Se requiere un archivo de imagen'}), 400
+
+    file = request.files['image']
+    if not file.filename:
+        return jsonify({'error': 'Archivo vacío'}), 400
+
+    from PIL import Image as PILImage
+    import io
+    from app.utils.azure_storage import AzureStorageService
+    storage = AzureStorageService()
+
+    try:
+        img = PILImage.open(file)
+        if img.mode in ('RGBA', 'LA', 'P'):
+            bg = PILImage.new('RGBA', img.size, (255, 255, 255, 0))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            bg.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+            img = bg
+        webp_buf = io.BytesIO()
+        img.save(webp_buf, format='WEBP', quality=90, lossless=False)
+        webp_bytes = webp_buf.getvalue()
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': f'Error al procesar la imagen: {e}'}), 400
+
+    blob_name = template.issuer_logo_blob_name or f"badge-templates/issuer-logo-{template_id}.webp"
+    if not blob_name.endswith('.webp'):
+        blob_name = blob_name.rsplit('.', 1)[0] + '.webp'
+
+    if template.issuer_logo_url and template.issuer_logo_blob_name and template.issuer_logo_blob_name != blob_name:
+        try:
+            storage.delete_file(template.issuer_logo_url)
+        except Exception:
+            pass
+
+    url = storage.upload_bytes(webp_bytes, blob_name, content_type='image/webp')
+    if not url:
+        return jsonify({'error': 'Error al subir la imagen'}), 500
+
+    template.issuer_logo_url = url
+    template.issuer_logo_blob_name = blob_name
+    db.session.commit()
+
+    return jsonify({'message': 'Logo del emisor subido (WebP)', 'issuer_logo_url': url})
+
+
+@bp.route('/templates/<int:template_id>/issuer-logo', methods=['DELETE'])
+@jwt_required()
+def delete_issuer_logo(template_id):
+    """Eliminar logo del emisor de la plantilla."""
+    _require_roles('admin', 'editor', 'coordinator')
+    template = BadgeTemplate.query.get_or_404(template_id)
+
+    if not template.issuer_logo_url:
+        return jsonify({'message': 'La plantilla no tiene logo de emisor'}), 200
+
+    from app.utils.azure_storage import AzureStorageService
+    storage = AzureStorageService()
+    try:
+        storage.delete_file(template.issuer_logo_url)
+    except Exception:
+        pass
+
+    template.issuer_logo_url = None
+    template.issuer_logo_blob_name = None
+    db.session.commit()
+
+    return jsonify({'message': 'Logo del emisor eliminado'})
 
 
 # ═══════════════════════════════════════════════
@@ -708,6 +789,7 @@ def verify_badge(code):
             'template_image_url': (badge.template_image_url or (template.badge_image_url if template else None)),
             'candidate_name': full_name,
             'issuer_name': 'Grupo Eduit',
+            'issuer_logo_url': template.issuer_logo_url if template else None,
             'issued_date': formatted_date,
             'expires_date': expires_date,
             'is_expired': bool(is_expired),

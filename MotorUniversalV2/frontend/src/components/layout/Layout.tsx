@@ -12,7 +12,7 @@ interface LayoutProps {
 }
 
 const Layout = ({ children }: LayoutProps) => {
-  const { user, logout } = useAuthStore()
+  const { user, logout, updateUser } = useAuthStore()
   const navigate = useNavigate()
   const location = useLocation()
   const isSupportRole = ['soporte', 'support'].includes(user?.role ?? '')
@@ -206,6 +206,25 @@ const Layout = ({ children }: LayoutProps) => {
     return () => { cancelled = true; clearInterval(interval) }
   }, [hasChatAccess])
 
+  // Refrescar datos del usuario periódicamente y al enfocar ventana
+  // Esto permite que cambios de permisos hechos por un coordinador surtan efecto
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    const refreshUser = async () => {
+      try {
+        const freshUser = await authService.getCurrentUser()
+        if (!cancelled && freshUser) {
+          updateUser(freshUser)
+        }
+      } catch { /* silenciar — el interceptor manejará 401 */ }
+    }
+    const handleFocus = () => { refreshUser() }
+    window.addEventListener('focus', handleFocus)
+    const interval = setInterval(refreshUser, 5 * 60 * 1000)
+    return () => { cancelled = true; window.removeEventListener('focus', handleFocus); clearInterval(interval) }
+  }, [user?.id, updateUser])
+
   // Determinar si es una página de contenido completo (sin padding)
   const isFullContentPage = location.pathname.includes('/preview')
 
@@ -333,7 +352,9 @@ const Layout = ({ children }: LayoutProps) => {
               {hasBranding && (campusLogo || campusName) && (
                 <div className="hidden md:flex items-center fluid-ml-4 fluid-pl-4 border-l border-gray-200 fluid-gap-2">
                   {campusLogo && (
-                    <img src={campusLogo} alt={campusName || 'Campus'} className="h-[clamp(1.75rem,1.5rem+1vw,2.75rem)] w-auto object-contain" />
+                    <div className="flex items-center justify-center" style={{ maxWidth: '3.5rem', maxHeight: '3.5rem' }}>
+                      <img src={campusLogo} alt={campusName || 'Campus'} className="max-w-full max-h-full object-contain" />
+                    </div>
                   )}
                   {campusName && (
                     <span className="fluid-text-sm font-semibold text-primary-600">{campusName}</span>
@@ -394,12 +415,20 @@ const Layout = ({ children }: LayoutProps) => {
                 )}
                 {/* ── Bloque soporte: nav directo al módulo de soporte ── */}
                 {user?.role === 'soporte' && (
+                  <>
                   <Link
                     to="/support/dashboard"
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/support') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}
                   >
                     Centro de Soporte
                   </Link>
+                  <Link
+                    to="/asignaciones-ecm"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/asignaciones-ecm') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}
+                  >
+                    Asignaciones
+                  </Link>
+                  </>
                 )}
                 {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'responsable_estatal' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                   <Link 
@@ -539,13 +568,11 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/mi-plantel" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mi Plantel</Link>
                     {user?.can_manage_groups && <Link to="/grupos" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/grupos') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Grupos</Link>}
                     <Link to="/user-management" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/user-management') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Usuarios</Link>
-                    <Link to="/mi-plantel/sesiones" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Sesiones</Link>
                     <Link to="/exams" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/exams') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Exámenes</Link>
                     <Link to="/study-contents" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/study-contents') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Materiales</Link>
                     <Link to="/certificates" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/certificates') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Certificados</Link>
                     {user?.can_view_reports && <Link to="/mi-plantel/reportes" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/reportes' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Reportes</Link>}
-                    <Link to="/mi-plantel/branding" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/branding' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Personalizar</Link>
-                    <Link to="/mis-pagos" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mis-pagos' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Mis Pagos</Link>
+                    <Link to="/mi-plantel/sesiones" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Sesiones</Link>
                   </>
                 )}
                 {user?.role === 'responsable_partner' && (
@@ -828,6 +855,18 @@ const Layout = ({ children }: LayoutProps) => {
                         Mis Vouchers
                       </Link>
                     )}
+                    {user?.role === 'responsable' && (
+                      <Link
+                        to="/mi-plantel/branding"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                        Personalizar Portal
+                      </Link>
+                    )}
                     <Link
                       to="/profile"
                       onClick={() => setIsDropdownOpen(false)}
@@ -976,6 +1015,7 @@ const Layout = ({ children }: LayoutProps) => {
               )}
               {/* ── Bloque soporte mobile: enlace al centro de soporte ── */}
               {user?.role === 'soporte' && (
+                <>
                 <Link
                   to="/support/dashboard"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/support') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
@@ -986,6 +1026,17 @@ const Layout = ({ children }: LayoutProps) => {
                     Centro de Soporte
                   </div>
                 </Link>
+                <Link
+                  to="/asignaciones-ecm"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/asignaciones-ecm') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                    Asignaciones
+                  </div>
+                </Link>
+                </>
               )}
               {user?.role !== 'editor' && user?.role !== 'editor_invitado' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'responsable_estatal' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (
                 <Link 
@@ -1182,12 +1233,6 @@ const Layout = ({ children }: LayoutProps) => {
                       Usuarios
                     </div>
                   </Link>
-                  <Link to="/mi-plantel/sesiones" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="flex items-center">
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                      Sesiones
-                    </div>
-                  </Link>
                   <Link to="/exams" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/exams') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
                     <div className="flex items-center">
                       <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
@@ -1214,16 +1259,10 @@ const Layout = ({ children }: LayoutProps) => {
                     </div>
                   </Link>
                   )}
-                  <Link to="/mi-plantel/branding" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mi-plantel/branding' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                  <Link to="/mi-plantel/sesiones" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
                     <div className="flex items-center">
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
-                      Personalizar
-                    </div>
-                  </Link>
-                  <Link to="/mis-pagos" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname === '/mis-pagos' ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="flex items-center">
-                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><line x1="1" y1="10" x2="23" y2="10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>
-                      Mis Pagos
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      Sesiones
                     </div>
                   </Link>
                 </>

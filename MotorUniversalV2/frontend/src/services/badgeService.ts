@@ -19,6 +19,7 @@ export interface BadgeTemplate {
   issuer_name: string | null
   issuer_url: string | null
   issuer_image_url: string | null
+  issuer_logo_url: string | null
   tags: string | null
   skills: string | null
   expiry_months: number | null
@@ -127,6 +128,21 @@ export const badgeService = {
 
   deleteTemplateImage: async (id: number) => {
     const resp = await api.delete<{ message: string }>(`/badges/templates/${id}/image`)
+    return resp.data
+  },
+
+  uploadIssuerLogo: async (id: number, file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const resp = await api.post<{ message: string; issuer_logo_url: string }>(
+      `/badges/templates/${id}/issuer-logo`,
+      formData,
+    )
+    return resp.data
+  },
+
+  deleteIssuerLogo: async (id: number) => {
+    const resp = await api.delete<{ message: string }>(`/badges/templates/${id}/issuer-logo`)
     return resp.data
   },
 

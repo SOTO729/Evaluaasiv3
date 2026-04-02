@@ -263,7 +263,7 @@ def generate_evaluation_report_pdf(result, exam, user, timezone='America/Mexico_
         for cat_name, cat_data in category_results.items():
             cat_index += 1
 
-            if y < 100:
+            if y < 130:
                 c.showPage()
                 y = page_height - margin
 
@@ -296,7 +296,7 @@ def generate_evaluation_report_pdf(result, exam, user, timezone='America/Mexico_
             topic_index = 0
             for topic_name, topic_data in topics.items():
                 topic_index += 1
-                if y < 80:
+                if y < 130:
                     c.showPage()
                     y = page_height - margin
 
@@ -349,8 +349,16 @@ def generate_evaluation_report_pdf(result, exam, user, timezone='America/Mexico_
         c.line(margin, y, page_width - margin, y)
         y -= 15
 
-    # === QR DE VERIFICACIÓN ===
+    # === QR DE VERIFICACIÓN Y PIE DE PÁGINA ===
+    # Asegurar espacio suficiente para el footer (QR + textos ~ 100px)
+    if y < 120:
+        c.showPage()
+        y = page_height - margin
+
     verification_code = result.certificate_code
+    qr_size = 60
+    footer_base_y = 30  # Base Y para todo el bloque footer
+
     if verification_code:
         import qrcode
 
@@ -372,37 +380,40 @@ def generate_evaluation_report_pdf(result, exam, user, timezone='America/Mexico_
         qr_buffer.seek(0)
 
         qr_image = ImageReader(qr_buffer)
-        qr_size = 60
         qr_x = margin
-        qr_y = 25
+        qr_y = footer_base_y
         c.drawImage(qr_image, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
 
+        # Código y texto debajo del QR
         c.setFillColor(gray_color)
         c.setFont('Helvetica', 6)
-        c.drawCentredString(qr_x + qr_size / 2, qr_y - 8, verification_code)
+        c.drawCentredString(qr_x + qr_size / 2, qr_y - 10, verification_code)
         c.setFont('Helvetica', 5)
-        c.drawCentredString(qr_x + qr_size / 2, qr_y - 14, 'Escanea para verificar')
+        c.drawCentredString(qr_x + qr_size / 2, qr_y - 18, 'Escanea para verificar')
 
-    # === PIE DE PÁGINA ===
-    y_footer = 50
+    # Línea footer a la derecha del QR
+    line_x_start = margin + qr_size + 15 if verification_code else margin
+    line_y = footer_base_y + qr_size - 5  # Alineada con la parte superior del QR
     c.setStrokeColor(primary_color)
     c.setLineWidth(0.3)
-    c.line(margin + 70, y_footer, page_width - margin, y_footer)
-    y_footer -= 10
+    c.line(line_x_start, line_y, page_width - margin, line_y)
 
+    # Texto oficial del footer
     c.setFillColor(primary_color)
     c.setFont('Helvetica', 7)
-    c.drawString(margin + 75, y_footer,
+    c.drawString(line_x_start, line_y - 12,
                  'Este documento es un reporte oficial de evaluación generado por el sistema Evaluaasi.')
-    y_footer -= 8
-    c.setFillColor(gray_color)
-    c.drawString(margin, y_footer, f'ID de resultado: {result.id}')
 
+    # ID resultado
+    c.setFillColor(gray_color)
+    c.setFont('Helvetica', 7)
+    c.drawString(line_x_start, line_y - 24, f'ID de resultado: {result.id}')
+
+    # Código de verificación (a la derecha)
     if result.certificate_code:
-        c.setFillColor(gray_color)
-        c.setFont('Helvetica', 8)
-        c.drawCentredString(page_width / 2, y_footer,
-                            f'Código de verificación: {result.certificate_code}')
+        c.setFont('Helvetica', 7)
+        c.drawRightString(page_width - margin, line_y - 24,
+                          f'Código de verificación: {result.certificate_code}')
 
     c.save()
     buffer.seek(0)
@@ -555,9 +566,9 @@ def generate_certificate_pdf(result, exam, user):
                             if logo_resp.status_code == 200:
                                 logo_bytes = BytesIO(logo_resp.content)
                                 campus_logo = ImageReader(logo_bytes)
-                                logo_w = 80
-                                logo_h = 80
-                                c.drawImage(campus_logo, 820, 1135,
+                                logo_w = 180
+                                logo_h = 180
+                                c.drawImage(campus_logo, 760, 1058,
                                             width=logo_w, height=logo_h,
                                             preserveAspectRatio=True, mask='auto')
                         except Exception:
@@ -572,9 +583,9 @@ def generate_certificate_pdf(result, exam, user):
                                 if logo_resp.status_code == 200:
                                     logo_bytes = BytesIO(logo_resp.content)
                                     partner_logo = ImageReader(logo_bytes)
-                                    logo_w = 80
-                                    logo_h = 80
-                                    c.drawImage(partner_logo, 910, 1135,
+                                    logo_w = 120
+                                    logo_h = 120
+                                    c.drawImage(partner_logo, 920, 1115,
                                                 width=logo_w, height=logo_h,
                                                 preserveAspectRatio=True, mask='auto')
                             except Exception:

@@ -31,6 +31,7 @@ import {
   ArrowRight,
   RotateCcw,
   Lock,
+  MapPin,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import StyledSelect from '../../components/StyledSelect';
@@ -43,6 +44,7 @@ import {
   getAvailableCampuses,
   getAvailablePartners,
   getAvailableCoordinators,
+  getAvailableStates,
   checkNameSimilarity,
   validateCurpRenapo,
   CreateUserData,
@@ -89,6 +91,13 @@ const ROLE_CONFIG: Record<string, RoleCardConfig> = {
     ring: 'ring-violet-500',
     description: 'Administrador de un partner/institución y sus planteles.',
     shortDesc: 'Supervisa un partner',
+  },
+  responsable_estatal: {
+    icon: MapPin,
+    gradient: 'from-pink-500 to-rose-600',
+    ring: 'ring-pink-500',
+    description: 'Administrador de un estado con alcance a los planteles de esa región.',
+    shortDesc: 'Supervisa un estado',
   },
   editor: {
     icon: PenTool,
@@ -152,6 +161,7 @@ const ROLE_LABELS: Record<string, string> = {
   candidato: 'Candidato',
   responsable: 'Responsable de Plantel',
   responsable_partner: 'Responsable del Partner',
+  responsable_estatal: 'Responsable Estatal',
   editor: 'Editor',
   editor_invitado: 'Editor Invitado',
   gerente: 'Gerente',
@@ -183,9 +193,12 @@ export default function UserFormPage() {
   // Estados para responsable
   const [availableCampuses, setAvailableCampuses] = useState<AvailableCampus[]>([]);
   const [loadingCampuses, setLoadingCampuses] = useState(false);
-  // Estados para responsable_partner
+  // Estados para responsable_partner / responsable_estatal
   const [availablePartners, setAvailablePartners] = useState<AvailablePartner[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(false);
+  // Estados disponibles para responsable_estatal
+  const [availableStates, setAvailableStates] = useState<string[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
   // Estados para coordinadores (asignar a responsables)
   const [availableCoordinators, setAvailableCoordinators] = useState<AvailableCoordinator[]>([]);
   const [loadingCoordinators, setLoadingCoordinators] = useState(false);
@@ -221,6 +234,7 @@ export default function UserFormPage() {
     can_view_reports: true,
     coordinator_id: '',
     partner_id: 0,
+    assigned_state: '',
   });
 
   useEffect(() => {
@@ -237,6 +251,10 @@ export default function UserFormPage() {
     }
     if (formData.role === 'responsable_partner' && !isEditing) {
       loadPartners();
+    }
+    if (formData.role === 'responsable_estatal' && !isEditing) {
+      loadPartners();
+      loadStates();
     }
     // Cargar coordinadores si el creador NO es coordinador (coordinador se asigna automáticamente)
     if (formData.role === 'responsable' && currentUser?.role !== 'coordinator') {
@@ -265,6 +283,18 @@ export default function UserFormPage() {
       console.error('Error loading partners:', err);
     } finally {
       setLoadingPartners(false);
+    }
+  };
+
+  const loadStates = async () => {
+    try {
+      setLoadingStates(true);
+      const data = await getAvailableStates();
+      setAvailableStates(data.states);
+    } catch (err) {
+      console.error('Error loading states:', err);
+    } finally {
+      setLoadingStates(false);
     }
   };
 
@@ -323,6 +353,7 @@ export default function UserFormPage() {
         can_view_reports: data.can_view_reports ?? true,
         coordinator_id: data.coordinator_id || '',
         partner_id: data.partners?.[0]?.id || 0,
+        assigned_state: data.assigned_state || '',
       });
       // Guardar estado de verificación CURP
       setExistingCurpVerified(data.curp_verified ?? false);
@@ -336,6 +367,10 @@ export default function UserFormPage() {
       }
       if (data.role === 'responsable_partner') {
         loadPartners();
+      }
+      if (data.role === 'responsable_estatal') {
+        loadPartners();
+        loadStates();
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar usuario');
@@ -427,6 +462,18 @@ export default function UserFormPage() {
           return;
         }
       }
+
+      // Para responsable_estatal, partner_id y assigned_state son obligatorios al crear
+      if (formData.role === 'responsable_estatal') {
+        if (!formData.partner_id || formData.partner_id === 0) {
+          setError('Debe seleccionar un partner para el responsable estatal');
+          return;
+        }
+        if (!formData.assigned_state) {
+          setError('Debe seleccionar un estado para el responsable estatal');
+          return;
+        }
+      }
     }
 
     // Verificación de similitud de nombre (solo al crear, no al editar)
@@ -485,6 +532,12 @@ export default function UserFormPage() {
           updateData.partner_id = formData.partner_id || undefined;
         }
 
+        // Campos adicionales para responsable_estatal
+        if (formData.role === 'responsable_estatal') {
+          updateData.partner_id = formData.partner_id || undefined;
+          updateData.assigned_state = formData.assigned_state || undefined;
+        }
+
         await updateUser(userId!, updateData);
         setSuccess('Usuario actualizado correctamente');
       } else {
@@ -513,6 +566,12 @@ export default function UserFormPage() {
         // Campos adicionales para responsable_partner
         if (formData.role === 'responsable_partner') {
           createData.partner_id = formData.partner_id;
+        }
+
+        // Campos adicionales para responsable_estatal
+        if (formData.role === 'responsable_estatal') {
+          createData.partner_id = formData.partner_id;
+          createData.assigned_state = formData.assigned_state;
         }
 
         const result = await createUser(createData);
@@ -1371,6 +1430,84 @@ export default function UserFormPage() {
                       No hay partners disponibles.
                     </p>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Asignación de partner y estado (responsable_estatal) ── */}
+            {formData.role === 'responsable_estatal' && (
+              <div className="border-t border-pink-200 bg-pink-50/50 fluid-p-6">
+                <h2 className="flex items-center fluid-gap-2 font-semibold text-pink-800 fluid-text-lg fluid-mb-5">
+                  <MapPin className="fluid-icon-sm text-pink-500" />
+                  Asignación estatal
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
+                  {/* Partner */}
+                  <div>
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                      Partner{' '}
+                      {!isEditing && <span className="text-red-500">*</span>}
+                    </label>
+                    {loadingPartners ? (
+                      <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
+                        <div className="w-4 h-4 border-2 border-pink-600 border-t-transparent rounded-full animate-spin" />
+                        Cargando partners...
+                      </div>
+                    ) : (
+                      <StyledSelect
+                        value={formData.partner_id.toString()}
+                        onChange={(value) =>
+                          setFormData((prev) => ({ ...prev, partner_id: parseInt(value) || 0 }))
+                        }
+                        options={availablePartners.map((p) => ({
+                          value: p.id.toString(),
+                          label: `${p.name} — ${p.total_campuses} planteles`,
+                        }))}
+                        placeholder="Seleccionar partner..."
+                        icon={Building2}
+                        colorScheme="purple"
+                        required
+                      />
+                    )}
+                    {availablePartners.length === 0 && !loadingPartners && (
+                      <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                        No hay partners disponibles.
+                      </p>
+                    )}
+                  </div>
+                  {/* Estado */}
+                  <div>
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                      Estado{' '}
+                      {!isEditing && <span className="text-red-500">*</span>}
+                    </label>
+                    {loadingStates ? (
+                      <div className="flex items-center fluid-gap-2 fluid-py-2 text-gray-500">
+                        <div className="w-4 h-4 border-2 border-pink-600 border-t-transparent rounded-full animate-spin" />
+                        Cargando estados...
+                      </div>
+                    ) : (
+                      <StyledSelect
+                        value={formData.assigned_state}
+                        onChange={(value) =>
+                          setFormData((prev) => ({ ...prev, assigned_state: value }))
+                        }
+                        options={availableStates.map((s) => ({
+                          value: s,
+                          label: s,
+                        }))}
+                        placeholder="Seleccionar estado..."
+                        icon={MapPin}
+                        colorScheme="purple"
+                        required
+                      />
+                    )}
+                    {availableStates.length === 0 && !loadingStates && (
+                      <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                        No hay estados disponibles. Asegúrese de que los planteles tengan estado asignado.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

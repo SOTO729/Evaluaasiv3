@@ -325,6 +325,7 @@ const ExamsListPage = () => {
   // Detectar sesiones pendientes en localStorage
   const [pendingCount, setPendingCount] = useState(0);
   useEffect(() => {
+    const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
     const countPending = () => {
       let count = 0;
       for (let i = 0; i < localStorage.length; i++) {
@@ -332,6 +333,10 @@ const ExamsListPage = () => {
         if (key && key.startsWith('exam_session_')) {
           try {
             const data = JSON.parse(localStorage.getItem(key) || '');
+            if (data && data.savedAt && (Date.now() - data.savedAt) > ONE_YEAR_MS) {
+              localStorage.removeItem(key);
+              continue;
+            }
             if (data && data.timeRemaining > 0) {
               let remaining = data.timeRemaining;
               if (!data.pauseOnDisconnect && data.savedAt) {
@@ -447,13 +452,18 @@ const ExamsListPage = () => {
             Nuevo Examen
           </button>
         )}
-        {isCandidate && pendingCount > 0 && (
+        {isCandidate && (
           <button
             onClick={() => navigate('/exams/pending')}
-            className="bg-red-600 hover:bg-red-700 text-white fluid-px-5 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base animate-pulse shadow-lg shadow-red-200"
+            className="relative bg-white hover:bg-gray-50 text-gray-700 fluid-px-5 fluid-py-3 rounded-fluid-lg flex items-center justify-center fluid-gap-2 transition-colors w-full sm:w-auto fluid-text-base border border-gray-300 shadow-sm"
           >
             <AlertTriangle className="fluid-icon-lg" />
-            {pendingCount} {pendingCount === 1 ? 'Examen Pendiente' : 'Exámenes Pendientes'}
+            Pendientes
+            {pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                {pendingCount}
+              </span>
+            )}
           </button>
         )}
       </div>

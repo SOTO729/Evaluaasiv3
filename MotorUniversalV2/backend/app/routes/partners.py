@@ -14448,7 +14448,7 @@ def get_ecm_assignments():
     """Listado de ECMs con resumen de asignaciones (optimizado).
     
     Usa queries SQL agregadas con subqueries en vez de loops N+1.
-    Solo accesible por admin y coordinator.
+    Solo accesible por admin, coordinator y soporte.
     
     Query params:
     - search (str): Buscar en código o nombre del ECM
@@ -14460,7 +14460,7 @@ def get_ecm_assignments():
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator', 'soporte']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         search = request.args.get('search', '').strip()
@@ -14616,7 +14616,7 @@ def get_ecm_assignment_detail(ecm_id):
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator', 'soporte']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         ecm = CompetencyStandard.query.get(ecm_id)
@@ -15209,7 +15209,7 @@ def export_ecm_assignments_excel(ecm_id):
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator', 'soporte']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         ecm = CompetencyStandard.query.get(ecm_id)
@@ -15610,7 +15610,7 @@ def get_candidate_assignment_detail(eca_id):
 
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        if not user or user.role not in ['admin', 'developer', 'coordinator']:
+        if not user or user.role not in ['admin', 'developer', 'coordinator', 'soporte']:
             return jsonify({'error': 'Acceso denegado'}), 403
 
         eca = EcmCandidateAssignment.query.get(eca_id)

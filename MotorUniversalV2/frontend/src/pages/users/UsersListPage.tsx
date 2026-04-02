@@ -103,6 +103,7 @@ export default function UsersListPage() {
   const isAdmin = currentUser?.role === 'admin';
   const isCoordinator = currentUser?.role === 'coordinator';
   const isResponsable = currentUser?.role === 'responsable';
+  const isSoporte = currentUser?.role === 'soporte';
   const canManageUsers = isAdmin || isCoordinator || isResponsable;
   const canAssignToGroup = isAdmin || isCoordinator || (isResponsable && currentUser?.can_manage_groups);
   
@@ -224,8 +225,8 @@ export default function UsersListPage() {
       return <ChevronsUpDown className="fluid-icon-xs text-gray-400" />;
     }
     return sortDirection === 'asc' 
-      ? <ChevronUp className="fluid-icon-xs text-blue-600" />
-      : <ChevronDown className="fluid-icon-xs text-blue-600" />;
+      ? <ChevronUp className="fluid-icon-xs text-primary-600" />
+      : <ChevronDown className="fluid-icon-xs text-primary-600" />;
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -449,7 +450,7 @@ export default function UsersListPage() {
   return (
     <div className={`fluid-p-6 max-w-[1920px] mx-auto ${isFirstLoad.current ? 'animate-fade-in-up' : ''}`}>
       {/* Header con gradiente */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-fluid-xl fluid-p-6 fluid-mb-6 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-600 rounded-fluid-xl fluid-p-6 fluid-mb-6 text-white shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between fluid-gap-4">
           <div className="flex items-center fluid-gap-4">
             <div className="fluid-p-3 bg-white/20 rounded-fluid-xl">
@@ -459,17 +460,20 @@ export default function UsersListPage() {
               <h1 className="fluid-text-2xl font-bold">
                 Gestión de Usuarios
               </h1>
-              <p className="fluid-text-sm text-blue-100 fluid-mt-1">
+              <p className="fluid-text-sm text-primary-100 fluid-mt-1">
                 {isResponsable
                   ? 'Administra los candidatos de tu plantel'
-                  : currentUser?.role === 'coordinator' 
-                    ? 'Administra los candidatos del sistema'
-                    : 'Administra todos los usuarios del sistema'
+                  : isSoporte
+                    ? 'Consulta y gestiona usuarios del sistema'
+                    : currentUser?.role === 'coordinator' 
+                      ? 'Administra los candidatos del sistema'
+                      : 'Administra todos los usuarios del sistema'
                 }
               </p>
             </div>
           </div>
           
+          {!isSoporte && (
           <div className="flex flex-col sm:flex-row fluid-gap-3">
             {/* Botón de carga masiva */}
             <button
@@ -491,12 +495,13 @@ export default function UsersListPage() {
             
             <Link
               to="/user-management/new"
-              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white text-blue-600 hover:bg-blue-50 rounded-fluid-lg font-medium fluid-text-sm transition-colors shadow-sm"
+              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white text-primary-600 hover:bg-primary-50 rounded-fluid-lg font-medium fluid-text-sm transition-colors shadow-sm"
             >
               <Plus className="fluid-icon-sm" />
               Nuevo Usuario
             </Link>
           </div>
+          )}
         </div>
       </div>
 
@@ -513,9 +518,9 @@ export default function UsersListPage() {
       {/* Stats Cards mejoradas */}
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 fluid-gap-4 fluid-mb-6">
-          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-blue-300 hover:shadow-md transition-all">
+          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-primary-300 hover:shadow-md transition-all">
             <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-fluid-xl shadow-sm">
+              <div className="fluid-p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-fluid-xl shadow-sm">
                 <Users className="fluid-icon-sm text-white" />
               </div>
               <div>
@@ -546,9 +551,9 @@ export default function UsersListPage() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-purple-300 hover:shadow-md transition-all">
+          <div className="bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 fluid-p-4 hover:border-primary-300 hover:shadow-md transition-all">
             <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-fluid-xl shadow-sm">
+              <div className="fluid-p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-fluid-xl shadow-sm">
                 <BarChart3 className="fluid-icon-sm text-white" />
               </div>
               <div>
@@ -570,7 +575,7 @@ export default function UsersListPage() {
               placeholder="Buscar por nombre, email, CURP..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all"
+              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 fluid-text-base transition-all"
             />
           </div>
           
@@ -579,7 +584,7 @@ export default function UsersListPage() {
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 border rounded-fluid-lg transition-colors ${
               showFilters || roleFilter || activeFilter
-                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                ? 'border-primary-500 text-primary-600 bg-primary-50'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -589,7 +594,7 @@ export default function UsersListPage() {
           
           <button
             type="submit"
-            className="fluid-px-6 fluid-py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-fluid-lg font-medium transition-colors"
+            className="fluid-px-6 fluid-py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-lg font-medium transition-colors"
           >
             Buscar
           </button>
@@ -672,7 +677,7 @@ export default function UsersListPage() {
               <span className="fluid-text-sm text-gray-600">
                 {selectedUsers.size > 0 ? (
                   <>
-                    <span className="font-semibold text-blue-600">{selectedUsers.size} usuarios seleccionados</span>
+                    <span className="font-semibold text-primary-600">{selectedUsers.size} usuarios seleccionados</span>
                     <button
                       onClick={clearSelection}
                       className="ml-2 text-red-600 hover:text-red-800 underline fluid-text-xs"
@@ -709,7 +714,7 @@ export default function UsersListPage() {
                 <button
                   onClick={openAssignModal}
                   disabled={selectedUsers.size === 0 || isExporting}
-                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
                   title="Asignar candidatos seleccionados a un grupo"
                 >
                   <UsersRound className="fluid-icon-sm" />
@@ -757,7 +762,7 @@ export default function UsersListPage() {
                 Mostrando {users.length} de {total} usuarios
               </p>
               {selectedUsers.size > 0 && (
-                <span className="fluid-text-sm font-medium text-blue-600">
+                <span className="fluid-text-sm font-medium text-primary-600">
                   ({selectedUsers.size} seleccionados)
                 </span>
               )}
@@ -772,7 +777,7 @@ export default function UsersListPage() {
                     setPerPage(Number(e.target.value));
                     setPage(1);
                   }}
-                  className="fluid-px-2 fluid-py-1 border border-gray-300 rounded-fluid fluid-text-sm focus:ring-2 focus:ring-blue-500"
+                  className="fluid-px-2 fluid-py-1 border border-gray-300 rounded-fluid fluid-text-sm focus:ring-2 focus:ring-primary-500"
                 >
                   <option value={10}>10</option>
                   <option value={20}>20</option>
@@ -831,9 +836,9 @@ export default function UsersListPage() {
                       title={isAllSelected ? 'Deseleccionar todos' : 'Seleccionar todos'}
                     >
                       {isAllSelected ? (
-                        <CheckSquare className="fluid-icon-sm text-blue-600" />
+                        <CheckSquare className="fluid-icon-sm text-primary-600" />
                       ) : isSomeSelected ? (
-                        <div className="fluid-w-4 fluid-h-4 border-2 border-blue-600 bg-blue-100 rounded" />
+                        <div className="fluid-w-4 fluid-h-4 border-2 border-primary-600 bg-primary-100 rounded" />
                       ) : (
                         <Square className="fluid-icon-sm text-gray-400" />
                       )}
@@ -843,7 +848,7 @@ export default function UsersListPage() {
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('full_name')}
-                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'full_name' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center fluid-gap-1 hover:text-primary-600 transition-colors ${sortField === 'full_name' ? 'text-primary-600' : ''}`}
                   >
                     Usuario
                     <SortIcon field="full_name" />
@@ -852,7 +857,7 @@ export default function UsersListPage() {
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('email')}
-                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'email' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center fluid-gap-1 hover:text-primary-600 transition-colors ${sortField === 'email' ? 'text-primary-600' : ''}`}
                   >
                     Email
                     <SortIcon field="email" />
@@ -861,7 +866,7 @@ export default function UsersListPage() {
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('curp')}
-                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'curp' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center fluid-gap-1 hover:text-primary-600 transition-colors ${sortField === 'curp' ? 'text-primary-600' : ''}`}
                   >
                     CURP
                     <SortIcon field="curp" />
@@ -870,7 +875,7 @@ export default function UsersListPage() {
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('role')}
-                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'role' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center fluid-gap-1 hover:text-primary-600 transition-colors ${sortField === 'role' ? 'text-primary-600' : ''}`}
                   >
                     Rol
                     <SortIcon field="role" />
@@ -880,7 +885,7 @@ export default function UsersListPage() {
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('is_active')}
-                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'is_active' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center fluid-gap-1 hover:text-primary-600 transition-colors ${sortField === 'is_active' ? 'text-primary-600' : ''}`}
                   >
                     Estado
                     <SortIcon field="is_active" />
@@ -889,7 +894,7 @@ export default function UsersListPage() {
                 <th className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-gray-600">
                   <button
                     onClick={() => handleSort('created_at')}
-                    className={`flex items-center fluid-gap-1 hover:text-blue-600 transition-colors ${sortField === 'created_at' ? 'text-blue-600' : ''}`}
+                    className={`flex items-center fluid-gap-1 hover:text-primary-600 transition-colors ${sortField === 'created_at' ? 'text-primary-600' : ''}`}
                   >
                     Creado
                     <SortIcon field="created_at" />
@@ -901,7 +906,7 @@ export default function UsersListPage() {
               {users.map((user) => (
                 <tr 
                   key={user.id} 
-                  className={`hover:bg-blue-50 transition-colors cursor-pointer ${selectedUsers.has(user.id) ? 'bg-blue-50' : ''}`}
+                  className={`hover:bg-primary-50 transition-colors cursor-pointer ${selectedUsers.has(user.id) ? 'bg-primary-50' : ''}`}
                   onClick={() => window.location.href = `/user-management/${user.id}`}
                 >
                   {/* Checkbox de selección - Admin y Coordinador */}
@@ -912,7 +917,7 @@ export default function UsersListPage() {
                         className="fluid-p-1 hover:bg-gray-200 rounded transition-colors"
                       >
                         {selectedUsers.has(user.id) ? (
-                          <CheckSquare className="fluid-icon-sm text-blue-600" />
+                          <CheckSquare className="fluid-icon-sm text-primary-600" />
                         ) : (
                           <Square className="fluid-icon-sm text-gray-400" />
                         )}
@@ -986,7 +991,7 @@ export default function UsersListPage() {
             {/* Header */}
             <div className="flex items-center justify-between fluid-px-6 fluid-py-4 border-b border-gray-200">
               <h3 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
-                <UsersRound className="fluid-icon-md text-blue-600" />
+                <UsersRound className="fluid-icon-md text-primary-600" />
                 Asignar a Grupo
               </h3>
               <button
@@ -1000,7 +1005,7 @@ export default function UsersListPage() {
             {/* Content */}
             <div className="fluid-px-6 fluid-py-4 space-y-4">
               <p className="fluid-text-sm text-gray-600">
-                Seleccionaste <strong className="text-blue-600">{selectedUsers.size}</strong> usuario(s).
+                Seleccionaste <strong className="text-primary-600">{selectedUsers.size}</strong> usuario(s).
                 Solo los candidatos serán agregados al grupo.
               </p>
               
@@ -1032,7 +1037,7 @@ export default function UsersListPage() {
                   </label>
                   {isLoadingGroups ? (
                     <div className="flex items-center justify-center fluid-py-4">
-                      <div className="fluid-w-6 fluid-h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      <div className="fluid-w-6 fluid-h-6 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
                       <span className="fluid-ml-2 fluid-text-sm text-gray-600">Cargando grupos...</span>
                     </div>
                   ) : groups.length === 0 ? (
@@ -1078,7 +1083,7 @@ export default function UsersListPage() {
               <button
                 onClick={handleAssignToGroup}
                 disabled={!selectedGroupId || isAssigning}
-                className="fluid-px-4 fluid-py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors inline-flex items-center fluid-gap-2"
+                className="fluid-px-4 fluid-py-2 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors inline-flex items-center fluid-gap-2"
               >
                 {isAssigning ? (
                   <>

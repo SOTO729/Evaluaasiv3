@@ -429,6 +429,25 @@ def get_dashboard():
                     results_by_exam[exam_id] = []
                 results_by_exam[exam_id].append(result.to_dict())
         
+        # ========== Precomputar info de campus para resultados con group_id ==========
+        group_ids = set(r.group_id for r in user_results if r.group_id)
+        campus_by_group = {}
+        if group_ids:
+            from app.models.partner import CandidateGroup, Campus
+            groups_with_campus = db.session.query(
+                CandidateGroup.id, Campus.id, Campus.name, Campus.logo_url
+            ).join(Campus, CandidateGroup.campus_id == Campus.id).filter(
+                CandidateGroup.id.in_(group_ids)
+            ).all()
+            for gid, cid, cname, clogo in groups_with_campus:
+                campus_by_group[gid] = {'id': cid, 'name': cname, 'logo_url': clogo}
+        
+        def _enrich_with_campus(result_dict):
+            """Agregar info de campus al diccionario del resultado"""
+            gid = result_dict.get('group_id')
+            result_dict['campus'] = campus_by_group.get(gid) if gid else None
+            return result_dict
+        
         # Construir lista de exámenes con resultados
         exams_data = []
         for exam, categories_count in available_exams:
@@ -443,6 +462,23 @@ def get_dashboard():
             is_completed = any(r['status'] == 1 for r in exam_results)
             is_approved = any(r['result'] == 1 for r in exam_results)
             approved_result = next((r for r in exam_results if r['result'] == 1), None)
+            
+            # Recopilar TODOS los resultados aprobados de diferentes planteles
+            all_approved = [r for r in exam_results if r['result'] == 1]
+            # Deduplicar por campus: un resultado por campus (el de mejor score)
+            seen_campuses = {}
+            approved_results_by_campus = []
+            for r in all_approved:
+                enriched = _enrich_with_campus(dict(r))
+                campus_id = enriched['campus']['id'] if enriched['campus'] else None
+                if campus_id not in seen_campuses:
+                    seen_campuses[campus_id] = enriched
+                elif r['score'] > seen_campuses[campus_id]['score']:
+                    seen_campuses[campus_id] = enriched
+            approved_results_by_campus = list(seen_campuses.values())
+            
+            if approved_result:
+                approved_result = _enrich_with_campus(dict(approved_result))
             
             exams_data.append({
                 'id': exam.id,
@@ -462,7 +498,8 @@ def get_dashboard():
                     'is_completed': is_completed,
                     'is_approved': is_approved,
                     'last_attempt': last_attempt,
-                    'approved_result': approved_result
+                    'approved_result': approved_result,
+                    'approved_results_by_campus': approved_results_by_campus if len(approved_results_by_campus) > 1 else None
                 }
             })
         

@@ -213,6 +213,22 @@ def create_app(config_name='development'):
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando tablas: {e}")
 
+        # Add issuer_logo columns to badge_templates
+        try:
+            from sqlalchemy import inspect as sa_inspect, text
+            inspector = sa_inspect(db.engine)
+            if 'badge_templates' in inspector.get_table_names():
+                cols = [c['name'] for c in inspector.get_columns('badge_templates')]
+                for col_name, col_def in [('issuer_logo_url', 'NVARCHAR(500) NULL'), ('issuer_logo_blob_name', 'NVARCHAR(500) NULL')]:
+                    if col_name not in cols:
+                        db.session.execute(text(f"ALTER TABLE badge_templates ADD {col_name} {col_def}"))
+                        db.session.commit()
+                        print(f"[AUTO-MIGRATE] Added {col_name} to badge_templates")
+        except Exception as e:
+            db.session.rollback()
+            if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                print(f"[AUTO-MIGRATE] Error adding issuer_logo columns: {e}")
+
         # Recover orphaned curp_pending users from interrupted verifications
         try:
             from app.auto_migrate import check_and_recover_orphaned_curp_users

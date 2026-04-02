@@ -161,8 +161,8 @@ export default function GruposListPage() {
   const renderSortIcon = (field: SortField) => {
     if (sortField === field) {
       return sortDirection === 'asc'
-        ? <ArrowUp className="h-3 w-3 ml-1 inline text-blue-600" />
-        : <ArrowDown className="h-3 w-3 ml-1 inline text-blue-600" />;
+        ? <ArrowUp className="h-3 w-3 ml-1 inline text-primary-600" />
+        : <ArrowDown className="h-3 w-3 ml-1 inline text-primary-600" />;
     }
     return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />;
   };
@@ -229,7 +229,7 @@ export default function GruposListPage() {
               onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
               onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
               onBlur={handlePageInputSubmit}
-              className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               title="Escribe el número de página y presiona Enter"
             />
             <span className="fluid-text-sm text-gray-400">de {totalPages.toLocaleString()}</span>
@@ -271,7 +271,7 @@ export default function GruposListPage() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center fluid-gap-4 fluid-mb-6">
         <div>
           <h1 className="fluid-text-3xl font-bold text-gray-800 flex items-center fluid-gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-fluid-xl flex items-center justify-center shadow-md">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-fluid-xl flex items-center justify-center shadow-md">
               <Users className="w-5 h-5 text-white" />
             </div>
             Grupos
@@ -307,7 +307,7 @@ export default function GruposListPage() {
               placeholder="Buscar grupo, plantel, partner, ciclo escolar..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full fluid-pl-12 fluid-pr-10 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent fluid-text-base"
+              className="w-full fluid-pl-12 fluid-pr-10 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-base"
             />
             {searchTerm && (
               <button
@@ -326,14 +326,14 @@ export default function GruposListPage() {
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-3 border rounded-fluid-xl fluid-text-sm transition-colors ${
                 showAdvancedFilters || hasActiveFilters
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  ? 'border-primary-500 bg-primary-50 text-primary-700'
                   : 'border-gray-300 hover:bg-gray-50 text-gray-700'
               }`}
             >
               <SlidersHorizontal className="fluid-icon-sm" />
               Filtros
               {activeFilterCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 bg-blue-600 text-white rounded-full text-[10px] font-bold leading-none">
+                <span className="ml-1 px-1.5 py-0.5 bg-primary-600 text-white rounded-full text-[10px] font-bold leading-none">
                   {activeFilterCount}
                 </span>
               )}
@@ -349,7 +349,7 @@ export default function GruposListPage() {
                 onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
                 onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
                 onBlur={handlePageSizeInputSubmit}
-                className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 title="Registros por página (máx 1000)"
               />
             </div>
@@ -393,7 +393,7 @@ export default function GruposListPage() {
                   onChange={(e) => setFilterPartnerId(e.target.value ? Number(e.target.value) : '')}
                   className={`w-full fluid-px-3 fluid-py-2.5 border rounded-fluid-lg fluid-text-sm transition-colors cursor-pointer ${
                     filterPartnerId
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-gray-300 hover:bg-gray-50 text-gray-700'
                   }`}
                 >
@@ -415,7 +415,7 @@ export default function GruposListPage() {
                   onChange={(e) => setFilterCycle(e.target.value)}
                   className={`w-full fluid-px-3 fluid-py-2.5 border rounded-fluid-lg fluid-text-sm transition-colors cursor-pointer ${
                     filterCycle
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
                       : 'border-gray-300 hover:bg-gray-50 text-gray-700'
                   }`}
                 >
@@ -443,10 +443,10 @@ export default function GruposListPage() {
               </span>
             )}
             {filterPartnerId && (
-              <span className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-purple-100 text-purple-700 rounded-full fluid-text-sm">
+              <span className="inline-flex items-center fluid-gap-1 fluid-px-3 fluid-py-1 bg-primary-100 text-primary-700 rounded-full fluid-text-sm">
                 <Building2 className="w-3 h-3" />
                 {availablePartners.find(p => p.id === filterPartnerId)?.name || 'Partner'}
-                <button onClick={() => setFilterPartnerId('')} className="ml-1 hover:text-purple-900">
+                <button onClick={() => setFilterPartnerId('')} className="ml-1 hover:text-primary-900">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -480,7 +480,7 @@ export default function GruposListPage() {
           {hasActiveFilters && (
             <button
               onClick={clearAllFilters}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-fluid-xl fluid-text-base transition-colors"
+              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-fluid-xl fluid-text-base transition-colors"
             >
               <X className="fluid-icon-sm" />
               Limpiar filtros
@@ -569,16 +569,16 @@ export default function GruposListPage() {
                   {groups.map((group) => (
                     <tr
                       key={group.id}
-                      className="hover:bg-blue-50/50 transition-colors cursor-pointer group/row"
+                      className="hover:bg-primary-50/50 transition-colors cursor-pointer group/row"
                       onClick={() => navigate(isResponsable ? `/mi-plantel/grupos/${group.id}` : `/partners/groups/${group.id}`)}
                     >
                       {/* Nombre del grupo */}
                       <td className="fluid-px-4 fluid-py-3">
                         <div className="flex items-center fluid-gap-3 min-w-0">
                           <div className={`w-9 h-9 rounded-fluid-lg flex-shrink-0 flex items-center justify-center ${
-                            group.is_active ? 'bg-blue-100' : 'bg-gray-100'
+                            group.is_active ? 'bg-primary-100' : 'bg-gray-100'
                           }`}>
-                            <Layers className={`w-4 h-4 ${group.is_active ? 'text-blue-600' : 'text-gray-400'}`} />
+                            <Layers className={`w-4 h-4 ${group.is_active ? 'text-primary-600' : 'text-gray-400'}`} />
                           </div>
                           <div className="min-w-0">
                             <p className={`fluid-text-sm font-semibold truncate max-w-[220px] ${
@@ -598,7 +598,7 @@ export default function GruposListPage() {
                         <div className="flex items-center fluid-gap-2 min-w-0">
                           <Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                           <span
-                            className={`fluid-text-sm text-gray-700 truncate max-w-[160px] ${!isResponsable ? 'hover:text-blue-600' : ''}`}
+                            className={`fluid-text-sm text-gray-700 truncate max-w-[160px] ${!isResponsable ? 'hover:text-primary-600' : ''}`}
                             title={group.partner_name}
                             onClick={(e) => {
                               if (!isResponsable) {
@@ -615,7 +615,7 @@ export default function GruposListPage() {
                       {/* Plantel */}
                       <td className="fluid-px-4 fluid-py-3">
                         <span
-                          className={`fluid-text-sm text-gray-600 truncate block max-w-[160px] ${!isResponsable ? 'hover:text-blue-600' : ''}`}
+                          className={`fluid-text-sm text-gray-600 truncate block max-w-[160px] ${!isResponsable ? 'hover:text-primary-600' : ''}`}
                           title={group.campus_name}
                           onClick={(e) => {
                             if (!isResponsable) {
@@ -690,7 +690,7 @@ export default function GruposListPage() {
 
                       {/* Acción */}
                       <td className="fluid-px-4 fluid-py-3 text-right">
-                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover/row:text-blue-500 transition-colors" />
+                        <ChevronRight className="w-4 h-4 text-gray-300 group-hover/row:text-primary-500 transition-colors" />
                       </td>
                     </tr>
                   ))}

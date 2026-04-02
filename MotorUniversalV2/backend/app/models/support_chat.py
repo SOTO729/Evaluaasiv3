@@ -122,7 +122,7 @@ class SupportMessage(db.Model):
         index=True,
     )
 
-    content = db.Column(db.Text, nullable=True)
+    content = db.Column(db.UnicodeText, nullable=True)
     message_type = db.Column(db.String(20), nullable=False, default="text")
 
     attachment_url = db.Column(db.String(500), nullable=True)
@@ -158,7 +158,7 @@ class SupportConversationSatisfaction(db.Model):
         index=True,
     )
     rating = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.Text, nullable=True)
+    comment = db.Column(db.UnicodeText, nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

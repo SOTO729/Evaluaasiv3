@@ -246,7 +246,7 @@ export default function ExamSelectConfigPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center fluid-gap-4">
           <Link to={basePath} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
             <ArrowLeft className="fluid-icon-lg" />
@@ -269,9 +269,9 @@ export default function ExamSelectConfigPage() {
             <div key={label} className="flex items-center">
               <div className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center fluid-text-sm font-semibold transition-all ${
-                  i < activeStepIdx ? 'bg-green-500 text-white' : i === activeStepIdx ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
+                  i < activeStepIdx ? 'bg-green-500 text-white' : i === activeStepIdx ? 'bg-primary-600 text-white ring-4 ring-primary-200 shadow-lg' : 'bg-gray-200 text-gray-600'
                 }`}>{i < activeStepIdx ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
-                <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === activeStepIdx ? 'text-blue-600' : i < activeStepIdx ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
+                <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === activeStepIdx ? 'text-primary-600' : i < activeStepIdx ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
               </div>
               {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < activeStepIdx ? 'bg-green-400' : 'bg-gray-200'}`} />}
             </div>
@@ -300,7 +300,7 @@ export default function ExamSelectConfigPage() {
       {step === 'select-ecm' && (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
           <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
-            <Award className="fluid-icon-base text-indigo-600" />
+            <Award className="fluid-icon-base text-primary-600" />
             Selecciona un Estándar de Competencia (ECM)
           </h2>
 
@@ -309,7 +309,7 @@ export default function ExamSelectConfigPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
             <input type="text" placeholder="Buscar ECM por código, nombre o sector..."
               value={ecmSearchQuery} onChange={(e) => setEcmSearchQuery(e.target.value)}
-              className="w-full fluid-pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              className="w-full fluid-pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             {ecmSearchQuery && (
               <button onClick={() => setEcmSearchQuery('')}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>
@@ -319,7 +319,7 @@ export default function ExamSelectConfigPage() {
           {/* ECM List */}
           {loadingEcms ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando estándares...</span>
+              <Loader2 className="fluid-icon-lg animate-spin text-primary-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando estándares...</span>
             </div>
           ) : availableEcms.length > 0 ? (
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
@@ -329,27 +329,27 @@ export default function ExamSelectConfigPage() {
                   <div key={ecm.id}
                     onClick={() => handleSelectEcm(ecm)}
                     className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all hover:shadow-md ${
-                      selectedEcm?.id === ecm.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                      selectedEcm?.id === ecm.id ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' : 'border-gray-200 hover:border-primary-300 hover:bg-primary-50/30'
                     }`}>
                     <div className="flex items-start fluid-gap-4">
                       {/* Logo */}
                       {logoUrl ? (
                         <img src={logoUrl} alt={ecm.code} className="w-14 h-14 rounded-fluid-xl object-contain bg-white border border-gray-200 p-1 flex-shrink-0" />
                       ) : (
-                        <div className="w-14 h-14 rounded-fluid-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <Award className="fluid-icon-lg text-indigo-500" />
+                        <div className="w-14 h-14 rounded-fluid-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
+                          <Award className="fluid-icon-lg text-primary-500" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center fluid-gap-2 flex-wrap">
-                          <span className="font-bold text-indigo-800 fluid-text-base">{ecm.code}</span>
+                          <span className="font-bold text-primary-800 fluid-text-base">{ecm.code}</span>
                           {ecm.brand_name && (
                             <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
                               {ecm.brand_logo_url && <img src={ecm.brand_logo_url} alt="" className="w-3.5 h-3.5 mr-1 object-contain" />}
                               {ecm.brand_name}
                             </span>
                           )}
-                          <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-blue-100 text-blue-700">
+                          <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-full fluid-text-xs font-medium bg-primary-100 text-primary-700">
                             {ecm.published_exam_count} {ecm.published_exam_count === 1 ? 'examen' : 'exámenes'}
                           </span>
                         </div>
@@ -382,7 +382,7 @@ export default function ExamSelectConfigPage() {
               <Award className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" />
               <p className="fluid-text-base">{ecmSearchQuery ? 'No se encontraron ECMs con esa búsqueda' : 'No hay ECMs asignados a este plantel'}</p>
               {ecmSearchQuery && (
-                <button onClick={() => setEcmSearchQuery('')} className="mt-2 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
+                <button onClick={() => setEcmSearchQuery('')} className="mt-2 fluid-text-sm text-primary-600 hover:text-primary-800 font-medium">
                   Limpiar búsqueda
                 </button>
               )}
@@ -395,28 +395,28 @@ export default function ExamSelectConfigPage() {
       {step === 'select-exam' && selectedEcm && (
         <div className="space-y-4">
           {/* Selected ECM banner */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-xl fluid-p-4">
+          <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center fluid-gap-3">
                 {(selectedEcm.logo_url || selectedEcm.brand_logo_url) ? (
                   <img src={selectedEcm.logo_url || selectedEcm.brand_logo_url} alt={selectedEcm.code} className="w-10 h-10 rounded-lg object-contain bg-white border border-gray-200 p-0.5" />
                 ) : (
-                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                    <Award className="fluid-icon-base text-indigo-500" />
+                  <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+                    <Award className="fluid-icon-base text-primary-500" />
                   </div>
                 )}
                 <div>
-                  <p className="fluid-text-xs text-indigo-600 font-medium">ECM seleccionado</p>
-                  <p className="font-semibold text-indigo-900 fluid-text-sm">{selectedEcm.code} — {selectedEcm.name}</p>
+                  <p className="fluid-text-xs text-primary-600 font-medium">ECM seleccionado</p>
+                  <p className="font-semibold text-primary-900 fluid-text-sm">{selectedEcm.code} — {selectedEcm.name}</p>
                 </div>
               </div>
-              <button onClick={handleBackToEcm} className="text-indigo-600 hover:text-indigo-800 fluid-text-sm font-medium">← Cambiar ECM</button>
+              <button onClick={handleBackToEcm} className="text-primary-600 hover:text-primary-800 fluid-text-sm font-medium">← Cambiar ECM</button>
             </div>
           </div>
 
           <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
           <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
-            <ClipboardList className="fluid-icon-base text-indigo-600" />
+            <ClipboardList className="fluid-icon-base text-primary-600" />
             Selecciona un Examen Publicado
           </h2>
 
@@ -425,7 +425,7 @@ export default function ExamSelectConfigPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
             <input type="text" placeholder="Buscar examen por nombre..."
               value={examSearchQuery} onChange={(e) => setExamSearchQuery(e.target.value)}
-              className="w-full fluid-pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              className="w-full fluid-pl-10 pr-4 fluid-py-3 border border-gray-300 rounded-fluid-xl fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
             {examSearchQuery && (
               <button onClick={() => setExamSearchQuery('')}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"><X className="fluid-icon-sm" /></button>
@@ -435,7 +435,7 @@ export default function ExamSelectConfigPage() {
           {/* Exam List */}
           {loadingExams ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando exámenes...</span>
+              <Loader2 className="fluid-icon-lg animate-spin text-primary-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando exámenes...</span>
             </div>
           ) : availableExams.length > 0 ? (
             <div className="space-y-3">
@@ -447,8 +447,8 @@ export default function ExamSelectConfigPage() {
                   }}
                   className={`fluid-p-4 border-2 rounded-fluid-xl transition-all ${
                     exam.is_assigned_to_group ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-70'
-                    : selectedExam?.id === exam.id ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 cursor-pointer'
-                    : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer'
+                    : selectedExam?.id === exam.id ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200 cursor-pointer'
+                    : 'border-gray-200 hover:border-primary-300 hover:bg-primary-50/30 cursor-pointer'
                   }`}>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -470,7 +470,7 @@ export default function ExamSelectConfigPage() {
                     </div>
                     <div className="flex-shrink-0 ml-3">
                       {exam.is_assigned_to_group ? <Lock className="fluid-icon-base text-orange-500" />
-                      : selectedExam?.id === exam.id ? <CheckCircle2 className="fluid-icon-base text-blue-600" /> : null}
+                      : selectedExam?.id === exam.id ? <CheckCircle2 className="fluid-icon-base text-primary-600" /> : null}
                     </div>
                   </div>
                 </div>
@@ -481,7 +481,7 @@ export default function ExamSelectConfigPage() {
               <ClipboardList className="w-12 h-12 mx-auto text-gray-300 fluid-mb-3" />
               <p className="fluid-text-base">{examSearchQuery ? 'No se encontraron exámenes con esa búsqueda' : 'No hay exámenes publicados para este ECM'}</p>
               {examSearchQuery && (
-                <button onClick={() => setExamSearchQuery('')} className="mt-2 fluid-text-sm text-blue-600 hover:text-blue-800 font-medium">
+                <button onClick={() => setExamSearchQuery('')} className="mt-2 fluid-text-sm text-primary-600 hover:text-primary-800 font-medium">
                   Limpiar búsqueda
                 </button>
               )}
@@ -490,14 +490,14 @@ export default function ExamSelectConfigPage() {
 
           {/* Selected exam detail preview */}
           {selectedExam && (
-            <div className="mt-4 fluid-p-5 bg-blue-50 border border-blue-200 rounded-fluid-xl">
-              <p className="fluid-text-sm text-blue-600 font-medium fluid-mb-2">Examen seleccionado:</p>
+            <div className="mt-4 fluid-p-5 bg-primary-50 border border-primary-200 rounded-fluid-xl">
+              <p className="fluid-text-sm text-primary-600 font-medium fluid-mb-2">Examen seleccionado:</p>
               <h3 className="font-semibold text-gray-900 fluid-text-base">{selectedExam.name}</h3>
               <div className="flex flex-wrap items-center fluid-gap-4 mt-3 fluid-text-sm text-gray-600">
                 <span className="flex items-center"><Clock className="fluid-icon-sm mr-1" />{selectedExam.duration_minutes} min</span>
                 <span className="flex items-center"><Target className="fluid-icon-sm mr-1" />{selectedExam.passing_score}% mín</span>
-                <span className="flex items-center text-blue-600" title="Preguntas: Examen / Simulador"><FileQuestion className="fluid-icon-sm mr-1" />{selectedExam.exam_questions_count || 0}/{selectedExam.simulator_questions_count || 0} preg</span>
-                <span className="flex items-center text-purple-600" title="Ejercicios: Examen / Simulador"><Dumbbell className="fluid-icon-sm mr-1" />{selectedExam.exam_exercises_count || 0}/{selectedExam.simulator_exercises_count || 0} ejer</span>
+                <span className="flex items-center text-primary-600" title="Preguntas: Examen / Simulador"><FileQuestion className="fluid-icon-sm mr-1" />{selectedExam.exam_questions_count || 0}/{selectedExam.simulator_questions_count || 0} preg</span>
+                <span className="flex items-center text-primary-600" title="Ejercicios: Examen / Simulador"><Dumbbell className="fluid-icon-sm mr-1" />{selectedExam.exam_exercises_count || 0}/{selectedExam.simulator_exercises_count || 0} ejer</span>
                 <span className="flex items-center"><BookOpen className="fluid-icon-sm mr-1" />{selectedExam.study_materials_count} mat</span>
               </div>
             </div>
@@ -505,7 +505,7 @@ export default function ExamSelectConfigPage() {
 
           <div className="mt-4 flex justify-end">
             <button onClick={handleContinueToConfig} disabled={!selectedExam}
-              className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 shadow-lg transition-all fluid-text-sm">
+              className="fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 shadow-lg transition-all fluid-text-sm">
               Continuar <ChevronRight className="fluid-icon-base" />
             </button>
           </div>
@@ -517,14 +517,14 @@ export default function ExamSelectConfigPage() {
       {step === 'accept-or-customize' && selectedExam && (
         <div className="space-y-6">
           {/* Exam banner */}
-          <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-5">
+          <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="fluid-text-sm text-blue-600 font-medium">Examen seleccionado</p>
+                <p className="fluid-text-sm text-primary-600 font-medium">Examen seleccionado</p>
                 <h3 className="font-semibold text-gray-900 mt-1 fluid-text-base">{selectedExam.name}</h3>
                 {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
               </div>
-              <button onClick={() => setStep('select-exam')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">Cambiar</button>
+              <button onClick={() => setStep('select-exam')} className="text-primary-600 hover:text-primary-800 fluid-text-sm font-medium">Cambiar</button>
             </div>
           </div>
 
@@ -546,7 +546,7 @@ export default function ExamSelectConfigPage() {
               {/* Config summary cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 fluid-gap-4">
                 <div className="bg-gray-50 rounded-fluid-xl fluid-p-4 text-center border border-gray-100">
-                  <Clock className="fluid-icon-base text-blue-500 mx-auto fluid-mb-2" />
+                  <Clock className="fluid-icon-base text-primary-500 mx-auto fluid-mb-2" />
                   <p className="fluid-text-xl font-bold text-gray-800">{selectedExam.duration_minutes || 0}</p>
                   <p className="fluid-text-xs text-gray-500">Minutos</p>
                 </div>
@@ -569,17 +569,17 @@ export default function ExamSelectConfigPage() {
 
               {/* Tipo de contenido + cantidades */}
               <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
-                <div className="bg-blue-50 rounded-fluid-xl fluid-p-4 border border-blue-100">
-                  <p className="fluid-text-xs font-semibold text-blue-700 uppercase tracking-wide fluid-mb-2">Tipo de Contenido</p>
-                  <p className="fluid-text-base font-bold text-blue-900">
+                <div className="bg-primary-50 rounded-fluid-xl fluid-p-4 border border-primary-100">
+                  <p className="fluid-text-xs font-semibold text-primary-700 uppercase tracking-wide fluid-mb-2">Tipo de Contenido</p>
+                  <p className="fluid-text-base font-bold text-primary-900">
                     {(selectedExam.default_exam_content_type || 'mixed') === 'mixed' ? 'Preguntas y Ejercicios' : 
                      (selectedExam.default_exam_content_type || 'mixed') === 'questions_only' ? 'Solo Preguntas' : 'Solo Ejercicios'}
                   </p>
                 </div>
-                <div className="bg-purple-50 rounded-fluid-xl fluid-p-4 border border-purple-100">
-                  <p className="fluid-text-xs font-semibold text-purple-700 uppercase tracking-wide fluid-mb-2">Materiales Ligados</p>
-                  <p className="fluid-text-base font-bold text-purple-900">{selectedExam.linked_material_ids?.length || 0} materiales</p>
-                  <p className="fluid-text-xs text-purple-600 fluid-mt-1">Se asignarán automáticamente</p>
+                <div className="bg-primary-50 rounded-fluid-xl fluid-p-4 border border-primary-100">
+                  <p className="fluid-text-xs font-semibold text-primary-700 uppercase tracking-wide fluid-mb-2">Materiales Ligados</p>
+                  <p className="fluid-text-base font-bold text-primary-900">{selectedExam.linked_material_ids?.length || 0} materiales</p>
+                  <p className="fluid-text-xs text-primary-600 fluid-mt-1">Se asignarán automáticamente</p>
                 </div>
               </div>
 
@@ -627,14 +627,14 @@ export default function ExamSelectConfigPage() {
       {step === 'configure' && selectedExam && (
         <div className="space-y-6">
           {/* Selected exam banner */}
-          <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-5">
+          <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="fluid-text-sm text-blue-600 font-medium">Examen seleccionado</p>
+                <p className="fluid-text-sm text-primary-600 font-medium">Examen seleccionado</p>
                 <h3 className="font-semibold text-gray-900 mt-1 fluid-text-base">{selectedExam.name}</h3>
                 {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
               </div>
-              <button onClick={() => setStep('accept-or-customize')} className="text-blue-600 hover:text-blue-800 fluid-text-sm font-medium">← Volver</button>
+              <button onClick={() => setStep('accept-or-customize')} className="text-primary-600 hover:text-primary-800 fluid-text-sm font-medium">← Volver</button>
             </div>
           </div>
 
@@ -648,9 +648,9 @@ export default function ExamSelectConfigPage() {
                 {EXAM_CONTENT_TYPES.map((type) => (
                   <div key={type.value} onClick={() => setExamContentType(type.value)}
                     className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${
-                      examContentType === type.value ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                      examContentType === type.value ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                     }`}>
-                    <div className={`fluid-mb-2 ${examContentType === type.value ? 'text-blue-600' : 'text-gray-400'}`}>
+                    <div className={`fluid-mb-2 ${examContentType === type.value ? 'text-primary-600' : 'text-gray-400'}`}>
                       {type.value === 'mixed' ? <Layers className="fluid-icon-lg" /> : type.value === 'questions_only' ? <FileQuestion className="fluid-icon-lg" /> : <Dumbbell className="fluid-icon-lg" />}
                     </div>
                     <h4 className="font-medium text-gray-900 fluid-text-base">{type.label}</h4>
@@ -664,13 +664,13 @@ export default function ExamSelectConfigPage() {
             <div className="fluid-mb-6">
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2"><Clock className="fluid-icon-sm inline mr-1" />Tiempo Límite</label>
               <label className="flex items-center">
-                <input type="checkbox" checked={useExamDefaultTime} onChange={(e) => setUseExamDefaultTime(e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <input type="checkbox" checked={useExamDefaultTime} onChange={(e) => setUseExamDefaultTime(e.target.checked)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                 <span className="ml-2 fluid-text-sm text-gray-600">Usar tiempo del examen ({selectedExam.duration_minutes} min)</span>
               </label>
               {!useExamDefaultTime && (
                 <div className="mt-3 flex items-center fluid-gap-2">
                   <input type="number" value={timeLimitMinutes || ''} onChange={(e) => setTimeLimitMinutes(e.target.value ? Number(e.target.value) : null)}
-                    min={1} max={480} className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500" placeholder="Min" />
+                    min={1} max={480} className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500" placeholder="Min" />
                   <span className="text-gray-500 fluid-text-sm">minutos</span>
                 </div>
               )}
@@ -680,13 +680,13 @@ export default function ExamSelectConfigPage() {
             <div className="fluid-mb-6">
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2"><Target className="fluid-icon-sm inline mr-1" />Calificación Mínima para Aprobar</label>
               <label className="flex items-center">
-                <input type="checkbox" checked={useExamDefaultScore} onChange={(e) => setUseExamDefaultScore(e.target.checked)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <input type="checkbox" checked={useExamDefaultScore} onChange={(e) => setUseExamDefaultScore(e.target.checked)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                 <span className="ml-2 fluid-text-sm text-gray-600">Usar calificación del examen ({selectedExam.passing_score}%)</span>
               </label>
               {!useExamDefaultScore && (
                 <div className="mt-3 flex items-center fluid-gap-2">
                   <input type="number" value={passingScore} onChange={(e) => setPassingScore(Number(e.target.value))} min={0} max={100}
-                    className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500" /><span className="text-gray-500 fluid-text-sm">%</span>
+                    className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500" /><span className="text-gray-500 fluid-text-sm">%</span>
                 </div>
               )}
             </div>
@@ -696,7 +696,7 @@ export default function ExamSelectConfigPage() {
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2"><RefreshCw className="fluid-icon-sm inline mr-1" />Número de Reintentos Permitidos</label>
               <div className="flex items-center fluid-gap-2">
                 <input type="number" value={maxAttempts} onChange={(e) => setMaxAttempts(Math.max(1, Number(e.target.value)))} min={1} max={10}
-                  className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500" />
+                  className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500" />
                 <span className="text-gray-500 fluid-text-sm">intento(s)</span>
               </div>
               <p className="fluid-text-xs text-gray-500 mt-1">El candidato podrá realizar el examen hasta este número de veces</p>
@@ -707,7 +707,7 @@ export default function ExamSelectConfigPage() {
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2"><EyeOff className="fluid-icon-sm inline mr-1" />Oportunidades de Desconexión</label>
               <div className="flex items-center fluid-gap-2">
                 <input type="number" value={maxDisconnections} onChange={(e) => setMaxDisconnections(Math.max(0, Number(e.target.value)))} min={0} max={10}
-                  className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500" />
+                  className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500" />
                 <span className="text-gray-500 fluid-text-sm">oportunidades</span>
               </div>
               <p className="fluid-text-xs text-gray-500 mt-1">Veces que el candidato puede salir de pantalla o desconectarse antes de invalidar el examen</p>
@@ -715,25 +715,25 @@ export default function ExamSelectConfigPage() {
 
             {/* Content counts */}
             <div className="border-t pt-6 fluid-mb-6">
-              <h3 className="fluid-text-base font-medium text-gray-900 fluid-mb-4 flex items-center fluid-gap-2"><Hash className="fluid-icon-base text-purple-500" />Cantidad de Contenido</h3>
+              <h3 className="fluid-text-base font-medium text-gray-900 fluid-mb-4 flex items-center fluid-gap-2"><Hash className="fluid-icon-base text-primary-500" />Cantidad de Contenido</h3>
               <p className="fluid-text-sm text-gray-500 fluid-mb-4">Define cuántas preguntas y/o ejercicios incluir para cada modo.</p>
 
               {/* Exam section */}
               {((selectedExam.exam_questions_count || 0) > 0 || (selectedExam.exam_exercises_count || 0) > 0) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
-                  <h4 className="font-medium text-blue-800 fluid-mb-3 flex items-center fluid-gap-2"><FileQuestion className="fluid-icon-sm" />Examen</h4>
+                <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
+                  <h4 className="font-medium text-primary-800 fluid-mb-3 flex items-center fluid-gap-2"><FileQuestion className="fluid-icon-sm" />Examen</h4>
                   {(examContentType === 'mixed' || examContentType === 'questions_only') && (selectedExam.exam_questions_count || 0) > 0 && (
                     <div className="fluid-mb-3">
                       <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Preguntas <span className="text-gray-400 font-normal ml-2">(Disponibles: {selectedExam.exam_questions_count})</span></label>
                       <label className="flex items-center">
                         <input type="checkbox" checked={useAllExamQuestions} onChange={(e) => { setUseAllExamQuestions(e.target.checked); if (e.target.checked) setExamQuestionsCount(null); else setExamQuestionsCount(selectedExam.exam_questions_count || 0); }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                         <span className="ml-2 fluid-text-sm text-gray-600">Usar todas ({selectedExam.exam_questions_count})</span>
                       </label>
                       {!useAllExamQuestions && (
                         <div className="mt-2 flex items-center fluid-gap-2">
                           <input type="number" value={examQuestionsCount || ''} onChange={(e) => setExamQuestionsCount(e.target.value ? Number(e.target.value) : null)}
-                            min={1} max={selectedExam.exam_questions_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 fluid-text-sm" />
+                            min={1} max={selectedExam.exam_questions_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 fluid-text-sm" />
                           <span className="fluid-text-sm text-gray-500">de {selectedExam.exam_questions_count}</span>
                         </div>
                       )}
@@ -744,13 +744,13 @@ export default function ExamSelectConfigPage() {
                       <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Ejercicios <span className="text-gray-400 font-normal ml-2">(Disponibles: {selectedExam.exam_exercises_count})</span></label>
                       <label className="flex items-center">
                         <input type="checkbox" checked={useAllExamExercises} onChange={(e) => { setUseAllExamExercises(e.target.checked); if (e.target.checked) setExamExercisesCount(null); else setExamExercisesCount(selectedExam.exam_exercises_count || 0); }}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                         <span className="ml-2 fluid-text-sm text-gray-600">Usar todos ({selectedExam.exam_exercises_count})</span>
                       </label>
                       {!useAllExamExercises && (
                         <div className="mt-2 flex items-center fluid-gap-2">
                           <input type="number" value={examExercisesCount || ''} onChange={(e) => setExamExercisesCount(e.target.value ? Number(e.target.value) : null)}
-                            min={1} max={selectedExam.exam_exercises_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 fluid-text-sm" />
+                            min={1} max={selectedExam.exam_exercises_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 fluid-text-sm" />
                           <span className="fluid-text-sm text-gray-500">de {selectedExam.exam_exercises_count}</span>
                         </div>
                       )}
@@ -761,20 +761,20 @@ export default function ExamSelectConfigPage() {
 
               {/* Simulator section */}
               {((selectedExam.simulator_questions_count || 0) > 0 || (selectedExam.simulator_exercises_count || 0) > 0) && (
-                <div className="bg-purple-50 border border-purple-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
-                  <h4 className="font-medium text-purple-800 fluid-mb-3 flex items-center fluid-gap-2"><Layers className="fluid-icon-sm" />Simulador</h4>
+                <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
+                  <h4 className="font-medium text-primary-800 fluid-mb-3 flex items-center fluid-gap-2"><Layers className="fluid-icon-sm" />Simulador</h4>
                   {(examContentType === 'mixed' || examContentType === 'questions_only') && (selectedExam.simulator_questions_count || 0) > 0 && (
                     <div className="fluid-mb-3">
                       <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Preguntas <span className="text-gray-400 font-normal ml-2">(Disponibles: {selectedExam.simulator_questions_count})</span></label>
                       <label className="flex items-center">
                         <input type="checkbox" checked={useAllSimulatorQuestions} onChange={(e) => { setUseAllSimulatorQuestions(e.target.checked); if (e.target.checked) setSimulatorQuestionsCount(null); else setSimulatorQuestionsCount(selectedExam.simulator_questions_count || 0); }}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                         <span className="ml-2 fluid-text-sm text-gray-600">Usar todas ({selectedExam.simulator_questions_count})</span>
                       </label>
                       {!useAllSimulatorQuestions && (
                         <div className="mt-2 flex items-center fluid-gap-2">
                           <input type="number" value={simulatorQuestionsCount || ''} onChange={(e) => setSimulatorQuestionsCount(e.target.value ? Number(e.target.value) : null)}
-                            min={1} max={selectedExam.simulator_questions_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 fluid-text-sm" />
+                            min={1} max={selectedExam.simulator_questions_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 fluid-text-sm" />
                           <span className="fluid-text-sm text-gray-500">de {selectedExam.simulator_questions_count}</span>
                         </div>
                       )}
@@ -785,13 +785,13 @@ export default function ExamSelectConfigPage() {
                       <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Ejercicios <span className="text-gray-400 font-normal ml-2">(Disponibles: {selectedExam.simulator_exercises_count})</span></label>
                       <label className="flex items-center">
                         <input type="checkbox" checked={useAllSimulatorExercises} onChange={(e) => { setUseAllSimulatorExercises(e.target.checked); if (e.target.checked) setSimulatorExercisesCount(null); else setSimulatorExercisesCount(selectedExam.simulator_exercises_count || 0); }}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                         <span className="ml-2 fluid-text-sm text-gray-600">Usar todos ({selectedExam.simulator_exercises_count})</span>
                       </label>
                       {!useAllSimulatorExercises && (
                         <div className="mt-2 flex items-center fluid-gap-2">
                           <input type="number" value={simulatorExercisesCount || ''} onChange={(e) => setSimulatorExercisesCount(e.target.value ? Number(e.target.value) : null)}
-                            min={1} max={selectedExam.simulator_exercises_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 fluid-text-sm" />
+                            min={1} max={selectedExam.simulator_exercises_count || 0} className="w-20 px-2 py-1 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 fluid-text-sm" />
                           <span className="fluid-text-sm text-gray-500">de {selectedExam.simulator_exercises_count}</span>
                         </div>
                       )}
@@ -811,7 +811,7 @@ export default function ExamSelectConfigPage() {
             {/* Navigation */}
             <div className="flex justify-between pt-4 border-t">
               <button onClick={() => setStep('accept-or-customize')} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
-              <button onClick={handleGoToMaterials} className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 fluid-text-sm font-medium shadow-lg transition-all">
+              <button onClick={handleGoToMaterials} className="fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 fluid-text-sm font-medium shadow-lg transition-all">
                 Continuar: Materiales →
               </button>
             </div>
@@ -842,7 +842,7 @@ export default function ExamSelectConfigPage() {
                 <div className="flex items-center fluid-gap-4 fluid-text-sm text-gray-600">
                   <span className="flex items-center"><Clock className="fluid-icon-sm mr-1 text-gray-400" />{attemptedExam.duration_minutes} min</span>
                   <span className="flex items-center"><Target className="fluid-icon-sm mr-1 text-gray-400" />{attemptedExam.passing_score}%</span>
-                  {(attemptedExam.ecm_code || attemptedExam.standard) && <span className="text-blue-600">ECM: {attemptedExam.ecm_code || attemptedExam.standard}</span>}
+                  {(attemptedExam.ecm_code || attemptedExam.standard) && <span className="text-primary-600">ECM: {attemptedExam.ecm_code || attemptedExam.standard}</span>}
                 </div>
               </div>
             </div>

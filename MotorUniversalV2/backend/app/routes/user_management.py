@@ -1853,6 +1853,14 @@ def get_available_roles():
             'auxiliar': 'Auxiliar - Acceso de solo lectura'
         }
         
+        # Para soporte, devolver los roles visibles como all_roles para que los filtros funcionen
+        if current_user.role == 'soporte':
+            visible_roles = SOPORTE_VISIBLE_ROLES
+        elif current_user.role in ['admin', 'developer']:
+            visible_roles = AVAILABLE_ROLES
+        else:
+            visible_roles = None
+
         return jsonify({
             'roles': [
                 {'value': role, 'label': role.capitalize(), 'description': role_descriptions.get(role, '')}
@@ -1860,8 +1868,8 @@ def get_available_roles():
             ],
             'all_roles': [
                 {'value': role, 'label': role.capitalize(), 'description': role_descriptions.get(role, '')}
-                for role in AVAILABLE_ROLES
-            ] if current_user.role in ['admin', 'developer'] else None
+                for role in visible_roles
+            ] if visible_roles else None
         })
         
     except HTTPException:
@@ -1964,6 +1972,43 @@ def get_available_partners():
         
         raise
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============== ESTADOS DISPONIBLES (para responsable_estatal) ==============
+
+@bp.route('/available-states', methods=['GET'])
+@jwt_required()
+@management_required
+def get_available_states():
+    """Obtener lista de estados únicos de los campus de los partners del coordinador.
+    Si el usuario es admin/developer/soporte, devuelve todos los estados de todos los campus."""
+    try:
+        from app.models.partner import Campus
+
+        current_user = g.current_user
+        query = db.session.query(Campus.state_name).filter(
+            Campus.state_name.isnot(None),
+            Campus.state_name != ''
+        )
+
+        # Coordinadores/auxiliares solo ven estados de sus campus
+        if _is_coordinator_role(current_user.role):
+            coord_id = _get_effective_coordinator_id(current_user)
+            query = query.filter(Campus.coordinator_id == coord_id)
+
+        rows = query.distinct().all()
+        states = sorted([r[0] for r in rows if r[0]])
+
+        return jsonify({
+            'states': states,
+            'total': len(states)
+        })
+
+    except HTTPException:
+        raise
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

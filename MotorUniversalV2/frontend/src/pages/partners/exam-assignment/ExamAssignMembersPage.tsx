@@ -375,7 +375,7 @@ export default function ExamAssignMembersPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center fluid-gap-4">
           <button onClick={() => navigate(-1)} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors"><ArrowLeft className="fluid-icon-lg" /></button>
           <div>
@@ -394,9 +394,9 @@ export default function ExamAssignMembersPage() {
             <div key={label} className="flex items-center">
               <div className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center fluid-text-sm font-semibold transition-all ${
-                i < 3 ? 'bg-green-500 text-white' : i === 3 ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
+                i < 3 ? 'bg-green-500 text-white' : i === 3 ? 'bg-primary-600 text-white ring-4 ring-primary-200 shadow-lg' : 'bg-gray-200 text-gray-600'
               }`}>{i < 3 ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
-              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 3 ? 'text-blue-600' : i < 3 ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
+              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 3 ? 'text-primary-600' : i < 3 ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
             </div>
             {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < 3 ? 'bg-green-400' : 'bg-gray-200'}`} />}
             </div>
@@ -421,7 +421,7 @@ export default function ExamAssignMembersPage() {
           </div>
           <div className="text-center fluid-text-sm">
             <p className="text-gray-500">Materiales</p>
-            <p className="font-medium text-blue-600">{selectedMaterialIds.length} seleccionados</p>
+            <p className="font-medium text-primary-600">{selectedMaterialIds.length} seleccionados</p>
           </div>
           <div className="text-right fluid-text-sm text-gray-500">
             <p>{config.examContentType === 'questions_only' ? 'Solo preguntas' : config.examContentType === 'exercises_only' ? 'Solo ejercicios' : 'Mixto'}</p>
@@ -436,16 +436,16 @@ export default function ExamAssignMembersPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4 fluid-mb-6">
           <div onClick={() => setAssignmentType('all')}
-            className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${assignmentType === 'all' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
+            className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${assignmentType === 'all' ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
             <div className="flex items-center fluid-gap-3">
-              <Users className={`fluid-icon-lg ${assignmentType === 'all' ? 'text-blue-600' : 'text-gray-400'}`} />
+              <Users className={`fluid-icon-lg ${assignmentType === 'all' ? 'text-primary-600' : 'text-gray-400'}`} />
               <div><h4 className="font-medium text-gray-900 fluid-text-base">Todo el Grupo</h4><p className="fluid-text-sm text-gray-500">Asignar a todos los miembros ({totalResults.toLocaleString()})</p></div>
             </div>
           </div>
           <div onClick={() => setAssignmentType('selected')}
-            className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${assignmentType === 'selected' ? 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
+            className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${assignmentType === 'selected' ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
             <div className="flex items-center fluid-gap-3">
-              <UserCheck className={`fluid-icon-lg ${assignmentType === 'selected' ? 'text-purple-600' : 'text-gray-400'}`} />
+              <UserCheck className={`fluid-icon-lg ${assignmentType === 'selected' ? 'text-primary-600' : 'text-gray-400'}`} />
               <div><h4 className="font-medium text-gray-900 fluid-text-base">Candidatos Específicos</h4><p className="fluid-text-sm text-gray-500">Seleccionar manualmente</p></div>
             </div>
           </div>
@@ -463,28 +463,28 @@ export default function ExamAssignMembersPage() {
           <div className="border-t pt-4">
             {/* Selection counter */}
             {selectedMemberIds.length > 0 && (
-              <div className="fluid-mb-4 flex items-center justify-between bg-purple-50 border border-purple-200 rounded-fluid-xl fluid-px-4 fluid-py-3">
-                <span className="fluid-text-sm font-medium text-purple-700">
+              <div className="fluid-mb-4 flex items-center justify-between bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-px-4 fluid-py-3">
+                <span className="fluid-text-sm font-medium text-primary-700">
                   <UserCheck className="inline fluid-icon-sm mr-1" />
                   {selectedMemberIds.length} miembro(s) seleccionado(s)
                 </span>
-                <button onClick={() => setSelectedMemberIds([])} className="fluid-text-sm text-purple-600 hover:text-purple-800 font-medium">
+                <button onClick={() => setSelectedMemberIds([])} className="fluid-text-sm text-primary-600 hover:text-primary-800 font-medium">
                   Limpiar selección
                 </button>
               </div>
             )}
 
             {/* Toolbar */}
-            <div className="bg-blue-50/50 rounded-fluid-xl fluid-p-4 fluid-mb-4 border border-blue-200">
+            <div className="bg-primary-50/50 rounded-fluid-xl fluid-p-4 fluid-mb-4 border border-primary-200">
               <div className="flex flex-wrap items-center fluid-gap-3">
                 <div className="flex-1 min-w-[280px] relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
                   <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Buscar por nombre, email o CURP..."
-                    className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm" />
+                    className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 fluid-text-sm" />
                 </div>
                 <select value={searchField} onChange={(e) => setSearchField(e.target.value)}
-                  className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500">
+                  className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500">
                   <option value="all">Todos los campos</option>
                   <option value="name">Nombre</option>
                   <option value="first_surname">Primer Apellido</option>
@@ -494,7 +494,7 @@ export default function ExamAssignMembersPage() {
                   <option value="curp">CURP</option>
                 </select>
                 <button onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                  className={`inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-colors ${showAdvancedFilters ? 'bg-purple-100 border-purple-300 text-purple-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                  className={`inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-colors ${showAdvancedFilters ? 'bg-primary-100 border-primary-300 text-primary-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                   <Filter className="fluid-icon-sm" />Filtros
                 </button>
                 <div className="flex items-center fluid-gap-1.5">
@@ -503,7 +503,7 @@ export default function ExamAssignMembersPage() {
                     onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
                     onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
                     onBlur={handlePageSizeInputSubmit}
-                    className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500" title="Registros por página (máx 1000)" />
+                    className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500" title="Registros por página (máx 1000)" />
                 </div>
                 <button onClick={() => handleMemberSearch(currentPage, pageSize)} disabled={searching}
                   className="fluid-p-2 border border-gray-300 rounded-fluid-lg hover:bg-gray-50 transition-colors" title="Refrescar">
@@ -541,20 +541,20 @@ export default function ExamAssignMembersPage() {
                   </div>
                   {(filterHasEmail || filterHasCurp || filterEligibility) && (
                     <button onClick={() => { setFilterHasEmail(''); setFilterHasCurp(''); setFilterEligibility(''); }}
-                      className="fluid-text-sm text-purple-600 hover:text-purple-700">Limpiar filtros</button>
+                      className="fluid-text-sm text-primary-600 hover:text-primary-700">Limpiar filtros</button>
                   )}
                 </div>
               )}
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-fluid-xl shadow-sm border border-blue-200 overflow-hidden">
+            <div className="bg-white rounded-fluid-xl shadow-sm border border-primary-200 overflow-hidden">
               {/* Pagination top */}
-              <div className="bg-blue-50/40 border-b border-blue-200 px-6 py-3">
+              <div className="bg-primary-50/40 border-b border-primary-200 px-6 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center fluid-gap-3">
                     <button onClick={handleTogglePageSelection}
-                      className={`fluid-px-3 fluid-py-1.5 rounded-fluid-lg fluid-text-xs font-medium transition-colors ${allPageSelected ? 'bg-purple-100 text-purple-700 border border-purple-300' : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'}`}>
+                      className={`fluid-px-3 fluid-py-1.5 rounded-fluid-lg fluid-text-xs font-medium transition-colors ${allPageSelected ? 'bg-primary-100 text-primary-700 border border-primary-300' : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'}`}>
                       {allPageSelected ? 'Deseleccionar página' : 'Seleccionar página'}
                     </button>
                     <div className="fluid-text-sm text-gray-600">
@@ -576,7 +576,7 @@ export default function ExamAssignMembersPage() {
                       onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
                       onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
                       onBlur={handlePageInputSubmit}
-                      className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500" />
+                      className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-primary-500" />
                     <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
                     <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}
                       className="p-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"><ChevronRight className="fluid-icon-sm" /></button>
@@ -588,42 +588,42 @@ export default function ExamAssignMembersPage() {
 
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-blue-50 sticky top-0 z-10 border-b border-blue-200">
+                  <thead className="bg-primary-50 sticky top-0 z-10 border-b border-primary-200">
                     <tr>
                       <th className="fluid-px-4 fluid-py-3 text-center w-12">
                         <input type="checkbox" checked={allPageSelected} onChange={handleTogglePageSelection}
-                          className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500" />
+                          className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                       </th>
-                      <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase cursor-pointer hover:bg-blue-100 select-none">
+                      <th onClick={() => handleSort('name')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-primary-700 uppercase cursor-pointer hover:bg-primary-100 select-none">
                         Miembro{renderSortIcon('name')}
                       </th>
-                      <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden md:table-cell cursor-pointer hover:bg-blue-100 select-none">
+                      <th onClick={() => handleSort('username')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-primary-700 uppercase hidden md:table-cell cursor-pointer hover:bg-primary-100 select-none">
                         Usuario{renderSortIcon('username')}
                       </th>
-                      <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden md:table-cell cursor-pointer hover:bg-blue-100 select-none">
+                      <th onClick={() => handleSort('email')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-primary-700 uppercase hidden md:table-cell cursor-pointer hover:bg-primary-100 select-none">
                         Email{renderSortIcon('email')}
                       </th>
-                      <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden lg:table-cell cursor-pointer hover:bg-blue-100 select-none">
+                      <th onClick={() => handleSort('curp')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-primary-700 uppercase hidden lg:table-cell cursor-pointer hover:bg-primary-100 select-none">
                         CURP{renderSortIcon('curp')}
                       </th>
-                      <th onClick={() => handleSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-blue-700 uppercase hidden lg:table-cell cursor-pointer hover:bg-blue-100 select-none">
+                      <th onClick={() => handleSort('eligibility')} className="fluid-px-4 fluid-py-3 text-left fluid-text-xs font-semibold text-primary-700 uppercase hidden lg:table-cell cursor-pointer hover:bg-primary-100 select-none">
                         Elegibilidad{renderSortIcon('eligibility')}
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-blue-100">
+                  <tbody className="bg-white divide-y divide-primary-100">
                     {members.length > 0 ? members.map((member) => {
                       const isSelected = selectedMemberIds.includes(member.user_id);
                       return (
                         <tr key={member.id} onClick={() => handleToggleMember(member.user_id)}
-                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-purple-50 hover:bg-purple-100' : 'hover:bg-blue-50/50'}`}>
+                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-primary-50 hover:bg-primary-100' : 'hover:bg-primary-50/50'}`}>
                           <td className="fluid-px-4 fluid-py-3 text-center">
                             <input type="checkbox" checked={isSelected} readOnly
-                              className="w-4 h-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500 pointer-events-none" />
+                              className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 pointer-events-none" />
                           </td>
                           <td className="fluid-px-4 fluid-py-3">
                             <div className="flex items-center fluid-gap-3">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${isSelected ? 'bg-gradient-to-br from-purple-500 to-indigo-500' : 'bg-gradient-to-br from-blue-400 to-blue-600'}`}>
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0 ${isSelected ? 'bg-gradient-to-br from-primary-500 to-primary-500' : 'bg-gradient-to-br from-primary-400 to-primary-600'}`}>
                                 {member.user?.name?.charAt(0).toUpperCase() || '?'}
                               </div>
                               <div>
@@ -666,7 +666,7 @@ export default function ExamAssignMembersPage() {
             </div>
 
             {selectedMemberIds.length > 0 && (
-              <p className="mt-3 fluid-text-sm text-purple-600 font-medium">
+              <p className="mt-3 fluid-text-sm text-primary-600 font-medium">
                 <UserCheck className="inline fluid-icon-sm mr-1" />
                 {selectedMemberIds.length} miembro(s) seleccionado(s) en total (puede incluir selecciones de otras páginas)
               </p>
@@ -718,21 +718,21 @@ export default function ExamAssignMembersPage() {
               return (
               <div className="mt-4 space-y-4">
                 {/* Preview banner */}
-                <div className="bg-blue-50 border-2 border-blue-300 rounded-fluid-xl fluid-p-4 flex items-start fluid-gap-3">
-                  <AlertCircle className="fluid-icon-base text-blue-500 flex-shrink-0 mt-0.5" />
+                <div className="bg-primary-50 border-2 border-primary-300 rounded-fluid-xl fluid-p-4 flex items-start fluid-gap-3">
+                  <AlertCircle className="fluid-icon-base text-primary-500 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h5 className="font-semibold text-blue-800 fluid-text-base">Vista Previa — Aún no se han creado asignaciones</h5>
-                    <p className="fluid-text-sm text-blue-700 mt-1">Revisa el resumen a continuación. Cuando estés conforme, presiona <strong>"Revisar Costo y Confirmar"</strong> para continuar.</p>
+                    <h5 className="font-semibold text-primary-800 fluid-text-base">Vista Previa — Aún no se han creado asignaciones</h5>
+                    <p className="fluid-text-sm text-primary-700 mt-1">Revisa el resumen a continuación. Cuando estés conforme, presiona <strong>"Revisar Vouchers y Confirmar"</strong> para continuar.</p>
                   </div>
                 </div>
 
-                <div className={`fluid-p-4 rounded-fluid-xl ${source.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-blue-50 border border-blue-200'}`}>
-                  <h5 className={`font-medium fluid-mb-2 fluid-text-base ${source.summary.errors > 0 ? 'text-yellow-800' : 'text-blue-800'}`}>
+                <div className={`fluid-p-4 rounded-fluid-xl ${source.summary.errors > 0 ? 'bg-yellow-50 border border-yellow-200' : 'bg-primary-50 border border-primary-200'}`}>
+                  <h5 className={`font-medium fluid-mb-2 fluid-text-base ${source.summary.errors > 0 ? 'text-yellow-800' : 'text-primary-800'}`}>
                     {`Vista previa: ${source.summary.assigned} asignaciones pendientes`}
                   </h5>
                   <div className="grid grid-cols-4 fluid-gap-4 fluid-text-sm">
                     <div><p className="text-gray-500">Procesados</p><p className="font-semibold fluid-text-lg">{source.summary.total_processed}</p></div>
-                    <div><p className="text-blue-600">Se asignarán</p><p className="font-semibold fluid-text-lg text-blue-700">{source.summary.assigned}</p></div>
+                    <div><p className="text-primary-600">Se asignarán</p><p className="font-semibold fluid-text-lg text-primary-700">{source.summary.assigned}</p></div>
                     <div><p className="text-yellow-600">Omitidos</p><p className="font-semibold fluid-text-lg text-yellow-700">{source.summary.skipped}</p></div>
                     <div><p className="text-red-600">Errores</p><p className="font-semibold fluid-text-lg text-red-700">{source.summary.errors}</p></div>
                   </div>
@@ -743,7 +743,7 @@ export default function ExamAssignMembersPage() {
                   <div className="relative max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
                     <input type="text" placeholder="Buscar en resultados..." value={resultSearch} onChange={(e) => setResultSearch(e.target.value)}
-                      className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400" />
+                      className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-400" />
                     {resultSearch && (
                       <button onClick={() => setResultSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <X className="fluid-icon-sm" />
@@ -887,8 +887,8 @@ export default function ExamAssignMembersPage() {
         <div className="flex justify-between pt-6 mt-6 border-t">
           <button onClick={() => navigate(-1)} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
           <button onClick={handleGoToReview} disabled={loadingCostPreview || (assignmentType === 'selected' && selectedMemberIds.length === 0) || (assignmentType === 'bulk' && (!bulkPreview || bulkPreview.summary.assigned === 0))}
-            className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium shadow-lg transition-all">
-            {loadingCostPreview ? <><Loader2 className="fluid-icon-sm animate-spin" />Calculando costo...</> : <><DollarSign className="fluid-icon-sm" />Revisar Costo y Confirmar</>}
+            className="fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium shadow-lg transition-all">
+            {loadingCostPreview ? <><Loader2 className="fluid-icon-sm animate-spin" />Calculando vouchers...</> : <><DollarSign className="fluid-icon-sm" />Revisar Vouchers y Confirmar</>}
           </button>
         </div>
       </div>

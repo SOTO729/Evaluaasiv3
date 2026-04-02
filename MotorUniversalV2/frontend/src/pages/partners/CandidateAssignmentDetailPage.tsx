@@ -14,6 +14,7 @@ import {
   getCandidateAssignmentDetail,
   CandidateAssignmentDetailResponse,
 } from '../../services/partnersService';
+import { useAuthStore } from '../../store/authStore';
 
 function formatDate(dateStr?: string | null): string {
   if (!dateStr) return '\u2014';
@@ -67,6 +68,8 @@ function ConfigRow({ icon: Icon, label, value, color = 'gray' }: {
 export default function CandidateAssignmentDetailPage() {
   const { ecaId } = useParams<{ ecaId: string }>();
   const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
+  const isSoporte = currentUser?.role === 'soporte';
   const [data, setData] = useState<CandidateAssignmentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -161,10 +164,12 @@ export default function CandidateAssignmentDetailPage() {
           <div className="flex items-center gap-2 mb-1"><div className="p-1 bg-amber-100 rounded"><RefreshCw className="w-3.5 h-3.5 text-amber-600" /></div><span className="text-xs text-gray-500">Retomas</span></div>
           <p className="text-xl font-bold text-gray-800">{retakes.length}<span className="text-sm text-gray-400">/{maxRetakes === 0 ? '∞' : maxRetakes}</span></p>
         </div>
+        {!isSoporte && (
         <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2 mb-1"><div className="p-1 bg-green-100 rounded"><DollarSign className="w-3.5 h-3.5 text-green-600" /></div><span className="text-xs text-gray-500">Costo Cert.</span></div>
           <p className="text-xl font-bold text-gray-800">${(assignment as any).certification_cost || 0}</p>
         </div>
+        )}
         <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
           <div className="flex items-center gap-2 mb-1"><div className="p-1 bg-purple-100 rounded"><BookOpen className="w-3.5 h-3.5 text-purple-600" /></div><span className="text-xs text-gray-500">Material</span></div>
           <p className="text-xl font-bold text-gray-800">{material_progress ? `${material_progress.percentage}%` : '\u2014'}</p>
@@ -215,7 +220,7 @@ export default function CandidateAssignmentDetailPage() {
               } color="indigo" />
               <ConfigRow icon={Layers} label="Fuente" value={assignment.assignment_source === 'bulk' ? 'Masiva (todo el grupo)' : 'Seleccionada'} color="blue" />
               <ConfigRow icon={Calendar} label="Fecha de asignación" value={formatDate(assignment.assigned_at)} color="sky" />
-              <ConfigRow icon={DollarSign} label="Costo unitario" value={`$${assignment.unit_cost}`} color="green" />
+              {!isSoporte && <ConfigRow icon={DollarSign} label="Costo unitario" value={`$${assignment.unit_cost}`} color="green" />}
               {assigned_by && <ConfigRow icon={User} label="Asignado por" value={`${assigned_by.name} (${assigned_by.email})`} color="gray" />}
             </div>
           </div>
@@ -439,7 +444,7 @@ export default function CandidateAssignmentDetailPage() {
                         <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${rt.status === 'active' ? 'bg-green-100 text-green-700' : rt.status === 'used' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
                           {rt.status === 'active' ? 'Activa' : rt.status === 'used' ? 'Usada' : 'Expirada'}
                         </span>
-                        <span className="text-xs text-gray-500">${rt.cost}</span>
+                        {!isSoporte && <span className="text-xs text-gray-500">${rt.cost}</span>}
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {formatDate(rt.applied_at)}

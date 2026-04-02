@@ -255,7 +255,7 @@ def verify_certificate(code):
                 'document_name': 'Insignia Digital',
                 'verification_code': code,
                 'status': 'expired' if is_expired else badge.status,
-                'candidate': {'full_name': full_name},
+                'candidate': {'full_name': full_name, 'email': user.email if user else None},
                 'badge': {
                     'name': template.name if template else 'N/A',
                     'description': template.description if template else None,
@@ -273,6 +273,7 @@ def verify_certificate(code):
                     'share_count': badge.share_count,
                     'skills': template.skills if template else None,
                     'criteria_narrative': template.criteria_narrative if template else None,
+                    'criteria_url': template.criteria_url if template and hasattr(template, 'criteria_url') else None,
                     'ecm_code': ecm_code,
                     'ecm_name': ecm_name,
                     'ecm_logo_url': ecm_logo_url,

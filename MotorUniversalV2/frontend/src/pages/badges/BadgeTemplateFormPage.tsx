@@ -9,7 +9,7 @@ import {
   Award, ArrowLeft, Save, Upload, Image as ImageIcon,
   Clock, Globe, FileText, BookOpen, Sparkles, Search,
   CheckCircle2, AlertCircle, X, Eye, EyeOff,
-  ChevronDown, Info, Zap
+    ChevronDown, Info, Zap, ExternalLink
 } from 'lucide-react'
 import { badgeService } from '../../services/badgeService'
 import { getStandards, type CompetencyStandard } from '../../services/standardsService'
@@ -19,6 +19,7 @@ interface FormState {
   name: string
   description: string
   criteria_narrative: string
+  criteria_url: string
   exam_id: number | null
   competency_standard_id: number | null
   skills: string
@@ -30,6 +31,7 @@ const EMPTY_FORM: FormState = {
   name: '',
   description: '',
   criteria_narrative: '',
+  criteria_url: '',
   exam_id: null,
   competency_standard_id: null,
   skills: '',
@@ -61,6 +63,9 @@ export default function BadgeTemplateFormPage() {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [imageRemoved, setImageRemoved] = useState(false)
+  const [issuerLogoFile, setIssuerLogoFile] = useState<File | null>(null)
+  const [issuerLogoPreview, setIssuerLogoPreview] = useState<string | null>(null)
+  const [issuerLogoRemoved, setIssuerLogoRemoved] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -77,8 +82,7 @@ export default function BadgeTemplateFormPage() {
         setForm({
           name: t.name || '',
           description: t.description || '',
-          criteria_narrative: t.criteria_narrative || '',
-          exam_id: t.exam_id,
+          criteria_narrative: t.criteria_narrative || '',            criteria_url: (t as any).criteria_url || '',          exam_id: t.exam_id,
           competency_standard_id: t.competency_standard_id,
           skills: Array.isArray((t as any).skills) ? (t as any).skills.join(', ') : ((t as any).skills || ''),
           expiry_months: t.expiry_months || null,
@@ -86,6 +90,7 @@ export default function BadgeTemplateFormPage() {
         })
         const previewUrl = t.display_image_url || t.badge_image_url
         if (previewUrl) setImagePreview(previewUrl)
+        if (t.issuer_logo_url) setIssuerLogoPreview(t.issuer_logo_url)
       }).catch(err => {
         console.error(err)
         navigate('/badges/templates')
@@ -232,6 +237,12 @@ export default function BadgeTemplateFormPage() {
         await badgeService.uploadTemplateImage(templateId, imageFile)
       } else if (imageRemoved && isEdit && templateId) {
         await badgeService.deleteTemplateImage(templateId)
+      }
+
+      if (issuerLogoFile && templateId) {
+        await badgeService.uploadIssuerLogo(templateId, issuerLogoFile)
+      } else if (issuerLogoRemoved && isEdit && templateId) {
+        await badgeService.deleteIssuerLogo(templateId)
       }
 
       navigate('/badges/templates')
@@ -526,6 +537,22 @@ export default function BadgeTemplateFormPage() {
                 </div>
               </div>
 
+              {/* URL Criterios de Obtención */}
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                  <ExternalLink className="w-3.5 h-3.5 inline-block mr-1.5 text-gray-400" />
+                  URL de Criterios de Obtención <span className="text-xs text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <input
+                  type="url"
+                  value={form.criteria_url}
+                  onChange={e => setForm({ ...form, criteria_url: e.target.value })}
+                  className="w-full fluid-px-4 py-2.5 border-2 border-gray-200 rounded-fluid-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-sm hover:border-gray-300 transition-colors"
+                  placeholder="https://ejemplo.com/criterios-de-obtencion"
+                />
+                <p className="fluid-text-xs text-gray-400 mt-1">Si se proporciona, se mostrará un enlace en la página de verificación de la insignia</p>
+              </div>
+
               {/* Aptitudes (Skills) */}
               <div>
                 <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
@@ -573,6 +600,51 @@ export default function BadgeTemplateFormPage() {
                 <div className="flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span className="fluid-text-2xs font-medium">Fijo</span>
+                </div>
+              </div>
+
+              {/* Logo del emisor */}
+              <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200">
+                <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide fluid-mb-2">Logo del Emisor</p>
+                <p className="fluid-text-2xs text-gray-400 fluid-mb-3">Se mostrará en la página de verificación de la insignia en lugar del ícono por defecto.</p>
+                <div className="flex items-center fluid-gap-3">
+                  {issuerLogoPreview ? (
+                    <div className="relative w-16 h-16 rounded-fluid-lg border-2 border-gray-200 overflow-hidden bg-white flex items-center justify-center flex-shrink-0">
+                      <img src={issuerLogoPreview} alt="Logo emisor" className="w-full h-full object-contain p-1" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIssuerLogoFile(null)
+                          setIssuerLogoPreview(null)
+                          setIssuerLogoRemoved(true)
+                        }}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-fluid-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-6 h-6 text-gray-300" />
+                    </div>
+                  )}
+                  <label className="cursor-pointer fluid-px-3 fluid-py-1.5 bg-blue-50 text-blue-700 rounded-fluid-lg hover:bg-blue-100 transition-colors fluid-text-xs font-medium inline-flex items-center fluid-gap-1.5">
+                    <Upload className="w-3.5 h-3.5" />
+                    {issuerLogoPreview ? 'Cambiar' : 'Subir logo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          setIssuerLogoFile(file)
+                          setIssuerLogoPreview(URL.createObjectURL(file))
+                          setIssuerLogoRemoved(false)
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
               </div>
             </section>

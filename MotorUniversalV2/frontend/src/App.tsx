@@ -232,7 +232,6 @@ const SolicitarCertificadosPage = lazy(() => import('./pages/responsable/Solicit
 const MisSolicitudesPage = lazy(() => import('./pages/responsable/MisSolicitudesPage'))
 const BrandingConfigPage = lazy(() => import('./pages/responsable/BrandingConfigPage'))
 const MiSaldoResponsablePage = lazy(() => import('./pages/responsable/MiSaldoResponsablePage'))
-const MisPagosPage = lazy(() => import('./pages/responsable/MisPagosPage'))
 const MiPlantelReportesPage = lazy(() => import('./pages/responsable/MiPlantelReportesPage'))
 
 // Grupos (gestión de grupos por plantel)
@@ -445,10 +444,9 @@ function App() {
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
-              <Route path="/mi-plantel/reportes" element={<ReportsGuard><MiPlantelReportesPage /></ReportsGuard>} />
+              <Route path="/mi-plantel/reportes" element={<ReportsGuard><ReportsPage backPath="/mi-plantel" /></ReportsGuard>} />
               <Route path="/mi-plantel/branding" element={<BrandingConfigPage />} />
               <Route path="/mi-plantel/vouchers" element={<MiSaldoResponsablePage />} />
-              <Route path="/mis-pagos" element={<MisPagosPage />} />
               <Route path="/solicitar-certificados" element={<SolicitarCertificadosPage />} />
               <Route path="/mis-solicitudes" element={<MisSolicitudesPage />} />
               <Route path="/mi-plantel/ciclos/:cycleId" element={<MiPlantelCicloDetailPage />} />

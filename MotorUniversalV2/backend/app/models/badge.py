@@ -13,6 +13,7 @@ class BadgeTemplate(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     criteria_narrative = db.Column(db.Text)
+    criteria_url = db.Column(db.String(500))
 
     # Asociaciones opcionales
     exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='SET NULL'), nullable=True)
@@ -26,6 +27,10 @@ class BadgeTemplate(db.Model):
     issuer_name = db.Column(db.String(255), nullable=False, default='Grupo Eduit')
     issuer_url = db.Column(db.String(500), default='https://www.grupoeduit.com')
     issuer_image_url = db.Column(db.String(500))
+
+    # Logo del emisor (imagen personalizada por plantilla)
+    issuer_logo_url = db.Column(db.String(500))
+    issuer_logo_blob_name = db.Column(db.String(500))
 
     # Metadata
     tags = db.Column(db.String(500))
@@ -53,6 +58,7 @@ class BadgeTemplate(db.Model):
             'name': self.name,
             'description': self.description,
             'criteria_narrative': self.criteria_narrative,
+            'criteria_url': self.criteria_url,
             'exam_id': self.exam_id,
             'competency_standard_id': self.competency_standard_id,
             'badge_image_url': self.badge_image_url,
@@ -60,6 +66,7 @@ class BadgeTemplate(db.Model):
             'issuer_name': self.issuer_name,
             'issuer_url': self.issuer_url,
             'issuer_image_url': self.issuer_image_url,
+            'issuer_logo_url': self.issuer_logo_url,
             'tags': self.tags or '',
             'skills': self.skills or '',
             'expiry_months': self.expiry_months,

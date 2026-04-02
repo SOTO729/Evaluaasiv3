@@ -116,7 +116,7 @@ export default function ExamSelectMaterialsPage() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-xl">
         <div className="flex items-center fluid-gap-4">
           <button onClick={() => navigate(`${basePath}/assign-exam`)} className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
             <ArrowLeft className="fluid-icon-lg" />
@@ -137,9 +137,9 @@ export default function ExamSelectMaterialsPage() {
             <div key={label} className="flex items-center">
               <div className="flex items-center">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center fluid-text-sm font-semibold transition-all ${
-                i < 2 ? 'bg-green-500 text-white' : i === 2 ? 'bg-blue-600 text-white ring-4 ring-blue-200 shadow-lg' : 'bg-gray-200 text-gray-600'
+                i < 2 ? 'bg-green-500 text-white' : i === 2 ? 'bg-primary-600 text-white ring-4 ring-primary-200 shadow-lg' : 'bg-gray-200 text-gray-600'
               }`}>{i < 2 ? <CheckCircle2 className="fluid-icon-base" /> : i + 1}</div>
-              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 2 ? 'text-blue-600' : i < 2 ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
+              <span className={`ml-2 font-medium hidden sm:inline fluid-text-sm ${i === 2 ? 'text-primary-600' : i < 2 ? 'text-green-600' : 'text-gray-400'}`}>{label}</span>
             </div>
             {i < stepLabels.length - 1 && <div className={`w-8 md:w-12 h-1 rounded-full mx-2 transition-all ${i < 2 ? 'bg-green-400' : 'bg-gray-200'}`} />}
             </div>
@@ -156,10 +156,10 @@ export default function ExamSelectMaterialsPage() {
       )}
 
       {/* Exam summary banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-5 fluid-mb-6">
+      <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-5 fluid-mb-6">
         <div className="flex items-start justify-between">
           <div>
-            <p className="fluid-text-sm text-blue-600 font-medium">Examen seleccionado</p>
+            <p className="fluid-text-sm text-primary-600 font-medium">Examen seleccionado</p>
             <h3 className="font-semibold text-gray-900 mt-1 fluid-text-base">{selectedExam.name}</h3>
             {(selectedExam.ecm_code || selectedExam.standard) && <p className="fluid-text-sm text-gray-600">ECM: {selectedExam.ecm_code || selectedExam.standard}</p>}
           </div>
@@ -170,7 +170,7 @@ export default function ExamSelectMaterialsPage() {
       <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-5">
         <div className="flex items-center justify-between fluid-mb-4">
           <h2 className="fluid-text-lg font-semibold text-gray-900 flex items-center fluid-gap-2">
-            <BookOpen className="fluid-icon-base text-indigo-600" />Selecciona los Materiales de Estudio
+            <BookOpen className="fluid-icon-base text-primary-600" />Selecciona los Materiales de Estudio
           </h2>
           <span className="fluid-text-sm text-gray-500">{selectedMaterialIds.length} seleccionado(s)</span>
         </div>
@@ -181,28 +181,27 @@ export default function ExamSelectMaterialsPage() {
         <div className="relative fluid-mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 fluid-icon-sm" />
           <input type="text" placeholder="Buscar material..." value={materialSearchQuery} onChange={(e) => setMaterialSearchQuery(e.target.value)}
-            className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" />
         </div>
 
         {loadingMaterials ? (
-          <div className="flex items-center justify-center py-8"><Loader2 className="fluid-icon-lg animate-spin text-blue-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando materiales...</span></div>
+          <div className="flex items-center justify-center py-8"><Loader2 className="fluid-icon-lg animate-spin text-primary-600" /><span className="ml-2 text-gray-500 fluid-text-sm">Cargando materiales...</span></div>
         ) : filteredMaterials.length > 0 ? (
           <div className="space-y-2 max-h-80 overflow-y-auto">
             {filteredMaterials.map((material) => (
               <div key={material.id} onClick={() => handleToggleMaterial(material.id)}
                 className={`fluid-p-4 border rounded-fluid-xl cursor-pointer transition-all ${
-                  selectedMaterialIds.includes(material.id) ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                  selectedMaterialIds.includes(material.id) ? 'border-primary-500 bg-primary-50 ring-2 ring-primary-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                 }`}>
                 <div className="flex items-start fluid-gap-3">
                   <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                    selectedMaterialIds.includes(material.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                    selectedMaterialIds.includes(material.id) ? 'bg-primary-600 border-primary-600' : 'border-gray-300'
                   }`}>{selectedMaterialIds.includes(material.id) && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}</div>
                   <div className="flex-1">
                     <div className="flex items-center fluid-gap-2">
                       <h3 className="font-medium text-gray-900 fluid-text-base">{material.title}</h3>
                       {material.is_linked && <span className="fluid-px-2 py-0.5 fluid-text-xs font-medium bg-green-100 text-green-700 rounded-full">Ligado al examen</span>}
                     </div>
-                    {material.description && <p className="fluid-text-sm text-gray-500 mt-1 line-clamp-2">{material.description}</p>}
                     <div className="flex items-center fluid-gap-4 mt-2 fluid-text-xs text-gray-400">
                       <span>{material.sessions_count} sesiones</span><span>{material.topics_count} temas</span>
                     </div>
@@ -220,7 +219,7 @@ export default function ExamSelectMaterialsPage() {
         {/* Navigation */}
         <div className="flex justify-between pt-4 border-t mt-6">
           <button onClick={() => navigate(`${basePath}/assign-exam`)} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
-          <button onClick={handleContinue} className="fluid-px-6 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 fluid-text-sm font-medium shadow-lg transition-all">
+          <button onClick={handleContinue} className="fluid-px-6 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 fluid-text-sm font-medium shadow-lg transition-all">
             Continuar: Candidatos →
           </button>
         </div>

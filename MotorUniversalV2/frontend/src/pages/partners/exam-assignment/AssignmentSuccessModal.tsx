@@ -253,9 +253,9 @@ export default function AssignmentSuccessModal({
                 <p className="fluid-text-xs text-red-600 font-medium">Errores</p>
               </div>
             )}
-            <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-3 text-center">
-              <p className="fluid-text-2xl font-bold text-blue-700">{allRows.length}</p>
-              <p className="fluid-text-xs text-blue-600 font-medium">Total procesados</p>
+            <div className="bg-primary-50 border border-primary-200 rounded-fluid-xl fluid-p-3 text-center">
+              <p className="fluid-text-2xl font-bold text-primary-700">{allRows.length}</p>
+              <p className="fluid-text-xs text-primary-600 font-medium">Total procesados</p>
             </div>
           </div>
         </div>
@@ -290,7 +290,7 @@ export default function AssignmentSuccessModal({
               placeholder="Buscar por nombre, email, CURP, Nº asignación..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full fluid-pl-10 pr-10 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+              className="w-full fluid-pl-10 pr-10 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-200 focus:border-primary-400"
             />
             {search && (
               <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -347,7 +347,7 @@ export default function AssignmentSuccessModal({
                     <td className="fluid-px-4 fluid-py-2.5 text-gray-500 font-mono text-xs">{row.curp}</td>
                     <td className="fluid-px-4 fluid-py-2.5">
                       {row.assignment_number !== '-' ? (
-                        <span className="inline-block bg-blue-100 text-blue-800 font-mono font-semibold fluid-text-xs px-2 py-0.5 rounded-fluid-lg tracking-wider">
+                        <span className="inline-block bg-primary-100 text-primary-800 font-mono font-semibold fluid-text-xs px-2 py-0.5 rounded-fluid-lg tracking-wider">
                           {row.assignment_number}
                         </span>
                       ) : (
@@ -379,7 +379,7 @@ export default function AssignmentSuccessModal({
           </p>
           <button
             onClick={onNavigateToGroup}
-            className="fluid-px-8 fluid-py-3 bg-blue-600 text-white rounded-fluid-xl hover:bg-blue-700 hover:shadow-xl flex items-center fluid-gap-3 font-semibold shadow-lg transition-all fluid-text-base"
+            className="fluid-px-8 fluid-py-3 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 hover:shadow-xl flex items-center fluid-gap-3 font-semibold shadow-lg transition-all fluid-text-base"
           >
             <ArrowLeft className="fluid-icon-base" />
             Volver al Grupo

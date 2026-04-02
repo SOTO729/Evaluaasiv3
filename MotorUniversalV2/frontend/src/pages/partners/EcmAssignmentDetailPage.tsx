@@ -49,6 +49,8 @@ export default function EcmAssignmentDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const isResponsable = user?.role === 'responsable';
+  const isSoporte = user?.role === 'soporte';
+  const hidePrices = isResponsable || isSoporte;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<EcmAssignmentDetailResponse | null>(null);
@@ -360,8 +362,8 @@ export default function EcmAssignmentDetailPage() {
                 <Wallet className="fluid-icon-base text-green-600" />
               </div>
               <div>
-                <p className="fluid-text-xs text-gray-500">{isResponsable ? 'Total certificados' : 'Inversión total'}</p>
-                <p className="fluid-text-xl font-bold text-green-700">{isResponsable ? summary.total_assignments : formatCurrency(summary.total_cost)}</p>
+                <p className="fluid-text-xs text-gray-500">{hidePrices ? 'Total certificados' : 'Inversión total'}</p>
+                <p className="fluid-text-xl font-bold text-green-700">{hidePrices ? summary.total_assignments : formatCurrency(summary.total_cost)}</p>
               </div>
             </div>
           </div>
@@ -580,7 +582,7 @@ export default function EcmAssignmentDetailPage() {
                   </th>
                   <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('cost')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
-                      {isResponsable ? 'Cert.' : 'Costo'}
+                      {hidePrices ? 'Cert.' : 'Costo'}
                       <ArrowUpDown className="w-3 h-3" />
                     </button>
                   </th>
@@ -688,7 +690,7 @@ export default function EcmAssignmentDetailPage() {
                     {/* Costo */}
                     <td className="py-3 px-3 text-center">
                       <p className={`fluid-text-sm font-medium ${a.unit_cost > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                        {isResponsable ? (a.unit_cost > 0 ? '1 cert.' : '—') : (a.unit_cost > 0 ? formatCurrency(a.unit_cost) : '$0')}
+                        {hidePrices ? (a.unit_cost > 0 ? '1 cert.' : '—') : (a.unit_cost > 0 ? formatCurrency(a.unit_cost) : '$0')}
                       </p>
                     </td>
                     {/* Calificación */}
@@ -763,6 +765,7 @@ export default function EcmAssignmentDetailPage() {
                           {a.vigencia.extended_months > 0 && (
                             <p className="fluid-text-xs text-blue-500 mt-0.5">+{a.vigencia.extended_months} mes{a.vigencia.extended_months > 1 ? 'es' : ''}</p>
                           )}
+                          {!isSoporte && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setExtendModal({ open: true, assignment: a, months: 1, loading: false, error: null }); }}
                             className="mt-1 inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full fluid-text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
@@ -771,6 +774,7 @@ export default function EcmAssignmentDetailPage() {
                             <Plus className="w-3 h-3" />
                             Extender
                           </button>
+                          )}
                         </div>
                       ) : (
                         <span className="fluid-text-xs text-gray-400">—</span>

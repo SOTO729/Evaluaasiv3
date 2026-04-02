@@ -1250,6 +1250,30 @@ const StudyInteractiveExercisePage = () => {
     }
   }
 
+  // Verificar si un paso tiene al menos una acción correcta
+  const stepHasCorrectAction = (step: StudyInteractiveExerciseStep): boolean => {
+    return (step.actions || []).some((action: StudyInteractiveExerciseAction) =>
+      (action.action_type === 'button' && action.correct_answer === 'correct') ||
+      (action.action_type === 'text_input' && action.correct_answer && action.correct_answer.trim() !== '')
+    )
+  }
+
+  // Handler para agregar nuevo paso con validación de acción correcta
+  const handleAddStep = () => {
+    if (steps.length > 0) {
+      const lastStep = steps[steps.length - 1] as StudyInteractiveExerciseStep
+      if (!stepHasCorrectAction(lastStep)) {
+        setWarningModal({
+          isOpen: true,
+          title: 'Acción correcta requerida',
+          message: `El Paso ${lastStep.step_number} no tiene una acción correcta configurada. Todos los pasos deben tener al menos una acción correcta (botón correcto o campo de texto) antes de agregar un nuevo paso.`
+        })
+        return
+      }
+    }
+    fileInputRef.current?.click()
+  }
+
   // Manejar subida de imagen (para paso existente o nuevo)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -2003,6 +2027,26 @@ const StudyInteractiveExercisePage = () => {
           <span className="fluid-text-sm text-gray-500">
             {steps.length} paso(s) • {currentStep?.actions?.length || 0} acción(es) en paso actual
           </span>
+          {steps.length > 0 && (
+            <button
+              onClick={handleDownloadAllImagesWithOverlays}
+              disabled={isDownloading}
+              className="fluid-px-3 fluid-py-2 bg-purple-600 text-white rounded-fluid-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 fluid-text-sm font-medium transition-colors"
+              title="Descargar secuencia de imágenes como ZIP (útil para generar videos)"
+            >
+              {isDownloading ? (
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              )}
+              {isDownloading ? 'Descargando...' : `ZIP (${steps.length})`}
+            </button>
+          )}
           <button
             onClick={async () => {
               // Validar que haya al menos un paso
@@ -2362,7 +2406,7 @@ const StudyInteractiveExercisePage = () => {
           
           <div className="fluid-p-3 border-t bg-white">
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleAddStep}
               disabled={isCreatingStep}
               className="w-full fluid-px-4 fluid-py-3 fluid-text-sm bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 disabled:opacity-50 font-medium flex items-center justify-center fluid-gap-2"
             >

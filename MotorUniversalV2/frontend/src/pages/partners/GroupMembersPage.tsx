@@ -310,7 +310,7 @@ export default function GroupMembersPage() {
       )}
 
       {/* ===== HEADER CON GRADIENTE ===== */}
-      <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-600 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full" />
         <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full" />
 
@@ -349,7 +349,7 @@ export default function GroupMembersPage() {
               {canManage && group?.is_active && (
                 <Link
                   to={`${basePath}/assign-candidates`}
-                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-purple-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg"
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white hover:bg-gray-100 text-primary-600 rounded-fluid-xl font-medium fluid-text-sm transition-all shadow-lg"
                 >
                   <UserPlus className="fluid-icon-sm" />
                   Agregar Miembros
@@ -407,7 +407,7 @@ export default function GroupMembersPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar por nombre, email o CURP..."
-              className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 fluid-text-sm"
+              className="w-full fluid-pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 fluid-text-sm"
             />
           </div>
 
@@ -415,7 +415,7 @@ export default function GroupMembersPage() {
           <select
             value={searchField}
             onChange={(e) => setSearchField(e.target.value)}
-            className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500"
+            className="fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500"
           >
             <option value="all">Todos los campos</option>
             <option value="name">Nombre</option>
@@ -431,7 +431,7 @@ export default function GroupMembersPage() {
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             className={`inline-flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 border rounded-fluid-lg fluid-text-sm transition-colors ${
               showAdvancedFilters
-                ? 'bg-purple-100 border-purple-300 text-purple-700'
+                ? 'bg-primary-100 border-primary-300 text-primary-700'
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -449,7 +449,7 @@ export default function GroupMembersPage() {
               onChange={(e) => setPageSizeInput(e.target.value.replace(/[^0-9]/g, ''))}
               onKeyDown={(e) => { if (e.key === 'Enter') handlePageSizeInputSubmit(); }}
               onBlur={handlePageSizeInputSubmit}
-              className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              className="w-16 text-center py-1.5 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               title="Registros por página (máx 1000)"
             />
           </div>
@@ -516,7 +516,7 @@ export default function GroupMembersPage() {
                   setFilterHasCurp('');
                   setFilterEligibility('');
                 }}
-                className="fluid-text-sm text-purple-600 hover:text-purple-700"
+                className="fluid-text-sm text-primary-600 hover:text-primary-700"
               >
                 Limpiar filtros
               </button>
@@ -528,8 +528,8 @@ export default function GroupMembersPage() {
       {/* ===== TABLA DE MIEMBROS ===== */}
       {totalResults === 0 && !searching && !(searchQuery || filterHasEmail || filterHasCurp || filterEligibility) ? (
         <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 text-center fluid-py-12">
-          <div className="w-20 h-20 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
-            <Users className="w-10 h-10 text-purple-400" />
+          <div className="w-20 h-20 mx-auto mb-4 bg-primary-100 rounded-full flex items-center justify-center">
+            <Users className="w-10 h-10 text-primary-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-700 mb-2">Aún no hay miembros</h3>
           <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
@@ -538,7 +538,7 @@ export default function GroupMembersPage() {
           {canManage && group?.is_active && (
             <Link
               to={`${basePath}/assign-candidates`}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white transition-colors"
             >
               <UserPlus className="w-5 h-5" />
               Agregar Miembros
@@ -595,7 +595,7 @@ export default function GroupMembersPage() {
                   onChange={(e) => setPageInputValue(e.target.value.replace(/[^0-9]/g, ''))}
                   onKeyDown={(e) => { if (e.key === 'Enter') handlePageInputSubmit(); }}
                   onBlur={handlePageInputSubmit}
-                  className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-14 text-center py-1 border border-gray-300 rounded fluid-text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   title="Escribe el número de página y presiona Enter"
                 />
                 <span className="fluid-text-sm text-gray-400">/ {totalPages}</span>
@@ -653,7 +653,7 @@ export default function GroupMembersPage() {
                   <tr key={member.id} className="hover:bg-gray-50 transition-colors">
                     <td className="fluid-px-4 fluid-py-3">
                       <div className="flex items-center fluid-gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-500 flex items-center justify-center text-white font-bold fluid-text-sm flex-shrink-0">
                           {member.user?.name?.charAt(0).toUpperCase() || '?'}
                         </div>
                         <div>
@@ -694,11 +694,11 @@ export default function GroupMembersPage() {
                     </td>
                     <td className="fluid-px-4 fluid-py-3 text-center hidden md:table-cell">
                       {member.user?.role === 'responsable' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-700 border border-indigo-200">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary-100 text-primary-700 border border-primary-200">
                           <Shield className="h-3 w-3" />Responsable
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary-50 text-primary-600 border border-primary-200">
                           <Users className="h-3 w-3" />Candidato
                         </span>
                       )}
@@ -757,7 +757,7 @@ export default function GroupMembersPage() {
             <div className="p-6">
               {checkingAssignments ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-purple-500 mr-3" />
+                  <Loader2 className="w-6 h-6 animate-spin text-primary-500 mr-3" />
                   <span className="text-gray-500">Verificando asignaciones...</span>
                 </div>
               ) : assignmentCheck?.has_assignments ? (
@@ -780,17 +780,17 @@ export default function GroupMembersPage() {
                   {/* Lista de asignaciones */}
                   <div className="space-y-2 mb-4">
                     {assignmentCheck.exam_assignments.map((ea: any) => (
-                      <div key={ea.group_exam_id} className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-lg">
-                        <FileSpreadsheet className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <span className="text-sm text-blue-800">{ea.exam_name}</span>
-                        <span className="ml-auto text-[10px] bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">Examen</span>
+                      <div key={ea.group_exam_id} className="flex items-center gap-2 p-2.5 bg-primary-50 border border-primary-100 rounded-lg">
+                        <FileSpreadsheet className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                        <span className="text-sm text-primary-800">{ea.exam_name}</span>
+                        <span className="ml-auto text-[10px] bg-primary-200 text-primary-700 px-1.5 py-0.5 rounded-full font-medium">Examen</span>
                       </div>
                     ))}
                     {assignmentCheck.material_assignments.map((ma: any) => (
-                      <div key={ma.group_material_id} className="flex items-center gap-2 p-2.5 bg-purple-50 border border-purple-100 rounded-lg">
-                        <BookOpen className="w-4 h-4 text-purple-600 flex-shrink-0" />
-                        <span className="text-sm text-purple-800">{ma.material_name}</span>
-                        <span className="ml-auto text-[10px] bg-purple-200 text-purple-700 px-1.5 py-0.5 rounded-full font-medium">Material</span>
+                      <div key={ma.group_material_id} className="flex items-center gap-2 p-2.5 bg-primary-50 border border-primary-100 rounded-lg">
+                        <BookOpen className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                        <span className="text-sm text-primary-800">{ma.material_name}</span>
+                        <span className="ml-auto text-[10px] bg-primary-200 text-primary-700 px-1.5 py-0.5 rounded-full font-medium">Material</span>
                       </div>
                     ))}
                   </div>

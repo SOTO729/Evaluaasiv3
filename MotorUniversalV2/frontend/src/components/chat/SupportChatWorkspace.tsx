@@ -1181,8 +1181,8 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                       {selectedConversation?.candidate?.curp || 'Sin CURP'}
                     </p>
                     <p>
-                      <span className="font-semibold text-gray-900">ID de usuario:</span>{' '}
-                      {selectedConversation?.candidate?.id || selectedConversation?.candidate_user_id || 'Sin ID'}
+                      <span className="font-semibold text-gray-900">Usuario:</span>{' '}
+                      {selectedConversation?.candidate?.username || 'Sin usuario'}
                     </p>
                   </div>
                 </div>

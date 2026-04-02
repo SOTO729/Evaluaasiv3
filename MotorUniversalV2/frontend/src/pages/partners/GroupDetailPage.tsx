@@ -327,7 +327,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
             <div className="fluid-p-2.5 bg-emerald-100 rounded-fluid-lg"><Award className="fluid-icon-base text-emerald-600" /></div>
             <div>
               <p className="fluid-text-2xl font-bold text-emerald-600">{stats.certified}</p>
-              <p className="fluid-text-xs text-gray-500">Certificados</p>
+              <p className="fluid-text-xs text-gray-500">Vouchers</p>
             </div>
           </div>
         </div>
@@ -348,12 +348,12 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
                     return cost > 0 ? Math.floor(balance / cost) : 0;
                   })()}
                 </p>
-                <p className="fluid-text-xs text-gray-500">Certificados disponibles (aprox.)</p>
+                <p className="fluid-text-xs text-gray-500">Vouchers disponibles (aprox.)</p>
               </div>
             </div>
             <div className="fluid-mt-2">
               <span className="inline-flex items-center fluid-gap-1 fluid-text-xs font-medium text-primary-600 group-hover/balance:text-primary-800 transition-colors">
-                <Plus className="w-3 h-3" /> Solicitar certificados
+                <Plus className="w-3 h-3" /> Solicitar Vouchers
               </span>
             </div>
           </Link>

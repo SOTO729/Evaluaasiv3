@@ -873,8 +873,28 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     }
   }
 
+  // Verificar si un paso tiene al menos una acción correcta
+  const stepHasCorrectAction = (step: ExerciseStep): boolean => {
+    return (step.actions || []).some(action =>
+      (action.action_type === 'button' && action.correct_answer === 'correct') ||
+      action.action_type === 'textbox'
+    )
+  }
+
   // Handler para crear nuevo paso (abre selector de archivo)
   const handleCreateStep = () => {
+    // Validar que el último paso tenga acción correcta antes de permitir agregar otro
+    if (steps.length > 0) {
+      const lastStep = steps[steps.length - 1] as ExerciseStep
+      if (!stepHasCorrectAction(lastStep)) {
+        setWarningModal({
+          isOpen: true,
+          title: 'Acción correcta requerida',
+          message: `El Paso ${lastStep.step_number} no tiene una acción correcta configurada. Todos los pasos deben tener al menos una acción correcta (botón correcto o campo de texto) antes de agregar un nuevo paso.`
+        })
+        return
+      }
+    }
     fileInputRef.current?.click()
   }
 

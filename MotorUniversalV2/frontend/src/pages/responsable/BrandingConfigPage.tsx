@@ -6,7 +6,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getMiPlantel, updateMiPlantelBranding, uploadMiPlantelLogo, deleteMiPlantelLogo } from '../../services/partnersService'
 import { useAuthStore } from '../../store/authStore'
-import { Palette, Upload, Trash2, RotateCcw, Check, Eye, Building2, Image } from 'lucide-react'
+import { Palette, Upload, Trash2, RotateCcw, Check, Eye, Building2, Image, ArrowLeft, Sparkles } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
 const DEFAULT_PRIMARY = '#3b82f6'
@@ -160,56 +161,69 @@ const BrandingConfigPage = () => {
   if (isLoading) return <LoadingSpinner />
 
   return (
-    <div className="max-w-4xl mx-auto fluid-py-6 fluid-px-4">
-      {/* Header */}
-      <div className="fluid-mb-6">
-        <div className="flex items-center fluid-gap-3 fluid-mb-2">
-          <div className="fluid-p-2 rounded-lg" style={{ backgroundColor: previewPalette['100'] }}>
-            <Palette className="fluid-icon" style={{ color: primaryColor }}  />
+    <div className="max-w-5xl mx-auto fluid-py-6 fluid-px-4">
+      {/* Header con gradiente */}
+      <div className="bg-gradient-to-r from-primary-600 via-primary-600 to-primary-500 rounded-fluid-2xl fluid-p-6 fluid-mb-6 text-white shadow-lg relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSIxIiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiLz48L3N2Zz4=')] opacity-50" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center fluid-gap-4">
+            <Link to="/mi-plantel" className="fluid-p-2 hover:bg-white/20 rounded-fluid-xl transition-colors">
+              <ArrowLeft className="fluid-icon-lg" />
+            </Link>
+            <div className="fluid-p-3 bg-white/20 rounded-fluid-xl backdrop-blur-sm">
+              <Palette className="fluid-icon-lg" />
+            </div>
+            <div>
+              <h1 className="fluid-text-2xl font-bold">Personalizar Portal</h1>
+              <p className="fluid-text-sm text-white/80">{campus?.name || 'Mi Plantel'}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="fluid-text-2xl font-bold text-gray-900">Personalizar Portal</h1>
-            <p className="fluid-text-sm text-gray-500">{campus?.name}</p>
-          </div>
+          {logoPreview && (
+            <div className="hidden sm:flex items-center fluid-gap-3 bg-white/10 backdrop-blur-sm rounded-fluid-xl fluid-px-4 fluid-py-2">
+              <img src={logoPreview} alt="Logo" className="h-10 w-10 object-contain" />
+              <span className="fluid-text-sm font-medium">Logo activo</span>
+            </div>
+          )}
         </div>
-        <p className="fluid-text-base text-gray-600">
-          Personaliza la apariencia de tu portal con el logo y los colores de tu plantel.
-        </p>
       </div>
 
       {/* Mensajes */}
       {successMsg && (
-        <div className="flex items-center fluid-gap-2 fluid-p-4 fluid-mb-4 bg-green-50 border border-green-200 fluid-rounded-lg">
+        <div className="flex items-center fluid-gap-2 fluid-p-4 fluid-mb-4 bg-green-50 border border-green-200 fluid-rounded-xl animate-fade-in-up">
           <Check className="fluid-icon-sm text-green-600 flex-shrink-0" />
-          <span className="fluid-text-sm text-green-700">{successMsg}</span>
+          <span className="fluid-text-sm text-green-700 font-medium">{successMsg}</span>
         </div>
       )}
       {errorMsg && (
-        <div className="flex items-center fluid-gap-2 fluid-p-4 fluid-mb-4 bg-red-50 border border-red-200 fluid-rounded-lg">
+        <div className="flex items-center fluid-gap-2 fluid-p-4 fluid-mb-4 bg-red-50 border border-red-200 fluid-rounded-xl">
           <span className="fluid-text-sm text-red-700">{errorMsg}</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">
         {/* ── Logo ── */}
-        <div className="bg-white fluid-rounded-xl shadow-sm border border-gray-200 fluid-p-6">
-          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
-            <Image className="fluid-icon-sm text-gray-500" />
+        <div className="bg-white fluid-rounded-xl shadow-sm border border-gray-200 fluid-p-6 flex flex-col">
+          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-1 flex items-center fluid-gap-2">
+            <Image className="fluid-icon-sm text-primary-500" />
             Logo del Plantel
           </h2>
-          <p className="fluid-text-sm text-gray-500 fluid-mb-4">
-            Sube el logo de tu plantel. Se mostrará en la barra de navegación. Formatos: PNG, JPG, WebP, SVG. Máximo 2MB.
+          <p className="fluid-text-sm text-gray-500 fluid-mb-5">
+            Se mostrará en la barra de navegación y en los certificados.
+            <span className="text-gray-600 font-medium"> PNG con fondo transparente recomendado.</span>
           </p>
 
-          <div className="flex flex-col items-center fluid-gap-4">
+          <div className="flex-1 flex flex-col items-center justify-center fluid-gap-4">
             {/* Preview del logo */}
-            <div className="w-32 h-32 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
+            <div className="w-40 h-40 rounded-2xl border-2 border-dashed border-gray-200 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden transition-all hover:border-primary-300 hover:shadow-md group">
               {logoPreview ? (
-                <img src={logoPreview} alt="Logo del plantel" className="w-full h-full object-contain p-2" />
+                <img src={logoPreview} alt="Logo del plantel" className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform" />
               ) : (
-                <div className="text-center">
-                  <Building2 className="w-8 h-8 text-gray-400 mx-auto" />
-                  <span className="fluid-text-xs text-gray-400 mt-1">Sin logo</span>
+                <div className="text-center fluid-p-4">
+                  <div className="w-14 h-14 mx-auto mb-2 rounded-xl bg-gray-200/60 flex items-center justify-center">
+                    <Building2 className="w-7 h-7 text-gray-400" />
+                  </div>
+                  <span className="fluid-text-xs text-gray-400 block">Sin logo configurado</span>
+                  <span className="fluid-text-xs text-gray-300">PNG, JPG, WebP, SVG — Máx 2MB</span>
                 </div>
               )}
             </div>
@@ -225,17 +239,16 @@ const BrandingConfigPage = () => {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={logoUploadMutation.isPending}
-                className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50"
-                style={{ backgroundColor: primaryColor }}
+                className="flex items-center fluid-gap-2 fluid-px-5 fluid-py-2.5 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-lg transition-colors disabled:opacity-50 shadow-sm"
               >
                 <Upload className="w-4 h-4" />
-                {logoUploadMutation.isPending ? 'Subiendo...' : 'Subir logo'}
+                {logoUploadMutation.isPending ? 'Subiendo...' : logoPreview ? 'Cambiar logo' : 'Subir logo'}
               </button>
               {logoPreview && (
                 <button
                   onClick={() => logoDeleteMutation.mutate()}
                   disabled={logoDeleteMutation.isPending}
-                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                  className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 fluid-text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-fluid-lg transition-colors disabled:opacity-50"
                 >
                   <Trash2 className="w-4 h-4" />
                   Eliminar
@@ -246,25 +259,25 @@ const BrandingConfigPage = () => {
         </div>
 
         {/* ── Colores ── */}
-        <div className="bg-white fluid-rounded-xl shadow-sm border border-gray-200 fluid-p-6">
-          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
-            <Palette className="fluid-icon-sm text-gray-500" />
+        <div className="bg-white fluid-rounded-xl shadow-sm border border-gray-200 fluid-p-6 flex flex-col">
+          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-1 flex items-center fluid-gap-2">
+            <Palette className="fluid-icon-sm text-primary-500" />
             Colores del Portal
           </h2>
-          <p className="fluid-text-sm text-gray-500 fluid-mb-4">
-            Elige los colores que representan a tu plantel. Se aplicarán en botones, enlaces y elementos destacados.
+          <p className="fluid-text-sm text-gray-500 fluid-mb-5">
+            Se aplicarán en botones, enlaces y elementos destacados de tu portal.
           </p>
 
           {/* Color pickers */}
-          <div className="grid grid-cols-2 fluid-gap-4 fluid-mb-4">
+          <div className="grid grid-cols-2 fluid-gap-4 fluid-mb-5">
             <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Color primario</label>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Color primario</label>
               <div className="flex items-center fluid-gap-2">
                 <input
                   type="color"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                  className="w-12 h-12 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-gray-400 transition-colors"
                 />
                 <input
                   type="text"
@@ -274,18 +287,18 @@ const BrandingConfigPage = () => {
                     if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setPrimaryColor(v)
                   }}
                   maxLength={7}
-                  className="flex-1 fluid-px-3 fluid-py-2 fluid-text-sm border border-gray-300 rounded-lg font-mono"
+                  className="flex-1 fluid-px-3 fluid-py-2.5 fluid-text-sm border border-gray-200 rounded-fluid-lg font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
             <div>
-              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Color secundario</label>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Color secundario</label>
               <div className="flex items-center fluid-gap-2">
                 <input
                   type="color"
                   value={secondaryColor}
                   onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                  className="w-12 h-12 rounded-xl border-2 border-gray-200 cursor-pointer hover:border-gray-400 transition-colors"
                 />
                 <input
                   type="text"
@@ -295,87 +308,98 @@ const BrandingConfigPage = () => {
                     if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setSecondaryColor(v)
                   }}
                   maxLength={7}
-                  className="flex-1 fluid-px-3 fluid-py-2 fluid-text-sm border border-gray-300 rounded-lg font-mono"
+                  className="flex-1 fluid-px-3 fluid-py-2.5 fluid-text-sm border border-gray-200 rounded-fluid-lg font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
             </div>
           </div>
 
+          {/* Paleta generada */}
+          <div className="fluid-mb-5">
+            <span className="fluid-text-xs font-semibold text-gray-400 uppercase tracking-wider">Paleta generada</span>
+            <div className="flex rounded-xl overflow-hidden mt-2 shadow-inner">
+              {Object.entries(previewPalette).map(([shade, color]) => (
+                <div
+                  key={shade}
+                  className="flex-1 h-10 relative group cursor-default"
+                  style={{ backgroundColor: color }}
+                  title={`${shade}: ${color}`}
+                >
+                  <span className="absolute inset-0 flex items-center justify-center fluid-text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity text-white mix-blend-difference">
+                    {shade}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Botones de acción */}
-          <div className="flex fluid-gap-2 fluid-mb-4">
+          <div className="flex fluid-gap-2 mt-auto">
             <button
               onClick={handleSaveBranding}
               disabled={!hasChanges || brandingMutation.isPending}
-              className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50"
-              style={{ backgroundColor: hasChanges ? primaryColor : '#9ca3af' }}
+              className="flex-1 flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2.5 fluid-text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
             >
               <Check className="w-4 h-4" />
               {brandingMutation.isPending ? 'Guardando...' : 'Guardar colores'}
             </button>
             <button
               onClick={handleResetColors}
-              className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2.5 fluid-text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-fluid-lg transition-colors"
+              title="Restaurar colores predeterminados"
             >
               <RotateCcw className="w-4 h-4" />
-              Restaurar
             </button>
-          </div>
-
-          {/* Paleta generada */}
-          <div className="fluid-mb-2">
-            <span className="fluid-text-xs font-medium text-gray-500 uppercase">Paleta generada</span>
-          </div>
-          <div className="flex rounded-lg overflow-hidden fluid-mb-4">
-            {Object.entries(previewPalette).map(([shade, color]) => (
-              <div
-                key={shade}
-                className="flex-1 h-8"
-                style={{ backgroundColor: color }}
-                title={`${shade}: ${color}`}
-              />
-            ))}
           </div>
         </div>
 
         {/* ── Paletas predefinidas ── */}
         <div className="bg-white fluid-rounded-xl shadow-sm border border-gray-200 fluid-p-6 lg:col-span-2">
-          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4">Paletas predefinidas</h2>
+          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-1 flex items-center fluid-gap-2">
+            <Sparkles className="fluid-icon-sm text-primary-500" />
+            Paletas predefinidas
+          </h2>
           <p className="fluid-text-sm text-gray-500 fluid-mb-4">
-            Selecciona una paleta como punto de partida, o personaliza los colores manualmente arriba.
+            Selecciona una paleta como punto de partida, o personaliza los colores manualmente.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 fluid-gap-3">
-            {PRESET_PALETTES.map((preset) => (
-              <button
-                key={preset.name}
-                onClick={() => handleSelectPreset(preset)}
-                className={`flex flex-col items-center fluid-p-3 rounded-lg border-2 transition-all hover:shadow-md ${
-                  primaryColor === preset.primary && secondaryColor === preset.secondary
-                    ? 'border-gray-900 shadow-md'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex rounded-full overflow-hidden w-10 h-10 fluid-mb-2">
-                  <div className="flex-1" style={{ backgroundColor: preset.primary }} />
-                  <div className="flex-1" style={{ backgroundColor: preset.secondary }} />
-                </div>
-                <span className="fluid-text-xs text-gray-600 text-center">{preset.name}</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 fluid-gap-3">
+            {PRESET_PALETTES.map((preset) => {
+              const isActive = primaryColor === preset.primary && secondaryColor === preset.secondary
+              return (
+                <button
+                  key={preset.name}
+                  onClick={() => handleSelectPreset(preset)}
+                  className={`flex flex-col items-center fluid-p-3 rounded-xl border-2 transition-all hover:shadow-md hover:-translate-y-0.5 ${
+                    isActive
+                      ? 'border-gray-900 shadow-md bg-gray-50'
+                      : 'border-gray-100 hover:border-gray-300 bg-white'
+                  }`}
+                >
+                  <div className="flex rounded-full overflow-hidden w-10 h-10 fluid-mb-2 shadow-sm ring-2 ring-white">
+                    <div className="flex-1" style={{ backgroundColor: preset.primary }} />
+                    <div className="flex-1" style={{ backgroundColor: preset.secondary }} />
+                  </div>
+                  <span className="fluid-text-xs text-gray-600 text-center leading-tight">{preset.name}</span>
+                  {isActive && <Check className="w-3 h-3 text-gray-900 mt-1" />}
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {/* ── Preview en vivo ── */}
         <div className="bg-white fluid-rounded-xl shadow-sm border border-gray-200 fluid-p-6 lg:col-span-2">
-          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-4 flex items-center fluid-gap-2">
-            <Eye className="fluid-icon-sm text-gray-500" />
+          <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-1 flex items-center fluid-gap-2">
+            <Eye className="fluid-icon-sm text-primary-500" />
             Vista previa
           </h2>
           <p className="fluid-text-sm text-gray-500 fluid-mb-4">
             Así se verá tu portal con la configuración actual.
           </p>
 
-          {/* Mini navbar preview */}
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
+          {/* Mini portal preview */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-inner">
+            {/* Navbar mock */}
             <div className="bg-white border-b fluid-px-4 fluid-py-3 flex items-center fluid-gap-3">
               {logoPreview ? (
                 <img src={logoPreview} alt="Logo" className="h-8 w-8 object-contain" />

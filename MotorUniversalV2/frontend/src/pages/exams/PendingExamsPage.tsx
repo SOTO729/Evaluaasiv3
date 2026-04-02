@@ -27,6 +27,7 @@ interface PendingSession {
 
 function getPendingSessions(): PendingSession[] {
   const sessions: PendingSession[] = []
+  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000
   
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
@@ -34,6 +35,11 @@ function getPendingSessions(): PendingSession[] {
       try {
         const data = JSON.parse(localStorage.getItem(key) || '')
         if (data && data.timeRemaining > 0) {
+          // Auto-anular sesiones de más de 1 año
+          if (data.savedAt && (Date.now() - data.savedAt) > ONE_YEAR_MS) {
+            localStorage.removeItem(key)
+            continue
+          }
           const parts = key.replace('exam_session_', '').split('_')
           const examId = parts[0]
           const mode = parts[1] as 'exam' | 'simulator'

@@ -383,13 +383,26 @@ const EvaluationReportSection = ({ exams, formatDate }: { exams: any[], formatDa
 // Sección de Certificado de Evaluación
 const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], formatDate: (date: string) => string }) => {
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [selectedCampusResult, setSelectedCampusResult] = useState<Record<number, string>>({})
   const { accessToken } = useAuthStore()
   
+  const getSelectedResult = (exam: any) => {
+    const campusResults = exam.user_stats.approved_results_by_campus
+    if (campusResults && campusResults.length > 1) {
+      const selectedId = selectedCampusResult[exam.id]
+      if (selectedId) {
+        return campusResults.find((r: any) => r.id === selectedId) || campusResults[0]
+      }
+      return campusResults[0]
+    }
+    return exam.user_stats.approved_result || exam.user_stats.last_attempt
+  }
+
   const handleDownloadCertificate = async (e: React.MouseEvent, exam: any) => {
     e.stopPropagation()
     
-    // Obtener el ID del resultado aprobado
-    const resultId = exam.user_stats.approved_result?.id || exam.user_stats.last_attempt?.id
+    const selectedResult = getSelectedResult(exam)
+    const resultId = selectedResult?.id
     if (!resultId) {
       alert('No se encontró el resultado para generar el certificado')
       return
@@ -518,6 +531,21 @@ const ApprovalCertificateSection = ({ exams, formatDate }: { exams: any[], forma
               <span className="fluid-px-3 fluid-py-1 rounded-full fluid-text-xs font-medium bg-green-100 text-green-800 group-hover:bg-green-200 transition-colors">
                 Certificado disponible
               </span>
+              {/* Selector de plantel cuando hay múltiples resultados aprobados de diferentes planteles */}
+              {exam.user_stats.approved_results_by_campus && exam.user_stats.approved_results_by_campus.length > 1 && (
+                <select
+                  value={selectedCampusResult[exam.id] || exam.user_stats.approved_results_by_campus[0]?.id}
+                  onChange={(e) => setSelectedCampusResult(prev => ({ ...prev, [exam.id]: e.target.value }))}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full sm:w-auto fluid-text-sm border border-green-300 rounded-fluid-lg fluid-px-3 fluid-py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                >
+                  {exam.user_stats.approved_results_by_campus.map((r: any) => (
+                    <option key={r.id} value={r.id}>
+                      {r.campus?.name || 'Sin plantel'}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button 
                 onClick={(e) => handleDownloadCertificate(e, exam)}
                 disabled={downloadingId === exam.id}
@@ -602,7 +630,7 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
     } catch { /* best effort */ }
     const url = getVerifyUrl(badge)
     const name = badge.template_name || 'Insignia Digital'
-    const profileUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(name)}&certUrl=${encodeURIComponent(url)}&organizationName=${encodeURIComponent('Evaluaasi')}`
+    const profileUrl = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(name)}&certUrl=${encodeURIComponent(url)}&organizationId=28165545`
     window.open(profileUrl, '_blank', 'noopener')
   }
 
@@ -794,23 +822,23 @@ const DigitalBadgeSection = ({ exams, formatDate }: { exams: any[], formatDate: 
                 Ver Credencial
               </button>
               <button
-                onClick={() => handleAddToProfile(badge)}
-                className="fluid-px-3 fluid-py-2 border border-gray-300 text-gray-600 rounded-fluid-lg fluid-text-sm hover:bg-gray-100 hover:border-gray-400 transition-all duration-200 hover:scale-105 active:scale-95"
-                title="Agregar al perfil de LinkedIn"
+                onClick={() => handleShare(badge)}
+                className="fluid-px-3 fluid-py-2 border border-[#0A66C2] text-[#0A66C2] rounded-fluid-lg fluid-text-sm hover:bg-[#0A66C2]/10 hover:border-[#0A66C2] transition-all duration-200 hover:scale-105 active:scale-95"
+                title="Publicar en LinkedIn"
               >
-                <UserPlus className="fluid-icon-xs" />
+                <svg className="fluid-icon-xs" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
               </button>
             </div>
 
             {/* Compartir: LinkedIn · Facebook · Instagram · WhatsApp · X · Email */}
             <div className="grid grid-cols-3 fluid-gap-2 relative z-10 mt-2">
               <button
-                onClick={() => handleShare(badge)}
+                onClick={() => handleAddToProfile(badge)}
                 className="flex items-center justify-center fluid-gap-1 fluid-px-2 fluid-py-2 border border-[#0A66C2] text-[#0A66C2] rounded-fluid-lg fluid-text-xs font-medium hover:bg-[#0A66C2]/10 hover:border-[#0A66C2] transition-all duration-200 hover:scale-105 active:scale-95"
-                title="Compartir en LinkedIn"
+                title="Agregar al perfil de LinkedIn"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                LinkedIn
+                <UserPlus className="w-3.5 h-3.5" />
+                Perfil
               </button>
               <button
                 onClick={() => handleShareFacebook(badge)}
