@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Página de Mis Vouchers - Responsable de Plantel
  *
  * Muestra los vouchers del plantel en UNIDADES + historial de solicitudes integrado.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Wallet as WalletIcon,
   TrendingUp,
@@ -20,17 +20,11 @@ import {
   Plus,
   Paperclip,
   ChevronRight,
-  ChevronLeft,
   Send,
   Eye,
-  Loader2,
-  CreditCard,
-  X,
-  Receipt,
-  ShoppingCart,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import CheckoutForm from '../../components/payments/CheckoutForm';
+
 import {
   getMyCampusBalance,
   MyCampusBalanceResponse,
@@ -38,7 +32,7 @@ import {
   CertificateRequestData,
   CertificateRequestStatus,
 } from '../../services/balanceService';
-import { getMyPayments, PaymentRecord } from '../../services/paymentService';
+
 
 const STATUS_CONFIG: Record<CertificateRequestStatus, { label: string; color: string; bgColor: string; icon: typeof Clock }> = {
   pending: { label: 'Pendiente', color: 'text-amber-700', bgColor: 'bg-amber-50 border-amber-200', icon: Clock },
@@ -69,28 +63,9 @@ function getSimplifiedStatus(status: CertificateRequestStatus): string {
   return map[status] || status;
 }
 
-const PAYMENT_STATUS_BADGE: Record<string, { label: string; color: string; bg: string; Icon: typeof Clock }> = {
-  pending:   { label: 'Pendiente',   color: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200',  Icon: Clock },
-  approved:  { label: 'Aprobado',    color: 'text-green-700',  bg: 'bg-green-50 border-green-200',   Icon: CheckCircle2 },
-  rejected:  { label: 'Rechazado',   color: 'text-red-700',    bg: 'bg-red-50 border-red-200',       Icon: XCircle },
-  cancelled: { label: 'Cancelado',   color: 'text-gray-700',   bg: 'bg-gray-50 border-gray-200',     Icon: XCircle },
-  refunded:  { label: 'Reembolsado', color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',     Icon: RefreshCw },
-  in_process:{ label: 'En proceso',  color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',     Icon: Loader2 },
-};
 
-function PaymentStatusBadge({ status, label }: { status: string; label?: string }) {
-  const cfg = PAYMENT_STATUS_BADGE[status] || PAYMENT_STATUS_BADGE.pending;
-  const { Icon } = cfg;
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cfg.bg} ${cfg.color}`}>
-      <Icon className="w-3.5 h-3.5" />
-      {label || cfg.label}
-    </span>
-  );
-}
 
 export default function MiSaldoResponsablePage() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<MyCampusBalanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,36 +75,7 @@ export default function MiSaldoResponsablePage() {
   const [requestsLoading, setRequestsLoading] = useState(true);
   const [requestsError, setRequestsError] = useState<string | null>(null);
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'vouchers' | 'pagos'>(
-    searchParams.get('tab') === 'pagos' ? 'pagos' : 'vouchers'
-  );
 
-  // Payments state
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [paymentsTotal, setPaymentsTotal] = useState(0);
-  const [paymentsPage, setPaymentsPage] = useState(1);
-  const [paymentsPerPage] = useState(10);
-  const [paymentsLoading, setPaymentsLoading] = useState(false);
-  const [paymentsError, setPaymentsError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('');
-
-  // Checkout state
-  const [showCheckout, setShowCheckout] = useState(false);
-
-  // Payment return banner
-  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
-
-  useEffect(() => {
-    const ps = searchParams.get('payment');
-    if (ps) {
-      setPaymentStatus(ps);
-      // Clean URL params
-      searchParams.delete('payment');
-      searchParams.delete('ref');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, []);
 
   const loadData = async () => {
     try {
@@ -161,45 +107,13 @@ export default function MiSaldoResponsablePage() {
     loadRequests();
   }, []);
 
-  // Load payments
-  const loadPayments = useCallback(async () => {
-    setPaymentsLoading(true);
-    setPaymentsError(null);
-    try {
-      const res = await getMyPayments({
-        page: paymentsPage,
-        per_page: paymentsPerPage,
-        ...(statusFilter ? { status: statusFilter } : {}),
-      });
-      setPayments(res.payments);
-      setPaymentsTotal(res.total);
-    } catch (err: any) {
-      setPaymentsError(err.response?.data?.error || 'Error al cargar pagos');
-    } finally {
-      setPaymentsLoading(false);
-    }
-  }, [paymentsPage, paymentsPerPage, statusFilter]);
 
-  useEffect(() => {
-    if (activeTab === 'pagos') {
-      loadPayments();
-    }
-  }, [activeTab, loadPayments]);
-
-  const handleTabChange = (tab: 'vouchers' | 'pagos') => {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams);
-    if (tab === 'pagos') params.set('tab', 'pagos');
-    else params.delete('tab');
-    setSearchParams(params, { replace: true });
-  };
 
   const handleRefresh = () => {
     setRefreshing(true);
     setRequestsLoading(true);
     loadData();
     loadRequests();
-    if (activeTab === 'pagos') loadPayments();
   };
 
   if (loading) {
@@ -264,63 +178,6 @@ export default function MiSaldoResponsablePage() {
         </button>
       </div>
 
-      {/* Payment return banner */}
-      {paymentStatus === 'success' && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-between animate-fadeInUp">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <p className="text-sm text-green-800 font-medium">Pago procesado correctamente. Los vouchers se acreditarán en breve.</p>
-          </div>
-          <button onClick={() => setPaymentStatus(null)} className="p-1 hover:bg-green-100 rounded-lg"><X className="w-4 h-4 text-green-600" /></button>
-        </div>
-      )}
-      {paymentStatus === 'pending' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between animate-fadeInUp">
-          <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-800 font-medium">Tu pago está pendiente de confirmación. Los vouchers se acreditarán cuando se confirme.</p>
-          </div>
-          <button onClick={() => setPaymentStatus(null)} className="p-1 hover:bg-amber-100 rounded-lg"><X className="w-4 h-4 text-amber-600" /></button>
-        </div>
-      )}
-      {paymentStatus === 'failure' && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center justify-between animate-fadeInUp">
-          <div className="flex items-center gap-3">
-            <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <p className="text-sm text-red-800 font-medium">El pago no pudo ser procesado. Puedes intentar de nuevo.</p>
-          </div>
-          <button onClick={() => setPaymentStatus(null)} className="p-1 hover:bg-red-100 rounded-lg"><X className="w-4 h-4 text-red-600" /></button>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 mb-8">
-        <button
-          onClick={() => handleTabChange('vouchers')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'vouchers'
-              ? 'bg-white text-primary-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          Vouchers
-        </button>
-        <button
-          onClick={() => handleTabChange('pagos')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'pagos'
-              ? 'bg-white text-primary-700 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          Mis Pagos
-        </button>
-      </div>
-
-      {activeTab === 'vouchers' && (
-      <>
       {/* Saldo Total Hero - en UNIDADES */}
       <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-8 text-white mb-8 shadow-xl animate-fadeInUp hover-lift">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -334,15 +191,6 @@ export default function MiSaldoResponsablePage() {
             </p>
           </div>
           <div className="mt-6 md:mt-0 flex flex-col sm:flex-row gap-3">
-            {campus.enable_online_payments && campus.certification_cost > 0 && (
-              <button
-                onClick={() => setShowCheckout(true)}
-                className="flex items-center gap-2 px-5 py-3 bg-white text-primary-600 rounded-xl font-medium hover:bg-primary-50 transition-colors shadow-lg"
-              >
-                <CreditCard className="w-5 h-5" />
-                Comprar Vouchers
-              </button>
-            )}
             <Link
               to="/solicitar-certificados"
               className="flex items-center gap-2 px-5 py-3 bg-white/20 text-white border border-white/40 rounded-xl font-medium hover:bg-white/30 transition-colors"
@@ -547,187 +395,6 @@ export default function MiSaldoResponsablePage() {
           </div>
         )}
       </div>
-      </>
-      )}
-
-      {/* ==================== Tab Mis Pagos ==================== */}
-      {activeTab === 'pagos' && (
-      <>
-        {/* Summary cards */}
-        {!paymentsLoading && paymentsTotal > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 animate-fadeInUp">
-            <div className="bg-white rounded-xl p-4 border shadow-sm text-center">
-              <p className="text-xs text-gray-500 mb-1">Total pagos</p>
-              <p className="text-2xl font-bold text-gray-800">{paymentsTotal}</p>
-            </div>
-            <div className="bg-green-50 rounded-xl p-4 border border-green-200 text-center">
-              <p className="text-xs text-green-700 mb-1">Aprobados</p>
-              <p className="text-2xl font-bold text-green-800">{payments.filter(p => p.status === 'approved').length}</p>
-            </div>
-            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 text-center">
-              <p className="text-xs text-amber-700 mb-1">Pendientes</p>
-              <p className="text-2xl font-bold text-amber-800">{payments.filter(p => p.status === 'pending' || p.status === 'in_process').length}</p>
-            </div>
-            <div className="bg-primary-50 rounded-xl p-4 border border-primary-200 text-center">
-              <p className="text-xs text-primary-700 mb-1">Precio unitario</p>
-              <p className="text-2xl font-bold text-primary-800">
-                ${campus.certification_cost}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Filter bar */}
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-3">
-            <select
-              value={statusFilter}
-              onChange={e => { setStatusFilter(e.target.value); setPaymentsPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Todos los estados</option>
-              <option value="pending">Pendiente</option>
-              <option value="approved">Aprobado</option>
-              <option value="rejected">Rechazado</option>
-              <option value="cancelled">Cancelado</option>
-              <option value="in_process">En proceso</option>
-              <option value="refunded">Reembolsado</option>
-            </select>
-            <span className="text-sm text-gray-500">{paymentsTotal} pago{paymentsTotal !== 1 ? 's' : ''}</span>
-          </div>
-          {campus.enable_online_payments && campus.certification_cost > 0 && (
-            <button
-              onClick={() => setShowCheckout(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors shadow-lg text-sm"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              Comprar Vouchers
-            </button>
-          )}
-        </div>
-
-        {/* Payments list */}
-        {paymentsError && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{paymentsError}</p>
-          </div>
-        )}
-
-        {paymentsLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : payments.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border p-12 text-center animate-fadeInUp">
-            <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">Sin pagos registrados</h3>
-            <p className="text-gray-400 mb-6">
-              {statusFilter ? 'No hay pagos con este filtro.' : 'Aún no has realizado pagos en línea.'}
-            </p>
-            {campus.enable_online_payments && campus.certification_cost > 0 && !statusFilter && (
-              <button
-                onClick={() => setShowCheckout(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium text-sm hover:bg-primary-700"
-              >
-                <ShoppingCart className="w-4 h-4" /> Comprar Vouchers
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3 animate-fadeInUp">
-            {payments.map(p => {
-              const date = new Date(p.created_at);
-              return (
-                <div key={p.id} className="bg-white rounded-xl border shadow-sm p-5 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <PaymentStatusBadge status={p.status} label={p.status_label} />
-                        <span className="text-xs text-gray-400">
-                          {date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
-                          {' '}
-                          {date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        {p.credits_applied && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
-                            <CheckCircle2 className="w-3 h-3" /> Acreditado
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-6">
-                        <div>
-                          <span className="text-2xl font-bold text-gray-800">{p.units}</span>
-                          <span className="text-sm text-gray-500 ml-1">voucher{p.units !== 1 ? 's' : ''}</span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          <span className="font-medium text-gray-700">${p.total_amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> MXN
-                          <span className="text-xs text-gray-400 ml-1">({p.units} × ${p.unit_price.toLocaleString('es-MX', { minimumFractionDigits: 2 })})</span>
-                        </div>
-                      </div>
-
-                      {p.mp_payment_method && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Método: {p.mp_payment_method} {p.mp_payment_type ? `(${p.mp_payment_type})` : ''}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 sm:flex-col sm:items-end">
-                      <span className="text-xs text-gray-400 font-mono">#{p.id}</span>
-                      {p.mp_external_reference && (
-                        <span className="text-xs text-gray-300 font-mono truncate max-w-[120px]" title={p.mp_external_reference}>
-                          {p.mp_external_reference.slice(0, 12)}...
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {Math.ceil(paymentsTotal / paymentsPerPage) > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <button
-              onClick={() => setPaymentsPage(p => Math.max(1, p - 1))}
-              disabled={paymentsPage <= 1}
-              className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="w-4 h-4" /> Anterior
-            </button>
-            <span className="text-sm text-gray-600">
-              Página {paymentsPage} de {Math.ceil(paymentsTotal / paymentsPerPage)}
-            </span>
-            <button
-              onClick={() => setPaymentsPage(p => Math.min(Math.ceil(paymentsTotal / paymentsPerPage), p + 1))}
-              disabled={paymentsPage >= Math.ceil(paymentsTotal / paymentsPerPage)}
-              className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Siguiente <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </>
-      )}
-
-      {/* ==================== CheckoutForm ==================== */}
-      {data && (
-        <CheckoutForm
-          isOpen={showCheckout}
-          campusName={campus.name}
-          certificationCost={campus.certification_cost}
-          onClose={() => setShowCheckout(false)}
-          onPaymentComplete={() => {
-            setShowCheckout(false);
-            loadData();
-            loadPayments();
-          }}
-        />
-      )}
     </div>
   );
 }

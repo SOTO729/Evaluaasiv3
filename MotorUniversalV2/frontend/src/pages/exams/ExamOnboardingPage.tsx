@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { examService } from '../../services/examService';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import CandidateCheckoutModal from '../../components/payments/CandidateCheckoutModal';
 import { 
   FileText, 
   ArrowLeft,
@@ -27,7 +28,8 @@ import {
   Info,
   ChevronDown,
   Lock,
-  X
+  X,
+  CreditCard
 } from 'lucide-react';
 
 
@@ -68,6 +70,15 @@ const ExamOnboardingPage = () => {
   const [pinVerifying, setPinVerifying] = useState(false);
   const [requirePin, setRequirePin] = useState(false);
 
+  // Payment state
+  const [requiresPayment, setRequiresPayment] = useState(false);
+  const [isPaid, setIsPaid] = useState(false);
+  const [certificationCost, setCertificationCost] = useState(0);
+  const [retakeRequiresPayment, setRetakeRequiresPayment] = useState(false);
+  const [retakeCost, setRetakeCost] = useState(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const queryClient = useQueryClient();
+
   const currentMode = mode === 'simulator' ? 'simulator' : 'exam';
   const isSimulator = currentMode === 'simulator';
 
@@ -78,11 +89,23 @@ const ExamOnboardingPage = () => {
     enabled: !!id,
   });
 
-  // Verificar si el examen requiere PIN de seguridad
+  // Verificar si el examen requiere PIN de seguridad y pago
   useEffect(() => {
     if (!id || !groupExamId) return;
     examService.checkExamAccess(Number(id), groupExamId).then(data => {
       if (data.require_security_pin) setRequirePin(true);
+      // Payment info
+      if (data.requires_payment) {
+        setRequiresPayment(true);
+        setCertificationCost(data.certification_cost || 0);
+        setIsPaid(!!data.is_paid);
+      }
+      if (data.retake_requires_payment) {
+        setRetakeRequiresPayment(true);
+      }
+      if (data.retake_cost) {
+        setRetakeCost(data.retake_cost);
+      }
     }).catch(() => {});
   }, [id, groupExamId]);
 
@@ -195,6 +218,11 @@ const ExamOnboardingPage = () => {
   };
 
   const handleStartExam = () => {
+    // Si requiere pago y no está pagado, mostrar modal de pago
+    if (requiresPayment && !isPaid) {
+      setShowPaymentModal(true);
+      return;
+    }
     // Si requiere PIN, mostrar modal primero
     if (requirePin && groupExamId) {
       setPinValue('');
@@ -620,13 +648,24 @@ const ExamOnboardingPage = () => {
               <button
                 onClick={handleStartExam}
                 className={`flex items-center fluid-gap-2 fluid-px-10 fluid-py-3 text-white font-semibold rounded-fluid-lg transition-all shadow-lg fluid-text-base active:scale-95 ${
-                  isSimulator 
+                  requiresPayment && !isPaid
+                    ? 'bg-amber-500 hover:bg-amber-600'
+                    : isSimulator 
                     ? 'bg-violet-500 hover:bg-violet-600' 
                     : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                <Play className="fluid-icon-xs" />
-                INICIAR
+                {requiresPayment && !isPaid ? (
+                  <>
+                    <CreditCard className="fluid-icon-xs" />
+                    PAGAR ${certificationCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </>
+                ) : (
+                  <>
+                    <Play className="fluid-icon-xs" />
+                    INICIAR
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -710,6 +749,24 @@ const ExamOnboardingPage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de pago para candidato */}
+      <CandidateCheckoutModal
+        isOpen={showPaymentModal}
+        groupExamId={groupExamId || 0}
+        cost={certificationCost}
+        paymentType="certification"
+        examName={exam?.name}
+        onClose={() => setShowPaymentModal(false)}
+        onPaymentComplete={(result) => {
+          if (result.status === 'approved') {
+            setIsPaid(true);
+            setShowPaymentModal(false);
+            // Invalidar queries y refrescar check-access
+            queryClient.invalidateQueries({ queryKey: ['mis-examenes'] });
+          }
+        }}
+      />
     </div>
   );
 };

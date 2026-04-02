@@ -173,3 +173,36 @@ export async function processPayment(data: ProcessPaymentRequest): Promise<Proce
   const response = await api.post('/payments/process', data);
   return response.data;
 }
+
+// ─── Pagos de candidatos ────────────────────────────────────────────────────
+
+export interface CandidatePaymentRequest {
+  group_exam_id: number;
+  token: string;
+  payment_method_id: string;
+  installments: number;
+  issuer_id?: string;
+  payer_email: string;
+}
+
+export interface CandidatePaymentResponse {
+  payment_id: number;
+  status: string;
+  mp_status: string;
+  mp_status_detail: string;
+  mp_payment_id: string;
+  credits_applied: boolean;
+  retake_id?: number;
+}
+
+/** Candidato paga por certificación de un examen asignado. */
+export async function candidatePay(data: CandidatePaymentRequest): Promise<CandidatePaymentResponse> {
+  const response = await api.post('/payments/candidate-pay', data);
+  return response.data;
+}
+
+/** Candidato paga por retoma de un examen. */
+export async function candidateRetake(data: CandidatePaymentRequest): Promise<CandidatePaymentResponse> {
+  const response = await api.post('/payments/candidate-retake', data);
+  return response.data;
+}

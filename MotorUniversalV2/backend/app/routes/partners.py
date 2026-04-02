@@ -11954,6 +11954,35 @@ def get_mis_examenes():
                     d['expires_at'] = ge_obj.effective_expires_at.isoformat() if ge_obj.effective_expires_at else None
                     d['extended_months'] = ge_obj.extended_months or 0
                     d['is_expired'] = ge_obj.is_expired
+
+                # Agregar info de pago en línea
+                grp = CandidateGroup.query.get(ctx['group_id'])
+                if grp:
+                    campus_obj = Campus.query.get(grp.campus_id) if grp.campus_id else None
+                    payments_on = grp.enable_online_payments_override if grp.enable_online_payments_override is not None else (campus_obj.enable_online_payments if campus_obj else False)
+                    cert_cost = float(grp.certification_cost_override or (campus_obj.certification_cost if campus_obj else 0) or 0)
+
+                    if payments_on and cert_cost > 0:
+                        d['requires_payment'] = True
+                        d['certification_cost'] = cert_cost
+                        # Buscar pago aprobado
+                        from app.models.payment import Payment
+                        approved_payment = Payment.query.filter_by(
+                            user_id=str(user_id),
+                            group_exam_id=ctx['group_exam_id'],
+                            payment_type='certification',
+                            status='approved'
+                        ).first()
+                        d['is_paid'] = approved_payment is not None
+                    else:
+                        d['requires_payment'] = False
+                        d['is_paid'] = True
+                        d['certification_cost'] = 0
+                else:
+                    d['requires_payment'] = False
+                    d['is_paid'] = True
+                    d['certification_cost'] = 0
+
             # Agregar estado de aprobación
             approval = approved_map.get(exam.id)
             if approval:

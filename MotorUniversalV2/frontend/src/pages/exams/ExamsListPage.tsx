@@ -41,7 +41,9 @@ import {
   ArrowRight,
   X,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  CreditCard
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 
@@ -94,6 +96,8 @@ const ExamCard = ({
           ? 'border-2 border-orange-300 ring-1 ring-orange-100 opacity-75'
           : isCandidate && exam.is_approved
           ? 'border-2 border-emerald-300 ring-1 ring-emerald-100'
+          : isCandidate && exam.requires_payment && !exam.is_paid
+          ? 'border-2 border-amber-300 ring-1 ring-amber-100'
           : 'border border-gray-100'
       }`}
       style={{ animationDelay: `${index * 50}ms` }}
@@ -161,6 +165,16 @@ const ExamCard = ({
           </div>
         )}
 
+        {/* Badge Pago requerido - Para candidatos que deben pagar */}
+        {isCandidate && exam.requires_payment && !exam.is_paid && !exam.is_approved && !exam.is_expired && (
+          <div className="absolute top-3 left-3">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-lg">
+              <Lock className="w-3.5 h-3.5" />
+              Pago requerido
+            </span>
+          </div>
+        )}
+
         {/* Version Badge */}
         <div className="absolute top-3 right-3">
           <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
@@ -201,11 +215,13 @@ const ExamCard = ({
                 <Timer className="fluid-icon-xs" />
                 <span>{exam.duration_minutes || 0} min</span>
               </div>
-              <div className="flex items-center gap-1" title="Categorías">
-                <Layers className="fluid-icon-xs" />
-                <span>{exam.total_categories || 0} {exam.total_categories === 1 ? 'categoría' : 'categorías'}</span>
-              </div>
-              {exam.expires_at && (
+              {exam.requires_payment && !exam.is_paid && !exam.is_approved && (
+                <div className="flex items-center gap-1 ml-auto text-amber-600 font-medium" title="Costo">
+                  <CreditCard className="fluid-icon-xs" />
+                  <span>${exam.certification_cost?.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {exam.expires_at && !(exam.requires_payment && !exam.is_paid && !exam.is_approved) && (
                 <div className={`flex items-center gap-1 ml-auto ${exam.is_expired ? 'text-orange-500 font-medium' : ''}`} title="Vigencia">
                   <Clock className="fluid-icon-xs" />
                   <span>

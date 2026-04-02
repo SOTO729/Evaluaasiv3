@@ -31,6 +31,10 @@ class Payment(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
 
+    # Asignación específica (para pagos de candidatos)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='SET NULL'), nullable=True)
+    payment_type = db.Column(db.String(20), default='voucher', nullable=False)  # 'voucher', 'certification', 'retake'
+
     # Qué se paga
     units = db.Column(db.Integer, nullable=False)  # Número de vouchers/certificados
     unit_price = db.Column(db.Numeric(12, 2), nullable=False)  # Precio unitario al momento del pago
@@ -62,12 +66,15 @@ class Payment(db.Model):
     # Relaciones
     user = db.relationship('User', backref=db.backref('payments', lazy='dynamic'))
     campus = db.relationship('Campus', backref=db.backref('payments', lazy='dynamic'))
+    group_exam = db.relationship('GroupExam', backref=db.backref('payments', lazy='dynamic'))
 
     def to_dict(self):
         return {
             'id': self.id,
             'user_id': self.user_id,
             'campus_id': self.campus_id,
+            'group_exam_id': self.group_exam_id,
+            'payment_type': self.payment_type,
             'units': self.units,
             'unit_price': float(self.unit_price) if self.unit_price else 0,
             'total_amount': float(self.total_amount) if self.total_amount else 0,

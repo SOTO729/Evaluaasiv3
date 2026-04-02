@@ -3135,8 +3135,50 @@ def check_exam_access(exam_id):
                     campus_pin = bool(campus_obj.require_exam_pin)
             pin_required = campus_pin
 
+        # Determinar si requiere pago en línea
+        requires_payment = False
+        is_paid = False
+        certification_cost = 0.0
+        retake_requires_payment = False
+        payment_status = None
+
+        if group:
+            from app.models.partner import Campus
+            from app.models.payment import Payment
+            campus_pay = Campus.query.get(group.campus_id) if group.campus_id else None
+            payments_enabled = group.enable_online_payments_override if group.enable_online_payments_override is not None else (campus_pay.enable_online_payments if campus_pay else False)
+
+            if payments_enabled:
+                certification_cost = float(group.certification_cost_override or (campus_pay.certification_cost if campus_pay else 0) or 0)
+                requires_payment = certification_cost > 0
+
+                if requires_payment:
+                    # Buscar pago aprobado de certificación
+                    approved_pay = Payment.query.filter_by(
+                        user_id=str(user_id),
+                        group_exam_id=group_exam_id,
+                        payment_type='certification',
+                        status='approved'
+                    ).first()
+                    is_paid = approved_pay is not None
+
+                    if not approved_pay:
+                        # Buscar pago pendiente
+                        pending_pay = Payment.query.filter(
+                            Payment.user_id == str(user_id),
+                            Payment.group_exam_id == group_exam_id,
+                            Payment.payment_type == 'certification',
+                            Payment.status.in_(['pending', 'processing'])
+                        ).first()
+                        if pending_pay:
+                            payment_status = pending_pay.status
+
+                # Retomas con pago
+                if attempts_exhausted and retake_cost > 0:
+                    retake_requires_payment = True
+
         return jsonify({
-            'can_take': not attempts_exhausted,
+            'can_take': not attempts_exhausted and (not requires_payment or is_paid),
             'max_attempts': max_attempts,
             'retakes_total': retakes_total,
             'total_allowed': total_allowed,
@@ -3150,6 +3192,11 @@ def check_exam_access(exam_id):
             'expires_at': group_exam.effective_expires_at.isoformat() if group_exam.effective_expires_at else None,
             'extended_months': group_exam.extended_months or 0,
             'require_security_pin': pin_required,
+            'requires_payment': requires_payment,
+            'is_paid': is_paid,
+            'certification_cost': certification_cost,
+            'retake_requires_payment': retake_requires_payment,
+            'payment_status': payment_status,
         }), 200
         
     except HTTPException:

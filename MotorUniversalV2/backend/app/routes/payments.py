@@ -3,6 +3,8 @@ Rutas de pagos en línea (Mercado Pago Checkout Pro)
 
 Endpoints:
   POST /api/payments/checkout         — Crear preferencia de pago (responsable)
+  POST /api/payments/candidate-pay    — Candidato paga por certificación
+  POST /api/payments/candidate-retake — Candidato paga retoma
   POST /api/payments/webhook          — Recibir notificaciones IPN de MP (público)
   GET  /api/payments/status/<ref>     — Consultar estado de un pago por referencia
   GET  /api/payments/my-payments      — Historial de pagos del responsable
@@ -13,11 +15,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app import db
 from app.models.user import User
-from app.models.partner import Campus
+from app.models.partner import Campus, CandidateGroup, GroupExam, GroupMember, GroupExamMember
 from app.models.payment import Payment
 from app.services.mercadopago_service import (
     create_checkout_preference,
     process_direct_payment,
+    process_candidate_payment,
     process_webhook_notification,
     verify_webhook_signature,
 )
@@ -164,6 +167,244 @@ def process_payment():
         return jsonify({'error': str(e)}), 502
     except Exception as e:
         logger.exception('Error procesando pago directo: %s', e)
+        return jsonify({'error': 'Error interno al procesar el pago'}), 500
+
+
+# ─── POST /candidate-pay — Candidato paga por certificación ──────────────────
+
+@bp.route('/candidate-pay', methods=['POST'])
+@jwt_required()
+def candidate_pay():
+    """Candidato paga por una certificación específica (asignación de examen).
+
+    Body JSON:
+        group_exam_id (int): ID de la asignación de examen
+        token (str): Token de tarjeta de MP
+        payment_method_id (str): Método de pago
+        installments (int): Cuotas (default 1)
+        issuer_id (str): Emisor (opcional)
+        payer_email (str): Email del pagador
+
+    Returns:
+        200: { payment_id, status, mp_status, ... }
+    """
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    if user.role != 'candidato':
+        return jsonify({'error': 'Solo los candidatos pueden realizar este pago'}), 403
+
+    data = request.get_json(silent=True) or {}
+    group_exam_id = data.get('group_exam_id')
+    token = data.get('token', '').strip()
+    payment_method_id = data.get('payment_method_id', '').strip()
+    installments = data.get('installments', 1)
+    issuer_id = data.get('issuer_id')
+    payer_email = data.get('payer_email', '').strip()
+
+    if not group_exam_id:
+        return jsonify({'error': 'group_exam_id es requerido'}), 400
+    if not token:
+        return jsonify({'error': 'Token de tarjeta requerido'}), 400
+    if not payment_method_id:
+        return jsonify({'error': 'Método de pago requerido'}), 400
+    if not isinstance(installments, int) or installments < 1:
+        installments = 1
+
+    # Validar que la asignación existe y el candidato pertenece al grupo
+    group_exam = GroupExam.query.get(group_exam_id)
+    if not group_exam or not group_exam.is_active:
+        return jsonify({'error': 'Asignación de examen no encontrada'}), 404
+
+    group = CandidateGroup.query.get(group_exam.group_id)
+    if not group or not group.is_active:
+        return jsonify({'error': 'Grupo no encontrado'}), 404
+
+    # Verificar membresía
+    membership = GroupMember.query.filter_by(
+        user_id=current_user_id,
+        group_id=group.id,
+        status='active'
+    ).first()
+    if not membership:
+        return jsonify({'error': 'No perteneces a este grupo'}), 403
+
+    # Si la asignación es de tipo 'selected', verificar asignación individual
+    if group_exam.assignment_type == 'selected':
+        member_assignment = GroupExamMember.query.filter_by(
+            group_exam_id=group_exam_id,
+            user_id=current_user_id
+        ).first()
+        if not member_assignment:
+            return jsonify({'error': 'No estás asignado a este examen'}), 403
+
+    # Verificar que el grupo/campus tiene pagos habilitados
+    campus = Campus.query.get(group.campus_id)
+    if not campus:
+        return jsonify({'error': 'Campus no encontrado'}), 404
+
+    payments_enabled = group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments
+    if not payments_enabled:
+        return jsonify({'error': 'Los pagos en línea no están habilitados para este grupo'}), 403
+
+    # Determinar precio
+    cert_cost = float(group.certification_cost_override or campus.certification_cost or 0)
+    if cert_cost <= 0:
+        return jsonify({'error': 'No hay costo de certificación configurado'}), 400
+
+    # Verificar que no haya ya un pago aprobado para esta asignación
+    existing = Payment.query.filter_by(
+        user_id=current_user_id,
+        group_exam_id=group_exam_id,
+        payment_type='certification',
+        status='approved'
+    ).first()
+    if existing:
+        return jsonify({'error': 'Ya tienes un pago aprobado para esta certificación'}), 400
+
+    try:
+        result = process_candidate_payment(
+            user=user,
+            campus=campus,
+            group_exam=group_exam,
+            unit_price=cert_cost,
+            payment_type='certification',
+            token=token,
+            payment_method_id=payment_method_id,
+            installments=installments,
+            issuer_id=issuer_id,
+            payer_email=payer_email or user.email,
+        )
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 502
+    except Exception as e:
+        logger.exception('Error procesando pago de candidato: %s', e)
+        return jsonify({'error': 'Error interno al procesar el pago'}), 500
+
+
+# ─── POST /candidate-retake — Candidato paga retoma ──────────────────────────
+
+@bp.route('/candidate-retake', methods=['POST'])
+@jwt_required()
+def candidate_retake():
+    """Candidato paga por una retoma de examen.
+
+    Body JSON:
+        group_exam_id (int): ID de la asignación de examen
+        token (str): Token de tarjeta de MP
+        payment_method_id (str): Método de pago
+        installments (int): Cuotas (default 1)
+        issuer_id (str): Emisor (opcional)
+        payer_email (str): Email del pagador
+
+    Returns:
+        200: { payment_id, status, mp_status, ..., retake_id }
+    """
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    if user.role != 'candidato':
+        return jsonify({'error': 'Solo los candidatos pueden realizar este pago'}), 403
+
+    data = request.get_json(silent=True) or {}
+    group_exam_id = data.get('group_exam_id')
+    token = data.get('token', '').strip()
+    payment_method_id = data.get('payment_method_id', '').strip()
+    installments = data.get('installments', 1)
+    issuer_id = data.get('issuer_id')
+    payer_email = data.get('payer_email', '').strip()
+
+    if not group_exam_id:
+        return jsonify({'error': 'group_exam_id es requerido'}), 400
+    if not token:
+        return jsonify({'error': 'Token de tarjeta requerido'}), 400
+    if not payment_method_id:
+        return jsonify({'error': 'Método de pago requerido'}), 400
+    if not isinstance(installments, int) or installments < 1:
+        installments = 1
+
+    group_exam = GroupExam.query.get(group_exam_id)
+    if not group_exam or not group_exam.is_active:
+        return jsonify({'error': 'Asignación de examen no encontrada'}), 404
+
+    group = CandidateGroup.query.get(group_exam.group_id)
+    if not group or not group.is_active:
+        return jsonify({'error': 'Grupo no encontrado'}), 404
+
+    membership = GroupMember.query.filter_by(
+        user_id=current_user_id,
+        group_id=group.id,
+        status='active'
+    ).first()
+    if not membership:
+        return jsonify({'error': 'No perteneces a este grupo'}), 403
+
+    if group_exam.assignment_type == 'selected':
+        member_assignment = GroupExamMember.query.filter_by(
+            group_exam_id=group_exam_id,
+            user_id=current_user_id
+        ).first()
+        if not member_assignment:
+            return jsonify({'error': 'No estás asignado a este examen'}), 403
+
+    campus = Campus.query.get(group.campus_id)
+    if not campus:
+        return jsonify({'error': 'Campus no encontrado'}), 404
+
+    payments_enabled = group.enable_online_payments_override if group.enable_online_payments_override is not None else campus.enable_online_payments
+    if not payments_enabled:
+        return jsonify({'error': 'Los pagos en línea no están habilitados para este grupo'}), 403
+
+    # Determinar costo de retoma
+    retake_cost = float(group.retake_cost_override or campus.retake_cost or 0)
+    if retake_cost <= 0:
+        return jsonify({'error': 'No hay costo de retoma configurado'}), 400
+
+    # Verificar que el candidato realmente ha agotado sus intentos
+    from app.models.result import Result
+    from app.models.partner import EcmRetake
+    results_count = Result.query.filter_by(
+        user_id=str(current_user_id),
+        exam_id=group_exam.exam_id,
+        status=1
+    ).count()
+    retakes = EcmRetake.query.filter_by(
+        group_exam_id=group_exam_id,
+        user_id=current_user_id,
+        status='approved'
+    ).count()
+    max_attempts = group_exam.max_attempts or 1
+    total_allowed = max_attempts + retakes
+    if results_count < total_allowed:
+        return jsonify({'error': 'Aún tienes intentos disponibles, no necesitas una retoma'}), 400
+
+    try:
+        result = process_candidate_payment(
+            user=user,
+            campus=campus,
+            group_exam=group_exam,
+            unit_price=retake_cost,
+            payment_type='retake',
+            token=token,
+            payment_method_id=payment_method_id,
+            installments=installments,
+            issuer_id=issuer_id,
+            payer_email=payer_email or user.email,
+        )
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 502
+    except Exception as e:
+        logger.exception('Error procesando retoma de candidato: %s', e)
         return jsonify({'error': 'Error interno al procesar el pago'}), 500
 
 

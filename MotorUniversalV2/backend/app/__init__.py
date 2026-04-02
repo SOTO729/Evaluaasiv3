@@ -229,6 +229,25 @@ def create_app(config_name='development'):
             if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
                 print(f"[AUTO-MIGRATE] Error adding issuer_logo columns: {e}")
 
+        # Add candidate payment columns to payments table
+        try:
+            from sqlalchemy import inspect as sa_inspect, text
+            inspector = sa_inspect(db.engine)
+            if 'payments' in inspector.get_table_names():
+                cols = [c['name'] for c in inspector.get_columns('payments')]
+                for col_name, col_def in [
+                    ('group_exam_id', 'INT NULL'),
+                    ('payment_type', "VARCHAR(20) DEFAULT 'voucher' NOT NULL"),
+                ]:
+                    if col_name not in cols:
+                        db.session.execute(text(f"ALTER TABLE payments ADD {col_name} {col_def}"))
+                        db.session.commit()
+                        print(f"[AUTO-MIGRATE] Added {col_name} to payments")
+        except Exception as e:
+            db.session.rollback()
+            if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                print(f"[AUTO-MIGRATE] Error adding payment columns: {e}")
+
         # Recover orphaned curp_pending users from interrupted verifications
         try:
             from app.auto_migrate import check_and_recover_orphaned_curp_users
