@@ -47,10 +47,6 @@ vi.mock('../services/balanceService', () => ({
   CertificateRequestStatus: undefined,
 }));
 
-vi.mock('../services/paymentService', () => ({
-  createCheckout: vi.fn(),
-}));
-
 // Mock lucide-react icons as simple spans
 vi.mock('lucide-react', () => {
   const icon = (name: string) => (props: Record<string, unknown>) => <span data-testid={`icon-${name}`} {...props} />;
@@ -71,10 +67,7 @@ vi.mock('lucide-react', () => {
     ChevronRight: icon('chevron-right'),
     Send: icon('send'),
     Eye: icon('eye'),
-    Loader2: icon('loader'),
-    CreditCard: icon('credit-card'),
-    ShoppingCart: icon('shopping-cart'),
-    X: icon('x'),
+    Loader2: icon('loader2'),
   };
 });
 
@@ -284,6 +277,38 @@ describe('MiSaldoResponsablePage', () => {
       await waitFor(() => {
         expect(screen.getByText('Error al cargar los vouchers')).toBeTruthy();
       });
+    });
+  });
+
+  // ── Verificar que la UI de pagos del responsable fue eliminada ──
+  describe('pagos de responsable eliminados', () => {
+    beforeEach(() => {
+      mockGetMyCampusBalance.mockResolvedValue(mockBalanceData);
+    });
+
+    it('NO muestra botón "Comprar Vouchers"', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Mis Vouchers')).toBeTruthy();
+      });
+      expect(screen.queryByText('Comprar Vouchers')).toBeNull();
+    });
+
+    it('NO muestra pestaña "Mis Pagos"', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Mis Vouchers')).toBeTruthy();
+      });
+      expect(screen.queryByText('Mis Pagos')).toBeNull();
+    });
+
+    it('NO muestra tabs de Vouchers/Pagos', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Mis Vouchers')).toBeTruthy();
+      });
+      // No debe haber selector de tabs
+      expect(screen.queryByText(/Tab Mis Pagos/i)).toBeNull();
     });
   });
 });
