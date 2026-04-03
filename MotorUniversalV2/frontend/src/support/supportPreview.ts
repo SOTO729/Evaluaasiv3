@@ -1,11 +1,13 @@
 /**
  * Support preview mode utilities.
- * When enabled via localStorage, allows non-support users to preview the support module.
+ * Only available in development mode — disabled in production builds.
  */
 
 const PREVIEW_KEY = 'support-preview-enabled'
 
 export const isSupportPreviewEnabled = (): boolean => {
+  // Never allow preview bypass in production
+  if (!import.meta.env.DEV) return false
   if (typeof window === 'undefined') return false
   try {
     return window.localStorage.getItem(PREVIEW_KEY) === 'true'
