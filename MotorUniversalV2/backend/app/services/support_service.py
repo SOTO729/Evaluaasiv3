@@ -332,9 +332,13 @@ def get_support_partners() -> list[dict[str, Any]]:
     return [{"id": partner.id, "name": partner.name} for partner in partners]
 
 
+# Roles visibles para soporte
+SUPPORT_VISIBLE_ROLES = ['candidato', 'responsable', 'responsable_partner', 'responsable_estatal']
+
+
 def get_support_users(
     search: str | None = None,
-    role: str | None = "candidato",
+    role: str | None = "",
     page: int = 1,
     per_page: int = 20,
 ) -> dict[str, Any]:
@@ -355,20 +359,27 @@ def get_support_users(
     normalized_role = (role or "").strip()
     if normalized_role:
         query = query.filter(User.role == normalized_role)
+    else:
+        # Sin rol específico: buscar solo en roles visibles para soporte
+        query = query.filter(User.role.in_(SUPPORT_VISIBLE_ROLES))
 
     normalized_search = (search or "").strip()
     if normalized_search:
-        search_term = f"%{normalized_search}%"
-        query = query.filter(
-            db.or_(
-                User.name.ilike(search_term),
-                User.first_surname.ilike(search_term),
-                User.second_surname.ilike(search_term),
-                User.email.ilike(search_term),
-                User.curp.ilike(search_term),
-                User.username.ilike(search_term),
+        # Búsqueda por cada palabra individual para soportar nombre completo
+        # Ej: "Juan García" matchea name=Juan + first_surname=García
+        words = normalized_search.split()
+        for word in words:
+            word_term = f"%{word}%"
+            query = query.filter(
+                db.or_(
+                    User.name.ilike(word_term),
+                    User.first_surname.ilike(word_term),
+                    User.second_surname.ilike(word_term),
+                    User.email.ilike(word_term),
+                    User.curp.ilike(word_term),
+                    User.username.ilike(word_term),
+                )
             )
-        )
 
     pagination = query.order_by(User.created_at.desc()).paginate(
         page=max(page, 1),

@@ -895,7 +895,7 @@ export default function UserDetailPage() {
               Cambiar Contraseña
             </button>
 
-            {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'coordinator') && user.id !== currentUser?.id && (
+            {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'coordinator' || (currentUser?.role === 'soporte' && ['responsable', 'responsable_partner', 'responsable_estatal', 'candidato'].includes(user.role))) && user.id !== currentUser?.id && (
               <button
                 onClick={handleViewUserPassword}
                 disabled={loadingPassword}

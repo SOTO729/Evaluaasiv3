@@ -84,7 +84,7 @@ def list_support_users():
     """Obtener usuarios para el módulo de soporte."""
     try:
         search = request.args.get("search")
-        role = request.args.get("role", "candidato")
+        role = request.args.get("role", "")
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
         return jsonify(get_support_users(search=search, role=role, page=page, per_page=per_page)), 200
