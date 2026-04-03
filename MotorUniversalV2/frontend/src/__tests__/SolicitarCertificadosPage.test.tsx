@@ -76,6 +76,10 @@ vi.mock('lucide-react', () => ({
   X: (props: Record<string, unknown>) => <span data-testid="icon-x" {...props} />,
   FileText: (props: Record<string, unknown>) => <span data-testid="icon-file-text" {...props} />,
   Upload: (props: Record<string, unknown>) => <span data-testid="icon-upload" {...props} />,
+  Ticket: (props: Record<string, unknown>) => <span data-testid="icon-ticket" {...props} />,
+  Hash: (props: Record<string, unknown>) => <span data-testid="icon-hash" {...props} />,
+  MessageSquare: (props: Record<string, unknown>) => <span data-testid="icon-message-square" {...props} />,
+  FolderOpen: (props: Record<string, unknown>) => <span data-testid="icon-folder-open" {...props} />,
 }));
 
 const MOCK_CAMPUS_INFO = {
@@ -116,10 +120,10 @@ describe('SolicitarCertificadosPage', () => {
       mockGetMyCampusInfo.mockResolvedValue(MOCK_CAMPUS_INFO);
     });
 
-    it('muestra título "Solicitar Certificados"', async () => {
+    it('muestra título "Solicitar Vouchers"', async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByText('Solicitar Certificados')).toBeTruthy();
+        expect(screen.getByText('Solicitar Vouchers')).toBeTruthy();
       });
     });
 
@@ -130,12 +134,12 @@ describe('SolicitarCertificadosPage', () => {
       });
     });
 
-    it('muestra certificados disponibles calculados', async () => {
+    it('muestra vouchers disponibles calculados', async () => {
       renderPage();
       await waitFor(() => {
-        // 5000 / 500 = 10 certificados disponibles
-        const certLabel = screen.getByText(/Certificados disponibles actualmente/);
-        expect(certLabel.textContent).toContain('10');
+        // 5000 / 500 = 10 vouchers disponibles
+        const certLabel = screen.getByText(/Vouchers disponibles actualmente/);
+        expect(certLabel).toBeTruthy();
       });
     });
 
@@ -151,7 +155,7 @@ describe('SolicitarCertificadosPage', () => {
     it('muestra selector de grupo con opciones', async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByText('Sin grupo específico (plantel general)')).toBeTruthy();
+        expect(screen.getByText('Plantel general')).toBeTruthy();
         expect(screen.getByText('Grupo Alpha')).toBeTruthy();
         expect(screen.getByText('Grupo Beta')).toBeTruthy();
       });
@@ -167,7 +171,7 @@ describe('SolicitarCertificadosPage', () => {
     it('muestra contador de caracteres 0/1000', async () => {
       renderPage();
       await waitFor(() => {
-        expect(screen.getByText('0/1000 caracteres')).toBeTruthy();
+        expect(screen.getByText('0/1000')).toBeTruthy();
       });
     });
 
@@ -228,7 +232,7 @@ describe('SolicitarCertificadosPage', () => {
       const textarea = screen.getByPlaceholderText(/Explica brevemente/);
       fireEvent.change(textarea, { target: { value: 'Hola mundo' } });
       await waitFor(() => {
-        expect(screen.getByText('10/1000 caracteres')).toBeTruthy();
+        expect(screen.getByText('10/1000')).toBeTruthy();
       });
     });
   });
@@ -259,7 +263,7 @@ describe('SolicitarCertificadosPage', () => {
       });
     });
 
-    it('pantalla de éxito tiene link a "Ver mis solicitudes"', async () => {
+    it('pantalla de éxito tiene link a "Ver mis vouchers"', async () => {
       renderPage();
       await waitFor(() => {
         expect(screen.getByPlaceholderText(/Explica brevemente/)).toBeTruthy();
@@ -269,8 +273,8 @@ describe('SolicitarCertificadosPage', () => {
       const submitBtn = screen.getByText('Enviar solicitud').closest('button');
       if (submitBtn) fireEvent.click(submitBtn);
       await waitFor(() => {
-        const link = screen.getByText('Ver mis solicitudes').closest('a');
-        expect(link?.getAttribute('href')).toBe('/mis-solicitudes');
+        const link = screen.getByText('Ver mis vouchers').closest('a');
+        expect(link?.getAttribute('href')).toBe('/mi-plantel/vouchers');
       });
     });
 

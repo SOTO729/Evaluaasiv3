@@ -246,7 +246,7 @@ describe('Visibilidad del Logo del Campus', () => {
       });
     });
 
-    it('A2. Logo del campus usa tamaño responsive con clamp', async () => {
+    it('A2. Logo del campus usa tamaño responsive', async () => {
       const Layout = (await import('../components/layout/Layout')).default;
 
       renderWithProviders(
@@ -264,8 +264,8 @@ describe('Visibilidad del Logo del Campus', () => {
           img => img.getAttribute('src') === MOCK_PLANTEL_WITH_BRANDING.campus.logo_url
         );
         expect(campusLogo).toBeDefined();
-        // Verifica que usa la clase de tamaño responsive con clamp
-        expect(campusLogo?.className).toContain('h-[clamp(1.75rem,1.5rem+1vw,2.75rem)]');
+        expect(campusLogo?.className).toContain('max-w-full');
+        expect(campusLogo?.className).toContain('max-h-full');
         expect(campusLogo?.className).toContain('object-contain');
       });
     });
@@ -401,7 +401,8 @@ describe('Visibilidad del Logo del Campus', () => {
           img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
         );
         expect(campusLogo).toBeDefined();
-        expect(campusLogo?.className).toContain('h-[clamp(1.75rem,1.5rem+1vw,2.75rem)]');
+        expect(campusLogo?.className).toContain('max-w-full');
+        expect(campusLogo?.className).toContain('max-h-full');
       });
     });
 

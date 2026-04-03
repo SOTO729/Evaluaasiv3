@@ -258,7 +258,7 @@ describe('Branding para Candidatos', () => {
       });
     });
 
-    it('1f. Muestra logo del campus en el navbar con tamaño responsive', async () => {
+    it('1f. Muestra logo del campus en el navbar con clase responsive', async () => {
       await renderLayout();
 
       await waitFor(() => {
@@ -267,7 +267,9 @@ describe('Branding para Candidatos', () => {
           img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
         );
         expect(campusLogo).toBeDefined();
-        expect(campusLogo?.className).toContain('h-[clamp(1.75rem,1.5rem+1vw,2.75rem)]');
+        expect(campusLogo?.className).toContain('max-w-full');
+        expect(campusLogo?.className).toContain('max-h-full');
+        expect(campusLogo?.className).toContain('object-contain');
       });
     });
   });
@@ -460,7 +462,7 @@ describe('Branding para Candidatos', () => {
       });
     });
 
-    it('6a2. Logo del campus en hero usa h-16 (tamaño aumentado)', async () => {
+    it('6a2. Logo del campus en hero usa h-24 (tamaño aumentado)', async () => {
       await renderHomePage();
 
       await waitFor(() => {
@@ -469,8 +471,7 @@ describe('Branding para Candidatos', () => {
           img => img.getAttribute('src') === MOCK_BRANDING_FULL.branding.logo_url
         );
         expect(campusLogo).toBeDefined();
-        expect(campusLogo?.className).toContain('h-16');
-        expect(campusLogo?.className).toContain('p-1.5');
+        expect(campusLogo?.className).toContain('h-24');
         expect(campusLogo?.className).toContain('rounded-lg');
       });
     });
@@ -529,7 +530,7 @@ describe('Branding para Candidatos', () => {
       expect(hero?.className).not.toContain('from-blue-600');
     });
 
-    it('6f. Hero usa colores blue por defecto cuando no hay branding', async () => {
+    it('6f. Hero usa clases primary (CSS vars resuelven a blue sin branding)', async () => {
       mockGetCandidatoBranding.mockResolvedValue(MOCK_BRANDING_NULL);
 
       await renderHomePage();
@@ -539,8 +540,8 @@ describe('Branding para Candidatos', () => {
       });
 
       const hero = screen.getByText('¡Bienvenido!').closest('.rounded-fluid-xl');
-      expect(hero?.className).toContain('from-blue-600');
-      expect(hero?.className).not.toContain('from-primary-700');
+      // Component always uses primary- classes; CSS vars resolve to default blue when no branding
+      expect(hero?.className).toContain('from-primary-700');
     });
   });
 });

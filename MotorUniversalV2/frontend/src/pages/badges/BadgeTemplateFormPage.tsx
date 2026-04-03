@@ -95,6 +95,14 @@ export default function BadgeTemplateFormPage() {
         console.error(err)
         navigate('/badges/templates')
       }).finally(() => setLoading(false))
+    } else {
+      // Nueva plantilla: pre-rellenar logo del emisor desde plantillas existentes
+      badgeService.getTemplates(1, 100).then(data => {
+        const withLogo = (data.templates || []).find(t => t.issuer_logo_url)
+        if (withLogo?.issuer_logo_url && !issuerLogoPreview) {
+          setIssuerLogoPreview(withLogo.issuer_logo_url)
+        }
+      }).catch(() => {})
     }
   }, [id, isEdit, navigate])
 

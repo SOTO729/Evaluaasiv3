@@ -191,10 +191,10 @@ describe('BrandingConfigPage', () => {
     });
   });
 
-  it('A8. muestra "Sin logo" cuando no hay logo', async () => {
+  it('A8. muestra "Sin logo configurado" cuando no hay logo', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Sin logo')).toBeInTheDocument();
+      expect(screen.getByText('Sin logo configurado')).toBeInTheDocument();
     });
   });
 
@@ -266,10 +266,10 @@ describe('BrandingConfigPage', () => {
   it('B5. botón "Restaurar" está disponible', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Restaurar')).toBeInTheDocument();
+      const resetBtn = screen.getByTitle('Restaurar colores predeterminados');
+      expect(resetBtn).toBeInTheDocument();
+      expect(resetBtn).not.toBeDisabled();
     });
-    const resetBtn = screen.getByText('Restaurar').closest('button');
-    expect(resetBtn).not.toBeDisabled();
   });
 
   it('B6. seleccionar paleta habilita botón "Guardar colores"', async () => {
@@ -298,7 +298,7 @@ describe('BrandingConfigPage', () => {
     await user.click(screen.getByText('Rojo'));
 
     // Now restore
-    await user.click(screen.getByText('Restaurar'));
+    await user.click(screen.getByTitle('Restaurar colores predeterminados'));
 
     const textInputs = screen.getAllByRole('textbox');
     const hexInputs = textInputs.filter((input) =>
@@ -526,14 +526,14 @@ describe('BrandingConfigPage', () => {
   it('F3. muestra descripción de formatos permitidos', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Formatos: PNG, JPG, WebP, SVG/i)).toBeInTheDocument();
+      expect(screen.getByText(/PNG, JPG, WebP, SVG/i)).toBeInTheDocument();
     });
   });
 
   it('F4. muestra límite de 2MB', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/Máximo 2MB/i)).toBeInTheDocument();
+      expect(screen.getByText(/M[aá]x\.?\s*2\s*MB/i)).toBeInTheDocument();
     });
   });
 
@@ -557,11 +557,11 @@ describe('BrandingConfigPage', () => {
     const user = userEvent.setup();
 
     await waitFor(() => {
-      expect(screen.getByText('Restaurar')).toBeInTheDocument();
+      expect(screen.getByTitle('Restaurar colores predeterminados')).toBeInTheDocument();
     });
 
     // Restaurar al default
-    await user.click(screen.getByText('Restaurar'));
+    await user.click(screen.getByTitle('Restaurar colores predeterminados'));
 
     const saveBtn = screen.getByText('Guardar colores').closest('button')!;
     await user.click(saveBtn);

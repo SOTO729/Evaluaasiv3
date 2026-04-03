@@ -44,7 +44,8 @@ app/
 │   ├── balance.py       # Saldo coordinador, solicitudes de saldo, solicitudes de certificados
 │   ├── badge.py         # Insignias digitales (OB 3.0)
 │   ├── study_content.py # Materiales de estudio
-│   ├── support_chat.py  # Chat candidato-soporte
+│   ├── support_chat.py  # Chat candidato-soporte (conversaciones, mensajes, participantes)
+│   ├── payment.py       # Pagos con MercadoPago (candidatos)
 │   └── ...              # competency_standard, brand, voucher, activity_log, vm_session, etc.
 ├── routes/              # Blueprints Flask (~20 archivos)
 │   ├── auth.py          # /api/auth/* — login, register, refresh, forgot/reset password
@@ -62,14 +63,16 @@ app/
 │   ├── standards.py     # /api/standards/* — estándares de competencia (ECM)
 │   ├── study_contents.py# /api/study-contents/* — materiales de estudio
 │   ├── vm_sessions.py   # /api/vm-sessions/* — sesiones de máquina virtual
+│   ├── payments.py      # /api/payments/* — checkout MercadoPago, webhooks, historial
 │   ├── health.py        # /api/health, /api/ping, /api/warmup
 │   └── exams_modular/   # Sub-módulo: categories, questions, exercises, evaluation, pdf
 ├── services/            # Lógica de negocio (8+ servicios)
 │   ├── badge_service.py     # Generación y firma de insignias
 │   ├── email_service.py     # Azure Communication Services
 │   ├── linkedin_service.py  # OAuth2 LinkedIn
-│   ├── renapo_service.py    # Validación CURP contra RENAPO
-│   └── conocer_*.py         # Procesamiento batch CONOCER
+│   ├── renapo_service.py         # Validación CURP contra RENAPO (iterativa 6 rondas)
+│   ├── mercadopago_service.py   # Integración MercadoPago (preferencias, webhooks)
+│   └── conocer_*.py             # Procesamiento batch CONOCER
 └── utils/               # Utilidades (10+ archivos)
     ├── azure_storage.py     # Azure Blob Storage
     ├── cache_utils.py       # Redis cache helpers
@@ -84,16 +87,17 @@ app/
 |-----|-------------|
 | `admin` | Acceso total al sistema |
 | `developer` | Igual que admin (interno) |
-| `gerente` | Aprueba/rechaza solicitudes de saldo (último nivel) |
+| `gerente` | Aprueba/rechaza solicitudes de saldo (último nivel), auditoría de chats, certificados |
 | `financiero` | Revisa solicitudes de saldo (nivel intermedio) |
 | `editor` | Crea/edita exámenes y materiales de estudio |
 | `editor_invitado` | Editor con permisos limitados |
 | `soporte` | Portal de soporte (chat, calendario, usuarios) |
-| `coordinator` | Gestiona partners, planteles, grupos, saldo |
+| `coordinator` | Gestiona partners, planteles, grupos, saldo. Puede aprobar sus propias solicitudes |
 | `responsable` | Administra un plantel (campus), crea candidatos, solicita certificados |
 | `responsable_partner` | Administra un partner (nivel partner, no campus) |
+| `responsable_estatal` | Responsable con vista de partner filtrada por estado |
 | `auxiliar` | Auxiliar del coordinador |
-| `candidato` | Estudiante, toma exámenes |
+| `candidato` | Estudiante, toma exámenes, paga con MercadoPago |
 
 ### Jerarquía de Roles (Multi-tenant)
 
@@ -117,7 +121,7 @@ Responsable crea solicitud de certificados
 
 ### Entry Point
 
-- `run.py` — Crea app Flask, ejecuta auto-migraciones
+- `run.py` — Crea app Flask, ejecuta auto-migraciones (bulk_upload + support_chat + payments)
 - `startup.sh` — Script de arranque del contenedor (migraciones + gunicorn)
 - `config.py` — 3 configs: DevelopmentConfig (SQLite), ProductionConfig (MSSQL), TestingConfig
 
@@ -147,7 +151,7 @@ src/
 │   ├── auth/                # AuthProvider, ProtectedRoute
 │   ├── ui/                  # GlobalNotifications, OptimizedImage, SearchableSelect
 │   └── ...                  # chat/, landing/, partners/, etc.
-├── pages/               # 63+ páginas organizadas por rol
+├── pages/               # 75+ páginas organizadas por rol
 │   ├── auth/            # Login, Register, ForgotPassword, ResetPassword
 │   ├── landing/         # LandingPage, Privacy, Terms
 │   ├── exams/           # ExamsList, Create, Edit, Preview
@@ -157,12 +161,12 @@ src/
 │   ├── responsable/     # MiPlantel, SolicitarCertificados, MisSolicitudes
 │   ├── coordinador/     # MiSaldo, SolicitudesResponsables, Historial
 │   ├── financiero/      # Dashboard, Solicitudes
-│   ├── gerente/         # Dashboard, Approvals, Finanzas, Monitoreo
+│   ├── gerente/         # Dashboard, Approvals, Finanzas, Monitoreo, ChatAudit, Certificados
 │   ├── badges/          # BadgeTemplates, BadgeTemplateForm
 │   ├── support/         # Dashboard, Campuses, Users, Calendar, Chat
 │   ├── certificates/    # CertificatesPage, EvaluationReport, ResultDetail
 │   └── verify/          # VerifyPage (público)
-├── services/            # 17 servicios API (Axios)
+├── services/            # 19 servicios API (Axios)
 │   ├── api.ts               # Axios instance + interceptors (auth, 401 refresh)
 │   ├── authService.ts       # login, register, logout, refresh
 │   ├── examService.ts       # CRUD exámenes + preguntas
@@ -170,19 +174,21 @@ src/
 │   ├── balanceService.ts    # Saldo, solicitudes, certificate-requests
 │   ├── badgeService.ts      # Insignias OB 3.0
 │   ├── userManagementService.ts # CRUD usuarios
-│   └── ...                  # studyContent, support, supportChat, standards, etc.
+│   ├── paymentService.ts     # MercadoPago checkout, historial pagos
+│   ├── supportChatService.ts # Chat candidato-soporte
+│   └── ...                  # studyContent, support, standards, activity, dashboard, etc.
 ├── store/               # Zustand
 │   ├── authStore.ts         # Auth state + persist + cache clearing
 │   └── notificationStore.ts
 ├── hooks/               # Custom hooks
 ├── types/index.ts       # TypeScript interfaces globales
 ├── test/setup.ts        # Vitest setup
-└── __tests__/           # 8 archivos de test (Vitest + RTL)
+└── __tests__/           # 20+ archivos de test (Vitest + RTL)
 ```
 
 ### Stack Frontend
 
-- **React 18.2** + TypeScript 5.2
+- **React 18.2** + TypeScript 5.6
 - **Vite 5.0** — build + dev server
 - **React Router DOM 6.21** — routing con lazy loading
 - **Zustand 4.4** — state management (auth, notifications)
@@ -491,18 +497,72 @@ CertificateRequest (solicitud de certificados: pending → seen → approved_by_
 
 ## Últimas Features Implementadas
 
+### Pagos por Candidato — MercadoPago (abril 2026)
+- Modelo `Payment` con estados (pending → approved → rejected)
+- Servicio `mercadopago_service.py` — creación de preferencias, webhooks IPN
+- Rutas `/api/payments/*` — checkout, webhook, historial por usuario
+- Frontend: `CandidateCheckoutModal`, `CheckoutForm`, `MisPagosPage`
+- Candidatos pueden pagar exámenes directamente sin pasar por coordinador
+
+### Chat Candidato-Soporte (marzo 2026)
+- Modelos: `SupportConversation`, `SupportConversationParticipant`, `SupportMessage`
+- Blueprint `/api/support/chat/*` — conversaciones, mensajes, mark-read, status
+- Frontend: `SupportChatWorkspace` (modo candidato + modo soporte)
+- Plantillas de mensajes con emojis (`ChatTemplateManager`)
+- Última conexión / estado en línea / auto-refresh configurable
+- Bloqueo de chat fuera de horario (9-17 hrs centro de México)
+- Auditoría de chats para gerente (`ChatAuditPage`)
+
+### Aislamiento Multi-Tenant (marzo-abril 2026)
+- Coordinadores solo ven SUS partners, campuses, grupos y usuarios
+- `_verify_group_access()` aplicado en 20+ endpoints de grupos
+- Filtrado de candidatos por plantel para responsables
+- Rol `responsable_estatal` — vista de partner filtrada por estado
+- Tests extensivos: isolation, coordinator sharing, group isolation
+
+### Branding Dinámico Candidato (marzo-abril 2026)
+- Logo y colores del campus en dashboard del candidato
+- Paleta personalizada aplicada en: exámenes, materiales, certificación, dashboard
+- Logo del partner en certificados EDUIT (posición x:910 y:1135 pts)
+- Issuer logo en plantillas de insignias
+- Logo más grande en configuración de campus
+
+### Configuración de Exámenes (abril 2026)
+- Subpágina `ExamConfigPage` para editores — configuración avanzada de exámenes
+- Página de exámenes pendientes para candidatos (`PendingExamsPage`)
+
+### Portal Gerente (marzo-abril 2026)
+- Auditoría de chats de soporte (`ChatAuditPage`)
+- Analítica de certificados (`GerenteCertificadosPage`)
+- Sub-links en navbar (aprobaciones, finanzas, certificados, monitoreo)
+- Coordinador puede aprobar sus propias solicitudes de saldo
+- CC al coordinador en emails de solicitud de saldo
+
+### CURP y Validación (marzo 2026)
+- Verificación CURP iterativa 6 rondas + validación dígito verificador
+- Recuperación automática de usuarios huérfanos con CURP pendiente
+- Recuperación basada en estatus en vez de tiempo
+
+### Certificación Candidato (marzo 2026)
+- Pestañas visuales de certificación con selección automática por última actividad
+- `CertificationPathCard` — tarjeta visual de ruta de certificación
+
+### UI/UX General
+- Navbar sticky usando flex column layout
+- Saludo personalizado en dashboard
+- Módulo actividad para editores
+- Cambiar "ítems" por "reactivos" en diálogo de entrega de examen
+- Modal de generar contraseña — fix cierre prematuro
+
 ### Flujo Solicitudes de Certificados (marzo 2026)
 - **Responsable** puede solicitar certificados desde su portal
 - **Coordinador** ve las solicitudes en "Solicitudes de Responsables"
 - **Coordinador** puede aprobar, rechazar o modificar
 - Al aprobar, se crea automáticamente un `BalanceRequest` que sigue al flujo financiero→gerente
 - Soporta adjuntos (PDF, imágenes) vía Azure Blob Storage
-- Commits: `3551b35` (feature) + `4b8f096` (tests)
 
 ### Asignación Coordinador (marzo 2026)
 - Responsables deben estar vinculados a un coordinador
-- Commit: `cea8ff4`
 
 ### Branding Personalizado (marzo 2026)
 - Planteles pueden personalizar logo, colores, y título
-- Commit: `f972c14`

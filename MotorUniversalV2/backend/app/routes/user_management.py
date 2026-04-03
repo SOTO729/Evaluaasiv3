@@ -9,7 +9,6 @@ from werkzeug.exceptions import HTTPException
 from datetime import datetime
 from app import db, cache
 from app.models import User
-from app.models.user import encrypt_password
 from app.routes.partners import (
     FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE, GENERIC_FOREIGN_CURPS,
     _get_foreign_curp, _is_generic_foreign_curp,
@@ -2836,7 +2835,6 @@ def bulk_upload_candidates():
                     is_verified=False,
                 )
                 new_user.set_password(password)
-                new_user.encrypted_password = encrypt_password(password)
                 db.session.add(new_user)
                 if needs_curp_verify:
                     curp_pending_user_ids.add(new_user.id)

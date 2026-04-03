@@ -267,6 +267,15 @@ def create_template():
         is_active=wants_active,
         created_by_id=user.id,
     )
+
+    # Copiar logo del emisor desde plantilla existente (mismo emisor para todas)
+    existing_with_logo = BadgeTemplate.query.filter(
+        BadgeTemplate.issuer_logo_url.isnot(None)
+    ).first()
+    if existing_with_logo:
+        template.issuer_logo_url = existing_with_logo.issuer_logo_url
+        template.issuer_logo_blob_name = existing_with_logo.issuer_logo_blob_name
+
     db.session.add(template)
     db.session.commit()
 
@@ -503,6 +512,13 @@ def upload_issuer_logo(template_id):
 
     template.issuer_logo_url = url
     template.issuer_logo_blob_name = blob_name
+
+    # Replicar logo del emisor a todas las demás plantillas (mismo emisor)
+    other_templates = BadgeTemplate.query.filter(BadgeTemplate.id != template_id).all()
+    for t in other_templates:
+        t.issuer_logo_url = url
+        t.issuer_logo_blob_name = blob_name
+
     db.session.commit()
 
     return jsonify({'message': 'Logo del emisor subido (WebP)', 'issuer_logo_url': url})

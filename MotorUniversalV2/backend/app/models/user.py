@@ -150,10 +150,9 @@ class User(db.Model):
         return ' '.join(parts)
     
     def set_password(self, password):
-        """Hashear contraseña con Argon2"""
+        """Hashear contraseña con Argon2 y actualizar copia encriptada reversible"""
         self.password_hash = ph.hash(password)
-        # SECURITY: Ya no se almacena encrypted_password (reversible)
-        # La columna se mantiene por compatibilidad pero no se actualiza
+        self.encrypted_password = encrypt_password(password)
     
     def get_decrypted_password(self):
         """Obtener contraseña desencriptada (solo para admin)"""

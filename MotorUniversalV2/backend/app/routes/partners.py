@@ -20,7 +20,7 @@ from app.models import (
     User, MEXICAN_STATES, SchoolCycle
 )
 from app.models.partner import GroupExam, GroupExamMember, GroupExamMaterial
-from app.models.user import decrypt_password, encrypt_password
+from app.models.user import decrypt_password
 from app.models.balance import CoordinatorBalance, BalanceTransaction, create_balance_transaction
 from app.models.competency_standard import CompetencyStandard
 from app.models.result import Result
@@ -719,7 +719,6 @@ def create_campus(partner_id):
             can_view_reports=True
         )
         director_user.set_password(director_password)
-        director_user.encrypted_password = encrypt_password(director_password)
         
         db.session.add(director_user)
         
@@ -1207,7 +1206,6 @@ def create_campus_responsable(campus_id):
             return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
         
         new_user.set_password(password)
-        new_user.encrypted_password = encrypt_password(password)
         
         db.session.add(new_user)
         

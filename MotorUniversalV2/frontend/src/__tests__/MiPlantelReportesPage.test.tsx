@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────
 
@@ -33,12 +34,14 @@ const mockGetMiPlantelEvaluations = vi.fn();
 const mockGetMiPlantelExams = vi.fn();
 const mockGetMiPlantelGroups = vi.fn();
 const mockExportMiPlantelEvaluations = vi.fn();
+const mockGetMiPlantel = vi.fn();
 
 vi.mock('../services/partnersService', () => ({
   getMiPlantelEvaluations: (...args: unknown[]) => mockGetMiPlantelEvaluations(...args),
   getMiPlantelExams: (...args: unknown[]) => mockGetMiPlantelExams(...args),
   getMiPlantelGroups: (...args: unknown[]) => mockGetMiPlantelGroups(...args),
   exportMiPlantelEvaluations: (...args: unknown[]) => mockExportMiPlantelEvaluations(...args),
+  getMiPlantel: (...args: unknown[]) => mockGetMiPlantel(...args),
   PlantelEvaluation: undefined,
 }));
 
@@ -106,13 +109,17 @@ function setupMocks(overrides?: {
   mockGetMiPlantelExams.mockResolvedValue(overrides?.exams ?? mockExamsResponse);
   mockGetMiPlantelGroups.mockResolvedValue(overrides?.groups ?? mockGroupsResponse);
   mockExportMiPlantelEvaluations.mockResolvedValue(new Blob(['fake xlsx'], { type: 'application/octet-stream' }));
+  mockGetMiPlantel.mockResolvedValue({ campus: { id: 10, name: 'Campus Test', logo_url: null }, group_count: 2, members_count: 10 });
 }
 
 function renderPage() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   return render(
-    <MemoryRouter>
-      <MiPlantelReportesPage />
-    </MemoryRouter>
+    <QueryClientProvider client={qc}>
+      <MemoryRouter>
+        <MiPlantelReportesPage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -135,8 +142,9 @@ describe('MiPlantelReportesPage', () => {
     mockGetMiPlantelEvaluations.mockReturnValue(new Promise(() => {}));
     mockGetMiPlantelExams.mockResolvedValue(mockExamsResponse);
     mockGetMiPlantelGroups.mockResolvedValue(mockGroupsResponse);
+    mockGetMiPlantel.mockResolvedValue({ campus: null, group_count: 0, members_count: 0 });
     renderPage();
-    expect(screen.getByText('Cargando evaluaciones...')).toBeTruthy();
+    expect(screen.getByText('Cargando...')).toBeTruthy();
   });
 
   // ── Redirect sin permisos ──

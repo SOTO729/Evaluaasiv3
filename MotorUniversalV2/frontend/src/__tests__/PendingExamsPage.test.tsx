@@ -279,23 +279,26 @@ describe('ExamsListPage — Botón Rojo Exámenes Pendientes', () => {
     expect(screen.queryByText(/Examen(es)? Pendiente(s)?/)).not.toBeInTheDocument()
   })
 
-  it('T15: muestra botón rojo cuando hay 1 sesión pendiente', () => {
+  it('T15: muestra botón Pendientes cuando hay 1 sesión pendiente', () => {
     setSession('42', 'exam', makeSessionData())
     renderExamsList()
-    expect(screen.getByText('1 Examen Pendiente')).toBeInTheDocument()
+    expect(screen.getByText('Pendientes')).toBeInTheDocument()
+    // Badge con el count
+    expect(screen.getByText('1')).toBeInTheDocument()
   })
 
-  it('T16: muestra botón rojo con plural para múltiples sesiones', () => {
+  it('T16: muestra botón Pendientes con badge para múltiples sesiones', () => {
     setSession('42', 'exam', makeSessionData())
     setSession('43', 'simulator', makeSessionData())
     renderExamsList()
-    expect(screen.getByText('2 Exámenes Pendientes')).toBeInTheDocument()
+    expect(screen.getByText('Pendientes')).toBeInTheDocument()
+    expect(screen.getByText('2')).toBeInTheDocument()
   })
 
-  it('T17: botón rojo navega a /exams/pending', () => {
+  it('T17: botón Pendientes navega a /exams/pending', () => {
     setSession('42', 'exam', makeSessionData())
     renderExamsList()
-    fireEvent.click(screen.getByText('1 Examen Pendiente'))
+    fireEvent.click(screen.getByText('Pendientes'))
     expect(mockNavigate).toHaveBeenCalledWith('/exams/pending')
   })
 })

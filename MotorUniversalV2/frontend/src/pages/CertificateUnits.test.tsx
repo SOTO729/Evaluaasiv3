@@ -37,6 +37,14 @@ vi.mock('../services/balanceService', () => ({
   getMyBalance: (...args: unknown[]) => mockGetMyBalance(...args),
   getAssignmentCostPreview: (...args: unknown[]) => mockGetAssignmentCostPreview(...args),
   formatCurrency: (val: number) => mockFormatCurrency(val),
+  ALLOWED_FILE_EXTENSIONS: ['pdf', 'jpg', 'jpeg', 'png', 'xls', 'xlsx', 'doc', 'docx', 'csv', 'webp'],
+  validateFile: vi.fn().mockReturnValue({ valid: true }),
+  uploadAttachment: vi.fn().mockResolvedValue({ url: 'https://example.com/file.pdf' }),
+  formatFileSize: (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  },
 }));
 
 // Mock partnersService (shared across components)
@@ -202,10 +210,10 @@ describe('SolicitarCertificadosPage', () => {
     expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
   });
 
-  it('muestra el título "Solicitar Certificados"', async () => {
+  it('muestra el título "Solicitar Vouchers"', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText('Solicitar Certificados')).toBeInTheDocument();
+      expect(screen.getByText('Solicitar Vouchers')).toBeInTheDocument();
     });
   });
 
@@ -220,8 +228,8 @@ describe('SolicitarCertificadosPage', () => {
     // 5000 balance / 500 cost = 10 certificados
     renderPage();
     await waitFor(() => {
-      // The component shows "Certificados disponibles actualmente: <strong>10</strong>"
-      const infoText = screen.getByText(/certificados disponibles actualmente/i);
+      // The component shows "Vouchers disponibles actualmente: <strong>10</strong>"
+      const infoText = screen.getByText(/vouchers disponibles actualmente/i);
       expect(infoText).toBeInTheDocument();
     });
   });
@@ -269,7 +277,7 @@ describe('SolicitarCertificadosPage', () => {
     renderPage();
     const user = userEvent.setup();
     await waitFor(() => {
-      expect(screen.getByText('Solicitar Certificados')).toBeInTheDocument();
+      expect(screen.getByText('Solicitar Vouchers')).toBeInTheDocument();
     });
 
     // Escribir justificación
@@ -297,7 +305,7 @@ describe('SolicitarCertificadosPage', () => {
     renderPage();
     const user = userEvent.setup();
     await waitFor(() => {
-      expect(screen.getByText('Solicitar Certificados')).toBeInTheDocument();
+      expect(screen.getByText('Solicitar Vouchers')).toBeInTheDocument();
     });
 
     const textarea = screen.getByPlaceholderText(/explica brevemente/i);
@@ -329,7 +337,7 @@ describe('SolicitarCertificadosPage', () => {
     renderPage();
     const user = userEvent.setup();
     await waitFor(() => {
-      expect(screen.getByText('Solicitar Certificados')).toBeInTheDocument();
+      expect(screen.getByText('Solicitar Vouchers')).toBeInTheDocument();
     });
 
     const textarea = screen.getByPlaceholderText(/explica brevemente/i);
@@ -391,10 +399,10 @@ describe('CampusDetailPage — responsable vs admin', () => {
     });
   });
 
-  it('responsable ve "Certificados disponibles (aprox.)"', async () => {
+  it('responsable ve "Disponibles" en grid de recursos', async () => {
     renderResponsable();
     await waitFor(() => {
-      expect(screen.getByText('Certificados disponibles (aprox.)')).toBeInTheDocument();
+      expect(screen.getByText('Disponibles')).toBeInTheDocument();
     });
   });
 
@@ -454,17 +462,17 @@ describe('GroupDetailPage — certificados vs saldo', () => {
     );
   }
 
-  it('responsable ve "Certificados disponibles (aprox.)"', async () => {
+  it('responsable ve "Vouchers disponibles (aprox.)"', async () => {
     renderResponsable();
     await waitFor(() => {
-      expect(screen.getByText('Certificados disponibles (aprox.)')).toBeInTheDocument();
+      expect(screen.getByText('Vouchers disponibles (aprox.)')).toBeInTheDocument();
     });
   });
 
-  it('responsable ve link "Solicitar certificados"', async () => {
+  it('responsable ve link "Solicitar Vouchers"', async () => {
     renderResponsable();
     await waitFor(() => {
-      expect(screen.getByText('Solicitar certificados')).toBeInTheDocument();
+      expect(screen.getByText('Solicitar Vouchers')).toBeInTheDocument();
     });
   });
 
