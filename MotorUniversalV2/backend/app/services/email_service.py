@@ -286,6 +286,8 @@ def send_welcome_email(user, temporary_password: str) -> bool:
     full_name = f"{user.name or ''} {user.first_surname or ''}".strip() or user.username or 'Usuario'
     role_label = _ROLE_LABELS.get(getattr(user, 'role', ''), 'Usuario')
     login_url = f'{APP_URL}/login'
+    verify_token = generate_email_verification_token(user.id)
+    verify_url = f"{APP_URL}/verify-email?token={verify_token}"
 
     body = f"""
         <!-- Saludo ejecutivo -->
@@ -330,8 +332,19 @@ def send_welcome_email(user, temporary_password: str) -> bool:
             </tr>
         </table>
 
-        <!-- CTA Button -->
+        <!-- CTA Button: Verificar correo -->
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#059669,#047857);border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.35);">
+                    <a href="{verify_url}" target="_blank" style="display:inline-block;padding:14px 44px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.4px;">
+                        ✅ Verificar mi correo electrónico
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <!-- CTA Button: Iniciar sesión -->
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px auto;">
             <tr>
                 <td style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:10px;box-shadow:0 4px 14px rgba(37,99,235,0.35);">
                     <a href="{login_url}" target="_blank" style="display:inline-block;padding:14px 44px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.4px;">
@@ -348,17 +361,23 @@ def send_welcome_email(user, temporary_password: str) -> bool:
                 <tr>
                     <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">①</td>
                     <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
-                        Ingresa a la plataforma con las credenciales proporcionadas arriba.
+                        Verifica tu correo electrónico haciendo clic en el botón verde de arriba.
                     </td>
                 </tr>
                 <tr>
                     <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">②</td>
                     <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
-                        Te recomendamos cambiar tu contraseña desde tu perfil para mayor seguridad.
+                        Ingresa a la plataforma con las credenciales proporcionadas.
                     </td>
                 </tr>
                 <tr>
                     <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">③</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Te recomendamos cambiar tu contraseña desde tu perfil para mayor seguridad.
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">④</td>
                     <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
                         Completa tu perfil y comienza a utilizar todas las funciones disponibles.
                     </td>
@@ -391,6 +410,8 @@ def send_welcome_email(user, temporary_password: str) -> bool:
             f"CREDENCIALES DE ACCESO:\n"
             f"  Usuario: {user.username or user.email}\n"
             f"  Contraseña: {temporary_password}\n\n"
+            f"VERIFICA TU CORREO:\n"
+            f"  {verify_url}\n\n"
             f"Inicia sesión en: {login_url}\n\n"
             f"Te recomendamos cambiar tu contraseña después de tu primer inicio de sesión.\n\n"
             f"— Equipo Evaluaasi"
