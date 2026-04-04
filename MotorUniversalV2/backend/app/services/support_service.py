@@ -598,6 +598,25 @@ def send_support_user_email(target: str, template: str) -> dict[str, Any]:
             "subject": "¡Bienvenido/a a Evaluaasi! — Tu cuenta está lista",
         }
 
+    # Template "confirmacion": email breve indicando que el correo fue modificado por el responsable y debe re-verificarse
+    if template_key == "confirmacion":
+        if not user:
+            raise ValueError("No se encontró el usuario. El template 'Confirmación' requiere un usuario registrado.")
+        from app.services.email_service import send_email_reconfirmation
+        success = send_email_reconfirmation(user)
+        if not success:
+            raise ValueError("No se pudo enviar el correo de re-verificación. Verifica que el usuario tenga email configurado.")
+        # Marcar como no verificado ya que el correo fue modificado
+        user.is_verified = False
+        db.session.commit()
+        return {
+            "message": "Correo enviado correctamente",
+            "target": target_value,
+            "recipient_email": recipient_email,
+            "template": template_key,
+            "subject": "[Evaluaasi] Verifica tu nueva dirección de correo",
+        }
+
     subject, body = _build_support_email_template(template_key, user)
 
     mail_server = os.getenv("MAIL_SERVER", "").strip()

@@ -617,6 +617,72 @@ def send_email_verification(user, include_credentials: bool = False) -> bool:
     )
 
 
+def send_email_reconfirmation(user) -> bool:
+    """Enviar email breve indicando que el correo fue modificado y debe re-verificarse."""
+    if not user.email:
+        return False
+
+    full_name = f"{user.name or ''} {user.first_surname or ''}".strip() or user.username or 'Usuario'
+    token = generate_email_verification_token(user.id)
+    verify_url = f"{APP_URL}/verify-email?token={token}"
+
+    body = f"""
+        <h2 style="margin:0 0 8px;color:#111827;font-size:20px;font-weight:700;">
+            Verificación de correo electrónico
+        </h2>
+
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 6px;">
+            Hola <strong style="color:#1e40af;">{full_name}</strong>,
+        </p>
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+            Tu dirección de correo electrónico fue actualizada por el responsable de tu plantel.
+            Para continuar utilizando tu cuenta de <strong>Evaluaasi</strong>, necesitamos que confirmes
+            esta nueva dirección de correo.
+        </p>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#059669,#047857);border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.35);">
+                    <a href="{verify_url}" target="_blank" style="display:inline-block;padding:14px 44px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.4px;">
+                        ✅ Verificar mi correo electrónico
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <div style="background-color:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin:16px 0;">
+            <p style="margin:0;color:#92400e;font-size:12px;line-height:1.5;">
+                <strong>⏰ Importante:</strong> Este enlace expira en <strong>7 días</strong>.
+                Si no verificas tu correo, podrás solicitar un nuevo enlace.
+            </p>
+        </div>
+
+        <p style="color:#9ca3af;font-size:12px;margin:16px 0 0;">
+            Si el botón no funciona, copia y pega esta URL en tu navegador:<br>
+            <span style="color:#6b7280;word-break:break-all;font-size:11px;">{verify_url}</span>
+        </p>
+
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:20px 0 0;">
+            Si no reconoces esta actividad, contacta a tu responsable de plantel.
+        </p>
+    """
+
+    return send_email(
+        to=user.email,
+        subject="[Evaluaasi] Verifica tu nueva dirección de correo",
+        html=_base_template("Verificación de correo", body),
+        plain_text=(
+            f"Verificación de correo electrónico\n\n"
+            f"Hola {full_name},\n\n"
+            f"Tu dirección de correo fue actualizada por el responsable de tu plantel. "
+            f"Para continuar utilizando tu cuenta, confirma tu correo visitando:\n\n"
+            f"{verify_url}\n\n"
+            f"Este enlace expira en 7 días.\n\n"
+            f"— Equipo Evaluaasi"
+        ),
+    )
+
+
 # ═══════════════════════════════════════════════════════════════
 # 2. RECUPERACIÓN DE CONTRASEÑA
 # ═══════════════════════════════════════════════════════════════
