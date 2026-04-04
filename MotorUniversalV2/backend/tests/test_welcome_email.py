@@ -51,6 +51,7 @@ from unittest.mock import patch, MagicMock, call
 # ──────────────────────────────────────────────────────────────
 def _fake_user(**kwargs):
     defaults = {
+        'id': 'test-user-uuid-1234',
         'email': 'test@example.com',
         'username': 'usuario1',
         'name': 'Juan',
@@ -202,7 +203,7 @@ class TestRoleLabels:
     def test_16_no_role_attribute_defaults_to_usuario(self, mock_send):
         from app.services.email_service import send_welcome_email
         user = types.SimpleNamespace(
-            email='a@b.com', username='u1', name='A', first_surname='B'
+            id='no-role-user-id', email='a@b.com', username='u1', name='A', first_surname='B'
         )
         # No 'role' attr at all
         send_welcome_email(user, 'X')
