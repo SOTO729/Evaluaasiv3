@@ -221,7 +221,7 @@ def resend_verification():
 
     try:
         from app.services.email_service import send_email_verification
-        send_email_verification(user)
+        send_email_verification(user, include_credentials=True)
     except Exception as e:
         logger.error(f"Error reenviando email de verificación: {e}")
 

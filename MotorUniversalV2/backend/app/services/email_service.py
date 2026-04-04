@@ -448,8 +448,13 @@ def verify_email_verification_token(token: str) -> str | None:
         return None
 
 
-def send_email_verification(user) -> bool:
-    """Enviar email de bienvenida con enlace de verificación de correo."""
+def send_email_verification(user, include_credentials: bool = False) -> bool:
+    """Enviar email de bienvenida con enlace de verificación de correo.
+    
+    Args:
+        user: Objeto User
+        include_credentials: Si True, incluye usuario y contraseña (para reenvíos)
+    """
     if not user.email:
         return False
 
@@ -457,10 +462,65 @@ def send_email_verification(user) -> bool:
     token = generate_email_verification_token(user.id)
     verify_url = f"{APP_URL}/verify-email?token={token}"
 
+    # Bloque de credenciales (solo para reenvío)
+    credentials_html = ''
+    credentials_plain = ''
+    if include_credentials:
+        from app.models.user import decrypt_password
+        decrypted_pw = decrypt_password(user.encrypted_password) or '(no disponible)'
+        credentials_html = f"""
+        <!-- Aviso de reenvío -->
+        <div style="background-color:#eff6ff;border:1px solid #3b82f6;border-radius:8px;padding:12px 16px;margin:0 0 20px;">
+            <p style="margin:0;color:#1e40af;font-size:13px;line-height:1.5;">
+                <strong>📨 Reenvío solicitado:</strong> Se solicitó el reenvío de tus credenciales de acceso.
+            </p>
+        </div>
+
+        <!-- Credenciales -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:12px;padding:24px 28px;">
+                    <p style="margin:0 0 14px;color:#93c5fd;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;">
+                        Tus credenciales de acceso
+                    </p>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td style="padding:8px 0;color:rgba(255,255,255,0.7);font-size:13px;width:120px;">Usuario</td>
+                            <td style="padding:8px 0;color:#ffffff;font-size:16px;font-weight:700;font-family:'Courier New',monospace;letter-spacing:1px;">
+                                {user.username or user.email}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px 0;color:rgba(255,255,255,0.7);font-size:13px;border-top:1px solid rgba(255,255,255,0.1);width:120px;">Contraseña</td>
+                            <td style="padding:8px 0;color:#fbbf24;font-size:16px;font-weight:700;font-family:'Courier New',monospace;letter-spacing:1px;border-top:1px solid rgba(255,255,255,0.1);">
+                                {decrypted_pw}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+        """
+        credentials_plain = (
+            f"\nCREDENCIALES DE ACCESO:\n"
+            f"  Usuario: {user.username or user.email}\n"
+            f"  Contraseña: {decrypted_pw}\n"
+        )
+
+    is_resend = include_credentials
+    title_text = 'Reenvío de credenciales y verificación' if is_resend else '¡Bienvenido/a a Evaluaasi!'
+    intro_text = (
+        f'Se ha solicitado el reenvío de tus credenciales de acceso a <strong>Evaluaasi</strong>. '
+        f'Si aún no has verificado tu correo electrónico, por favor confírmalo haciendo clic en el botón de abajo.'
+        if is_resend else
+        f'Gracias por registrarte en <strong>Evaluaasi</strong>. Para completar tu registro y activar '
+        f'tu cuenta, necesitamos que confirmes tu dirección de correo electrónico.'
+    )
+
     body = f"""
         <!-- Saludo -->
         <h2 style="margin:0 0 4px;color:#111827;font-size:22px;font-weight:700;">
-            ¡Bienvenido/a a Evaluaasi!
+            {title_text}
         </h2>
         <p style="margin:0 0 20px;color:#6b7280;font-size:13px;">
             Plataforma de Evaluación y Certificación de Competencias Laborales
@@ -470,9 +530,10 @@ def send_email_verification(user) -> bool:
             Hola <strong style="color:#1e40af;">{full_name}</strong>,
         </p>
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
-            Gracias por registrarte en <strong>Evaluaasi</strong>. Para completar tu registro y activar
-            tu cuenta, necesitamos que confirmes tu dirección de correo electrónico.
+            {intro_text}
         </p>
+
+        {credentials_html}
 
         <!-- Call to action -->
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 8px;">
@@ -532,14 +593,21 @@ def send_email_verification(user) -> bool:
         </p>
     """
 
+    subject_text = (
+        "[Evaluaasi] Reenvío de credenciales y verificación de correo"
+        if is_resend else
+        "[Evaluaasi] Confirma tu correo electrónico"
+    )
+
     return send_email(
         to=user.email,
-        subject="[Evaluaasi] Confirma tu correo electrónico",
+        subject=subject_text,
         html=_base_template("Verificación de correo", body),
         plain_text=(
-            f"¡Bienvenido/a a Evaluaasi!\n\n"
+            f"{title_text}\n\n"
             f"Hola {full_name},\n\n"
-            f"Gracias por registrarte. Para confirmar tu correo electrónico, "
+            f"{credentials_plain}"
+            f"Para confirmar tu correo electrónico, "
             f"visita el siguiente enlace:\n\n"
             f"{verify_url}\n\n"
             f"Este enlace expira en 7 días.\n\n"
