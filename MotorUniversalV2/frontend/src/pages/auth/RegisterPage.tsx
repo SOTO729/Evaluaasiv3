@@ -18,6 +18,7 @@ import {
 const RegisterPage = () => {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
+  const [registeredEmail, setRegisteredEmail] = useState('')
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -67,7 +68,8 @@ const RegisterPage = () => {
         second_surname: formData.second_surname,
         phone: formData.phone,
       })
-      navigate('/login', { state: { registered: true } })
+      setRegisteredEmail(formData.email)
+      setStep(3)
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Error al registrar'
       setError(errorMessage)
@@ -112,10 +114,10 @@ const RegisterPage = () => {
           {/* Header */}
           <div className="fluid-mb-6">
             <h1 className="fluid-text-2xl font-bold text-gray-900 fluid-mb-2">
-              Crear cuenta
+              {step === 3 ? '¡Registro exitoso!' : 'Crear cuenta'}
             </h1>
             <p className="fluid-text-base text-gray-500">
-              {step === 1 ? 'Paso 1: Credenciales de acceso' : 'Paso 2: Información personal'}
+              {step === 1 ? 'Paso 1: Credenciales de acceso' : step === 2 ? 'Paso 2: Información personal' : 'Verifica tu correo electrónico'}
             </p>
           </div>
 
@@ -123,6 +125,7 @@ const RegisterPage = () => {
           <div className="flex fluid-gap-2 fluid-mb-6">
             <div className={`h-1 flex-1 rounded ${step >= 1 ? 'bg-primary-500' : 'bg-gray-200'}`}></div>
             <div className={`h-1 flex-1 rounded ${step >= 2 ? 'bg-primary-500' : 'bg-gray-200'}`}></div>
+            <div className={`h-1 flex-1 rounded ${step >= 3 ? 'bg-green-500' : 'bg-gray-200'}`}></div>
           </div>
 
           {/* Error Alert */}
@@ -133,7 +136,40 @@ const RegisterPage = () => {
             </div>
           )}
 
-          {/* Form */}
+          {step === 3 ? (
+            /* Step 3: Email verification message */
+            <div className="text-center fluid-py-4">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
+                <Mail className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-2">
+                Revisa tu correo electrónico
+              </h2>
+              <p className="fluid-text-sm text-gray-600 fluid-mb-4">
+                Hemos enviado un enlace de verificación a:
+              </p>
+              <p className="fluid-text-base font-semibold text-primary-600 fluid-mb-6">
+                {registeredEmail}
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-fluid-xl fluid-p-4 text-left fluid-mb-6">
+                <p className="fluid-text-sm text-blue-800">
+                  <strong>Importante:</strong> Haz clic en el enlace del correo para confirmar tu dirección de correo electrónico y activar tu cuenta.
+                  El enlace expira en 7 días.
+                </p>
+              </div>
+              <Link
+                to="/login"
+                className="inline-flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-6 bg-primary-600 text-white rounded-fluid-lg hover:bg-primary-700 font-medium"
+              >
+                Ir a Iniciar Sesión
+                <ArrowRight className="fluid-icon-xs" />
+              </Link>
+              <p className="fluid-mt-4 fluid-text-xs text-gray-400">
+                ¿No recibiste el correo? Revisa tu carpeta de spam.
+              </p>
+            </div>
+          ) : (
+          /* Form */
           <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-4">
             {step === 1 ? (
               <>
@@ -324,7 +360,10 @@ const RegisterPage = () => {
               </button>
             </div>
           </form>
+          )}
 
+          {step !== 3 && (
+          <>
           {/* Divider */}
           <div className="relative fluid-my-6">
             <div className="absolute inset-0 flex items-center">
@@ -379,6 +418,8 @@ const RegisterPage = () => {
               Inicia sesión
             </Link>
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>

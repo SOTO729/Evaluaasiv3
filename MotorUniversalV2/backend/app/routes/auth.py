@@ -127,10 +127,105 @@ def register():
     db.session.add(user)
     db.session.commit()
     
+    # Enviar email de verificación de correo
+    try:
+        from app.services.email_service import send_email_verification
+        send_email_verification(user)
+    except Exception as e:
+        logger.error(f"Error enviando email de verificación: {e}")
+    
     return jsonify({
-        'message': 'Usuario creado exitosamente',
+        'message': 'Usuario creado exitosamente. Revisa tu correo para verificar tu cuenta.',
         'user': user.to_dict()
     }), 201
+
+
+@bp.route('/verify-email', methods=['GET'])
+def verify_email():
+    """
+    Verificar correo electrónico con token
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: token
+        in: query
+        required: true
+        type: string
+    responses:
+      200:
+        description: Correo verificado exitosamente
+      400:
+        description: Token inválido o expirado
+    """
+    token = request.args.get('token')
+    if not token:
+        return jsonify({'error': 'Token de verificación requerido'}), 400
+
+    from app.services.email_service import verify_email_verification_token
+    user_id = verify_email_verification_token(token)
+
+    if not user_id:
+        return jsonify({'error': 'El enlace de verificación ha expirado o es inválido. Solicita uno nuevo.'}), 400
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    if user.is_verified:
+        return jsonify({'message': 'Tu correo electrónico ya fue verificado anteriormente.', 'already_verified': True}), 200
+
+    user.is_verified = True
+    db.session.commit()
+
+    return jsonify({'message': 'Tu correo electrónico ha sido verificado exitosamente. Ya puedes iniciar sesión.'}), 200
+
+
+@bp.route('/resend-verification', methods=['POST'])
+def resend_verification():
+    """
+    Reenviar email de verificación
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+          properties:
+            email:
+              type: string
+    responses:
+      200:
+        description: Email de verificación reenviado
+    """
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+
+    if not email:
+        return jsonify({'error': 'Email es requerido'}), 400
+
+    # Siempre responder 200 para no revelar si el email existe
+    success_msg = {'message': 'Si el correo está registrado, recibirás un nuevo enlace de verificación.'}
+
+    user = User.query.filter(func.lower(User.email) == email).first()
+    if not user or not user.is_active:
+        return jsonify(success_msg), 200
+
+    if user.is_verified:
+        return jsonify({'message': 'Tu correo electrónico ya fue verificado.'}), 200
+
+    try:
+        from app.services.email_service import send_email_verification
+        send_email_verification(user)
+    except Exception as e:
+        logger.error(f"Error reenviando email de verificación: {e}")
+
+    return jsonify(success_msg), 200
 
 
 @bp.route('/login', methods=['POST'])

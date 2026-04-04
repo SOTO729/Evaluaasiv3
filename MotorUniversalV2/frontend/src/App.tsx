@@ -23,6 +23,7 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage'))
 const HomePage = lazy(() => import('./pages/HomePage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const ExamsListPage = lazy(() => import('./pages/exams/ExamsListPage'))
@@ -299,6 +300,7 @@ function App() {
           <Route path="/reset-password" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : <ResetPasswordPage />
           } />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedRoute />}>

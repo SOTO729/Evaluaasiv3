@@ -399,6 +399,157 @@ def send_welcome_email(user, temporary_password: str) -> bool:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 1b. VERIFICACIÓN DE EMAIL (REGISTRO)
+# ═══════════════════════════════════════════════════════════════
+
+def generate_email_verification_token(user_id: str) -> str:
+    """Generate a signed token for email verification."""
+    import base64
+    payload = json.dumps({
+        'uid': user_id,
+        'purpose': 'email_verify',
+        'ts': int(time.time()),
+    }, separators=(',', ':'))
+
+    payload_b64 = base64.urlsafe_b64encode(payload.encode()).decode().rstrip('=')
+    sig = hmac.new(EMAIL_ACTION_SECRET.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:32]
+    return f"{payload_b64}.{sig}"
+
+
+def verify_email_verification_token(token: str) -> str | None:
+    """Verify an email verification token. Returns user_id or None."""
+    try:
+        parts = token.split('.')
+        if len(parts) != 2:
+            return None
+
+        payload_b64, sig = parts
+        expected_sig = hmac.new(EMAIL_ACTION_SECRET.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:32]
+
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+
+        import base64
+        padding = 4 - len(payload_b64) % 4
+        if padding != 4:
+            payload_b64 += '=' * padding
+
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64).decode())
+
+        if payload.get('purpose') != 'email_verify':
+            return None
+
+        # Token valid for 7 days
+        if time.time() - payload.get('ts', 0) > EMAIL_TOKEN_MAX_AGE:
+            return None
+
+        return payload.get('uid')
+    except Exception:
+        return None
+
+
+def send_email_verification(user) -> bool:
+    """Enviar email de bienvenida con enlace de verificación de correo."""
+    if not user.email:
+        return False
+
+    full_name = f"{user.name or ''} {user.first_surname or ''}".strip() or user.username or 'Usuario'
+    token = generate_email_verification_token(user.id)
+    verify_url = f"{APP_URL}/verify-email?token={token}"
+
+    body = f"""
+        <!-- Saludo -->
+        <h2 style="margin:0 0 4px;color:#111827;font-size:22px;font-weight:700;">
+            ¡Bienvenido/a a Evaluaasi!
+        </h2>
+        <p style="margin:0 0 20px;color:#6b7280;font-size:13px;">
+            Plataforma de Evaluación y Certificación de Competencias Laborales
+        </p>
+
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 6px;">
+            Hola <strong style="color:#1e40af;">{full_name}</strong>,
+        </p>
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px;">
+            Gracias por registrarte en <strong>Evaluaasi</strong>. Para completar tu registro y activar
+            tu cuenta, necesitamos que confirmes tu dirección de correo electrónico.
+        </p>
+
+        <!-- Call to action -->
+        <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 8px;">
+            Haz clic en el siguiente botón para verificar tu correo:
+        </p>
+
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto;">
+            <tr>
+                <td style="background:linear-gradient(135deg,#059669,#047857);border-radius:10px;box-shadow:0 4px 14px rgba(5,150,105,0.35);">
+                    <a href="{verify_url}" target="_blank" style="display:inline-block;padding:14px 44px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;letter-spacing:0.4px;">
+                        ✅ Confirmar mi correo electrónico
+                    </a>
+                </td>
+            </tr>
+        </table>
+
+        <!-- Info de enlace -->
+        <div style="background-color:#f0f9ff;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;padding:16px 20px;margin:24px 0 16px;">
+            <p style="margin:0 0 10px;color:#1e40af;font-size:14px;font-weight:700;">¿Qué sigue?</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">①</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Confirma tu correo haciendo clic en el botón de arriba.
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">②</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Inicia sesión con tu usuario y contraseña.
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 0;color:#1e40af;font-size:20px;width:32px;vertical-align:top;">③</td>
+                    <td style="padding:4px 0;color:#374151;font-size:13px;line-height:1.5;">
+                        Completa tu perfil y comienza a utilizar todas las funciones disponibles.
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Aviso de expiración -->
+        <div style="background-color:#fffbeb;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin:16px 0;">
+            <p style="margin:0;color:#92400e;font-size:12px;line-height:1.5;">
+                <strong>⏰ Importante:</strong> Este enlace de verificación expira en <strong>7 días</strong>.
+                Si no confirmas tu correo, podrás solicitar un nuevo enlace desde la plataforma.
+            </p>
+        </div>
+
+        <p style="color:#9ca3af;font-size:12px;margin:16px 0 0;">
+            Si el botón no funciona, copia y pega esta URL en tu navegador:<br>
+            <span style="color:#6b7280;word-break:break-all;font-size:11px;">{verify_url}</span>
+        </p>
+
+        <p style="color:#9ca3af;font-size:12px;text-align:center;margin:20px 0 0;">
+            Si no creaste esta cuenta, ignora este correo.
+        </p>
+    """
+
+    return send_email(
+        to=user.email,
+        subject="[Evaluaasi] Confirma tu correo electrónico",
+        html=_base_template("Verificación de correo", body),
+        plain_text=(
+            f"¡Bienvenido/a a Evaluaasi!\n\n"
+            f"Hola {full_name},\n\n"
+            f"Gracias por registrarte. Para confirmar tu correo electrónico, "
+            f"visita el siguiente enlace:\n\n"
+            f"{verify_url}\n\n"
+            f"Este enlace expira en 7 días.\n\n"
+            f"Si no creaste esta cuenta, ignora este correo.\n\n"
+            f"— Equipo Evaluaasi"
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
 # 2. RECUPERACIÓN DE CONTRASEÑA
 # ═══════════════════════════════════════════════════════════════
 

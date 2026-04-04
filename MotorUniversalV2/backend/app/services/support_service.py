@@ -578,6 +578,26 @@ def send_support_user_email(target: str, template: str) -> dict[str, Any]:
     if "@" not in recipient_email:
         raise ValueError("No se encontró un correo válido para el usuario indicado")
 
+    # Template "nuevo": enviar email de bienvenida con rol y credenciales (mismo que al crear usuario)
+    if template_key == "nuevo":
+        if not user:
+            raise ValueError("No se encontró el usuario. El template 'Nuevo' requiere un usuario registrado para incluir credenciales.")
+        from app.models.user import decrypt_password
+        plain_password = decrypt_password(user.encrypted_password) if user.encrypted_password else None
+        if not plain_password:
+            raise ValueError("No se pudo recuperar la contraseña del usuario. Verifica que el usuario tenga contraseña almacenada.")
+        from app.services.email_service import send_welcome_email
+        success = send_welcome_email(user, plain_password)
+        if not success:
+            raise ValueError("No se pudo enviar el correo de bienvenida. Verifica que el usuario tenga email configurado.")
+        return {
+            "message": "Correo enviado correctamente",
+            "target": target_value,
+            "recipient_email": recipient_email,
+            "template": template_key,
+            "subject": "¡Bienvenido/a a Evaluaasi! — Tu cuenta está lista",
+        }
+
     subject, body = _build_support_email_template(template_key, user)
 
     mail_server = os.getenv("MAIL_SERVER", "").strip()
