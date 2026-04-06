@@ -260,6 +260,7 @@ def verify_certificate(code):
                     'name': template.name if template else 'N/A',
                     'description': template.description if template else None,
                     'issuer_name': template.issuer_name if template else 'Grupo Eduit',
+                    'issuer_logo_url': template.issuer_logo_url if template and hasattr(template, 'issuer_logo_url') else None,
                     'image_url': badge.badge_image_url,
                     'template_image_url': (badge.template_image_url
                                            or (template.badge_image_url if template else None)
