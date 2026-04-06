@@ -3,44 +3,44 @@ import { ChevronDown } from 'lucide-react'
 
 const faqs = [
   {
-    question: '¿Cómo empiezo a usar Evaluaasi?',
-    answer: 'Simplemente crea una cuenta gratuita y podrás comenzar a crear tu primer examen en minutos. No necesitas tarjeta de crédito ni instalación. Ofrecemos tutoriales en video y documentación completa para ayudarte.',
+    question: '¿Qué productos ofrece Evaluaasi?',
+    answer: 'Evaluaasi ofrece cuatro productos principales: Certificados de Competencias CONOCER (con validez oficial ante la SEP), Insignias Digitales (estándar Open Badges 3.0), Constancias de Evaluación y Certificados digitales verificables. Próximamente también ofreceremos Hosting de Insignias Digitales para terceros y un LMS para escuelas.',
   },
   {
-    question: '¿Qué son los certificados CONOCER y cómo puedo emitirlos?',
-    answer: 'Los certificados CONOCER tienen validez oficial ante la Secretaría de Educación Pública y son emitidos por el Consejo Nacional de Normalización y Certificación de Competencias Laborales. Evaluaasi te permite crear evaluaciones alineadas a Estándares de Competencia (EC) y generar los certificados automáticamente una vez aprobada la evaluación.',
+    question: '¿Qué son los certificados CONOCER y cómo los emiten?',
+    answer: 'Los certificados CONOCER son certificaciones de competencias laborales con validez oficial ante la SEP, emitidas por el Consejo Nacional de Normalización y Certificación de Competencias Laborales. Evaluaasi los puede emitir gracias a su alianza con EduIT, que es Centro Evaluador autorizado. Nosotros gestionamos todo el proceso: estudio, evaluación, trámite ante CONOCER y entrega del certificado.',
+  },
+  {
+    question: '¿Cómo funciona el modelo de Partners?',
+    answer: 'Como partner, tú vendes nuestros productos (certificaciones, insignias, constancias, certificados) a tus clientes finales. Pagas un precio reducido a Evaluaasi y estableces tu propio precio de venta, quedándote con la diferencia. Nosotros proporcionamos toda la plataforma, infraestructura, trámites gubernamentales y soporte.',
+  },
+  {
+    question: '¿Cómo funciona la venta directa?',
+    answer: 'En el modelo de venta directa, el usuario final accede al catálogo de certificaciones y productos disponibles en Evaluaasi, paga en línea con MercadoPago, estudia el material, presenta su evaluación y recibe su certificado, insignia o constancia automáticamente.',
   },
   {
     question: '¿Qué son las insignias digitales?',
-    answer: 'Las insignias digitales son credenciales verificables que reconocen logros, habilidades o competencias específicas. Son compatibles con el estándar Open Badges y pueden compartirse en LinkedIn, portafolios digitales o currículums. Cada insignia incluye metadatos sobre el criterio de otorgamiento y puede verificarse en línea.',
+    answer: 'Las insignias digitales son credenciales verificables bajo el estándar Open Badges 3.0 que reconocen competencias, logros o habilidades específicas. Pueden verificarse públicamente mediante un enlace o código, y compartirse en LinkedIn, portafolios digitales o currículums.',
   },
   {
-    question: '¿Cómo funcionan las constancias de estudio?',
-    answer: 'Las constancias se generan automáticamente cuando un estudiante completa un curso o evaluación. Incluyen un código QR de verificación, datos del participante, fecha de emisión y puedes personalizar el diseño con tu logo institucional.',
+    question: '¿Cualquier persona puede verificar un certificado o insignia?',
+    answer: 'Sí. Todos los certificados, insignias y constancias emitidos por Evaluaasi incluyen un código de verificación y/o URL pública. Cualquier persona puede verificar su autenticidad sin necesidad de crear una cuenta, a través de nuestra página de verificación pública.',
   },
   {
-    question: '¿Puedo importar mis exámenes existentes?',
-    answer: 'Sí, Evaluaasi permite importar preguntas desde archivos Excel, Word o CSV. También tenemos integraciones con otras plataformas populares como Moodle y Google Forms.',
+    question: '¿Qué necesito para ser Partner de Evaluaasi?',
+    answer: 'Contáctanos a través del formulario o por teléfono. Analizaremos tu caso, configuraremos tu cuenta de partner con tu branding personalizado, y te daremos acceso a la plataforma para que comiences a registrar candidatos y vender nuestros productos.',
   },
   {
-    question: '¿Qué tipos de preguntas puedo crear?',
-    answer: 'Ofrecemos Verdadero/Falso, Opción Múltiple, Selección Múltiple (varias respuestas correctas), Ordenamiento, y ejercicios interactivos paso a paso. Cada tipo soporta imágenes, videos y texto enriquecido.',
-  },
-  {
-    question: '¿Cómo funciona el plan institucional?',
-    answer: 'El plan institucional se adapta a las necesidades de tu organización. Incluye implementación personalizada, capacitación para tu equipo, integración con sistemas existentes (LMS, SSO), certificación CONOCER y soporte dedicado.',
+    question: '¿Evaluaasi es un producto de EduIT?',
+    answer: 'Sí. Evaluaasi es desarrollado y operado por EduIT (Grupo EduIT / ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.), empresa mexicana con más de 20 años de experiencia en tecnología educativa, Microsoft Partner Gold, y Centro Evaluador CONOCER autorizado.',
   },
   {
     question: '¿Mis datos están seguros?',
-    answer: 'Absolutamente. Usamos encriptación AES-256 para datos en reposo, TLS 1.3 para transmisión, autenticación JWT, y cumplimos con GDPR y regulaciones de protección de datos educativos.',
+    answer: 'Absolutamente. La plataforma está alojada en Microsoft Azure con encriptación de datos, autenticación segura (JWT + Argon2), y cumplimiento de estándares de protección de datos. Nuestros servidores están en centros de datos certificados.',
   },
   {
-    question: '¿Evaluaasi es un producto de Eduit?',
-    answer: 'Sí, Evaluaasi es desarrollado y operado por Eduit (Grupo EduIT / ENTRENAMIENTO INFORMATICO AVANZADO S.A. DE C.V.), empresa mexicana especializada en soluciones tecnológicas para educación y capacitación empresarial.',
-  },
-  {
-    question: '¿Ofrecen descuentos para instituciones educativas?',
-    answer: 'Sí, ofrecemos descuentos especiales para escuelas públicas, ONGs educativas y programas de becas. Contáctanos para conocer las opciones disponibles.',
+    question: '¿En qué estados operan?',
+    answer: 'Evaluaasi opera a nivel nacional en México a través de su red de partners y venta directa. Actualmente tenemos presencia en 28+ estados de la República. Al ser una plataforma 100% digital, los candidatos pueden estudiar y evaluarse desde cualquier lugar.',
   },
 ]
 
@@ -49,7 +49,7 @@ export default function FAQSection() {
 
   return (
     <section id="faq" className="fluid-py-20 bg-white">
-      <div className="max-w-3xl mx-auto fluid-px-6">
+      <div className="max-w-5xl mx-auto fluid-px-8 2xl:fluid-px-16">
         {/* Header */}
         <div className="text-center fluid-mb-16">
           <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">

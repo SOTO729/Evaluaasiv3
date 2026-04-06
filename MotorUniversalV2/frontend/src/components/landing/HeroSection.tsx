@@ -1,16 +1,15 @@
-import { Link } from 'react-router-dom'
-import { Play, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Award, BadgeCheck, ScrollText, FileCheck } from 'lucide-react'
 
 export default function HeroSection() {
-  const benefits = [
-    'Sin tarjeta de crédito',
-    'Configuración en 5 minutos',
-    'Soporte 24/7',
+  const highlights = [
+    'Centro Evaluador CONOCER',
+    'Open Badges 3.0',
+    'Verificación pública en línea',
   ]
 
   return (
-    <section className="fluid-pt-24 fluid-pb-16 overflow-hidden">
-      <div className="max-w-7xl mx-auto fluid-px-6">
+    <section className="fluid-pt-16 fluid-pb-16 overflow-hidden">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16">
         <div className="grid lg:grid-cols-2 fluid-gap-12 items-center">
           {/* Content */}
           <div className="text-center lg:text-left">
@@ -20,58 +19,59 @@ export default function HeroSection() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
               </span>
-              Un producto de <span className="font-bold">Eduit</span> · Plataforma #1 en evaluación educativa
+              Alianza <span className="font-bold">EduIT</span> · Centro Evaluador CONOCER
             </div>
 
             {/* Heading */}
             <h1 className="fluid-text-3xl font-bold text-gray-900 leading-tight fluid-mb-6">
-              Evalúa y{' '}
+              Certifica, acredita y{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-500 to-primary-700">
-                potencia
-              </span>{' '}
-              el aprendizaje
+                potencia el talento
+              </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="fluid-text-xl text-gray-600 fluid-mb-8 max-w-lg mx-auto lg:mx-0">
-              Crea exámenes, gestiona contenido de estudio, emite constancias, 
-              insignias digitales y <strong className="text-primary-600">certificados avalados por el CONOCER</strong>. Todo en una plataforma.
+            <p className="fluid-text-xl text-gray-600 fluid-mb-8 max-w-2xl mx-auto lg:mx-0">
+              Plataforma integral para emitir{' '}
+              <strong className="text-primary-600">certificados CONOCER</strong>,{' '}
+              insignias digitales, constancias de evaluación y certificados.
+              Para partners y venta directa.
             </p>
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row fluid-gap-4 justify-center lg:justify-start fluid-mb-8">
-              <Link
-                to="/register"
+              <a
+                href="#products"
                 className="inline-flex items-center justify-center fluid-gap-2 fluid-px-8 fluid-py-4 bg-primary-600 text-white rounded-fluid-xl hover:bg-primary-700 transition-all font-semibold fluid-text-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
-                Comenzar Gratis
+                Conoce nuestros productos
                 <ArrowRight className="fluid-icon-sm" />
-              </Link>
-              <button className="inline-flex items-center justify-center fluid-gap-2 fluid-px-8 fluid-py-4 bg-white text-gray-700 rounded-fluid-xl hover:bg-gray-50 transition-all font-semibold fluid-text-lg border border-gray-200 shadow-sm">
-                <Play className="fluid-icon-sm text-primary-600" />
-                Ver Demo
-              </button>
+              </a>
+              <a
+                href="#models"
+                className="inline-flex items-center justify-center fluid-gap-2 fluid-px-8 fluid-py-4 bg-white text-gray-700 rounded-fluid-xl hover:bg-gray-50 transition-all font-semibold fluid-text-lg border border-gray-200 shadow-sm"
+              >
+                Quiero ser Partner
+              </a>
             </div>
 
-            {/* Benefits */}
+            {/* Highlights */}
             <div className="flex flex-wrap fluid-gap-4 justify-center lg:justify-start">
-              {benefits.map((benefit) => (
-                <div key={benefit} className="flex items-center fluid-gap-2 text-gray-600">
+              {highlights.map((h) => (
+                <div key={h} className="flex items-center fluid-gap-2 text-gray-600">
                   <CheckCircle2 className="fluid-icon-sm text-green-500" />
-                  <span>{benefit}</span>
+                  <span>{h}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Illustration/Image */}
+          {/* Illustration */}
           <div className="relative lg:ml-8">
             <div className="relative">
-              {/* Main visual */}
               <div className="bg-gradient-to-br from-primary-100 via-primary-50 to-white rounded-fluid-2xl fluid-p-8 shadow-2xl">
-                {/* Mock Dashboard */}
                 <div className="bg-white rounded-fluid-2xl shadow-lg overflow-hidden">
-                  {/* Header */}
+                  {/* Browser header */}
                   <div className="bg-gray-50 fluid-px-4 fluid-py-3 flex items-center fluid-gap-2 border-b">
                     <div className="flex fluid-gap-1">
                       <div className="w-3 h-3 rounded-full bg-red-400"></div>
@@ -83,59 +83,59 @@ export default function HeroSection() {
                     </div>
                   </div>
                   
-                  {/* Content */}
+                  {/* Mock content */}
                   <div className="fluid-p-6 flex flex-col fluid-gap-4">
-                    {/* Stats row */}
-                    <div className="grid grid-cols-3 fluid-gap-3">
-                      <div className="bg-primary-50 rounded-fluid-lg fluid-p-3 text-center">
-                        <div className="fluid-text-2xl font-bold text-primary-600">12</div>
-                        <div className="fluid-text-xs text-gray-600">Exámenes</div>
+                    {/* Product stats */}
+                    <div className="grid sm:grid-cols-2 fluid-gap-3">
+                      <div className="bg-yellow-50 rounded-fluid-lg fluid-p-3 flex items-center fluid-gap-3">
+                        <Award className="fluid-icon-lg text-yellow-500" />
+                        <div>
+                          <div className="fluid-text-xs text-gray-500">CONOCER</div>
+                          <div className="fluid-text-lg font-bold text-gray-900">1,247</div>
+                        </div>
                       </div>
-                      <div className="bg-green-50 rounded-fluid-lg fluid-p-3 text-center">
-                        <div className="fluid-text-2xl font-bold text-green-600">156</div>
-                        <div className="fluid-text-xs text-gray-600">Estudiantes</div>
+                      <div className="bg-purple-50 rounded-fluid-lg fluid-p-3 flex items-center fluid-gap-3">
+                        <BadgeCheck className="fluid-icon-lg text-purple-500" />
+                        <div>
+                          <div className="fluid-text-xs text-gray-500">Insignias</div>
+                          <div className="fluid-text-lg font-bold text-gray-900">3,580</div>
+                        </div>
                       </div>
-                      <div className="bg-purple-50 rounded-fluid-lg fluid-p-3 text-center">
-                        <div className="fluid-text-2xl font-bold text-purple-600">89%</div>
-                        <div className="fluid-text-xs text-gray-600">Aprobación</div>
+                      <div className="bg-blue-50 rounded-fluid-lg fluid-p-3 flex items-center fluid-gap-3">
+                        <ScrollText className="fluid-icon-lg text-blue-500" />
+                        <div>
+                          <div className="fluid-text-xs text-gray-500">Constancias</div>
+                          <div className="fluid-text-lg font-bold text-gray-900">5,912</div>
+                        </div>
+                      </div>
+                      <div className="bg-green-50 rounded-fluid-lg fluid-p-3 flex items-center fluid-gap-3">
+                        <FileCheck className="fluid-icon-lg text-green-500" />
+                        <div>
+                          <div className="fluid-text-xs text-gray-500">Certificados</div>
+                          <div className="fluid-text-lg font-bold text-gray-900">2,304</div>
+                        </div>
                       </div>
                     </div>
                     
-                    {/* Progress bars */}
-                    <div className="flex flex-col fluid-gap-3">
-                      <div>
-                        <div className="flex justify-between fluid-text-sm fluid-mb-1">
-                          <span className="text-gray-600">Matemáticas</span>
-                          <span className="text-gray-900 font-medium">92%</span>
+                    {/* Activity feed */}
+                    <div className="flex flex-col fluid-gap-2">
+                      {[
+                        { label: 'Certificado CONOCER emitido', color: 'bg-yellow-400' },
+                        { label: 'Insignia digital verificada', color: 'bg-purple-400' },
+                        { label: 'Constancia generada', color: 'bg-blue-400' },
+                      ].map((item) => (
+                        <div key={item.label} className="flex items-center fluid-gap-3 fluid-p-2 bg-gray-50 rounded-fluid-lg">
+                          <div className={`w-2 h-2 rounded-full ${item.color}`}></div>
+                          <span className="fluid-text-sm text-gray-600 flex-1">{item.label}</span>
+                          <span className="fluid-text-xs text-gray-400">Hace 2m</span>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-primary-500 rounded-full" style={{ width: '92%' }}></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between fluid-text-sm fluid-mb-1">
-                          <span className="text-gray-600">Ciencias</span>
-                          <span className="text-gray-900 font-medium">78%</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-500 rounded-full" style={{ width: '78%' }}></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between fluid-text-sm fluid-mb-1">
-                          <span className="text-gray-600">Historia</span>
-                          <span className="text-gray-900 font-medium">85%</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-purple-500 rounded-full" style={{ width: '85%' }}></div>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Floating elements */}
+              {/* Floating element */}
               <div className="absolute -top-4 -right-4 bg-white rounded-fluid-xl shadow-lg fluid-p-4 animate-bounce">
                 <div className="flex items-center fluid-gap-2">
                   <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">

@@ -2,66 +2,67 @@ import { Star, Quote } from 'lucide-react'
 
 const testimonials = [
   {
-    name: 'María González',
-    role: 'Directora Académica',
-    institution: 'Colegio San Martín',
+    name: 'Roberto Méndez',
+    role: 'Director de Partner',
+    institution: 'Certificaciones del Norte',
     image: null,
     rating: 5,
-    text: 'Evaluaasi transformó la forma en que evaluamos a nuestros estudiantes. Los reportes detallados nos permiten identificar exactamente dónde cada alumno necesita más apoyo.',
+    text: 'Como partner de Evaluaasi, logramos certificar a más de 300 personas en 6 meses. La plataforma nos permite manejar todo el proceso sin complicaciones y el margen de ganancia es excelente.',
   },
   {
-    name: 'Carlos Rodríguez',
-    role: 'Profesor de Matemáticas',
-    institution: 'Universidad Nacional',
-    image: null,
-    rating: 5,
-    text: 'La variedad de tipos de preguntas y la facilidad de uso son increíbles. Puedo crear exámenes complejos en minutos, no horas.',
-  },
-  {
-    name: 'Ana Martínez',
+    name: 'Ana Laura Ríos',
     role: 'Coordinadora de Capacitación',
-    institution: 'TechCorp México',
+    institution: 'Grupo Empresarial del Bajío',
     image: null,
     rating: 5,
-    text: 'Usamos Evaluaasi para certificar a nuestro equipo técnico. La integración con nuestra plataforma fue sencilla y el soporte es excelente.',
+    text: 'Las insignias digitales de Evaluaasi nos ayudaron a reconocer competencias internas. Nuestros colaboradores las comparten en LinkedIn y ha mejorado nuestra marca empleadora.',
   },
   {
-    name: 'Roberto Sánchez',
-    role: 'Rector',
-    institution: 'Instituto Tecnológico del Sur',
+    name: 'Carlos Hernández',
+    role: 'Candidato Certificado',
+    institution: 'EC0217 - Impartición de cursos',
     image: null,
     rating: 5,
-    text: 'Desde que implementamos Evaluaasi, hemos visto una mejora del 40% en la retención del conocimiento gracias al material de estudio integrado.',
+    text: 'El proceso de certificación CONOCER fue muy claro. Estudié con el material de la plataforma, hice mi evaluación en línea y en pocas semanas recibí mi certificado oficial.',
   },
   {
-    name: 'Laura Pérez',
-    role: 'Profesora de Ciencias',
-    institution: 'Secundaria Benito Juárez',
+    name: 'Patricia Soto',
+    role: 'Responsable de Plantel',
+    institution: 'Instituto de Formación Profesional',
     image: null,
     rating: 5,
-    text: 'Mis estudiantes adoran los ejercicios interactivos. Es una forma mucho más atractiva de aprender que los métodos tradicionales.',
+    text: 'Gestionar a nuestros candidatos es muy sencillo. Puedo dar seguimiento a cada uno, solicitar certificados y ver los resultados en tiempo real desde mi panel.',
   },
   {
-    name: 'Diego Fernández',
-    role: 'CEO',
-    institution: 'Academia Online Plus',
+    name: 'Marco Jiménez',
+    role: 'Director General',
+    institution: 'TechCapacita MX',
     image: null,
     rating: 5,
-    text: 'Evaluaasi nos permitió escalar nuestra academia de 200 a 5,000 estudiantes sin aumentar el equipo administrativo. ROI increíble.',
+    text: 'Empezamos como partner hace un año y ya operamos en 5 estados. La plataforma es confiable, el soporte es rápido y el modelo de negocio nos permite crecer sin inversión en tecnología.',
+  },
+  {
+    name: 'Sofía Ramírez',
+    role: 'Candidata',
+    institution: 'Certificación en competencias digitales',
+    image: null,
+    rating: 5,
+    text: 'Pagué mi certificación directamente en línea, hice todo el proceso desde mi casa y ahora tengo mi certificado CONOCER y mi insignia digital. Super recomendable.',
   },
 ]
 
 export default function TestimonialsSection() {
   return (
     <section id="testimonials" className="fluid-py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto fluid-px-6">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16">
         {/* Header */}
         <div className="text-center fluid-mb-16">
           <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
-            Lo que dicen nuestros usuarios
+            Lo que dicen nuestros partners y usuarios
           </h2>
-          <p className="fluid-text-xl text-gray-600 max-w-2xl mx-auto">
-            Miles de educadores confían en Evaluaasi para transformar la experiencia de aprendizaje.
+          <p className="fluid-text-xl text-gray-600 max-w-4xl mx-auto">
+            Partners, responsables y candidatos confían en Evaluaasi para
+            certificar competencias y emitir credenciales digitales.
           </p>
         </div>
 

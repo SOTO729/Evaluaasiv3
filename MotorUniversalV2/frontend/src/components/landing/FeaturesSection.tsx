@@ -1,55 +1,55 @@
 import { 
-  FileQuestion, 
-  BarChart3, 
   BookOpen, 
-  CheckCircle2,
+  FileQuestion, 
   Award,
   BadgeCheck,
-  ScrollText
+  FileText,
+  Search,
+  CheckCircle2
 } from 'lucide-react'
 
 const features = [
   {
-    icon: FileQuestion,
-    title: 'Múltiples Tipos de Preguntas',
-    description: 'Verdadero/Falso, opción múltiple, selección múltiple, ordenamiento y más. Crea evaluaciones dinámicas y completas.',
+    icon: BookOpen,
+    title: 'Material de Estudio',
+    description: 'Cursos con lecturas, videos y ejercicios interactivos paso a paso. El candidato estudia a su ritmo antes de presentar su evaluación.',
     color: 'primary',
-    highlights: ['4+ tipos de preguntas', 'Editor visual', 'Imágenes y videos']
+    highlights: ['Videos integrados', 'Ejercicios interactivos', 'Recursos descargables']
+  },
+  {
+    icon: FileQuestion,
+    title: 'Evaluación',
+    description: '6 tipos de reactivos: verdadero/falso, opción múltiple, selección múltiple, ordenamiento, arrastrar y soltar, y agrupación por columnas.',
+    color: 'green',
+    highlights: ['6 tipos de reactivos', 'Simuladores prácticos', 'Calificación automática']
   },
   {
     icon: Award,
-    title: 'Certificados CONOCER',
-    description: 'Emite certificados con validez oficial avalados por el Consejo Nacional de Normalización y Certificación de Competencias Laborales.',
-    color: 'green',
-    highlights: ['Validez oficial', 'Estándares EC', 'Registro automático']
+    title: 'Certificación CONOCER',
+    description: 'Proceso de certificación completo ante el CONOCER: evaluación, evidencias, trámite gubernamental y emisión del certificado oficial.',
+    color: 'orange',
+    highlights: ['Trámite ante CONOCER', 'Gestión de evidencias', 'Seguimiento en línea']
   },
   {
     icon: BadgeCheck,
-    title: 'Insignias Digitales',
-    description: 'Otorga insignias digitales verificables que reconocen logros y competencias de tus estudiantes.',
+    title: 'Credenciales Digitales',
+    description: 'Emisión de insignias digitales Open Badges 3.0, constancias de evaluación y certificados con verificación pública.',
     color: 'purple',
-    highlights: ['Verificación blockchain', 'Compartir en LinkedIn', 'Diseños personalizados']
+    highlights: ['Open Badges 3.0', 'QR de verificación', 'Compartir en LinkedIn']
   },
   {
-    icon: ScrollText,
-    title: 'Constancias de Estudio',
-    description: 'Genera constancias de participación y aprovechamiento con diseños profesionales y códigos de verificación.',
-    color: 'orange',
-    highlights: ['Generación automática', 'QR de verificación', 'Plantillas editables']
-  },
-  {
-    icon: BookOpen,
-    title: 'Material de Estudio',
-    description: 'Crea contenido interactivo con lecturas, videos y ejercicios prácticos guiados.',
+    icon: FileText,
+    title: 'Gestión Administrativa',
+    description: 'Panel para partners y coordinadores: gestión de candidatos, saldo, solicitudes de certificados y reportes de actividad.',
     color: 'red',
-    highlights: ['Videos integrados', 'Ejercicios paso a paso', 'Recursos descargables']
+    highlights: ['Multi-tenant', 'Control de saldo', 'Reportes en tiempo real']
   },
   {
-    icon: BarChart3,
-    title: 'Análisis Detallado',
-    description: 'Dashboard con métricas en tiempo real. Identifica fortalezas y áreas de mejora de cada estudiante.',
+    icon: Search,
+    title: 'Verificación Pública',
+    description: 'Cualquier persona puede verificar la autenticidad de un certificado, insignia o constancia con su código o URL única.',
     color: 'yellow',
-    highlights: ['Reportes automáticos', 'Gráficos interactivos', 'Exportar a PDF']
+    highlights: ['Verificación por código', 'Página pública', 'Sin login requerido']
   },
 ]
 
@@ -88,17 +88,17 @@ const colorClasses = {
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="fluid-py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto fluid-px-6">
+    <section id="platform" className="fluid-py-20 bg-gray-50">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16">
         {/* Header */}
         <div className="text-center fluid-mb-16">
           <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
-            Todo lo que necesitas para{' '}
-            <span className="text-primary-600">evaluar mejor</span>
+            Una plataforma,{' '}
+            <span className="text-primary-600">todo el proceso</span>
           </h2>
-          <p className="fluid-text-xl text-gray-600 max-w-2xl mx-auto">
-            Herramientas poderosas diseñadas para educadores que buscan 
-            mejorar la experiencia de aprendizaje de sus estudiantes.
+          <p className="fluid-text-xl text-gray-600 max-w-4xl mx-auto">
+            Desde el estudio hasta la emisión de credenciales, Evaluaasi
+            gestiona cada paso del proceso de certificación y acreditación.
           </p>
         </div>
 

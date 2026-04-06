@@ -1,11 +1,10 @@
 import LandingNavbar from '../../components/landing/LandingNavbar'
 import HeroSection from '../../components/landing/HeroSection'
 import StatsSection from '../../components/landing/StatsSection'
-import AboutSection from '../../components/landing/AboutSection'
 import FeaturesSection from '../../components/landing/FeaturesSection'
 import CertificationsSection from '../../components/landing/CertificationsSection'
 import PartnersSection from '../../components/landing/PartnersSection'
-import PricingSection from '../../components/landing/PricingSection'
+import AboutSection from '../../components/landing/AboutSection'
 import TestimonialsSection from '../../components/landing/TestimonialsSection'
 import FAQSection from '../../components/landing/FAQSection'
 import ContactSection from '../../components/landing/ContactSection'
@@ -13,16 +12,15 @@ import Footer from '../../components/landing/Footer'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden overscroll-contain">
+    <div className="min-h-screen bg-white scroll-smooth" style={{ scrollPaddingTop: '3.5rem' }}>
       <LandingNavbar />
-      <main>
+      <main className="pt-14">
         <HeroSection />
         <StatsSection />
-        <AboutSection />
-        <FeaturesSection />
         <CertificationsSection />
+        <FeaturesSection />
         <PartnersSection />
-        <PricingSection />
+        <AboutSection />
         <TestimonialsSection />
         <FAQSection />
         <ContactSection />

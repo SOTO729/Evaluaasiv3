@@ -42,21 +42,21 @@ export default function ContactSection() {
   }
 
   return (
-    <section id="contact" className="fluid-py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto fluid-px-6">
-        <div className="grid lg:grid-cols-2 fluid-gap-12">
+    <section id="contact" className="fluid-py-24 bg-gray-50">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16">
+        <div className="grid lg:grid-cols-2 fluid-gap-16">
           {/* Info */}
           <div>
-            <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-4">
-              ¿Listo para transformar tu evaluación educativa?
+            <h2 className="fluid-text-3xl font-bold text-gray-900 fluid-mb-6">
+              ¿Listo para certificar y acreditar?
             </h2>
-            <p className="fluid-text-xl text-gray-600 fluid-mb-8">
-              Nuestro equipo está aquí para ayudarte. Cuéntanos sobre tu institución 
-              y encontraremos la mejor solución para ti.
+            <p className="fluid-text-xl text-gray-600 fluid-mb-10">
+              Ya sea que quieras ser partner, certificarte directamente o conocer más 
+              sobre nuestros productos, estamos aquí para ayudarte.
             </p>
 
             {/* Contact Info */}
-            <div className="flex flex-col fluid-gap-6 fluid-mb-8">
+            <div className="flex flex-col fluid-gap-8 fluid-mb-10">
               <div className="flex items-start fluid-gap-4">
                 <div className="w-12 h-12 bg-primary-100 rounded-fluid-xl flex items-center justify-center flex-shrink-0">
                   <Mail className="fluid-icon-lg text-primary-600" />
@@ -101,7 +101,7 @@ export default function ContactSection() {
             </div>
 
             {/* Quick Response */}
-            <div className="bg-primary-50 rounded-fluid-xl fluid-p-6 border border-primary-100">
+            <div className="bg-primary-50 rounded-fluid-xl fluid-p-8 border border-primary-100">
               <div className="flex items-center fluid-gap-3 fluid-mb-3">
                 <div className="w-8 h-8 bg-primary-600 rounded-full flex items-center justify-center">
                   <CheckCircle2 className="fluid-icon-sm text-white" />
@@ -116,7 +116,7 @@ export default function ContactSection() {
           </div>
 
           {/* Form */}
-          <div className="bg-white rounded-fluid-2xl fluid-p-8 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-fluid-2xl fluid-p-10 shadow-sm border border-gray-100">
             {isSubmitted ? (
               <div className="text-center fluid-py-12">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto fluid-mb-4">
@@ -202,9 +202,11 @@ export default function ContactSection() {
                     className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="general">Información general</option>
+                    <option value="partner">Quiero ser Partner</option>
+                    <option value="direct">Certificación directa</option>
+                    <option value="conocer">Certificados CONOCER</option>
+                    <option value="badges">Insignias digitales</option>
                     <option value="demo">Solicitar demo</option>
-                    <option value="pricing">Precios y planes</option>
-                    <option value="institutional">Plan institucional</option>
                     <option value="support">Soporte técnico</option>
                     <option value="partnership">Alianzas comerciales</option>
                   </select>

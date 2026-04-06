@@ -6,11 +6,10 @@ export default function LandingNavbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const navLinks = [
+    { name: 'Productos', href: '#products' },
+    { name: 'Plataforma', href: '#platform' },
+    { name: 'Modelos', href: '#models' },
     { name: 'Nosotros', href: '#about' },
-    { name: 'Características', href: '#features' },
-    { name: 'Certificaciones', href: '#certifications' },
-    { name: 'Partners', href: '#partners' },
-    { name: 'Precios', href: '#pricing' },
     { name: 'Contacto', href: '#contact' },
   ]
 
@@ -18,15 +17,17 @@ export default function LandingNavbar() {
     e.preventDefault()
     const element = document.querySelector(href)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
+      const offset = 56 // h-14 = 3.5rem = 56px
+      const top = element.getBoundingClientRect().top + window.scrollY - offset
+      window.scrollTo({ top, behavior: 'smooth' })
     }
     setIsMenuOpen(false)
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 bg-white/95  border-b border-gray-100 z-50">
-      <div className="max-w-7xl mx-auto fluid-px-6">
-        <div className="flex justify-between items-center h-16">
+    <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 z-50">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16">
+        <div className="flex justify-between items-center h-14">
           {/* Logo */}
           <Link to="/" className="flex items-center fluid-gap-3">
             <img src="/logo.webp" alt="Evaluaasi" className="h-12 w-auto" />

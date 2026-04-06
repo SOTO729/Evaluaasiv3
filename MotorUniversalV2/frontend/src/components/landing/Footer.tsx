@@ -3,33 +3,32 @@ import { Facebook, Twitter, Linkedin, Instagram, Youtube } from 'lucide-react'
 
 const footerLinks = {
   product: {
-    title: 'Producto',
+    title: 'Productos',
     links: [
-      { name: 'Características', href: '#features' },
-      { name: 'Precios', href: '#pricing' },
-      { name: 'Integraciones', href: '#' },
-      { name: 'Actualizaciones', href: '#' },
-      { name: 'Roadmap', href: '#' },
+      { name: 'Certificados CONOCER', href: '#products' },
+      { name: 'Insignias Digitales', href: '#products' },
+      { name: 'Constancias de Evaluación', href: '#products' },
+      { name: 'Certificados', href: '#products' },
+      { name: 'Plataforma', href: '#platform' },
     ],
   },
   resources: {
-    title: 'Recursos',
+    title: 'Modelos',
     links: [
-      { name: 'Documentación', href: '#' },
-      { name: 'Tutoriales', href: '#' },
-      { name: 'Blog', href: '#' },
-      { name: 'Webinars', href: '#' },
-      { name: 'Centro de ayuda', href: '#' },
+      { name: 'Modelo Partners', href: '#models' },
+      { name: 'Venta Directa', href: '#models' },
+      { name: 'Preguntas Frecuentes', href: '#faq' },
+      { name: 'Verificación Pública', href: '/verify' },
+      { name: 'Contacto', href: '#contact' },
     ],
   },
   company: {
     title: 'Empresa',
     links: [
       { name: 'Sobre nosotros', href: '#about' },
-      { name: 'Carreras', href: '#' },
+      { name: 'Grupo EduIT', href: '#about' },
+      { name: 'CONOCER', href: 'https://conocer.gob.mx/' },
       { name: 'Contacto', href: '#contact' },
-      { name: 'Partners', href: '#partners' },
-      { name: 'Prensa', href: '#' },
     ],
   },
   legal: {
@@ -58,7 +57,7 @@ export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-300">
       {/* Main Footer */}
-      <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-16">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16 fluid-py-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-6 fluid-gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
@@ -67,9 +66,9 @@ export default function Footer() {
               <span className="fluid-text-xl font-bold text-white">Evaluaasi</span>
             </Link>
             <p className="text-gray-400 fluid-mb-4 max-w-sm">
-              <strong className="text-gray-300">Evaluaasi</strong> es un producto de <strong className="text-primary-400">Eduit</strong>. 
-              Plataforma líder en evaluación educativa, certificaciones CONOCER, 
-              insignias digitales y constancias de estudio.
+              <strong className="text-gray-300">Evaluaasi</strong> es un producto de <strong className="text-primary-400">EduIT</strong>. 
+              Plataforma de certificación CONOCER, insignias digitales, 
+              constancias de evaluación y certificados verificables.
             </p>
             <div className="text-gray-500 fluid-text-sm fluid-mb-6 max-w-sm">
               <p>Av. 31 Oriente No. 618, 2° Piso</p>
@@ -123,7 +122,7 @@ export default function Footer() {
 
       {/* Bottom Bar */}
       <div className="border-t border-gray-800">
-        <div className="max-w-7xl mx-auto fluid-px-6 fluid-py-6">
+        <div className="mx-auto fluid-px-8 2xl:fluid-px-16 fluid-py-6">
           <div className="flex flex-col md:flex-row justify-between items-center fluid-gap-4">
             <p className="text-gray-500 fluid-text-sm">
               © {currentYear} Evaluaasi · Un producto de <span className="text-primary-400">Eduit</span>. Todos los derechos reservados.

@@ -1,36 +1,36 @@
-import { Users, Building2, GraduationCap, Award } from 'lucide-react'
+import { Award, BadgeCheck, Handshake, MapPin } from 'lucide-react'
 
 const stats = [
-  {
-    value: '10,000+',
-    label: 'Estudiantes Evaluados',
-    icon: Users,
-    color: 'primary'
-  },
-  {
-    value: '500+',
-    label: 'Instituciones',
-    icon: Building2,
-    color: 'green'
-  },
   {
     value: '5,000+',
     label: 'Certificados CONOCER',
     icon: Award,
-    color: 'orange'
+    color: 'primary'
   },
   {
-    value: '50,000+',
-    label: 'Exámenes Completados',
-    icon: GraduationCap,
+    value: '15,000+',
+    label: 'Insignias Emitidas',
+    icon: BadgeCheck,
     color: 'purple'
+  },
+  {
+    value: '100+',
+    label: 'Partners Activos',
+    icon: Handshake,
+    color: 'green'
+  },
+  {
+    value: '28+',
+    label: 'Estados Cubiertos',
+    icon: MapPin,
+    color: 'orange'
   },
 ]
 
 export default function StatsSection() {
   return (
     <section className="fluid-py-16 bg-white">
-      <div className="max-w-7xl mx-auto fluid-px-6">
+      <div className="mx-auto fluid-px-8 2xl:fluid-px-16">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 fluid-gap-8">
           {stats.map((stat) => {
             const Icon = stat.icon
@@ -49,7 +49,7 @@ export default function StatsSection() {
                 <div className={`w-16 h-16 ${colorClasses[stat.color as keyof typeof colorClasses]} rounded-fluid-2xl flex items-center justify-center mx-auto fluid-mb-4`}>
                   <Icon className="fluid-icon-xl" />
                 </div>
-                <div className="text-4xl font-bold text-gray-900 fluid-mb-2">{stat.value}</div>
+                <div className="fluid-text-3xl font-bold text-gray-900 fluid-mb-2">{stat.value}</div>
                 <div className="text-gray-600">{stat.label}</div>
               </div>
             )
