@@ -3,12 +3,12 @@
  * Disponible para admin, editor y coordinator.
  * UI consistente con el sistema de diseño fluido de la app.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   BadgeCheck, Plus, Search, Edit2, Trash2,
   ToggleLeft, ToggleRight, ChevronLeft, ChevronRight, Award,
-  Users, Clock, Sparkles, X
+  Users, Clock, Sparkles, X, Upload, Globe, Shield
 } from 'lucide-react'
 import { badgeService, type BadgeTemplate } from '../../services/badgeService'
 
@@ -22,6 +22,9 @@ export default function BadgeTemplatesPage() {
   const [total, setTotal] = useState(0)
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all')
   const [toast, setToast] = useState<string | null>(null)
+  const [issuerLogoUrl, setIssuerLogoUrl] = useState<string | null>(null)
+  const [issuerLogoUploading, setIssuerLogoUploading] = useState(false)
+  const issuerLogoInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTemplates = useCallback(async () => {
     setLoading(true)
@@ -39,12 +42,52 @@ export default function BadgeTemplatesPage() {
 
   useEffect(() => { fetchTemplates() }, [fetchTemplates])
 
+  // Extract global issuer logo from any template that has one
+  useEffect(() => {
+    const withLogo = templates.find(t => t.issuer_logo_url)
+    setIssuerLogoUrl(withLogo?.issuer_logo_url ?? null)
+  }, [templates])
+
   useEffect(() => {
     if (toast) {
       const t = setTimeout(() => setToast(null), 3000)
       return () => clearTimeout(t)
     }
   }, [toast])
+
+  const handleIssuerLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Need at least one template to attach the logo
+    const targetId = templates[0]?.id
+    if (!targetId) { setToast('Crea al menos una plantilla primero'); return }
+    setIssuerLogoUploading(true)
+    try {
+      await badgeService.uploadIssuerLogo(targetId, file)
+      setToast('Logo del emisor actualizado en todas las plantillas')
+      fetchTemplates()
+    } catch {
+      setToast('Error al subir el logo del emisor')
+    } finally {
+      setIssuerLogoUploading(false)
+      if (issuerLogoInputRef.current) issuerLogoInputRef.current.value = ''
+    }
+  }
+
+  const handleIssuerLogoDelete = async () => {
+    const targetId = templates[0]?.id
+    if (!targetId) return
+    setIssuerLogoUploading(true)
+    try {
+      await badgeService.deleteIssuerLogo(targetId)
+      setToast('Logo del emisor eliminado de todas las plantillas')
+      fetchTemplates()
+    } catch {
+      setToast('Error al eliminar el logo del emisor')
+    } finally {
+      setIssuerLogoUploading(false)
+    }
+  }
 
   const handleDelete = async (id: number) => {
     if (!confirm('¿Eliminar esta plantilla? Esta acción no se puede deshacer.')) return
@@ -165,6 +208,64 @@ export default function BadgeTemplatesPage() {
               {f === 'all' ? 'Todas' : f === 'active' ? 'Activas' : 'Inactivas'}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* ── Global Issuer Logo ── */}
+      <div className="bg-white border-2 border-gray-200 rounded-fluid-2xl fluid-p-5 fluid-mb-5 shadow-sm">
+        <div className="flex items-center fluid-gap-3 fluid-mb-3">
+          <div className="fluid-p-2 bg-indigo-50 rounded-fluid-lg">
+            <Globe className="fluid-icon-base text-indigo-600" />
+          </div>
+          <div>
+            <h3 className="fluid-text-base font-semibold text-gray-900">Logo del Emisor</h3>
+            <p className="fluid-text-xs text-gray-500">Este logo se aplica a todas las plantillas de insignias</p>
+          </div>
+        </div>
+        <div className="flex items-center fluid-gap-4">
+          {issuerLogoUrl ? (
+            <div className="relative group">
+              <img
+                src={issuerLogoUrl}
+                alt="Logo del emisor"
+                className="h-16 w-16 object-contain rounded-fluid-lg border border-gray-200 bg-gray-50 p-1"
+              />
+              <button
+                onClick={handleIssuerLogoDelete}
+                disabled={issuerLogoUploading}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                title="Eliminar logo"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="h-16 w-16 rounded-fluid-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+              <Shield className="fluid-icon-base text-gray-300" />
+            </div>
+          )}
+          <div className="flex flex-col fluid-gap-1.5">
+            <p className="fluid-text-xs text-gray-500 font-medium">Emisor: Grupo Eduit</p>
+            <button
+              onClick={() => issuerLogoInputRef.current?.click()}
+              disabled={issuerLogoUploading || templates.length === 0}
+              className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 bg-indigo-600 text-white rounded-fluid-lg fluid-text-xs font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {issuerLogoUploading ? (
+                <div className="animate-spin rounded-full w-3.5 h-3.5 border-b-2 border-white" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              {issuerLogoUrl ? 'Cambiar Logo' : 'Subir Logo'}
+            </button>
+            <input
+              ref={issuerLogoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              className="hidden"
+              onChange={handleIssuerLogoUpload}
+            />
+          </div>
         </div>
       </div>
 

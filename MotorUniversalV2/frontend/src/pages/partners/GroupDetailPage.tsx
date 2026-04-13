@@ -44,7 +44,7 @@ import {
   GroupStudyMaterialAssignment,
   EligibilitySummary,
 } from '../../services/partnersService';
-import { getMyBalance, getCampusBalanceSummary, CoordinatorBalance, CampusBalanceSummary, formatCurrency } from '../../services/balanceService';
+import { getMyBalance, getCampusBalanceSummary, getMyCampusBalance, CoordinatorBalance, CampusBalanceSummary, MyCampusBalanceResponse, formatCurrency } from '../../services/balanceService';
 import { useAuthStore } from '../../store/authStore';
 
 interface GroupDetailPageProps {
@@ -65,6 +65,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [groupBalance, setGroupBalance] = useState<CoordinatorBalance | null>(null);
   const [campusBalanceSummary, setCampusBalanceSummary] = useState<CampusBalanceSummary | null>(null);
+  const [myCampusBalance, setMyCampusBalance] = useState<MyCampusBalanceResponse | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [assignedExams, setAssignedExams] = useState<GroupExamAssignment[]>([]);
   const [directMaterials, setDirectMaterials] = useState<GroupStudyMaterialAssignment[]>([]);
@@ -96,11 +97,15 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
       // Balance ahora es por plantel, buscar por campus_id del grupo
       const myBal = (balanceData as any).balances?.find((b: any) => b.campus_id === groupData.campus_id) || null;
       setGroupBalance(myBal);
-      // Para responsable: obtener balance del plantel (campus balance summary)
+      // Para responsable: obtener balance del plantel
       if (isResponsable && groupData.campus_id) {
         try {
-          const summary = await getCampusBalanceSummary(groupData.campus_id);
+          const [summary, campusBal] = await Promise.all([
+            getCampusBalanceSummary(groupData.campus_id),
+            getMyCampusBalance(),
+          ]);
           setCampusBalanceSummary(summary);
+          setMyCampusBalance(campusBal);
         } catch { /* ignore */ }
       }
       setMembers(membersData.members);
@@ -340,13 +345,7 @@ export default function GroupDetailPage({ isResponsable }: GroupDetailPageProps 
               <div className="fluid-p-2.5 bg-emerald-100 rounded-fluid-lg"><Award className="fluid-icon-base text-emerald-600" /></div>
               <div className="flex-1 min-w-0">
                 <p className="fluid-text-2xl font-bold text-emerald-600">
-                  {(() => {
-                    const balance = campusBalanceSummary?.totals?.current_balance || groupBalance?.current_balance || 0;
-                    const cost = (group as any)?.certification_cost_override && (group as any)?.use_custom_config
-                      ? (group as any).certification_cost_override
-                      : (groupBalance as any)?.campus?.certification_cost || 0;
-                    return cost > 0 ? Math.floor(balance / cost) : 0;
-                  })()}
+                  {myCampusBalance?.totals_units?.current_balance ?? 0}
                 </p>
                 <p className="fluid-text-xs text-gray-500">Vouchers disponibles (aprox.)</p>
               </div>

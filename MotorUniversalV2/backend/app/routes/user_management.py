@@ -9,6 +9,7 @@ from werkzeug.exceptions import HTTPException
 from datetime import datetime
 from app import db, cache
 from app.models import User
+from app.models.user import encrypt_password
 from app.routes.partners import (
     FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE, GENERIC_FOREIGN_CURPS,
     _get_foreign_curp, _is_generic_foreign_curp,
@@ -981,6 +982,7 @@ def create_user():
             assigned_state=data.get('assigned_state', '').strip() or None if role == 'responsable_estatal' else None
         )
         new_user.set_password(password)  # Usar la variable password (puede ser generada automáticamente)
+        new_user.encrypted_password = encrypt_password(password)
         
         # Aplicar datos RENAPO si la validación fue exitosa
         if renapo_result and renapo_result.valid:
@@ -1308,6 +1310,7 @@ def change_user_password(user_id):
             return jsonify({'error': error_msg}), 400
         
         user.set_password(new_password)
+        user.encrypted_password = encrypt_password(new_password)
         db.session.commit()
         
         return jsonify({
@@ -1352,6 +1355,7 @@ def generate_temp_password(user_id):
         
         # Establecer la nueva contraseña
         user.set_password(temp_password)
+        user.encrypted_password = encrypt_password(temp_password)
         db.session.commit()
         
         return jsonify({
@@ -2835,6 +2839,7 @@ def bulk_upload_candidates():
                     is_verified=False,
                 )
                 new_user.set_password(password)
+                new_user.encrypted_password = encrypt_password(password)
                 db.session.add(new_user)
                 if needs_curp_verify:
                     curp_pending_user_ids.add(new_user.id)

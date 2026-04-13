@@ -1130,10 +1130,10 @@ def create_question(topic_id):
     
     # Crear respuestas
     if 'answers' in data and data['answers']:
-        for answer_data in data['answers']:
+        for idx, answer_data in enumerate(data['answers']):
             answer = Answer(
                 question_id=question.id,
-                answer_number=answer_data['answer_number'],
+                answer_number=answer_data.get('answer_number', idx + 1),
                 answer_text=answer_data['answer_text'],
                 is_correct=answer_data.get('is_correct', False),
                 explanation=answer_data.get('explanation'),
@@ -3321,6 +3321,7 @@ def save_exam_result(exam_id):
         # Contexto de grupo (enviado por el frontend desde la cadena de asignación)
         group_id = data.get('group_id')
         group_exam_id = data.get('group_exam_id')
+        mode = data.get('mode', 'exam')  # 'exam' o 'simulator'
         
         # Fallback: si no se envió contexto de grupo, intentar resolverlo
         if not group_id or not group_exam_id:
@@ -3401,6 +3402,7 @@ def save_exam_result(exam_id):
             competency_standard_id=exam.competency_standard_id,  # Asociar al ECM para historial unificado
             group_id=group_id,
             group_exam_id=group_exam_id,
+            mode=mode,
             score=int(round(percentage)),
             status=status,
             result=result_value,

@@ -33,15 +33,15 @@ class CompetencyStandard(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Marca (Brand) - Ej: Microsoft, Huawei, Abierto
-    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Logo del estándar
     logo_url = db.Column(db.String(500), nullable=True)
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
@@ -131,11 +131,11 @@ class DeletionRequest(db.Model):
     
     # Respuesta del admin
     admin_response = db.Column(db.Text)
-    reviewed_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    reviewed_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     reviewed_at = db.Column(db.DateTime)
     
     # Auditoría
-    requested_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    requested_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     requested_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Relaciones

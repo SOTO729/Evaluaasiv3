@@ -6,8 +6,12 @@ Roles permitidos:
   - responsable: ve/crea sesiones de candidatos en su plantel (según modo del grupo)
   - admin/coordinator: ve/crea/cancela sesiones de cualquier campus
 
-LÍMITE GLOBAL: máximo 4 sesiones simultáneas en el mismo (date, hour) en toda la plataforma.
+Las VDIs disponibles se leen de la base de datos EvaluaasiConfig (dbo.Equipo).
+La capacidad depende de cuántas VDIs estén activas (actualmente 18 de Office).
+Asignación secuencial: se llenan las VDIs por orden de EquipoId.
 """
+import os
+import logging
 from datetime import datetime, date, timedelta
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import HTTPException
@@ -17,9 +21,12 @@ from app.models.user import User
 from app.models.vm_session import VmSession
 from app.models.partner import CandidateGroup, GroupMember, Campus, GroupExam
 
+logger = logging.getLogger(__name__)
+
 bp = Blueprint('vm_sessions', __name__)
 
-MAX_CONCURRENT_SESSIONS = 4
+# Fallback si no se puede conectar a EvaluaasiConfig
+FALLBACK_MAX_SESSIONS = 18
 
 def get_candidate_vm_context(user_id):
     """Obtener campus_id, group_id, y config de sesiones del candidato."""
@@ -69,6 +76,112 @@ def _get_global_slot_count(session_date, start_hour):
         start_hour=start_hour,
         status='scheduled'
     ).count()
+
+
+def _get_max_concurrent_sessions():
+    """
+    Obtener el número máximo de sesiones simultáneas basado en VDIs activas.
+    Lee de EvaluaasiConfig; usa fallback si no puede conectar.
+    """
+    try:
+        from app.services.evaluaasi_config_service import get_active_workstations
+        vdis = get_active_workstations()
+        if vdis:
+            return len(vdis)
+    except Exception as e:
+        logger.warning(f"No se pudo conectar a EvaluaasiConfig, usando fallback: {e}")
+    return FALLBACK_MAX_SESSIONS
+
+
+def _assign_workstation_for_session(session_date, start_hour, campus_id=None):
+    """
+    Asignar una VDI disponible para un slot.
+    Usa llenado secuencial (menor EquipoId primero).
+    Resuelve el cert_type dinámicamente desde la configuración del campus.
+    
+    Returns:
+        Dict con workstation info o None si no hay disponibles.
+    """
+    try:
+        from app.services.evaluaasi_config_service import assign_workstation, get_cert_type_for_estandar
+        
+        # Resolver cert_type desde el campus
+        cert_type = 'OFFICE-2019'  # default
+        if campus_id:
+            campus = Campus.query.get(campus_id)
+            if campus and campus.config_certificacion_id:
+                cert_type = get_cert_type_for_estandar(campus.config_certificacion_id)
+        
+        result = assign_workstation(session_date, start_hour, cert_type=cert_type)
+        
+        # Failover: si no hay VDIs del tipo primario, intentar con tipo alternativo  
+        if result is None and cert_type == 'OFFICE-2019':
+            result = assign_workstation(session_date, start_hour, cert_type='OFFICE-2016')
+        
+        return result
+    except Exception as e:
+        logger.warning(f"No se pudo asignar VDI desde EvaluaasiConfig: {e}")
+        return None
+
+
+def _sync_session_to_config(vm_session, user):
+    """
+    Sincronizar una sesión de Evaluaasi V2 a EvaluaasiConfig (dbo.Sesion).
+    Esto alimenta al sistema legacy (EXE que crea usuarios AD y conexiones Guacamole).
+    Usa config_subsistema_id y config_plantel_id del Campus para el mapeo.
+    """
+    try:
+        from app.services.evaluaasi_config_service import create_config_session, SESSION_TYPES
+        
+        session_type_int = SESSION_TYPES.get(vm_session.session_type, 1)
+        inicio = datetime.combine(vm_session.session_date, 
+                                  datetime.min.time().replace(hour=vm_session.start_hour))
+        final = inicio + timedelta(hours=1)
+        
+        # Usar el username del candidato (mismo que usará en AD/Guacamole)
+        nombre_usuario = user.username if user else ''
+        
+        # Mapeo Campus → EvaluaasiConfig (SubsistemaId/PlantelId)
+        subsistema_id = 14  # Fallback: Grupo EduIT
+        plantel_id = 2      # Fallback
+        
+        campus = Campus.query.get(vm_session.campus_id) if vm_session.campus_id else None
+        if campus:
+            if campus.config_subsistema_id:
+                subsistema_id = campus.config_subsistema_id
+            if campus.config_plantel_id:
+                plantel_id = campus.config_plantel_id
+        
+        certificacion_id = 1  # Default (ECM0054)
+        etapa_id = 1  # Default
+        
+        if campus:
+            if campus.config_certificacion_id:
+                certificacion_id = campus.config_certificacion_id
+            if campus.config_etapa_id:
+                etapa_id = campus.config_etapa_id
+        
+        config_session_id = create_config_session(
+            subsistema_id=subsistema_id,
+            plantel_id=plantel_id,
+            equipo_id=vm_session.workstation_id or 1,
+            certificacion_id=certificacion_id,
+            etapa_id=etapa_id,
+            nombre_usuario=nombre_usuario,
+            tipo=session_type_int,
+            inicio=inicio,
+            final=final,
+        )
+        
+        if config_session_id:
+            vm_session.config_session_id = config_session_id
+            db.session.commit()
+            logger.info(f"Sesión sincronizada a EvaluaasiConfig: {config_session_id} (sub={subsistema_id}, plantel={plantel_id})")
+        
+        return config_session_id
+    except Exception as e:
+        logger.error(f"Error sincronizando sesión a EvaluaasiConfig: {e}")
+        return None
 
 
 @bp.route('/check-access', methods=['GET'])
@@ -314,12 +427,12 @@ def create_session():
         else:
             return jsonify({'error': 'user_id del candidato es requerido'}), 400
         
-    elif user.role in ['admin', 'coordinator']:
+    elif user.role in ['admin', 'developer']:
         target_user_id = data.get('user_id', user_id)
         target_campus_id = data.get('campus_id')
         
         if not target_campus_id:
-            return jsonify({'error': 'campus_id es requerido para admin/coordinator'}), 400
+            return jsonify({'error': 'campus_id es requerido para admin'}), 400
         
         # Obtener group_id del target user si es candidato
         target_group_id = None
@@ -333,11 +446,12 @@ def create_session():
     else:
         return jsonify({'error': 'Acceso denegado'}), 403
     
-    # --- Validación: límite global de 4 sesiones simultáneas ---
+    # --- Validación: capacidad basada en VDIs activas ---
+    max_sessions = _get_max_concurrent_sessions()
     global_count = _get_global_slot_count(session_date, start_hour)
-    if global_count >= MAX_CONCURRENT_SESSIONS:
+    if global_count >= max_sessions:
         return jsonify({
-            'error': f'Se alcanzó el límite de {MAX_CONCURRENT_SESSIONS} sesiones simultáneas en este horario. Selecciona otro horario.',
+            'error': f'Se alcanzó el límite de {max_sessions} sesiones simultáneas en este horario. Selecciona otro horario.',
         }), 409
     
     # Verificar que el usuario no tenga otra sesión en la misma fecha y hora
@@ -353,6 +467,27 @@ def create_session():
             'error': 'Ya tienes una sesión agendada en este horario.'
         }), 409
     
+    # Tipo de sesión
+    session_type = data.get('session_type', 'simulador')
+    if session_type not in ('simulador', 'examen', 'parcial'):
+        session_type = 'simulador'
+    
+    # Validar horario según configuración de EvaluaasiConfig
+    try:
+        from app.services.evaluaasi_config_service import validate_schedule_slot, get_cert_type_for_estandar
+        campus_obj = Campus.query.get(target_campus_id) if target_campus_id else None
+        resolved_cert_type = 'OFFICE-2019'
+        if campus_obj and campus_obj.config_certificacion_id:
+            resolved_cert_type = get_cert_type_for_estandar(campus_obj.config_certificacion_id)
+        schedule_check = validate_schedule_slot(start_hour, session_type, resolved_cert_type)
+        if not schedule_check['valid']:
+            return jsonify({'error': schedule_check['reason']}), 400
+    except Exception as e:
+        logger.warning(f"Validación de horario no disponible: {e}")
+    
+    # Asignar VDI disponible (llenado secuencial, cert_type dinámico)
+    workstation = _assign_workstation_for_session(session_date, start_hour, campus_id=target_campus_id)
+    
     # Crear sesión
     session = VmSession(
         user_id=str(target_user_id),
@@ -360,6 +495,10 @@ def create_session():
         group_id=target_group_id,
         session_date=session_date,
         start_hour=start_hour,
+        session_type=session_type,
+        workstation_id=workstation['equipo_id'] if workstation else None,
+        workstation_name=workstation['nombre'] if workstation else None,
+        workstation_color=workstation['color'] if workstation else None,
         status='scheduled',
         notes=data.get('notes'),
         created_by_id=str(user_id),
@@ -368,6 +507,29 @@ def create_session():
     try:
         db.session.add(session)
         db.session.commit()
+        
+        # Sincronizar a EvaluaasiConfig (async-style, no bloquea si falla)
+        target_user = User.query.get(target_user_id)
+        _sync_session_to_config(session, target_user)
+        
+        # Notificar al equipo de operaciones
+        try:
+            from app.services.email_service import send_vdi_session_notification
+            campus_obj_notify = Campus.query.get(target_campus_id) if target_campus_id else None
+            candidate_name = f"{target_user.name or ''} {target_user.first_surname or ''}".strip() if target_user else ''
+            send_vdi_session_notification(
+                action='created',
+                candidate_name=candidate_name,
+                candidate_username=target_user.username if target_user else '',
+                session_date=session_date.strftime('%d/%m/%Y'),
+                start_hour=start_hour,
+                workstation_name=session.workstation_name or '',
+                campus_name=campus_obj_notify.name if campus_obj_notify else '',
+                session_type=session_type,
+            )
+        except Exception as e:
+            logger.warning(f"No se pudo enviar notificación VDI: {e}")
+        
         return jsonify({
             'message': 'Sesión agendada exitosamente',
             'session': session.to_dict()
@@ -401,6 +563,8 @@ def cancel_session(session_id):
         return jsonify({'error': 'Solo se pueden cancelar sesiones programadas'}), 400
     
     # Verificar permisos
+    if user.role == 'coordinator':
+        return jsonify({'error': 'Coordinadores solo tienen acceso de lectura a sesiones VDI'}), 403
     if user.role == 'candidato' and session.user_id != str(user_id):
         return jsonify({'error': 'Solo puedes cancelar tus propias sesiones'}), 403
     elif user.role == 'responsable' and session.campus_id != user.campus_id:
@@ -415,6 +579,37 @@ def cancel_session(session_id):
     
     try:
         db.session.commit()
+        
+        # Sincronizar cancelación a EvaluaasiConfig
+        if session.config_session_id:
+            try:
+                from app.services.evaluaasi_config_service import cancel_config_session
+                cancel_config_session(session.config_session_id)
+                logger.info(f"Sesión {session.config_session_id} cancelada en EvaluaasiConfig")
+            except Exception as e:
+                logger.error(f"Error cancelando sesión en EvaluaasiConfig: {e}")
+        
+        # Notificar al equipo de operaciones
+        try:
+            from app.services.email_service import send_vdi_session_notification
+            session_user = User.query.get(session.user_id)
+            campus_obj_notify = Campus.query.get(session.campus_id) if session.campus_id else None
+            candidate_name = f"{session_user.name or ''} {session_user.first_surname or ''}".strip() if session_user else ''
+            send_vdi_session_notification(
+                action='cancelled',
+                candidate_name=candidate_name,
+                candidate_username=session_user.username if session_user else '',
+                session_date=session.session_date.strftime('%d/%m/%Y'),
+                start_hour=session.start_hour,
+                workstation_name=session.workstation_name or '',
+                campus_name=campus_obj_notify.name if campus_obj_notify else '',
+                session_type=session.session_type or 'simulador',
+                cancelled_by=f"{user.name or ''} {user.first_surname or ''}".strip() or user.username,
+                cancellation_reason=data.get('reason', ''),
+            )
+        except Exception as e:
+            logger.warning(f"No se pudo enviar notificación VDI de cancelación: {e}")
+        
         return jsonify({
             'message': 'Sesión cancelada',
             'session': session.to_dict()
@@ -430,13 +625,13 @@ def cancel_session(session_id):
 @jwt_required()
 def update_session_status(session_id):
     """
-    Actualizar estado de una sesión (solo admin/coordinator).
+    Actualizar estado de una sesión (solo admin).
     Body: { "status": "completed" | "no_show" }
     """
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
-    if not user or user.role not in ['admin', 'developer', 'coordinator']:
+    if not user or user.role not in ['admin', 'developer']:
         return jsonify({'error': 'Acceso denegado'}), 403
     
     session = VmSession.query.get(session_id)
@@ -463,6 +658,33 @@ def update_session_status(session_id):
     
     try:
         db.session.commit()
+        
+        # Sincronizar estado a EvaluaasiConfig
+        if session.config_session_id:
+            try:
+                if new_status == 'completed':
+                    from app.services.evaluaasi_config_service import complete_config_session
+                    complete_config_session(session.config_session_id)
+                    logger.info(f"Sesión {session.config_session_id} completada en EvaluaasiConfig")
+                    # Marcar completado en AD vía SOAP
+                    try:
+                        from app.services.ad_soap_service import mark_completed
+                        target_user = User.query.get(session.user_id)
+                        campus = Campus.query.get(session.campus_id) if session.campus_id else None
+                        if target_user and campus:
+                            sub_id = campus.config_subsistema_id or 14
+                            plan_id = campus.config_plantel_id or 2
+                            mark_completed(sub_id, plan_id, target_user.username)
+                            logger.info(f"SOAP MarkCompleted para {target_user.username}")
+                    except Exception as soap_err:
+                        logger.warning(f"SOAP MarkCompleted falló (no bloqueante): {soap_err}")
+                elif new_status in ('cancelled', 'no_show'):
+                    from app.services.evaluaasi_config_service import cancel_config_session
+                    cancel_config_session(session.config_session_id)
+                    logger.info(f"Sesión {session.config_session_id} cancelada en EvaluaasiConfig")
+            except Exception as e:
+                logger.error(f"Error sincronizando estado a EvaluaasiConfig: {e}")
+        
         return jsonify({
             'message': f'Estado actualizado a {new_status}',
             'session': session.to_dict()
@@ -479,7 +701,7 @@ def update_session_status(session_id):
 def get_available_slots():
     """
     Obtener disponibilidad global de horarios para una fecha.
-    Límite global: MAX_CONCURRENT_SESSIONS sesiones simultáneas.
+    Límite basado en VDIs activas en EvaluaasiConfig.
 
     Query params:
       - date (YYYY-MM-DD, required)
@@ -530,6 +752,7 @@ def get_available_slots():
                 'campus_name': s.campus.name if s.campus else None,
             })
 
+    max_sessions = _get_max_concurrent_sessions()
     now = datetime.utcnow()
     slots = []
     for hour in range(hours_start, hours_end):
@@ -539,11 +762,11 @@ def get_available_slots():
         slot_data = {
             'hour': hour,
             'label': f'{hour:02d}:00 - {hour + 1:02d}:00',
-            'available': count < MAX_CONCURRENT_SESSIONS and not is_past,
+            'available': count < max_sessions and not is_past,
             'is_past': is_past,
             'global_count': count,
-            'max_sessions': MAX_CONCURRENT_SESSIONS,
-            'remaining': max(0, MAX_CONCURRENT_SESSIONS - count),
+            'max_sessions': max_sessions,
+            'remaining': max(0, max_sessions - count),
         }
 
         if hour in hour_details:
@@ -713,6 +936,7 @@ def auto_distribute():
         return jsonify({'message': 'Todos los candidatos ya tienen sesión agendada', 'proposal': []})
 
     # Slots disponibles en el rango (lunes-viernes)
+    max_sessions = _get_max_concurrent_sessions()
     available_slots = []
     cur = date_from
     now = datetime.utcnow()
@@ -720,7 +944,7 @@ def auto_distribute():
         if cur.weekday() < 5:
             for h in range(hours_start, hours_end):
                 if cur > now.date() or (cur == now.date() and h > now.hour):
-                    remaining = MAX_CONCURRENT_SESSIONS - _get_global_slot_count(cur, h)
+                    remaining = max_sessions - _get_global_slot_count(cur, h)
                     if remaining > 0:
                         available_slots.append({'date': cur, 'hour': h, 'remaining': remaining})
         cur += timedelta(days=1)
@@ -798,13 +1022,18 @@ def bulk_create_sessions():
     created = []
     errors = []
 
+    max_sessions = _get_max_concurrent_sessions()
+    session_type = data.get('session_type', 'simulador')
+    if session_type not in ('simulador', 'examen', 'parcial'):
+        session_type = 'simulador'
+
     for s in sessions_data:
         try:
             s_date = datetime.strptime(s['session_date'], '%Y-%m-%d').date()
             s_hour = int(s['start_hour'])
             s_user_id = s['user_id']
 
-            if _get_global_slot_count(s_date, s_hour) >= MAX_CONCURRENT_SESSIONS:
+            if _get_global_slot_count(s_date, s_hour) >= max_sessions:
                 errors.append({'user_id': s_user_id, 'error': f'Slot {s_date} {s_hour}:00 lleno'})
                 continue
 
@@ -816,12 +1045,19 @@ def bulk_create_sessions():
                 errors.append({'user_id': s_user_id, 'error': f'Ya tiene sesión en {s_date} {s_hour}:00'})
                 continue
 
+            # Asignar VDI (cert_type dinámico según campus)
+            workstation = _assign_workstation_for_session(s_date, s_hour, campus_id=user.campus_id)
+
             session = VmSession(
                 user_id=str(s_user_id),
                 campus_id=user.campus_id,
                 group_id=group_id,
                 session_date=s_date,
                 start_hour=s_hour,
+                session_type=session_type,
+                workstation_id=workstation['equipo_id'] if workstation else None,
+                workstation_name=workstation['nombre'] if workstation else None,
+                workstation_color=workstation['color'] if workstation else None,
                 status='scheduled',
                 notes=s.get('notes', 'Auto-distribuido'),
                 created_by_id=str(user_id),
@@ -833,6 +1069,12 @@ def bulk_create_sessions():
 
     try:
         db.session.commit()
+
+        # Sincronizar cada sesión creada a EvaluaasiConfig
+        for ses in created:
+            target_user = User.query.get(ses.user_id)
+            _sync_session_to_config(ses, target_user)
+
         return jsonify({
             'message': f'{len(created)} sesiones creadas',
             'created': [ses.to_dict() for ses in created],
@@ -841,3 +1083,765 @@ def bulk_create_sessions():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+# ─── Endpoints de administración de VDIs ─────────────────────────────
+
+@bp.route('/workstations', methods=['GET'])
+@jwt_required()
+def get_workstations():
+    """
+    Listar VDIs de EvaluaasiConfig (solo admin).
+    Query params:
+      - all (boolean) — incluir VDIs inactivas (default: false)
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    show_all = request.args.get('all', 'false').lower() == 'true'
+
+    try:
+        if show_all:
+            from app.services.evaluaasi_config_service import get_all_workstations
+            vdis = get_all_workstations()
+        else:
+            from app.services.evaluaasi_config_service import get_active_workstations
+            vdis = get_active_workstations()
+        return jsonify({'workstations': vdis, 'total': len(vdis)})
+    except Exception as e:
+        logger.error(f"Error obteniendo VDIs: {e}")
+        return jsonify({'error': 'No se pudo conectar a EvaluaasiConfig', 'detail': str(e)}), 503
+
+
+@bp.route('/workstations/<int:equipo_id>/toggle', methods=['PATCH'])
+@jwt_required()
+def toggle_workstation(equipo_id):
+    """Activar/desactivar una VDI (solo admin)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    data = request.get_json() or {}
+    active = data.get('active')
+    if active is None:
+        return jsonify({'error': 'Campo active (bool) es requerido'}), 400
+
+    try:
+        from app.services.evaluaasi_config_service import update_workstation_status
+        success = update_workstation_status(equipo_id, active=bool(active))
+        if success:
+            return jsonify({'message': f'VDI {equipo_id} {"activada" if active else "desactivada"}'})
+        return jsonify({'error': 'VDI no encontrada o sin cambios'}), 404
+    except Exception as e:
+        logger.error(f"Error actualizando VDI {equipo_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/workstations/status', methods=['GET'])
+@jwt_required()
+def workstation_status():
+    """
+    Estado actual de VDIs: cuántas activas, ocupadas ahora, disponibles.
+    Solo admin.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.evaluaasi_config_service import get_available_slot_count, get_active_workstations
+        now = datetime.utcnow()
+        today = now.date()
+        current_hour = now.hour
+
+        slot_info = get_available_slot_count(today, current_hour)
+        active_vdis = get_active_workstations()
+
+        return jsonify({
+            'current_slot': f'{current_hour:02d}:00 - {current_hour + 1:02d}:00',
+            'total_active_vdis': slot_info.get('total_vdis', len(active_vdis)),
+            'occupied_now': slot_info.get('occupied', 0),
+            'available_now': slot_info.get('available', len(active_vdis)),
+            'vdis': active_vdis,
+        })
+    except Exception as e:
+        logger.error(f"Error obteniendo estado de VDIs: {e}")
+        return jsonify({'error': 'No se pudo conectar a EvaluaasiConfig', 'detail': str(e)}), 503
+
+
+@bp.route('/config-health', methods=['GET'])
+@jwt_required()
+def config_health():
+    """Verificar conexión a EvaluaasiConfig (solo admin)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.evaluaasi_config_service import test_connection
+        result = test_connection()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'connected': False, 'error': str(e)}), 503
+
+
+@bp.route('/config-subsistemas', methods=['GET'])
+@jwt_required()
+def list_config_subsistemas():
+    """
+    Listar subsistemas de EvaluaasiConfig (para mapeo de campus).
+    Solo admin/coordinator.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer', 'coordinator']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.evaluaasi_config_service import get_subsistemas
+        subsistemas = get_subsistemas()
+        return jsonify({'subsistemas': subsistemas})
+    except Exception as e:
+        logger.error(f"Error obteniendo subsistemas: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/config-estandares', methods=['GET'])
+@jwt_required()
+def list_config_estandares():
+    """
+    Listar estándares/certificaciones de EvaluaasiConfig.
+    Solo admin/coordinator.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer', 'coordinator']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.evaluaasi_config_service import get_estandares
+        estandares = get_estandares()
+        return jsonify({'estandares': estandares})
+    except Exception as e:
+        logger.error(f"Error obteniendo estándares: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/verify-flow', methods=['GET'])
+@jwt_required()
+def verify_flow():
+    """
+    Verificar el flujo completo end-to-end:
+    1. Conexión a EvaluaasiConfig DB
+    2. VDIs activas disponibles
+    3. Conexión a SOAP ADWebService
+    4. Usuarios AD actuales (creados por el EXE)
+    5. Horarios configurados
+    Solo admin.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    results = {
+        'timestamp': datetime.utcnow().isoformat(),
+        'steps': [],
+        'all_ok': True,
+    }
+
+    # Step 1: EvaluaasiConfig DB
+    try:
+        from app.services.evaluaasi_config_service import test_connection
+        db_ok = test_connection()
+        results['steps'].append({
+            'step': 1, 'name': 'EvaluaasiConfig DB', 'ok': bool(db_ok),
+            'detail': 'Conexión exitosa' if db_ok else 'Error de conexión',
+        })
+        if not db_ok:
+            results['all_ok'] = False
+    except Exception as e:
+        results['steps'].append({'step': 1, 'name': 'EvaluaasiConfig DB', 'ok': False, 'detail': str(e)})
+        results['all_ok'] = False
+
+    # Step 2: VDIs activas
+    try:
+        from app.services.evaluaasi_config_service import get_active_workstations
+        vdis = get_active_workstations()
+        results['steps'].append({
+            'step': 2, 'name': 'VDIs activas',
+            'ok': len(vdis) > 0,
+            'detail': f'{len(vdis)} VDIs activas',
+            'data': {'count': len(vdis), 'names': [v['nombre'] for v in vdis[:5]]},
+        })
+        if len(vdis) == 0:
+            results['all_ok'] = False
+    except Exception as e:
+        results['steps'].append({'step': 2, 'name': 'VDIs activas', 'ok': False, 'detail': str(e)})
+        results['all_ok'] = False
+
+    # Step 3: SOAP connection
+    try:
+        from app.services.ad_soap_service import test_soap_connection
+        soap = test_soap_connection()
+        results['steps'].append({
+            'step': 3, 'name': 'SOAP ADWebService',
+            'ok': soap.get('connected', False),
+            'detail': soap.get('message', soap.get('error', 'Desconocido')),
+        })
+        if not soap.get('connected'):
+            results['all_ok'] = False
+    except Exception as e:
+        results['steps'].append({'step': 3, 'name': 'SOAP ADWebService', 'ok': False, 'detail': str(e)})
+        results['all_ok'] = False
+
+    # Step 4: Usuarios AD (creados por EXE)
+    try:
+        from app.services.ad_soap_service import get_users
+        ad_users = get_users()
+        results['steps'].append({
+            'step': 4, 'name': 'Usuarios AD activos',
+            'ok': True,
+            'detail': f'{len(ad_users)} usuarios en Active Directory',
+            'data': {'count': len(ad_users)},
+        })
+    except Exception as e:
+        results['steps'].append({'step': 4, 'name': 'Usuarios AD activos', 'ok': False, 'detail': str(e)})
+        results['all_ok'] = False
+
+    # Step 5: Horarios configurados
+    try:
+        from app.services.evaluaasi_config_service import get_configured_schedules
+        horarios = get_configured_schedules('office')
+        horarios_az = get_configured_schedules('az900')
+        results['steps'].append({
+            'step': 5, 'name': 'Horarios configurados',
+            'ok': True,
+            'detail': f'{len(horarios)} slots Office, {len(horarios_az)} slots AZ900',
+        })
+    except Exception as e:
+        results['steps'].append({'step': 5, 'name': 'Horarios configurados', 'ok': False, 'detail': str(e)})
+
+    # Step 6: Sesiones pendientes en V2
+    pending_count = VmSession.query.filter_by(status='scheduled').count()
+    synced_count = VmSession.query.filter(
+        VmSession.status == 'scheduled',
+        VmSession.config_session_id.isnot(None),
+    ).count()
+    unsynced = pending_count - synced_count
+    results['steps'].append({
+        'step': 6, 'name': 'Sesiones V2 pendientes',
+        'ok': unsynced == 0,
+        'detail': f'{pending_count} programadas, {synced_count} sincronizadas, {unsynced} sin sincronizar',
+        'data': {'pending': pending_count, 'synced': synced_count, 'unsynced': unsynced},
+    })
+    if unsynced > 0:
+        results['all_ok'] = False
+
+    return jsonify(results)
+
+
+@bp.route('/retry-sync', methods=['POST'])
+@jwt_required()
+def retry_sync():
+    """
+    Reintentar sincronización de sesiones pendientes a EvaluaasiConfig.
+    Busca sesiones 'scheduled' sin config_session_id y las sincroniza.
+    Solo admin/developer.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    unsynced = VmSession.query.filter(
+        VmSession.status == 'scheduled',
+        VmSession.config_session_id.is_(None),
+    ).all()
+
+    if not unsynced:
+        return jsonify({'message': 'No hay sesiones pendientes de sincronizar', 'synced': 0, 'failed': 0})
+
+    synced = 0
+    failed = 0
+    details = []
+
+    for session in unsynced:
+        target_user = User.query.get(session.user_id)
+        config_id = _sync_session_to_config(session, target_user)
+        if config_id:
+            synced += 1
+            details.append({'session_id': session.id, 'config_id': config_id, 'status': 'synced'})
+        else:
+            failed += 1
+            details.append({'session_id': session.id, 'status': 'failed'})
+
+    return jsonify({
+        'message': f'{synced} sincronizadas, {failed} fallidas de {len(unsynced)} pendientes',
+        'synced': synced,
+        'failed': failed,
+        'total': len(unsynced),
+        'details': details,
+    })
+
+
+# ─── Endpoints SOAP ADWebService ─────────────────────────────────────
+
+@bp.route('/soap-health', methods=['GET'])
+@jwt_required()
+def soap_health():
+    """Verificar conexión al SOAP ADWebService (solo admin)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.ad_soap_service import test_soap_connection
+        return jsonify(test_soap_connection())
+    except Exception as e:
+        return jsonify({'connected': False, 'error': str(e)}), 503
+
+
+@bp.route('/soap-users', methods=['GET'])
+@jwt_required()
+def soap_users():
+    """
+    Obtener usuarios AD creados por el EXE legacy (solo admin).
+    Estos son los usuarios que pueden conectar a VDIs vía Guacamole.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.ad_soap_service import get_users
+        users = get_users()
+        return jsonify({'users': users, 'total': len(users)})
+    except Exception as e:
+        logger.error(f"Error SOAP GetUsers: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/soap-applications/<username>', methods=['GET'])
+@jwt_required()
+def soap_applications(username):
+    """
+    Obtener aplicaciones disponibles para un usuario AD (solo admin).
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.ad_soap_service import get_applications
+        apps = get_applications(username)
+        return jsonify({'username': username, 'applications': apps})
+    except Exception as e:
+        logger.error(f"Error SOAP GetApplications para {username}: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/soap-horarios', methods=['GET'])
+@jwt_required()
+def soap_horarios():
+    """Obtener horarios por equipo desde SOAP (solo admin)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.ad_soap_service import get_horarios
+        horarios = get_horarios()
+        return jsonify({'horarios': horarios, 'total': len(horarios)})
+    except Exception as e:
+        logger.error(f"Error SOAP ObtenerHorarios: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/soap-mark-completed', methods=['POST'])
+@jwt_required()
+def soap_mark_completed():
+    """
+    Marcar un usuario como completado en AD (solo admin).
+    Body: { "subsistema_id": int, "plantel_id": int, "username": str }
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Datos requeridos'}), 400
+
+    sub_id = data.get('subsistema_id')
+    plan_id = data.get('plantel_id')
+    username = data.get('username')
+
+    if not all([sub_id, plan_id, username]):
+        return jsonify({'error': 'subsistema_id, plantel_id y username son requeridos'}), 400
+
+    try:
+        from app.services.ad_soap_service import mark_completed
+        result = mark_completed(int(sub_id), int(plan_id), username)
+        return jsonify({'success': result, 'username': username})
+    except Exception as e:
+        logger.error(f"Error SOAP MarkCompleted para {username}: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/soap-completed-users', methods=['GET'])
+@jwt_required()
+def soap_completed_users():
+    """Obtener usuarios AD marcados como completados (solo admin)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.ad_soap_service import get_completed_users
+        users = get_completed_users()
+        return jsonify({'users': users, 'total': len(users)})
+    except Exception as e:
+        logger.error(f"Error SOAP GetCompletedUsers: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/soap-expired-users', methods=['GET'])
+@jwt_required()
+def soap_expired_users():
+    """Obtener usuarios AD expirados (solo admin)."""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    try:
+        from app.services.ad_soap_service import get_expired_users
+        users = get_expired_users()
+        return jsonify({'users': users, 'total': len(users)})
+    except Exception as e:
+        logger.error(f"Error SOAP GetExpiredUsers: {e}")
+        return jsonify({'error': str(e)}), 503
+
+
+@bp.route('/capacity-report', methods=['GET'])
+@jwt_required()
+def capacity_report():
+    """
+    Reporte de capacidad y utilización de VDIs (solo admin).
+    
+    Query params:
+      - date_from (YYYY-MM-DD, default: hoy)
+      - date_to (YYYY-MM-DD, default: hoy + 7 días)
+    
+    Returns:
+      - Resumen por día: sesiones totales, pico, utilización.
+      - Resumen por VDI: cuántas sesiones tuvo cada VDI.
+      - Resumen por hora: distribución por hora del día.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+    today = date.today()
+
+    try:
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else today
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today + timedelta(days=7)
+    except ValueError:
+        date_from = today
+        date_to = today + timedelta(days=7)
+
+    # Sesiones del rango (de nuestra DB)
+    sessions = VmSession.query.filter(
+        VmSession.session_date >= date_from,
+        VmSession.session_date <= date_to,
+    ).all()
+
+    max_concurrent = _get_max_concurrent_sessions()
+
+    # Resumen por día
+    daily = {}
+    for s in sessions:
+        day_key = s.session_date.isoformat()
+        if day_key not in daily:
+            daily[day_key] = {'scheduled': 0, 'completed': 0, 'cancelled': 0, 'no_show': 0, 'total': 0}
+        daily[day_key][s.status] = daily[day_key].get(s.status, 0) + 1
+        daily[day_key]['total'] += 1
+
+    # Resumen por hora
+    hourly = {}
+    for s in sessions:
+        if s.status == 'scheduled':
+            h = s.start_hour
+            hourly[h] = hourly.get(h, 0) + 1
+
+    # Pico: hora con más sesiones simultáneas por día
+    peak_by_day = {}
+    for s in sessions:
+        if s.status in ('scheduled', 'completed'):
+            day_key = s.session_date.isoformat()
+            if day_key not in peak_by_day:
+                peak_by_day[day_key] = {}
+            h = s.start_hour
+            peak_by_day[day_key][h] = peak_by_day[day_key].get(h, 0) + 1
+
+    peak_utilization = 0
+    for day_hours in peak_by_day.values():
+        if day_hours:
+            day_peak = max(day_hours.values())
+            utilization = (day_peak / max_concurrent * 100) if max_concurrent > 0 else 0
+            peak_utilization = max(peak_utilization, utilization)
+
+    # Resumen por VDI
+    vdi_usage = {}
+    for s in sessions:
+        if s.workstation_name:
+            vdi_usage[s.workstation_name] = vdi_usage.get(s.workstation_name, 0) + 1
+
+    return jsonify({
+        'date_from': date_from.isoformat(),
+        'date_to': date_to.isoformat(),
+        'total_sessions': len(sessions),
+        'max_concurrent_vdis': max_concurrent,
+        'peak_utilization_pct': round(peak_utilization, 1),
+        'daily_summary': [
+            {'date': k, **v} for k, v in sorted(daily.items())
+        ],
+        'hourly_distribution': [
+            {'hour': h, 'label': f'{h:02d}:00', 'count': c}
+            for h, c in sorted(hourly.items())
+        ],
+        'vdi_usage': [
+            {'workstation': k, 'sessions': v}
+            for k, v in sorted(vdi_usage.items(), key=lambda x: -x[1])
+        ],
+    })
+
+
+# ─── Conexión a VDI (Guacamole SSO) ─────────────────────────────────
+
+@bp.route('/sessions/<int:session_id>/connect', methods=['POST'])
+@jwt_required()
+def connect_to_vdi(session_id):
+    """
+    Obtener URL de acceso directo a Guacamole para una sesión VDI.
+    Autentica contra Guacamole REST API usando las credenciales AD del candidato
+    y devuelve una URL con token SSO.
+
+    Solo el candidato dueño de la sesión, responsable del plantel, o admin pueden usar este endpoint.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    session = VmSession.query.get(session_id)
+    if not session:
+        return jsonify({'error': 'Sesión no encontrada'}), 404
+
+    if session.status != 'scheduled':
+        return jsonify({'error': 'Solo se puede conectar a sesiones programadas'}), 400
+
+    # Verificar permisos: candidato dueño, responsable del plantel, o admin
+    if user.role == 'candidato' and session.user_id != str(user_id):
+        return jsonify({'error': 'Solo puedes conectarte a tus propias sesiones'}), 403
+    elif user.role == 'responsable':
+        if not user.campus_id or session.campus_id != user.campus_id:
+            return jsonify({'error': 'Solo puedes conectar sesiones de tu plantel'}), 403
+    elif user.role == 'coordinator':
+        return jsonify({'error': 'Coordinadores no pueden iniciar conexiones VDI'}), 403
+    elif user.role not in ['admin', 'developer', 'candidato', 'responsable']:
+        return jsonify({'error': 'Acceso denegado'}), 403
+
+    # Verificar que la sesión está sincronizada (usuario AD debe existir)
+    if not session.config_session_id:
+        return jsonify({
+            'error': 'La sesión aún no está sincronizada con Active Directory. '
+                     'El acceso estará disponible después de que se procese (madrugada siguiente).',
+        }), 400
+
+    # Obtener credenciales del candidato
+    target_user = User.query.get(session.user_id)
+    if not target_user:
+        return jsonify({'error': 'Usuario de la sesión no encontrado'}), 404
+
+    from app.models.user import decrypt_password
+    password = decrypt_password(target_user.encrypted_password)
+    if not password:
+        return jsonify({'error': 'No se pudieron obtener las credenciales para Guacamole. Contacta a soporte.'}), 400
+
+    # Obtener token de Guacamole vía REST API
+    import requests as http_requests
+    GUACAMOLE_URL = os.environ.get('GUACAMOLE_URL', 'https://evapub2024.evaluaasi.info')
+
+    try:
+        resp = http_requests.post(
+            f'{GUACAMOLE_URL}/api/tokens',
+            data={'username': target_user.username, 'password': password},
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            timeout=30,
+            verify=True,
+        )
+
+        if resp.status_code == 200:
+            token_data = resp.json()
+            auth_token = token_data.get('authToken')
+            if not auth_token:
+                return jsonify({'error': 'Guacamole no devolvió un token válido'}), 502
+
+            connect_url = f'{GUACAMOLE_URL}/#/?token={auth_token}'
+
+            logger.info(
+                f"Conexión VDI exitosa: session={session_id}, user={target_user.username}, "
+                f"workstation={session.workstation_name}"
+            )
+
+            return jsonify({
+                'connect_url': connect_url,
+                'guacamole_url': GUACAMOLE_URL,
+                'workstation_name': session.workstation_name,
+                'message': 'Conexión lista. Se abrirá en una nueva pestaña.',
+            })
+
+        elif resp.status_code == 403:
+            logger.warning(
+                f"Guacamole 403 para {target_user.username} — "
+                f"el usuario AD puede no existir aún o credenciales incorrectas"
+            )
+            return jsonify({
+                'error': 'No se pudo autenticar en Guacamole. '
+                         'El usuario de Active Directory puede no estar creado aún. '
+                         'Intenta después de la madrugada siguiente a la creación de la sesión.',
+                'fallback_url': GUACAMOLE_URL,
+                'fallback_username': target_user.username,
+            }), 400
+
+        else:
+            logger.error(f"Guacamole error {resp.status_code}: {resp.text[:200]}")
+            return jsonify({
+                'error': f'Error de Guacamole (HTTP {resp.status_code}). Intenta acceder manualmente.',
+                'fallback_url': GUACAMOLE_URL,
+                'fallback_username': target_user.username,
+            }), 502
+
+    except http_requests.Timeout:
+        logger.error("Timeout conectando a Guacamole")
+        return jsonify({
+            'error': 'Guacamole no respondió a tiempo. Intenta acceder manualmente.',
+            'fallback_url': GUACAMOLE_URL,
+            'fallback_username': target_user.username,
+        }), 504
+
+    except http_requests.ConnectionError:
+        logger.error("No se pudo conectar a Guacamole")
+        return jsonify({
+            'error': 'No se pudo conectar con Guacamole. El servicio puede estar en mantenimiento.',
+            'fallback_url': GUACAMOLE_URL,
+            'fallback_username': target_user.username,
+        }), 502
+
+    except Exception as e:
+        logger.error(f'Error conectando a Guacamole: {e}')
+        return jsonify({
+            'error': 'Error de conexión con Guacamole. Intenta acceder manualmente.',
+            'fallback_url': GUACAMOLE_URL,
+            'fallback_username': target_user.username,
+        }), 502
+
+
+@bp.route('/guacamole-check', methods=['GET'])
+@jwt_required()
+def guacamole_connectivity_check():
+    """Check connectivity from Container App to Guacamole server"""
+    user = User.query.get(get_jwt_identity())
+    if not user or user.role not in ['admin', 'developer']:
+        return jsonify({'error': 'Solo admin/developer'}), 403
+
+    import requests as http_requests
+    import socket
+    import time
+
+    GUACAMOLE_URL = os.environ.get('GUACAMOLE_URL', 'https://evapub2024.evaluaasi.info')
+    host = GUACAMOLE_URL.replace('https://', '').replace('http://', '').split('/')[0]
+    results = {}
+
+    # 1. DNS resolution
+    try:
+        ip = socket.gethostbyname(host)
+        results['dns'] = {'ok': True, 'ip': ip}
+    except Exception as e:
+        results['dns'] = {'ok': False, 'error': str(e)}
+        return jsonify({'guacamole_url': GUACAMOLE_URL, 'results': results}), 200
+
+    # 2. TCP port 443
+    try:
+        start = time.time()
+        sock = socket.create_connection((ip, 443), timeout=10)
+        elapsed = round((time.time() - start) * 1000)
+        sock.close()
+        results['tcp_443'] = {'ok': True, 'latency_ms': elapsed}
+    except Exception as e:
+        results['tcp_443'] = {'ok': False, 'error': str(e)}
+        return jsonify({'guacamole_url': GUACAMOLE_URL, 'results': results}), 200
+
+    # 3. HTTPS GET (just check if web server responds)
+    try:
+        start = time.time()
+        resp = http_requests.get(GUACAMOLE_URL, timeout=15, verify=True, allow_redirects=True)
+        elapsed = round((time.time() - start) * 1000)
+        results['https'] = {'ok': True, 'status_code': resp.status_code, 'latency_ms': elapsed}
+    except Exception as e:
+        results['https'] = {'ok': False, 'error': str(e)}
+
+    # 4. Guacamole API test (invalid creds = 403 means API is reachable)
+    try:
+        start = time.time()
+        resp = http_requests.post(
+            f'{GUACAMOLE_URL}/api/tokens',
+            data={'username': 'connectivity_test', 'password': 'test'},
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            timeout=15, verify=True,
+        )
+        elapsed = round((time.time() - start) * 1000)
+        results['guacamole_api'] = {
+            'ok': resp.status_code in [200, 403],
+            'status_code': resp.status_code,
+            'latency_ms': elapsed,
+            'reachable': True,
+        }
+    except Exception as e:
+        results['guacamole_api'] = {'ok': False, 'error': str(e)}
+
+    return jsonify({'guacamole_url': GUACAMOLE_URL, 'results': results}), 200

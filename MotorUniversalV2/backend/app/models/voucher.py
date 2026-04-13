@@ -11,7 +11,7 @@ class Voucher(db.Model):
     __tablename__ = 'vouchers'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     exam_stage_id = db.Column(db.Integer, nullable=False)
     
     # Información del voucher
@@ -27,13 +27,14 @@ class Voucher(db.Model):
     # Control de uso
     opportunities = db.Column(db.Integer, default=2, nullable=False)  # Intentos permitidos
     opportunities_used = db.Column(db.Integer, default=0, nullable=False)
-    status = db.Column(db.Integer, default=0, nullable=False)  # 0=activo, 1=usado, 2=expirado, 3=en proceso
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    status = db.Column(db.Integer, default=0, nullable=False, index=True)  # 0=activo, 1=usado, 2=expirado, 3=en proceso
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     is_synchronized = db.Column(db.Boolean, default=False, nullable=False)
     
     # Fechas
     expiration_date = db.Column(db.DateTime, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     results = db.relationship('Result', backref='voucher', lazy='dynamic', cascade='all, delete-orphan')

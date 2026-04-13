@@ -12,7 +12,7 @@ class StudentContentProgress(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Tipo de contenido: 'reading', 'video', 'downloadable', 'interactive'
     content_type = db.Column(db.String(50), nullable=False)
@@ -21,7 +21,7 @@ class StudentContentProgress(db.Model):
     content_id = db.Column(db.String(36), nullable=False)
     
     # ID del tema al que pertenece el contenido
-    topic_id = db.Column(db.Integer, db.ForeignKey('study_topics.id'), nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey('study_topics.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Estado de completado
     is_completed = db.Column(db.Boolean, default=False, nullable=False)
@@ -65,8 +65,8 @@ class StudentTopicProgress(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    topic_id = db.Column(db.Integer, db.ForeignKey('study_topics.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    topic_id = db.Column(db.Integer, db.ForeignKey('study_topics.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Contadores de progreso
     total_contents = db.Column(db.Integer, default=0)

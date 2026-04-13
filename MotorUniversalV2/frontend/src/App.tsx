@@ -228,6 +228,7 @@ const SolicitudesResponsablesPage = lazy(() => import('./pages/coordinador/Solic
 
 // VM Sessions (Máquinas Virtuales)
 const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage'))
+const VdiManagementPage = lazy(() => import('./pages/vm-sessions/VdiManagementPage'))
 const MiPlantelSesionesPage = lazy(() => import('./pages/responsable/MiPlantelSesionesPage'))
 const SolicitarCertificadosPage = lazy(() => import('./pages/responsable/SolicitarCertificadosPage'))
 const MisSolicitudesPage = lazy(() => import('./pages/responsable/MisSolicitudesPage'))
@@ -507,6 +508,7 @@ function App() {
               
               {/* Máquinas Virtuales - Calendario de sesiones */}
               <Route path="/vm-sessions" element={<VmSchedulingPage />} />
+              <Route path="/vm-sessions/admin" element={<VdiManagementPage />} />
               <Route path="/mi-plantel/sesiones" element={<MiPlantelSesionesPage />} />
               
               {/* Grupos - Gestión de grupos por plantel */}

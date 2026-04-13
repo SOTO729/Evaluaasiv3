@@ -266,6 +266,7 @@ export async function generateTempPassword(userId: string): Promise<{
 export async function getUserPassword(userId: string): Promise<{
   password: string;
   has_password: boolean;
+  regenerated?: boolean;
   user: { id: string; email: string; full_name: string };
 }> {
   const response = await api.get(`/user-management/users/${userId}/password`);

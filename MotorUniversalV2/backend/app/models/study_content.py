@@ -49,12 +49,12 @@ class StudyMaterial(db.Model):
     order = db.Column(db.Integer, default=0)
     
     # Campo legacy para compatibilidad (se mantiene por ahora)
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
@@ -80,17 +80,15 @@ class StudyMaterial(db.Model):
             # La tabla study_material_exams puede no existir aún
             pass
         
-        # Calcular total de sesiones y temas
+        # Calcular total de sesiones y temas (optimizado - single query)
         sessions_count = self.sessions.count() if self.sessions else 0
-        topics_count = 0
-        total_estimated_time = 0
-        if self.sessions:
-            for session in self.sessions.all():
-                if session.topics:
-                    for topic in session.topics.all():
-                        topics_count += 1
-                        if topic.estimated_time_minutes:
-                            total_estimated_time += topic.estimated_time_minutes
+        result = db.session.query(
+            db.func.count(StudyTopic.id),
+            db.func.coalesce(db.func.sum(StudyTopic.estimated_time_minutes), 0)
+        ).join(StudySession, StudyTopic.session_id == StudySession.id
+        ).filter(StudySession.material_id == self.id).first()
+        topics_count = result[0] if result else 0
+        total_estimated_time = result[1] if result else 0
         
         data = {
             'id': self.id,
@@ -126,7 +124,7 @@ class StudySession(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False)
+    material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False, index=True)
     session_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
@@ -164,7 +162,7 @@ class StudyTopic(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey('study_sessions.id', ondelete='CASCADE'), nullable=False)
+    session_id = db.Column(db.Integer, db.ForeignKey('study_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     order = db.Column(db.Integer, default=0)
@@ -335,9 +333,9 @@ class StudyInteractiveExercise(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relación con pasos
@@ -372,7 +370,7 @@ class StudyInteractiveExerciseStep(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True)
-    exercise_id = db.Column(db.String(36), db.ForeignKey('study_interactive_exercises.id', ondelete='CASCADE'), nullable=False)
+    exercise_id = db.Column(db.String(36), db.ForeignKey('study_interactive_exercises.id', ondelete='CASCADE'), nullable=False, index=True)
     step_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(255))
     description = db.Column(db.Text)
@@ -416,7 +414,7 @@ class StudyInteractiveExerciseAction(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True)
-    step_id = db.Column(db.String(36), db.ForeignKey('study_interactive_exercise_steps.id', ondelete='CASCADE'), nullable=False)
+    step_id = db.Column(db.String(36), db.ForeignKey('study_interactive_exercise_steps.id', ondelete='CASCADE'), nullable=False, index=True)
     action_number = db.Column(db.Integer, nullable=False)
     action_type = db.Column(db.String(20), nullable=False)
     

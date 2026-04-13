@@ -12,7 +12,7 @@ from flask_jwt_extended import (
 )
 from sqlalchemy import func
 from app import db, cache
-from app.models.user import User
+from app.models.user import User, encrypt_password, decrypt_password
 from app.models.partner import GroupMember, GroupExam, GroupExamMember, CandidateGroup, Campus, Partner
 from app.models.result import Result
 from app.models.exam import Exam
@@ -123,6 +123,7 @@ def register():
         role=data.get('role', 'candidato')  # Cambiado de 'alumno' a 'candidato'
     )
     user.set_password(data['password'])
+    user.encrypted_password = encrypt_password(data['password'])
     
     db.session.add(user)
     db.session.commit()
@@ -311,6 +312,15 @@ def login():
     
     # Actualizar último login
     user.last_login = datetime.utcnow()
+    
+    # Re-encriptar contraseña si no es descifrable con la key actual
+    # (recupera contraseñas encriptadas con keys anteriores perdidas)
+    try:
+        if not user.encrypted_password or not decrypt_password(user.encrypted_password):
+            user.encrypted_password = encrypt_password(password)
+    except Exception:
+        pass
+    
     db.session.commit()
     
     # Crear tokens
@@ -518,6 +528,7 @@ def change_password():
         return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
     
     user.set_password(new_password)
+    user.encrypted_password = encrypt_password(new_password)
     db.session.commit()
     
     return jsonify({'message': 'Contraseña actualizada exitosamente'}), 200
@@ -773,6 +784,7 @@ def reset_password():
     
     # Actualizar contraseña
     user.set_password(new_password)
+    user.encrypted_password = encrypt_password(new_password)
     db.session.commit()
     
     # Invalidar token usado

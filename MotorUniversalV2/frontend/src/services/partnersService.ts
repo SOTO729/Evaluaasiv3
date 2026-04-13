@@ -2664,6 +2664,53 @@ export async function getMisMateriales(): Promise<{
 }
 
 
+/**
+ * Obtener detalles de compra para un examen asignado (candidato).
+ * Incluye info del examen, materiales de estudio, configuración y costo.
+ */
+export interface PurchaseDetails {
+  exam: {
+    id: number;
+    name: string;
+    description?: string;
+    image_url?: string;
+    version: string;
+    duration_minutes: number;
+    passing_score: number;
+    total_questions: number;
+    total_exercises: number;
+    has_simulator_content: boolean;
+    ecm?: {
+      code: string;
+      name: string;
+      logo_url?: string;
+      brand_name?: string;
+      brand_logo_url?: string;
+    };
+  };
+  campus_name: string | null;
+  group_name: string;
+  certification_cost: number;
+  retake_cost: number;
+  max_attempts: number;
+  time_limit_minutes: number;
+  exam_content_type: string;
+  materials: {
+    id: number;
+    title: string;
+    description?: string;
+    image_url?: string;
+    sessions_count: number;
+    estimated_time_minutes: number;
+  }[];
+}
+
+export async function getPurchaseDetails(groupExamId: number): Promise<PurchaseDetails> {
+  const response = await api.get(`/partners/purchase-details/${groupExamId}`);
+  return response.data;
+}
+
+
 // ============== ECM DE PLANTEL (Estándares de Competencia) ==============
 
 export interface CampusCompetencyStandard {
@@ -4030,5 +4077,59 @@ export async function exportReports(params: Record<string, string | number | und
     clean.columns = columns.join(',');
   }
   const response = await api.get('/partners/reports/export', { params: clean, responseType: 'blob' });
+  return response.data;
+}
+
+// ── Reporte: Progreso de Materiales de Estudio ──
+
+export interface StudyProgressRow {
+  user_id: string;
+  full_name: string;
+  name: string;
+  first_surname: string;
+  second_surname: string;
+  username: string;
+  email: string | null;
+  curp: string | null;
+  partner_name?: string;
+  campus_name?: string;
+  group_name?: string;
+  school_cycle?: string;
+  material_name: string;
+  session_title: string;
+  session_number: number;
+  topic_title: string;
+  total_contents: number;
+  completed_contents: number;
+  progress_percentage: number;
+  is_completed: boolean;
+}
+
+export interface StudyProgressResponse {
+  rows: StudyProgressRow[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export async function getStudyProgressReport(params: Record<string, string | number | undefined>): Promise<StudyProgressResponse> {
+  const clean: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v;
+  }
+  const response = await api.get('/partners/reports/study-progress', { params: clean });
+  return response.data;
+}
+
+export async function exportStudyProgressReport(params: Record<string, string | number | undefined>, columns?: string[]): Promise<Blob> {
+  const clean: Record<string, string | number> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== '' && v !== null) clean[k] = v;
+  }
+  if (columns && columns.length > 0) {
+    clean.columns = columns.join(',');
+  }
+  const response = await api.get('/partners/reports/study-progress/export', { params: clean, responseType: 'blob' });
   return response.data;
 }

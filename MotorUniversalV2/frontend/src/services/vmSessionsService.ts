@@ -31,7 +31,12 @@ export interface VmSession {
   group_id: number | null;
   session_date: string;
   start_hour: number;
-  start_hour_label: string;
+  end_hour: number;
+  session_type: 'simulador' | 'examen' | 'parcial';
+  workstation_id: number | null;
+  workstation_name: string | null;
+  workstation_color: string | null;
+  config_session_id: string | null;
   status: string;
   notes: string | null;
   created_by_id: string | null;
@@ -40,8 +45,9 @@ export interface VmSession {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
-  user_name?: string;
-  user_email?: string;
+  user?: { id: string; name: string; email: string; role: string };
+  group_name?: string;
+  campus_name?: string;
 }
 
 export interface VmAccessInfo {
@@ -87,6 +93,7 @@ export async function getAvailableSlots(params: {
 export async function createVmSession(data: {
   session_date: string;
   start_hour: number;
+  session_type?: 'simulador' | 'examen' | 'parcial';
   user_id?: string;
   campus_id?: number;
   notes?: string;
@@ -177,6 +184,7 @@ export async function autoDistribute(data: {
 /** Crear múltiples sesiones de una propuesta aceptada */
 export async function bulkCreateSessions(data: {
   group_id: number;
+  session_type?: 'simulador' | 'examen' | 'parcial';
   sessions: { user_id: string; session_date: string; start_hour: number; notes?: string }[];
 }): Promise<{
   message: string;
@@ -184,5 +192,192 @@ export async function bulkCreateSessions(data: {
   errors: { user_id: string; error: string }[];
 }> {
   const response = await api.post('/vm-sessions/bulk-create', data);
+  return response.data;
+}
+
+// ─── Admin: Workstations / VDIs ────────────────────────────────
+
+export interface Workstation {
+  equipo_id: number;
+  nombre: string;
+  activo: boolean;
+  soporte: boolean;
+  color: string | null;
+  server_location: string | null;
+  cert_type: string | null;
+}
+
+/** Listar VDIs (solo admin) */
+export async function getWorkstations(showAll = false): Promise<{
+  workstations: Workstation[];
+  total: number;
+}> {
+  const response = await api.get('/vm-sessions/workstations', {
+    params: { all: showAll ? 'true' : 'false' },
+  });
+  return response.data;
+}
+
+/** Activar/desactivar una VDI (solo admin) */
+export async function toggleWorkstation(
+  equipoId: number,
+  active: boolean
+): Promise<{ message: string }> {
+  const response = await api.patch(`/vm-sessions/workstations/${equipoId}/toggle`, { active });
+  return response.data;
+}
+
+/** Estado actual de VDIs (solo admin) */
+export async function getWorkstationStatus(): Promise<{
+  current_slot: string;
+  total_active_vdis: number;
+  occupied_now: number;
+  available_now: number;
+  vdis: Workstation[];
+}> {
+  const response = await api.get('/vm-sessions/workstations/status');
+  return response.data;
+}
+
+/** Health check de conexión a EvaluaasiConfig (solo admin) */
+export async function getConfigHealth(): Promise<{
+  connected: boolean;
+  error?: string;
+}> {
+  const response = await api.get('/vm-sessions/config-health');
+  return response.data;
+}
+
+// ─── Admin: SOAP ADWebService ──────────────────────────────────
+
+export interface AdUser {
+  subsystem: string | null;
+  name: string | null;
+  given_name: string | null;
+  surname: string | null;
+  sam_account_name: string | null;
+  display_name: string | null;
+  user_principal_name: string | null;
+  path: string | null;
+  logon_workstations: string | null;
+  profile_path: string | null;
+  day: string | null;
+  begin: number | null;
+  end: number | null;
+  expired: string | null;
+}
+
+/** Health check SOAP ADWebService (solo admin) */
+export async function getSoapHealth(): Promise<{
+  connected: boolean;
+  url: string;
+  message?: string;
+  error?: string;
+}> {
+  const response = await api.get('/vm-sessions/soap-health');
+  return response.data;
+}
+
+/** Obtener usuarios AD creados por el EXE legacy (solo admin) */
+export async function getSoapUsers(): Promise<{
+  users: AdUser[];
+  total: number;
+}> {
+  const response = await api.get('/vm-sessions/soap-users');
+  return response.data;
+}
+
+/** Obtener aplicaciones de un usuario AD (solo admin) */
+export async function getSoapApplications(username: string): Promise<{
+  username: string;
+  applications: string[];
+}> {
+  const response = await api.get(`/vm-sessions/soap-applications/${username}`);
+  return response.data;
+}
+
+/** Obtener horarios por equipo desde SOAP (solo admin) */
+export async function getSoapHorarios(): Promise<{
+  horarios: { equipo: string; horarios: string }[];
+  total: number;
+}> {
+  const response = await api.get('/vm-sessions/soap-horarios');
+  return response.data;
+}
+
+/** Marcar usuario como completado en AD (solo admin) */
+export async function soapMarkCompleted(data: {
+  subsistema_id: number;
+  plantel_id: number;
+  username: string;
+}): Promise<{ success: boolean; username: string }> {
+  const response = await api.post('/vm-sessions/soap-mark-completed', data);
+  return response.data;
+}
+
+// ─── Config DB: Subsistemas y Estándares ─────────────────────────────
+
+export interface ConfigSubsistema {
+  subsistema_id: number;
+  nombre: string;
+  abreviatura: string;
+  activo: boolean;
+}
+
+export interface ConfigEstandar {
+  estandar_id: number;
+  identificador: string;
+  nombre: string;
+  etapa_id: number;
+  usa_motor: boolean;
+}
+
+/** Obtener subsistemas de EvaluaasiConfig (admin/coordinator) */
+export async function getConfigSubsistemas(): Promise<ConfigSubsistema[]> {
+  const response = await api.get('/vm-sessions/config-subsistemas');
+  return response.data.subsistemas;
+}
+
+/** Obtener estándares/certificaciones de EvaluaasiConfig (admin/coordinator) */
+export async function getConfigEstandares(): Promise<ConfigEstandar[]> {
+  const response = await api.get('/vm-sessions/config-estandares');
+  return response.data.estandares;
+}
+
+// ─── SOAP: Completed / Expired Users ─────────────────────────────────
+
+/** Obtener usuarios AD completados (solo admin) */
+export async function getSoapCompletedUsers(): Promise<{
+  users: AdUser[];
+  total: number;
+}> {
+  const response = await api.get('/vm-sessions/soap-completed-users');
+  return response.data;
+}
+
+/** Obtener usuarios AD expirados (solo admin) */
+export async function getSoapExpiredUsers(): Promise<{
+  users: AdUser[];
+  total: number;
+}> {
+  const response = await api.get('/vm-sessions/soap-expired-users');
+  return response.data;
+}
+
+// ─── Conexión a VDI (Guacamole SSO) ─────────────────────────────────
+
+export interface VdiConnectResult {
+  connect_url?: string;
+  guacamole_url?: string;
+  workstation_name?: string;
+  message?: string;
+  error?: string;
+  fallback_url?: string;
+  fallback_username?: string;
+}
+
+/** Conectar a VDI vía Guacamole SSO (candidato/responsable/admin) */
+export async function connectToVdi(sessionId: number): Promise<VdiConnectResult> {
+  const response = await api.post(`/vm-sessions/sessions/${sessionId}/connect`);
   return response.data;
 }

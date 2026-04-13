@@ -28,9 +28,9 @@ class Exercise(db.Model):
     percentage = db.Column(db.Float, default=0)  # DEPRECATED: Ya no se usa para evaluación
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relación con pasos
@@ -69,7 +69,7 @@ class ExerciseStep(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True)
-    exercise_id = db.Column(db.String(36), db.ForeignKey('exercises.id', ondelete='CASCADE'), nullable=False)
+    exercise_id = db.Column(db.String(36), db.ForeignKey('exercises.id', ondelete='CASCADE'), nullable=False, index=True)
     step_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(255))
     description = db.Column(db.Text)
@@ -113,7 +113,7 @@ class ExerciseAction(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.String(36), primary_key=True)
-    step_id = db.Column(db.String(36), db.ForeignKey('exercise_steps.id', ondelete='CASCADE'), nullable=False)
+    step_id = db.Column(db.String(36), db.ForeignKey('exercise_steps.id', ondelete='CASCADE'), nullable=False, index=True)
     action_number = db.Column(db.Integer, nullable=False)
     action_type = db.Column(db.String(20), nullable=False)  # 'button' o 'textbox'
     

@@ -34,14 +34,11 @@ def _get_fallback_keys():
     return [k.strip() for k in raw.split(',') if k.strip()]
 
 def encrypt_password(password):
-    """Encripta una contraseña de forma reversible"""
+    """Encripta una contraseña de forma reversible. Nunca falla silenciosamente."""
     if not password:
         return None
-    try:
-        f = Fernet(_get_encryption_key())
-        return f.encrypt(password.encode()).decode()
-    except Exception:
-        return None
+    f = Fernet(_get_encryption_key())
+    return f.encrypt(password.encode()).decode()
 
 def decrypt_password(encrypted_password):
     """Desencripta una contraseña, probando claves fallback si la actual falla"""
@@ -152,7 +149,10 @@ class User(db.Model):
     def set_password(self, password):
         """Hashear contraseña con Argon2 y actualizar copia encriptada reversible"""
         self.password_hash = ph.hash(password)
-        self.encrypted_password = encrypt_password(password)
+        encrypted = encrypt_password(password)
+        if not encrypted:
+            raise ValueError('No se pudo encriptar la contraseña. Verifica SECRET_KEY.')
+        self.encrypted_password = encrypted
     
     def get_decrypted_password(self):
         """Obtener contraseña desencriptada (solo para admin)"""

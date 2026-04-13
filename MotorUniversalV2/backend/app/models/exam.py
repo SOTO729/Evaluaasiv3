@@ -39,16 +39,16 @@ class Exam(db.Model):
     default_simulator_exercises_count = db.Column(db.Integer, nullable=True)
     
     # Relación con Estándar de Competencia (ECM)
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True, index=True)
     
     # Estado
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    is_published = db.Column(db.Boolean, default=False, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    is_published = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
@@ -57,43 +57,69 @@ class Exam(db.Model):
     updater = db.relationship('User', foreign_keys=[updated_by], backref='updated_exams')
     
     def get_total_questions(self):
-        """Calcular total de preguntas del examen"""
-        total = 0
-        for category in self.categories:
-            for topic in category.topics:
-                total += topic.questions.count()
-        return total
+        """Calcular total de preguntas del examen (optimizado - single query)"""
+        from app.models.question import Question
+        from app.models.topic import Topic
+        from app.models.category import Category
+        return db.session.query(db.func.count(Question.id)).join(
+            Topic, Question.topic_id == Topic.id
+        ).join(
+            Category, Topic.category_id == Category.id
+        ).filter(Category.exam_id == self.id).scalar() or 0
     
     def get_total_exercises(self):
-        """Calcular total de ejercicios del examen"""
-        total = 0
-        for category in self.categories:
-            for topic in category.topics:
-                total += topic.exercises.count()
-        return total
+        """Calcular total de ejercicios del examen (optimizado - single query)"""
+        from app.models.exercise import Exercise
+        from app.models.topic import Topic
+        from app.models.category import Category
+        return db.session.query(db.func.count(Exercise.id)).join(
+            Topic, Exercise.topic_id == Topic.id
+        ).join(
+            Category, Topic.category_id == Category.id
+        ).filter(Category.exam_id == self.id).scalar() or 0
     
     def get_mode_counts(self):
-        """Calcular conteos de preguntas y ejercicios por tipo (exam/simulator)"""
+        """Calcular conteos de preguntas y ejercicios por tipo (exam/simulator) - optimizado"""
+        from app.models.question import Question
+        from app.models.exercise import Exercise
+        from app.models.topic import Topic
+        from app.models.category import Category
+        
+        # Single query for questions by type
+        q_counts = db.session.query(
+            Question.type,
+            db.func.count(Question.id)
+        ).join(
+            Topic, Question.topic_id == Topic.id
+        ).join(
+            Category, Topic.category_id == Category.id
+        ).filter(Category.exam_id == self.id).group_by(Question.type).all()
+        
         exam_questions = 0
         simulator_questions = 0
+        for qtype, cnt in q_counts:
+            if qtype == 'simulator':
+                simulator_questions = cnt
+            else:
+                exam_questions += cnt
+        
+        # Single query for exercises by type
+        e_counts = db.session.query(
+            Exercise.type,
+            db.func.count(Exercise.id)
+        ).join(
+            Topic, Exercise.topic_id == Topic.id
+        ).join(
+            Category, Topic.category_id == Category.id
+        ).filter(Category.exam_id == self.id).group_by(Exercise.type).all()
+        
         exam_exercises = 0
         simulator_exercises = 0
-        
-        for category in self.categories:
-            for topic in category.topics:
-                # Contar preguntas por tipo
-                for question in topic.questions:
-                    if question.type == 'simulator':
-                        simulator_questions += 1
-                    else:
-                        exam_questions += 1
-                
-                # Contar ejercicios por tipo
-                for exercise in topic.exercises:
-                    if exercise.type == 'simulator':
-                        simulator_exercises += 1
-                    else:
-                        exam_exercises += 1
+        for etype, cnt in e_counts:
+            if etype == 'simulator':
+                simulator_exercises = cnt
+            else:
+                exam_exercises += cnt
         
         return {
             'exam_questions_count': exam_questions,
@@ -106,6 +132,8 @@ class Exam(db.Model):
     
     def to_dict(self, include_details=False):
         """Convertir a diccionario"""
+        from app.models.topic import Topic
+        from app.models.category import Category
         # Obtener las categorías como lista (lazy='dynamic' devuelve una query)
         categories_list = self.categories.all()
         
@@ -134,7 +162,7 @@ class Exam(db.Model):
             'total_questions': self.get_total_questions(),
             'total_exercises': self.get_total_exercises(),
             'total_categories': len(categories_list),
-            'total_topics': sum(cat.topics.count() for cat in categories_list),
+            'total_topics': db.session.query(db.func.count(Topic.id)).join(Category, Topic.category_id == Category.id).filter(Category.exam_id == self.id).scalar() or 0,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'categories': [{'id': cat.id, 'name': cat.name, 'percentage': cat.percentage} for cat in categories_list]  # Siempre incluir resumen de categorías

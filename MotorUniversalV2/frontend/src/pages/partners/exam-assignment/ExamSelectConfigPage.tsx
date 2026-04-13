@@ -150,6 +150,32 @@ export default function ExamSelectConfigPage() {
 
   const handleContinueToConfig = () => {
     if (!selectedExam) return;
+
+    // Responsable skips configuration — auto-accept editor defaults and go to members
+    if (isResponsable) {
+      const config: ExamConfig = {
+        timeLimitMinutes: null,
+        useExamDefaultTime: true,
+        passingScore: selectedExam.passing_score,
+        useExamDefaultScore: true,
+        maxAttempts: selectedExam.default_max_attempts ?? 2,
+        maxDisconnections: selectedExam.default_max_disconnections ?? 3,
+        examContentType: (selectedExam.default_exam_content_type || 'mixed') as ExamContentType,
+        examQuestionsCount: selectedExam.default_exam_questions_count ?? null,
+        examExercisesCount: selectedExam.default_exam_exercises_count ?? null,
+        useAllExamQuestions: selectedExam.default_exam_questions_count == null,
+        useAllExamExercises: selectedExam.default_exam_exercises_count == null,
+        simulatorQuestionsCount: selectedExam.default_simulator_questions_count ?? null,
+        simulatorExercisesCount: selectedExam.default_simulator_exercises_count ?? null,
+        useAllSimulatorQuestions: selectedExam.default_simulator_questions_count == null,
+        useAllSimulatorExercises: selectedExam.default_simulator_exercises_count == null,
+      };
+      const materialIds = selectedExam.linked_material_ids || [];
+      const state: SelectMaterialsState = { selectedExam, config, selectedMaterialIds: materialIds };
+      navigate(`${basePath}/assign-exam/members`, { state });
+      return;
+    }
+
     if (selectedExam.duration_minutes) setTimeLimitMinutes(selectedExam.duration_minutes);
     if (selectedExam.passing_score) setPassingScore(selectedExam.passing_score);
     setStep('accept-or-customize');

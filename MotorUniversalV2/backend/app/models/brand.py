@@ -28,9 +28,9 @@ class Brand(db.Model):
     display_order = db.Column(db.Integer, default=0)
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones

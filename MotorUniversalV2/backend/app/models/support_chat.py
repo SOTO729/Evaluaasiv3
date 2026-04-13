@@ -95,6 +95,7 @@ class SupportConversationParticipant(db.Model):
         db.Integer,
         db.ForeignKey("support_messages.id", ondelete="NO ACTION"),
         nullable=True,
+        index=True,
     )
 
     __table_args__ = (

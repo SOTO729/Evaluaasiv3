@@ -31,12 +31,18 @@ import {
   Columns3,
   Check,
   MoreHorizontal,
+  Award,
+  Monitor,
+  BookOpen,
+  ClipboardList,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   getReportFilters,
   getReports,
   exportReports,
+  getStudyProgressReport,
+  exportStudyProgressReport,
   ReportFiltersData,
   ReportRow,
 } from '../../services/partnersService';
@@ -53,7 +59,7 @@ interface ColumnDef {
   label: string;
   group: string;          // Categoría: Usuario, Organización, Estándar, Resultado, Certificación
   defaultOn?: boolean;
-  render?: (row: ReportRow) => React.ReactNode;
+  render?: (row: any) => React.ReactNode;
 }
 
 const GENDER_MAP: Record<string, string> = { M: 'Masculino', F: 'Femenino', O: 'Otro' };
@@ -122,6 +128,30 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'expires_at', label: 'Vigencia', group: 'Certificación' },
 ];
 
+/* Columnas para reporte de Materiales de Estudio */
+const MATERIAL_COLUMNS: ColumnDef[] = [
+  { key: 'material_name', label: 'Material', group: 'Material', defaultOn: true },
+  { key: 'session_title', label: 'Sesión', group: 'Material', defaultOn: true },
+  { key: 'session_number', label: 'No. Sesión', group: 'Material' },
+  { key: 'topic_title', label: 'Tema', group: 'Material', defaultOn: true },
+  { key: 'total_contents', label: 'Contenidos Totales', group: 'Material' },
+  { key: 'completed_contents', label: 'Contenidos Completados', group: 'Material' },
+  { key: 'progress_percentage', label: 'Avance (%)', group: 'Material', defaultOn: true,
+    render: (r: any) => `${r.progress_percentage ?? 0}%` },
+  { key: 'is_completed', label: 'Completado', group: 'Material',
+    render: (r: any) => r.is_completed ? 'Sí' : 'No' },
+];
+
+/* Tipos de reporte disponibles */
+type ReportType = 'certificacion' | 'simuladores' | 'materiales' | 'parciales';
+
+const REPORT_TYPES: { value: ReportType; label: string; description: string; icon: React.ReactNode; disabled?: boolean }[] = [
+  { value: 'certificacion', label: 'Examen de Certificación', description: 'Resultados de exámenes y certificados', icon: <Award className="w-7 h-7" /> },
+  { value: 'simuladores', label: 'Simuladores', description: 'Calificaciones de simuladores', icon: <Monitor className="w-7 h-7" /> },
+  { value: 'materiales', label: 'Materiales de Estudio', description: 'Progreso en materiales asignados', icon: <BookOpen className="w-7 h-7" /> },
+  { value: 'parciales', label: 'Exámenes Parciales', description: 'Calificaciones por unidad', icon: <ClipboardList className="w-7 h-7" />, disabled: true },
+];
+
 /* Mapa de grupo visual → clave de categoría para el backend */
 const GROUP_TO_CATEGORY: Record<string, string> = {
   'Usuario': 'usuario',
@@ -129,6 +159,7 @@ const GROUP_TO_CATEGORY: Record<string, string> = {
   'Estándar': 'estandar',
   'Resultado': 'resultado',
   'Certificación': 'certificacion',
+  'Material': 'material',
 };
 
 const DEPTH_LABELS: Record<string, string> = {
@@ -137,6 +168,7 @@ const DEPTH_LABELS: Record<string, string> = {
   'estandar': '1 fila por usuario × grupo × asignación de estándar',
   'resultado': '1 fila por usuario × grupo × asignación × intento de evaluación',
   'certificacion': '1 fila por usuario × grupo × asignación (con datos de certificado)',
+  'material': '1 fila por usuario × grupo × material × sesión × tema',
 };
 
 const COLUMN_GROUPS = [...new Set(ALL_COLUMNS.map(c => c.group))];
@@ -149,11 +181,27 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
   // Columnas ocultas para responsable
   const HIDDEN_FOR_RESPONSABLE = ['certification_cost', 'partner_name', 'campus_code', 'campus_name', 'campus_state', 'campus_city', 'director_name'];
 
+  // ── Report type ──
+  const [reportType, setReportType] = useState<ReportType>('certificacion');
+
+  // Columnas según tipo de reporte
+  const typeColumns = useMemo(() => {
+    if (reportType === 'materiales') {
+      return [...ALL_COLUMNS.filter(c => c.group === 'Usuario' || c.group === 'Organización'), ...MATERIAL_COLUMNS];
+    }
+    if (reportType === 'simuladores') {
+      return ALL_COLUMNS.filter(c => c.group !== 'Certificación');
+    }
+    return ALL_COLUMNS;
+  }, [reportType]);
+
   // Columnas visibles según rol
   const visibleColumns = useMemo(() =>
-    ALL_COLUMNS.filter(c => !(isResponsable && HIDDEN_FOR_RESPONSABLE.includes(c.key))),
-    [isResponsable]
+    typeColumns.filter(c => !(isResponsable && HIDDEN_FOR_RESPONSABLE.includes(c.key))),
+    [isResponsable, typeColumns]
   );
+
+  const columnGroups = useMemo(() => [...new Set(visibleColumns.map(c => c.group))], [visibleColumns]);
 
   // ── Column selection ──
   const [selectedCols, setSelectedCols] = useState<string[]>(() => [...DEFAULT_SELECTED]);
@@ -176,12 +224,23 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
   const [search, setSearch] = useState('');
 
   // ── Preview data ──
-  const [previewRows, setPreviewRows] = useState<ReportRow[]>([]);
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
   const [totalRows, setTotalRows] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+
+  // Reset columnas y preview al cambiar tipo de reporte
+  useEffect(() => {
+    const defaults = visibleColumns.filter(c => c.defaultOn).map(c => c.key);
+    setSelectedCols(defaults.length > 0 ? defaults : ['full_name']);
+    setHasGenerated(false);
+    setPreviewRows([]);
+    setTotalRows(0);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportType]);
 
   // Load filter options
   useEffect(() => {
@@ -247,12 +306,13 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
   // Determinar el nivel de profundidad más alto
   const depthLabel = useMemo(() => {
+    if (reportType === 'materiales') return DEPTH_LABELS['material'];
     if (activeCategories.has('resultado')) return DEPTH_LABELS['resultado'];
     if (activeCategories.has('certificacion')) return DEPTH_LABELS['certificacion'];
     if (activeCategories.has('estandar')) return DEPTH_LABELS['estandar'];
     if (activeCategories.has('organizacion')) return DEPTH_LABELS['organizacion'];
     return DEPTH_LABELS['usuario'];
-  }, [activeCategories]);
+  }, [activeCategories, reportType]);
 
   const toggleCol = (key: string) => {
     setSelectedCols(prev => {
@@ -300,19 +360,26 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
 
   const buildParams = useCallback(() => {
     const params: Record<string, string | number | undefined> = {};
-    params.categories = Array.from(activeCategories).join(',');
+    if (reportType !== 'materiales') {
+      params.categories = Array.from(activeCategories).join(',');
+    }
+    if (reportType === 'simuladores') {
+      params.result_mode = 'simulator';
+    }
     if (partnerId) params.partner_id = Number(partnerId);
     if (campusId) params.campus_id = Number(campusId);
     if (cycleId) params.school_cycle_id = Number(cycleId);
     if (groupId) params.group_id = Number(groupId);
-    if (standardId) params.standard_id = Number(standardId);
-    if (brandId) params.brand_id = Number(brandId);
-    if (resultFilter) params.result = resultFilter;
+    if (reportType !== 'materiales') {
+      if (standardId) params.standard_id = Number(standardId);
+      if (brandId) params.brand_id = Number(brandId);
+      if (resultFilter) params.result = resultFilter;
+    }
     if (roleFilter) params.role = roleFilter;
     if (isActiveFilter) params.is_active = isActiveFilter;
     if (search) params.search = search;
     return params;
-  }, [activeCategories, partnerId, campusId, cycleId, groupId, standardId, brandId, resultFilter, roleFilter, isActiveFilter, search]);
+  }, [reportType, activeCategories, partnerId, campusId, cycleId, groupId, standardId, brandId, resultFilter, roleFilter, isActiveFilter, search]);
 
   const handleGenerate = useCallback(async () => {
     if (!hasUserCols) {
@@ -325,7 +392,9 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
       const params = buildParams();
       params.page = 1;
       params.per_page = 5;
-      const data = await getReports(params);
+      const data = reportType === 'materiales'
+        ? await getStudyProgressReport(params)
+        : await getReports(params);
       setPreviewRows(data.rows);
       setTotalRows(data.total);
       setHasGenerated(true);
@@ -342,7 +411,9 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
       setExporting(true);
       setError(null);
       const params = buildParams();
-      const blob = await exportReports(params, selectedCols);
+      const blob = reportType === 'materiales'
+        ? await exportStudyProgressReport(params, selectedCols)
+        : await exportReports(params, selectedCols);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -365,7 +436,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
     setSearchInput(''); setSearch('');
   };
 
-  const getCellValue = (row: ReportRow, col: ColumnDef): React.ReactNode => {
+  const getCellValue = (row: any, col: ColumnDef): React.ReactNode => {
     if (col.render) return col.render(row);
     const val = (row as any)[col.key];
     if (val === null || val === undefined || val === '') return <span className="text-gray-300">—</span>;
@@ -408,6 +479,45 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
         </div>
       </div>
 
+      {/* ══ Tipo de Reporte ══ */}
+      <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="fluid-px-5 fluid-py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-primary-600" />
+            <h2 className="font-semibold text-gray-900 fluid-text-base">Tipo de Reporte</h2>
+          </div>
+        </div>
+        <div className="fluid-p-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+          {REPORT_TYPES.map(rt => (
+            <button
+              key={rt.value}
+              disabled={rt.disabled}
+              onClick={() => setReportType(rt.value)}
+              className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                reportType === rt.value
+                  ? 'border-primary-500 bg-primary-50 shadow-md'
+                  : rt.disabled
+                  ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                  : 'border-gray-200 hover:border-primary-300 hover:bg-gray-50'
+              }`}
+            >
+              <span className={reportType === rt.value ? 'text-primary-600' : 'text-gray-400'}>{rt.icon}</span>
+              <span className={`font-semibold text-sm text-center leading-tight ${reportType === rt.value ? 'text-primary-700' : 'text-gray-700'}`}>
+                {rt.label}
+              </span>
+              <span className={`text-[11px] text-center ${reportType === rt.value ? 'text-primary-500' : 'text-gray-400'}`}>
+                {rt.description}
+              </span>
+              {rt.disabled && (
+                <span className="absolute top-2 right-2 bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                  Próximamente
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ══ Step 1: Selector de Columnas ══ */}
       <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="fluid-px-5 fluid-py-4 border-b border-gray-100 flex items-center justify-between">
@@ -423,7 +533,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
         </div>
 
         <div className="fluid-p-5 space-y-4">
-          {COLUMN_GROUPS.map(group => {
+          {columnGroups.map(group => {
             const cols = visibleColumns.filter(c => c.group === group);
             const allSel = cols.every(c => selectedCols.includes(c.key));
             const someSel = cols.some(c => selectedCols.includes(c.key));
@@ -578,6 +688,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
               </select>
             </div>
 
+            {reportType !== 'materiales' && (
             <div className="flex flex-wrap gap-3">
               {/* Standard */}
               <select value={standardId} onChange={e => setStandardId(e.target.value)} className="border border-gray-300 rounded-fluid-lg px-3 py-2.5 fluid-text-sm min-w-[200px] focus:ring-2 focus:ring-primary-500">
@@ -612,6 +723,7 @@ export default function ReportsPage({ backPath = '/partners' }: Props) {
                 <option value="0">Inactivo</option>
               </select>
             </div>
+            )}
 
             {activeFilterCount > 0 && (
               <button onClick={handleClearFilters} className="inline-flex items-center gap-1.5 fluid-text-xs text-red-500 hover:text-red-700">

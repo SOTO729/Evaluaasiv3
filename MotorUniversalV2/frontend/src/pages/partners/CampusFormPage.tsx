@@ -71,6 +71,12 @@ import {
   removeCampusResponsable,
   type CampusResponsableItem,
 } from '../../services/partnersService';
+import {
+  getConfigSubsistemas,
+  getConfigEstandares,
+  type ConfigSubsistema,
+  type ConfigEstandar,
+} from '../../services/vmSessionsService';
 
 export default function CampusFormPage() {
   const { partnerId: urlPartnerId, campusId } = useParams();
@@ -98,6 +104,11 @@ export default function CampusFormPage() {
   const [responsables, setResponsables] = useState<CampusResponsableItem[]>([]);
   const [loadingResp, setLoadingResp] = useState(false);
   const [showAddResp, setShowAddResp] = useState(false);
+
+  // Config DB: Subsistemas y Estándares (para dropdowns VDI)
+  const [configSubsistemas, setConfigSubsistemas] = useState<ConfigSubsistema[]>([]);
+  const [configEstandares, setConfigEstandares] = useState<ConfigEstandar[]>([]);
+  const [loadingConfigData, setLoadingConfigData] = useState(false);
   const [savingResp, setSavingResp] = useState(false);
   const [respError, setRespError] = useState<string | null>(null);
   const [newRespPassword, setNewRespPassword] = useState<string | null>(null);
@@ -145,6 +156,10 @@ export default function CampusFormPage() {
     require_exam_pin: false,
     enable_session_calendar: false,
     session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
+    config_subsistema_id: null as number | null,
+    config_plantel_id: null as number | null,
+    config_certificacion_id: null as number | null,
+    config_etapa_id: null as number | null,
     assignment_validity_months: 12,
     certification_cost: 0,
     retake_cost: 0,
@@ -173,6 +188,20 @@ export default function CampusFormPage() {
   useEffect(() => {
     loadInitialData();
   }, [urlPartnerId, campusId]);
+
+  // Cargar subsistemas y estándares de EvaluaasiConfig cuando se habilitan VMs
+  useEffect(() => {
+    if ((configData.enable_virtual_machines || configData.enable_session_calendar) && configSubsistemas.length === 0 && !loadingConfigData) {
+      setLoadingConfigData(true);
+      Promise.all([getConfigSubsistemas(), getConfigEstandares()])
+        .then(([subs, ests]) => {
+          setConfigSubsistemas(subs);
+          setConfigEstandares(ests);
+        })
+        .catch(() => {})
+        .finally(() => setLoadingConfigData(false));
+    }
+  }, [configData.enable_virtual_machines, configData.enable_session_calendar]);
 
   const loadInitialData = async () => {
     try {
@@ -229,6 +258,10 @@ export default function CampusFormPage() {
           require_exam_pin: campus.require_exam_pin ?? false,
           enable_session_calendar: campus.enable_session_calendar ?? false,
           session_scheduling_mode: campus.session_scheduling_mode ?? 'leader_only',
+          config_subsistema_id: campus.config_subsistema_id ?? null,
+          config_plantel_id: campus.config_plantel_id ?? null,
+          config_certificacion_id: campus.config_certificacion_id ?? null,
+          config_etapa_id: campus.config_etapa_id ?? null,
           assignment_validity_months: campus.assignment_validity_months || 12,
           certification_cost: campus.certification_cost || 0,
           retake_cost: campus.retake_cost || 0,
@@ -441,6 +474,10 @@ export default function CampusFormPage() {
             require_exam_pin: configData.require_exam_pin,
             enable_session_calendar: configData.enable_session_calendar,
             session_scheduling_mode: configData.session_scheduling_mode,
+            config_subsistema_id: configData.config_subsistema_id,
+            config_plantel_id: configData.config_plantel_id,
+            config_certificacion_id: configData.config_certificacion_id,
+            config_etapa_id: configData.config_etapa_id,
             assignment_validity_months: configData.assignment_validity_months || 12,
             certification_cost: configData.certification_cost,
             retake_cost: configData.retake_cost,
@@ -491,6 +528,10 @@ export default function CampusFormPage() {
         require_exam_pin: configData.require_exam_pin,
         enable_session_calendar: configData.enable_session_calendar,
         session_scheduling_mode: configData.session_scheduling_mode,
+        config_subsistema_id: configData.config_subsistema_id,
+        config_plantel_id: configData.config_plantel_id,
+        config_certificacion_id: configData.config_certificacion_id,
+        config_etapa_id: configData.config_etapa_id,
         assignment_validity_months: configData.assignment_validity_months || 12,
         certification_cost: configData.certification_cost,
         retake_cost: configData.retake_cost,
@@ -1313,6 +1354,83 @@ export default function CampusFormPage() {
                               </div>
                             </label>
                           </div>
+                        </div>
+                      )}
+                      {/* Mapeo EvaluaasiConfig (VDIs) */}
+                      {(configData.enable_virtual_machines || configData.enable_session_calendar) && (
+                        <div className="ml-6 fluid-p-4 bg-gray-50 rounded-fluid-xl border border-gray-200">
+                          <p className="fluid-text-xs text-gray-600 mb-3 font-medium">Mapeo a EvaluaasiConfig (VDIs)</p>
+                          {loadingConfigData ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                              <span className="ml-2 text-sm text-gray-500">Cargando catálogos...</span>
+                            </div>
+                          ) : (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">SubsistemaId</label>
+                              <select
+                                value={configData.config_subsistema_id ?? ''}
+                                onChange={(e) => handleConfigChange('config_subsistema_id', e.target.value ? Number(e.target.value) : null)}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              >
+                                <option value="">— Seleccionar subsistema —</option>
+                                {configSubsistemas.map((s) => (
+                                  <option key={s.subsistema_id} value={s.subsistema_id}>
+                                    {s.subsistema_id} — {s.abreviatura || s.nombre}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-gray-400 mt-1">Subsistema en EvaluaasiConfig</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">PlantelId</label>
+                              <input
+                                type="number"
+                                value={configData.config_plantel_id ?? ''}
+                                onChange={(e) => handleConfigChange('config_plantel_id', e.target.value ? Number(e.target.value) : null)}
+                                placeholder="Ej: 2"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              />
+                              <p className="text-xs text-gray-400 mt-1">ID del plantel en EvaluaasiConfig</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Certificación (Estándar)</label>
+                              <select
+                                value={configData.config_certificacion_id ?? ''}
+                                onChange={(e) => {
+                                  const val = e.target.value ? Number(e.target.value) : null;
+                                  handleConfigChange('config_certificacion_id', val);
+                                  // Auto-fill EtapaId del estándar seleccionado
+                                  if (val) {
+                                    const est = configEstandares.find((x) => x.estandar_id === val);
+                                    if (est) handleConfigChange('config_etapa_id', est.etapa_id);
+                                  }
+                                }}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                              >
+                                <option value="">— Seleccionar estándar —</option>
+                                {configEstandares.map((e) => (
+                                  <option key={e.estandar_id} value={e.estandar_id}>
+                                    {e.identificador} — {e.nombre}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-gray-400 mt-1">Estándar de competencia (dbo.Estandar)</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">EtapaId</label>
+                              <input
+                                type="number"
+                                value={configData.config_etapa_id ?? ''}
+                                onChange={(e) => handleConfigChange('config_etapa_id', e.target.value ? Number(e.target.value) : null)}
+                                placeholder="Ej: 1"
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              />
+                              <p className="text-xs text-gray-400 mt-1">Se asigna automáticamente al elegir certificación</p>
+                            </div>
+                          </div>
+                          )}
                         </div>
                       )}
                     </div>

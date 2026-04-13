@@ -13,16 +13,19 @@ class Result(db.Model):
     __tablename__ = 'results'
     
     id = db.Column(db.String(36), primary_key=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
-    voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id'), nullable=True)  # Nullable para permitir resultados sin voucher
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
+    voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id', ondelete='NO ACTION'), nullable=True, index=True)  # Nullable para permitir resultados sin voucher
     exam_id = db.Column(db.Integer, nullable=False, index=True)
     
     # Relación con Estándar de Competencia (ECM) - los resultados se asocian al ECM
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True, index=True)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Contexto de grupo - de qué asignación proviene este resultado
     group_id = db.Column(db.Integer, nullable=True, index=True)
     group_exam_id = db.Column(db.Integer, nullable=True, index=True)
+    
+    # Modo: 'exam' o 'simulator' (null = exam para compatibilidad)
+    mode = db.Column(db.String(20), nullable=True)
     
     # Resultado
     score = db.Column(db.Integer, nullable=False)  # Puntaje obtenido (0-100)
@@ -81,6 +84,7 @@ class Result(db.Model):
             'competency_standard_id': self.competency_standard_id,
             'group_id': self.group_id,
             'group_exam_id': self.group_exam_id,
+            'mode': self.mode or 'exam',
             'score': self.score,
             'status': self.status,
             'result': self.result,

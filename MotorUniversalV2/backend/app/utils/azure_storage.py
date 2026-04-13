@@ -17,6 +17,17 @@ SAS_TOKEN_DURATION_HOURS = 24  # Duración de SAS tokens en horas
 VIDEO_ACCOUNT_NAME = 'evaluaasivideos'
 VIDEO_ACCOUNT_KEY = os.getenv('AZURE_VIDEO_ACCOUNT_KEY', '')
 
+# Si no hay VIDEO_ACCOUNT_KEY explícita, extraerla de la connection string
+if not VIDEO_ACCOUNT_KEY:
+    _video_conn_str = os.getenv('AZURE_VIDEO_STORAGE_CONNECTION_STRING', '')
+    if _video_conn_str:
+        _match = re.search(r'AccountKey=([^;]+)', _video_conn_str)
+        if _match:
+            VIDEO_ACCOUNT_KEY = _match.group(1)
+        _name_match = re.search(r'AccountName=([^;]+)', _video_conn_str)
+        if _name_match:
+            VIDEO_ACCOUNT_NAME = _name_match.group(1)
+
 
 class AzureStorageService:
     """Servicio para subir archivos a Azure Blob Storage"""
@@ -363,7 +374,7 @@ class AzureStorageService:
             
             # Generar URL con SAS token (válido por 10 años)
             sas_token = generate_blob_sas(
-                account_name='evaluaasivideos',
+                account_name=VIDEO_ACCOUNT_NAME,
                 container_name=self.video_container_name,
                 blob_name=unique_filename,
                 account_key=VIDEO_ACCOUNT_KEY,

@@ -153,19 +153,28 @@ export async function getPaymentMethods(bin: string): Promise<PaymentMethodInfo[
   return response.json();
 }
 
+export interface InstallmentsResult {
+  payer_costs: InstallmentOption[];
+  issuer_id?: string;
+}
+
 /** Obtiene opciones de cuotas para un monto y método de pago. */
 export async function getInstallments(
   amount: number,
   paymentMethodId: string,
   issuerId?: string
-): Promise<InstallmentOption[]> {
+): Promise<InstallmentsResult> {
   const publicKey = getMpPublicKey();
   let url = `https://api.mercadopago.com/v1/payment_methods/installments?public_key=${publicKey}&amount=${amount}&payment_method_id=${paymentMethodId}`;
   if (issuerId) url += `&issuer.id=${issuerId}`;
   const response = await fetch(url);
-  if (!response.ok) return [];
+  if (!response.ok) return { payer_costs: [] };
   const data = await response.json();
-  return data[0]?.payer_costs || [];
+  const entry = data[0];
+  return {
+    payer_costs: entry?.payer_costs || [],
+    issuer_id: entry?.issuer?.id ? String(entry.issuer.id) : undefined,
+  };
 }
 
 /** Procesa un pago directo con token a través de nuestro backend. */

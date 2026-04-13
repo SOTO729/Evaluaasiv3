@@ -16,8 +16,8 @@ class BadgeTemplate(db.Model):
     criteria_url = db.Column(db.String(500))
 
     # Asociaciones opcionales
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='SET NULL'), nullable=True)
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='SET NULL'), nullable=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='SET NULL'), nullable=True, index=True)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='SET NULL'), nullable=True, index=True)
 
     # Imagen de la insignia
     badge_image_url = db.Column(db.String(500))
@@ -39,7 +39,7 @@ class BadgeTemplate(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     # Auditoría
-    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'))
+    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -84,9 +84,9 @@ class IssuedBadge(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     badge_uuid = db.Column(db.String(36), unique=True, nullable=False, index=True)
-    badge_template_id = db.Column(db.Integer, db.ForeignKey('badge_templates.id', ondelete='CASCADE'), nullable=False)
+    badge_template_id = db.Column(db.Integer, db.ForeignKey('badge_templates.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
-    result_id = db.Column(db.String(36), db.ForeignKey('results.id', ondelete='SET NULL'), nullable=True)
+    result_id = db.Column(db.String(36), db.ForeignKey('results.id', ondelete='SET NULL'), nullable=True, index=True)
 
     badge_code = db.Column(db.String(12), unique=True, nullable=False, index=True)
     credential_json = db.Column(db.Text)  # JSON-LD completo del OpenBadgeCredential

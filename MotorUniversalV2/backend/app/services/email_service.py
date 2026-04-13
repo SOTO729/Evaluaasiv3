@@ -1207,6 +1207,125 @@ def send_contact_form_email(name: str, email: str, subject_text: str, message: s
 
 
 # ═══════════════════════════════════════════════════════════════
+# 7. NOTIFICACIONES VDI / SESIONES VM
+# ═══════════════════════════════════════════════════════════════
+
+# Destinatarios de notificaciones VDI (equipo de operaciones)
+VDI_NOTIFICATION_RECIPIENTS = os.getenv(
+    'VDI_NOTIFICATION_EMAILS',
+    'ocorreas@grupoeduit.com,oh@grupoeduit.com,jcamacho@grupoeduit.com,pvaleriano@grupoeduit.com,jrodriguez@grupoeduit.com,namos@grupoeduit.com'
+).split(',')
+
+
+def send_vdi_session_notification(
+    action: str,
+    candidate_name: str,
+    candidate_username: str,
+    session_date: str,
+    start_hour: int,
+    workstation_name: str = '',
+    campus_name: str = '',
+    session_type: str = 'simulador',
+    cancelled_by: str = '',
+    cancellation_reason: str = '',
+) -> bool:
+    """
+    Notificar al equipo de operaciones sobre sesiones VDI creadas o canceladas.
+    
+    Args:
+        action: 'created' o 'cancelled'
+        candidate_name: Nombre completo del candidato
+        candidate_username: Username del candidato (usado en AD/Guacamole)
+        session_date: Fecha en formato legible
+        start_hour: Hora de inicio (0-23)
+        workstation_name: Nombre de la VDI asignada
+        campus_name: Nombre del plantel
+        session_type: simulador/examen/parcial
+        cancelled_by: Quien canceló (solo para cancelaciones)
+        cancellation_reason: Razón de cancelación
+    """
+    type_labels = {'simulador': 'Simulador', 'examen': 'Examen', 'parcial': 'Parcial'}
+    type_label = type_labels.get(session_type, session_type)
+    hour_str = f"{start_hour:02d}:00 - {start_hour + 1:02d}:00"
+
+    if action == 'created':
+        subject = f"🖥️ Nueva sesión VDI: {candidate_username} — {session_date} {hour_str}"
+        color = '#059669'
+        icon = '🆕'
+        title = 'Nueva sesión VDI programada'
+        status_html = '<span style="color:#059669;font-weight:700;">Programada</span>'
+        
+        rows = [
+            ('Candidato', f'{candidate_name} ({candidate_username})'),
+            ('Fecha', session_date),
+            ('Horario', hour_str),
+            ('Tipo', type_label),
+            ('VDI asignada', workstation_name or 'Pendiente'),
+            ('Plantel', campus_name or '—'),
+            ('Estado', 'Programada'),
+        ]
+        extra_html = ''
+    else:
+        subject = f"❌ Sesión VDI cancelada: {candidate_username} — {session_date} {hour_str}"
+        color = '#dc2626'
+        icon = '🚫'
+        title = 'Sesión VDI cancelada'
+        status_html = '<span style="color:#dc2626;font-weight:700;">Cancelada</span>'
+        
+        rows = [
+            ('Candidato', f'{candidate_name} ({candidate_username})'),
+            ('Fecha', session_date),
+            ('Horario', hour_str),
+            ('Tipo', type_label),
+            ('VDI', workstation_name or '—'),
+            ('Plantel', campus_name or '—'),
+            ('Cancelado por', cancelled_by or '—'),
+        ]
+        extra_html = ''
+        if cancellation_reason:
+            extra_html = f"""
+            <div style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;margin:16px 0;">
+                <p style="margin:0 0 4px;color:#991b1b;font-size:12px;font-weight:700;">Razón de cancelación:</p>
+                <p style="margin:0;color:#7f1d1d;font-size:13px;">{cancellation_reason}</p>
+            </div>"""
+
+    body = f"""
+        <h2 style="margin:0 0 8px;color:#111827;font-size:20px;">{icon} {title}</h2>
+        <p style="color:#4b5563;font-size:14px;line-height:1.6;">
+            Se ha {'programado' if action == 'created' else 'cancelado'} una sesión de máquina virtual:
+        </p>
+        
+        {_info_table(rows)}
+        {extra_html}
+        
+        <p style="color:#9ca3af;font-size:12px;margin:20px 0 0;">
+            Esta notificación es automática. El sistema EXE procesará las sesiones pendientes.
+        </p>
+    """
+
+    # Enviar al primer destinatario con CC al resto
+    primary = VDI_NOTIFICATION_RECIPIENTS[0].strip()
+    cc_list = [e.strip() for e in VDI_NOTIFICATION_RECIPIENTS[1:] if e.strip()]
+
+    return send_email(
+        to=primary,
+        subject=subject,
+        html=_base_template(title, body),
+        cc=cc_list if cc_list else None,
+        plain_text=(
+            f"{title}\n\n"
+            f"Candidato: {candidate_name} ({candidate_username})\n"
+            f"Fecha: {session_date}\n"
+            f"Horario: {hour_str}\n"
+            f"Tipo: {type_label}\n"
+            f"VDI: {workstation_name or 'Pendiente'}\n"
+            f"Plantel: {campus_name or '—'}\n"
+            + (f"Cancelado por: {cancelled_by}\nRazón: {cancellation_reason}\n" if action == 'cancelled' else '')
+        ),
+    )
+
+
+# ═══════════════════════════════════════════════════════════════
 # 7. NOTIFICACIÓN DE RESOLUCIÓN DE SOLICITUD (AL COORDINADOR)
 # ═══════════════════════════════════════════════════════════════
 

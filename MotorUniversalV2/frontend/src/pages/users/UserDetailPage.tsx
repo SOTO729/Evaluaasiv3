@@ -181,6 +181,10 @@ export default function UserDetailPage() {
       setChangingPassword(true);
       await changeUserPassword(user.id, newPassword);
       setShowPasswordModal(false);
+      // Mostrar la contraseña recién establecida para que el admin pueda copiarla
+      setGeneratedPassword(newPassword);
+      setShowGeneratedPasswordModal(true);
+      setShowStoredPassword(false);
       setNewPassword('');
       setSuccess('Contraseña actualizada correctamente');
     } catch (err: any) {

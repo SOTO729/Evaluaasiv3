@@ -527,7 +527,7 @@ def upload_issuer_logo(template_id):
 @bp.route('/templates/<int:template_id>/issuer-logo', methods=['DELETE'])
 @jwt_required()
 def delete_issuer_logo(template_id):
-    """Eliminar logo del emisor de la plantilla."""
+    """Eliminar logo del emisor de TODAS las plantillas (emisor compartido)."""
     _require_roles('admin', 'editor', 'coordinator')
     template = BadgeTemplate.query.get_or_404(template_id)
 
@@ -541,11 +541,14 @@ def delete_issuer_logo(template_id):
     except Exception:
         pass
 
-    template.issuer_logo_url = None
-    template.issuer_logo_blob_name = None
+    # Eliminar de TODAS las plantillas (mismo emisor para todas)
+    all_templates = BadgeTemplate.query.all()
+    for t in all_templates:
+        t.issuer_logo_url = None
+        t.issuer_logo_blob_name = None
     db.session.commit()
 
-    return jsonify({'message': 'Logo del emisor eliminado'})
+    return jsonify({'message': 'Logo del emisor eliminado de todas las plantillas'})
 
 
 # ═══════════════════════════════════════════════

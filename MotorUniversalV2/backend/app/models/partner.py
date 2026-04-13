@@ -126,7 +126,7 @@ class PartnerStatePresence(db.Model):
     __tablename__ = 'partner_state_presences'
     
     id = db.Column(db.Integer, primary_key=True)
-    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='CASCADE'), nullable=False, index=True)
     state_name = db.Column(db.String(50), nullable=False)  # Nombre del estado mexicano
     
     # Contacto regional (opcional)
@@ -190,7 +190,7 @@ class Campus(db.Model):
     director_date_of_birth = db.Column(db.Date)  # Fecha de nacimiento
     
     # Responsable del plantel (usuario del sistema - para activación)
-    responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'))
+    responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), index=True)
 
     # Coordinador dueño (multi-tenant)
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
@@ -237,6 +237,12 @@ class Campus(db.Model):
     # Calendario de sesiones
     enable_session_calendar = db.Column(db.Boolean, default=False)  # Habilitar calendario de sesiones
     session_scheduling_mode = db.Column(db.String(20), default='leader_only')  # 'leader_only' o 'candidate_self'
+    
+    # Mapeo a EvaluaasiConfig (legacy DB para VDIs/AD/Guacamole)
+    config_subsistema_id = db.Column(db.Integer, nullable=True)  # SubsistemaId en dbo.Subsistemas
+    config_plantel_id = db.Column(db.Integer, nullable=True)  # PlantelId usado en dbo.Sesion
+    config_certificacion_id = db.Column(db.Integer, nullable=True)  # CertificacionId (dbo.Estandar.EstadarId)
+    config_etapa_id = db.Column(db.Integer, nullable=True)  # EtapaId para la certificación
     
     # Vigencia del plantel (licencia)
     license_start_date = db.Column(db.Date)  # Fecha de inicio de vigencia (legacy)
@@ -321,6 +327,10 @@ class Campus(db.Model):
             'daily_exam_pin': self.get_daily_pin() if self.require_exam_pin else None,
             'enable_session_calendar': self.enable_session_calendar if self.enable_session_calendar is not None else False,
             'session_scheduling_mode': self.session_scheduling_mode or 'leader_only',
+            'config_subsistema_id': self.config_subsistema_id,
+            'config_plantel_id': self.config_plantel_id,
+            'config_certificacion_id': self.config_certificacion_id,
+            'config_etapa_id': self.config_etapa_id,
             'assignment_validity_months': self.assignment_validity_months or 12,
             'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
             'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
@@ -347,6 +357,10 @@ class Campus(db.Model):
                 'daily_exam_pin': self.get_daily_pin() if self.require_exam_pin else None,
                 'enable_session_calendar': self.enable_session_calendar if self.enable_session_calendar is not None else False,
                 'session_scheduling_mode': self.session_scheduling_mode or 'leader_only',
+                'config_subsistema_id': self.config_subsistema_id,
+                'config_plantel_id': self.config_plantel_id,
+                'config_certificacion_id': self.config_certificacion_id,
+                'config_etapa_id': self.config_etapa_id,
                 'assignment_validity_months': self.assignment_validity_months or 12,
                 'certification_cost': float(self.certification_cost) if self.certification_cost else 0,
                 'retake_cost': float(self.retake_cost) if self.retake_cost else 0,
@@ -431,13 +445,13 @@ class CampusCompetencyStandard(db.Model):
     __tablename__ = 'campus_competency_standards'
     
     id = db.Column(db.Integer, primary_key=True)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='CASCADE'), nullable=False)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Metadatos
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
     
     # Índice único para evitar duplicados
     __table_args__ = (
@@ -468,7 +482,7 @@ class SchoolCycle(db.Model):
     __tablename__ = 'school_cycles'
     
     id = db.Column(db.Integer, primary_key=True)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
     
     name = db.Column(db.String(100), nullable=False)  # Ej: "2026-2027", "Semestre 1 2026"
     cycle_type = db.Column(db.String(20), nullable=False)  # 'annual' o 'semester'
@@ -521,7 +535,7 @@ class CandidateGroup(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
-    school_cycle_id = db.Column(db.Integer, db.ForeignKey('school_cycles.id', ondelete='SET NULL'), nullable=True)
+    school_cycle_id = db.Column(db.Integer, db.ForeignKey('school_cycles.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Multi-tenant: coordinador dueño del grupo (aislamiento por coordinador)
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
@@ -726,11 +740,11 @@ class GroupExam(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False, index=True)
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='CASCADE'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Fecha de asignación
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Período de disponibilidad (opcional)
     available_from = db.Column(db.DateTime, nullable=True)
@@ -940,8 +954,8 @@ class GroupExamMaterial(db.Model):
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
-    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False)
-    study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False, index=True)
+    study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False, index=True)
     is_included = db.Column(db.Boolean, default=True)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -1005,12 +1019,12 @@ class GroupStudyMaterial(db.Model):
     __tablename__ = 'group_study_materials'
     
     id = db.Column(db.Integer, primary_key=True)
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False)
-    study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False, index=True)
+    study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Fecha de asignación
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Período de disponibilidad (opcional)
     available_from = db.Column(db.DateTime, nullable=True)
@@ -1084,8 +1098,8 @@ class GroupStudyMaterialMember(db.Model):
     __tablename__ = 'group_study_material_members'
     
     id = db.Column(db.Integer, primary_key=True)
-    group_study_material_id = db.Column(db.Integer, db.ForeignKey('group_study_materials.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    group_study_material_id = db.Column(db.Integer, db.ForeignKey('group_study_materials.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Índice único para evitar duplicados
@@ -1132,15 +1146,15 @@ class EcmCandidateAssignment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     assignment_number = db.Column(db.String(14), unique=True, nullable=False, index=True)
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=False)
-    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id'), nullable=False)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='NO ACTION'), nullable=False, index=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='NO ACTION'), nullable=False, index=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True, index=True)
     group_id = db.Column(db.Integer, nullable=True)  # Solo referencia, sin FK para que persista si se borra el grupo
     group_name = db.Column(db.String(200), nullable=True)  # Nombre del grupo al momento de la asignación
     group_exam_id = db.Column(db.Integer, nullable=True, index=True)  # Referencia al group_exam original
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     assignment_source = db.Column(db.String(20), default='bulk', nullable=False)  # 'bulk' o 'selected'
     
     # Estado del trámite CONOCER
@@ -1230,19 +1244,19 @@ class EcmSwapHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     assignment_number = db.Column(db.String(14), nullable=False, index=True)
     ecm_assignment_id = db.Column(db.Integer, nullable=True)  # Referencia sin FK para que persista
-    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=False)
+    competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='NO ACTION'), nullable=False, index=True)
     group_id = db.Column(db.Integer, nullable=False)
     group_name = db.Column(db.String(200), nullable=True)
     exam_id = db.Column(db.Integer, nullable=False)
     group_exam_id = db.Column(db.Integer, nullable=True)
     
     # Candidato origen (pierde el número)
-    from_user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    from_user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     # Candidato destino (recibe el número)
-    to_user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    to_user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     
     # Quién ejecutó la reasignación
-    performed_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    performed_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     performed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     
     # Tipo de operación
@@ -1299,7 +1313,7 @@ class ConocerEmailContact(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     created_by = db.relationship('User', foreign_keys=[created_by_id])
     
@@ -1323,7 +1337,7 @@ class ConocerSolicitudLog(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    sent_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    sent_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     recipients = db.Column(db.Text, nullable=False)  # JSON array of email addresses
     total_certificates = db.Column(db.Integer, default=0, nullable=False)
     ecm_summary = db.Column(db.Text, nullable=True)  # JSON: [{code, count}]
@@ -1363,13 +1377,13 @@ class EcmRetake(db.Model):
     __tablename__ = 'ecm_retakes'
     
     id = db.Column(db.Integer, primary_key=True)
-    assignment_id = db.Column(db.Integer, db.ForeignKey('ecm_candidate_assignments.id', ondelete='CASCADE'), nullable=False)
+    assignment_id = db.Column(db.Integer, db.ForeignKey('ecm_candidate_assignments.id', ondelete='CASCADE'), nullable=False, index=True)
     group_exam_id = db.Column(db.Integer, nullable=False)  # GroupExam donde se aplica la retoma
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     
     # Costo cobrado
     cost = db.Column(db.Numeric(10, 2), default=0)
-    transaction_id = db.Column(db.Integer, db.ForeignKey('balance_transactions.id', ondelete='SET NULL'))
+    transaction_id = db.Column(db.Integer, db.ForeignKey('balance_transactions.id', ondelete='SET NULL'), index=True)
     
     # Estado
     status = db.Column(db.String(20), default='active', nullable=False)  # active, used, expired
@@ -1377,7 +1391,7 @@ class EcmRetake(db.Model):
     # Intentos: la retoma da exactamente 1 intento adicional
     result_id = db.Column(db.String(36))  # ID del Result generado al usar la retoma (nullable)
     
-    applied_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    applied_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     used_at = db.Column(db.DateTime)  # Cuando el candidato usó la retoma
     
@@ -1421,9 +1435,9 @@ class BulkUploadBatch(db.Model):
     uploaded_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
 
     # Contexto de destino
-    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='SET NULL'), nullable=True)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True)
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='SET NULL'), nullable=True, index=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True, index=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)
 
     # Snapshot legible (por si se borra el partner/campus/grupo después)
     partner_name = db.Column(db.String(200))

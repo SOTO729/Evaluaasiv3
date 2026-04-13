@@ -19,8 +19,9 @@ from app.models import (
     Partner, PartnerStatePresence, Campus, CandidateGroup, GroupMember,
     User, MEXICAN_STATES, SchoolCycle
 )
-from app.models.partner import GroupExam, GroupExamMember, GroupExamMaterial
-from app.models.user import decrypt_password
+from app.models.partner import GroupExam, GroupExamMember, GroupExamMaterial, GroupStudyMaterial
+from app.models.study_content import StudyMaterial, StudySession, StudyTopic
+from app.models.user import decrypt_password, encrypt_password
 from app.models.balance import CoordinatorBalance, BalanceTransaction, create_balance_transaction
 from app.models.competency_standard import CompetencyStandard
 from app.models.result import Result
@@ -719,6 +720,7 @@ def create_campus(partner_id):
             can_view_reports=True
         )
         director_user.set_password(director_password)
+        director_user.encrypted_password = encrypt_password(director_password)
         
         db.session.add(director_user)
         
@@ -1206,6 +1208,7 @@ def create_campus_responsable(campus_id):
             return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
         
         new_user.set_password(password)
+        new_user.encrypted_password = encrypt_password(password)
         
         db.session.add(new_user)
         
@@ -1731,6 +1734,7 @@ def add_campus_responsable(campus_id):
             return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
         
         new_user.set_password(password)
+        new_user.encrypted_password = encrypt_password(password)
 
         # Aplicar datos RENAPO si la validación fue exitosa
         if renapo_result and renapo_result.valid:
@@ -2007,6 +2011,20 @@ def configure_campus(campus_id):
             if mode in ('leader_only', 'candidate_self'):
                 campus.session_scheduling_mode = mode
         
+        # Mapeo a EvaluaasiConfig (VDIs/AD/Guacamole)
+        if 'config_subsistema_id' in data:
+            val = data['config_subsistema_id']
+            campus.config_subsistema_id = int(val) if val else None
+        if 'config_plantel_id' in data:
+            val = data['config_plantel_id']
+            campus.config_plantel_id = int(val) if val else None
+        if 'config_certificacion_id' in data:
+            val = data['config_certificacion_id']
+            campus.config_certificacion_id = int(val) if val else None
+        if 'config_etapa_id' in data:
+            val = data['config_etapa_id']
+            campus.config_etapa_id = int(val) if val else None
+        
         # Vigencia de asignaciones (meses)
         if 'assignment_validity_months' in data:
             val = data['assignment_validity_months']
@@ -2116,6 +2134,10 @@ def get_campus_config(campus_id):
             'daily_exam_pin': campus.get_daily_pin() if campus.require_exam_pin else None,
                 'enable_session_calendar': campus.enable_session_calendar or False,
                 'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
+                'config_subsistema_id': campus.config_subsistema_id,
+                'config_plantel_id': campus.config_plantel_id,
+                'config_certificacion_id': campus.config_certificacion_id,
+                'config_etapa_id': campus.config_etapa_id,
                 'assignment_validity_months': campus.assignment_validity_months or 12,
                 'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
                 'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
@@ -3100,6 +3122,10 @@ def get_group_config(group_id):
             'require_exam_pin': campus.require_exam_pin or False,
             'enable_session_calendar': campus.enable_session_calendar or False,
             'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
+            'config_subsistema_id': campus.config_subsistema_id,
+            'config_plantel_id': campus.config_plantel_id,
+            'config_certificacion_id': campus.config_certificacion_id,
+            'config_etapa_id': campus.config_etapa_id,
             'certification_cost': float(campus.certification_cost) if campus.certification_cost else 0,
             'retake_cost': float(campus.retake_cost) if campus.retake_cost else 0,
             'max_retakes': campus.max_retakes if campus.max_retakes is not None else 0,
@@ -5505,7 +5531,8 @@ def assignment_cost_preview(group_id):
         if not campus:
             return jsonify({'error': 'Campus no encontrado'}), 404
         
-        if group.certification_cost_override is not None:
+        has_cost_override = group.certification_cost_override is not None and group.use_custom_config
+        if has_cost_override:
             unit_cost = float(group.certification_cost_override)
         elif campus.certification_cost is not None:
             unit_cost = float(campus.certification_cost)
@@ -5528,13 +5555,18 @@ def assignment_cost_preview(group_id):
         billable_count = units - already_assigned_count
         total_cost = unit_cost * billable_count
         
-        # Obtener saldo actual del coordinador para este plantel
-        coordinator_id = g.current_user.id
-        balance = CoordinatorBalance.query.filter_by(
-            coordinator_id=coordinator_id,
-            campus_id=group.campus_id
-        ).first()
-        current_balance = float(balance.current_balance) if balance else 0.0
+        # Obtener saldo actual para este plantel
+        # Responsable: sumar TODOS los coordinadores del campus (consistente con my-campus-balance)
+        # Coordinador/admin: usar solo su propio balance
+        if g.current_user.role == 'responsable':
+            all_balances = CoordinatorBalance.query.filter_by(campus_id=group.campus_id).all()
+            current_balance = sum(float(b.current_balance or 0) for b in all_balances)
+        else:
+            balance = CoordinatorBalance.query.filter_by(
+                coordinator_id=g.current_user.id,
+                campus_id=group.campus_id
+            ).first()
+            current_balance = float(balance.current_balance) if balance else 0.0
         
         remaining_balance = current_balance - total_cost
         has_sufficient_balance = remaining_balance >= 0
@@ -5554,7 +5586,7 @@ def assignment_cost_preview(group_id):
             'is_admin': is_admin,
             'campus_name': campus.name,
             'group_name': group.name,
-            'cost_source': 'grupo (override)' if group.certification_cost_override is not None else 'campus',
+            'cost_source': 'grupo (override)' if has_cost_override else 'campus',
         })
         
     except HTTPException:
@@ -5918,7 +5950,7 @@ def assign_exam_to_group(group_id):
         is_admin_or_dev = user_role in ('admin', 'developer')
         
         campus = Campus.query.get(group.campus_id)
-        if group.certification_cost_override is not None:
+        if group.certification_cost_override is not None and group.use_custom_config:
             unit_cost = float(group.certification_cost_override)
         elif campus and campus.certification_cost is not None:
             unit_cost = float(campus.certification_cost)
@@ -5928,14 +5960,36 @@ def assign_exam_to_group(group_id):
         billable_count = len(new_ecm_user_ids)
         total_cost = unit_cost * billable_count
         
-        # Solo verificar y deducir si hay costo > 0 y el usuario es coordinador (no admin/dev)
+        # Solo verificar y deducir si hay costo > 0 y el usuario es coordinador/responsable (no admin/dev)
         if total_cost > 0 and not is_admin_or_dev:
-            coordinator_id = g.current_user.id
-            balance = CoordinatorBalance.query.filter_by(
-                coordinator_id=coordinator_id,
-                campus_id=group.campus_id
-            ).first()
-            current_balance = float(balance.current_balance) if balance else 0.0
+            # Responsable: sumar TODOS los coordinadores del campus (consistente con my-campus-balance)
+            # y deducir del coordinador principal
+            if user_role == 'responsable':
+                all_balances = CoordinatorBalance.query.filter_by(campus_id=group.campus_id).all()
+                current_balance = sum(float(b.current_balance or 0) for b in all_balances)
+                # Para la deducción, usar el coordinador con más saldo
+                if all_balances:
+                    primary_balance = max(all_balances, key=lambda b: float(b.current_balance or 0))
+                    coordinator_id = primary_balance.coordinator_id
+                else:
+                    coordinator_id = None
+            else:
+                coordinator_id = g.current_user.id
+            
+            if not coordinator_id:
+                db.session.rollback()
+                return jsonify({
+                    'error': 'No se encontró un coordinador con saldo asignado para este plantel',
+                    'error_type': 'no_coordinator'
+                }), 400
+            
+            if user_role != 'responsable':
+                # Para coordinador, obtener su propio balance
+                balance = CoordinatorBalance.query.filter_by(
+                    coordinator_id=coordinator_id,
+                    campus_id=group.campus_id
+                ).first()
+                current_balance = float(balance.current_balance) if balance else 0.0
             
             if current_balance < total_cost:
                 db.session.rollback()
@@ -5964,7 +6018,7 @@ def assign_exam_to_group(group_id):
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
-                created_by_id=coordinator_id
+                created_by_id=g.current_user.id
             )
         
         # Crear EcmCandidateAssignment para los nuevos
@@ -6353,7 +6407,7 @@ def add_assignments_to_exam(group_id, exam_id):
         expires_at = assigned_at_now + relativedelta(months=validity_months)
 
         # Calcular costo
-        if group.certification_cost_override is not None:
+        if group.certification_cost_override is not None and group.use_custom_config:
             unit_cost = float(group.certification_cost_override)
         elif campus and campus.certification_cost is not None:
             unit_cost = float(campus.certification_cost)
@@ -11888,23 +11942,48 @@ def get_mis_examenes():
             
             # Filtrar por asignación específica si es individual
             exam_ids = set()
-            exam_group_context = {}  # exam_id -> {group_id, group_exam_id}
+            exam_group_context = {}  # exam_id -> {group_id, group_exam_id, assigned_at}
             for ge in group_exams:
+                is_assigned = False
                 if ge.assignment_type == 'all' or ge.assignment_type is None:
-                    # Asignado a todos los miembros del grupo
-                    exam_ids.add(ge.exam_id)
-                    if ge.exam_id not in exam_group_context:
-                        exam_group_context[ge.exam_id] = {'group_id': ge.group_id, 'group_exam_id': ge.id}
+                    is_assigned = True
                 elif ge.assignment_type == 'selected':
-                    # Verificar si el candidato está asignado específicamente
                     member_assignment = GroupExamMember.query.filter_by(
                         group_exam_id=ge.id,
                         user_id=user_id
                     ).first()
-                    if member_assignment:
-                        exam_ids.add(ge.exam_id)
-                        if ge.exam_id not in exam_group_context:
-                            exam_group_context[ge.exam_id] = {'group_id': ge.group_id, 'group_exam_id': ge.id}
+                    is_assigned = member_assignment is not None
+
+                if is_assigned:
+                    exam_ids.add(ge.exam_id)
+                    # Para exámenes duplicados: verificar si ya tiene pago aprobado
+                    # Si lo tiene, preferir esa asignación; si no, elegir la más reciente
+                    existing = exam_group_context.get(ge.exam_id)
+                    if existing is None:
+                        exam_group_context[ge.exam_id] = {
+                            'group_id': ge.group_id, 'group_exam_id': ge.id,
+                            'assigned_at': ge.assigned_at
+                        }
+                    else:
+                        # Preferir la asignación que ya tiene pago aprobado
+                        from app.models.payment import Payment as PaymentCheck
+                        existing_paid = PaymentCheck.query.filter_by(
+                            user_id=str(user_id),
+                            group_exam_id=existing['group_exam_id'],
+                            payment_type='certification', status='approved'
+                        ).first()
+                        if existing_paid:
+                            continue  # ya tenemos una pagada, mantenerla
+                        new_paid = PaymentCheck.query.filter_by(
+                            user_id=str(user_id),
+                            group_exam_id=ge.id,
+                            payment_type='certification', status='approved'
+                        ).first()
+                        if new_paid or (ge.assigned_at and (not existing['assigned_at'] or ge.assigned_at > existing['assigned_at'])):
+                            exam_group_context[ge.exam_id] = {
+                                'group_id': ge.group_id, 'group_exam_id': ge.id,
+                                'assigned_at': ge.assigned_at
+                            }
             
             exam_ids = list(exam_ids)
         
@@ -12008,6 +12087,118 @@ def get_mis_examenes():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/purchase-details/<int:group_exam_id>', methods=['GET'])
+@jwt_required()
+def get_purchase_details(group_exam_id):
+    """Obtener detalles de compra para un examen asignado: incluye info del examen,
+    materiales de estudio, configuración, costo y nombre del plantel."""
+    from app.models import Exam
+    from app.models.partner import GroupExam, GroupMember, GroupExamMember, GroupExamMaterial
+    from app.models.study_content import StudyMaterial
+
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role != 'candidato':
+            return jsonify({'error': 'Acceso no autorizado'}), 403
+
+        ge = GroupExam.query.get(group_exam_id)
+        if not ge or not ge.is_active:
+            return jsonify({'error': 'Asignación no encontrada'}), 404
+
+        group = CandidateGroup.query.get(ge.group_id)
+        if not group or not group.is_active:
+            return jsonify({'error': 'Grupo no encontrado'}), 404
+
+        # Verificar membresía
+        membership = GroupMember.query.filter_by(
+            user_id=user_id, group_id=group.id, status='active'
+        ).first()
+        if not membership:
+            return jsonify({'error': 'No perteneces a este grupo'}), 403
+
+        campus = Campus.query.get(group.campus_id) if group.campus_id else None
+        exam = Exam.query.get(ge.exam_id)
+        if not exam:
+            return jsonify({'error': 'Examen no encontrado'}), 404
+
+        # Info de precio
+        payments_on = group.enable_online_payments_override if group.enable_online_payments_override is not None else (campus.enable_online_payments if campus else False)
+        cert_cost = float(group.certification_cost_override or (campus.certification_cost if campus else 0) or 0)
+        retake_cost = float(group.retake_cost_override or (campus.retake_cost if campus else 0) or 0)
+
+        # Materiales de estudio asociados
+        custom_mats = GroupExamMaterial.query.filter_by(group_exam_id=ge.id).all()
+        has_custom = len(custom_mats) > 0
+
+        def _material_summary(m):
+            d = m.to_dict()
+            return {
+                'id': d['id'], 'title': d['title'],
+                'description': d.get('description'),
+                'image_url': d.get('image_url'),
+                'sessions_count': d.get('sessions_count', 0),
+                'estimated_time_minutes': d.get('estimated_time_minutes', 0),
+            }
+
+        materials_data = []
+        if has_custom:
+            included_ids = [m.study_material_id for m in custom_mats if m.is_included]
+            if included_ids:
+                mats = StudyMaterial.query.filter(StudyMaterial.id.in_(included_ids), StudyMaterial.is_published == True).all()
+                for m in mats:
+                    materials_data.append(_material_summary(m))
+        else:
+            # Materiales vinculados por exam_ids del material
+            all_mats = StudyMaterial.query.filter(StudyMaterial.is_published == True).all()
+            for m in all_mats:
+                d = m.to_dict()
+                linked = d.get('exam_ids', [])
+                if ge.exam_id in linked:
+                    materials_data.append(_material_summary(m))
+
+        # ECM info
+        ecm_data = None
+        if exam.competency_standard_id:
+            from app.models.competency_standard import CompetencyStandard
+            standard = CompetencyStandard.query.get(exam.competency_standard_id)
+            if standard:
+                ecm_data = {
+                    'code': standard.code, 'name': standard.name,
+                    'logo_url': standard.logo_url,
+                    'brand_name': standard.brand.name if standard.brand else None,
+                    'brand_logo_url': standard.brand.logo_url if standard.brand else None,
+                }
+
+        exam_dict = exam.to_dict()
+
+        return jsonify({
+            'exam': {
+                'id': exam_dict['id'], 'name': exam_dict['name'], 'description': exam_dict.get('description'),
+                'image_url': exam_dict.get('image_url'), 'version': exam_dict.get('version'),
+                'duration_minutes': exam_dict.get('duration_minutes'), 'passing_score': exam_dict.get('passing_score'),
+                'total_questions': exam_dict.get('total_questions', 0), 'total_exercises': exam_dict.get('total_exercises', 0),
+                'has_simulator_content': exam_dict.get('has_simulator_content', False),
+                'ecm': ecm_data,
+            },
+            'campus_name': campus.name if campus else None,
+            'group_name': group.name,
+            'certification_cost': cert_cost,
+            'retake_cost': retake_cost,
+            'max_attempts': ge.max_attempts or 1,
+            'time_limit_minutes': ge.time_limit_minutes or exam.duration_minutes or 0,
+            'exam_content_type': ge.exam_content_type or 'questions_only',
+            'materials': materials_data,
+        })
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/mis-materiales', methods=['GET'])
 @jwt_required()
 def get_mis_materiales():
@@ -12097,6 +12288,23 @@ def get_mis_materiales():
                     has_access = member_assignment is not None
                 
                 if has_access:
+                    # Si el examen requiere pago, verificar que el candidato haya pagado
+                    grp = CandidateGroup.query.get(ge.group_id)
+                    if grp:
+                        campus_obj = Campus.query.get(grp.campus_id) if grp.campus_id else None
+                        payments_on = grp.enable_online_payments_override if grp.enable_online_payments_override is not None else (campus_obj.enable_online_payments if campus_obj else False)
+                        cert_cost = float(grp.certification_cost_override or (campus_obj.certification_cost if campus_obj else 0) or 0)
+                        if payments_on and cert_cost > 0:
+                            from app.models.payment import Payment as PaymentModel
+                            approved_payment = PaymentModel.query.filter_by(
+                                user_id=str(user_id),
+                                group_exam_id=ge.id,
+                                payment_type='certification',
+                                status='approved'
+                            ).first()
+                            if not approved_payment:
+                                continue  # No ha pagado, no mostrar materiales de este examen
+
                     materials = GroupExamMaterial.query.filter_by(
                         group_exam_id=ge.id,
                         is_included=True
@@ -18137,10 +18345,17 @@ def _build_reports_query(user, params):
     results_map = {}      # (user_id, exam_id) → [Result] desc by date
     best_results = {}     # (user_id, exam_id) → best Result
     if has_res or has_cert:
-        results = Result.query.filter(
+        results_q = Result.query.filter(
             Result.user_id.in_(filtered_user_ids),
             Result.status == 1,
-        ).order_by(Result.end_date.desc()).all()
+        )
+        # Filtro por modo (exam / simulator)
+        result_mode = params.get('result_mode')
+        if result_mode == 'simulator':
+            results_q = results_q.filter(Result.mode == 'simulator')
+        elif result_mode == 'exam':
+            results_q = results_q.filter(db.or_(Result.mode == 'exam', Result.mode.is_(None)))
+        results = results_q.order_by(Result.end_date.desc()).all()
 
         for r in results:
             key = (r.user_id, r.exam_id)
@@ -18498,6 +18713,264 @@ def export_reports():
             download_name=filename,
         )
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+# ──────────────────────────────────────────────────────────────────────
+# REPORTE: Progreso de Materiales de Estudio
+# ──────────────────────────────────────────────────────────────────────
+
+def _build_study_progress_query(user, params):
+    """Construye query de progreso de materiales de estudio.
+    Una fila por usuario x grupo x material x sesion x tema.
+    """
+    is_resp = user.role == 'responsable'
+    coord_id = _get_coordinator_filter(user)
+
+    if is_resp:
+        accessible_campus_ids = [user.campus_id] if user.campus_id else []
+    else:
+        partner_id_filter = params.get('partner_id', type=int)
+        campus_q = Campus.query.filter_by(partner_id=partner_id_filter) if partner_id_filter else Campus.query
+        if coord_id:
+            campus_q = campus_q.filter_by(coordinator_id=coord_id)
+        accessible_campus_ids = [c.id for c in campus_q.all()]
+
+    campus_filter = params.get('campus_id', type=int)
+    if campus_filter and campus_filter in accessible_campus_ids:
+        accessible_campus_ids = [campus_filter]
+    if not accessible_campus_ids:
+        return [], 0
+
+    group_filter = params.get('group_id', type=int)
+    cycle_filter = params.get('school_cycle_id', type=int)
+    gq = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(accessible_campus_ids))
+    if coord_id:
+        gq = gq.filter(CandidateGroup.coordinator_id == coord_id)
+    if group_filter:
+        gq = gq.filter(CandidateGroup.id == group_filter)
+    if cycle_filter:
+        gq = gq.filter(CandidateGroup.school_cycle_id == cycle_filter)
+    group_ids = [gr.id for gr in gq.all()]
+    if not group_ids:
+        return [], 0
+
+    member_rows = db.session.query(
+        GroupMember.user_id, GroupMember.group_id,
+        GroupMember.status, GroupMember.joined_at
+    ).filter(
+        GroupMember.group_id.in_(group_ids),
+        GroupMember.status.notin_(['curp_pending', 'curp_verifying']),
+    ).all()
+    user_ids = list({m[0] for m in member_rows})
+    if not user_ids:
+        return [], 0
+
+    user_memberships = {}
+    for uid, gid, st, joined in member_rows:
+        user_memberships.setdefault(uid, []).append((gid, st, joined))
+
+    user_query = User.query.filter(User.id.in_(user_ids))
+    search = (params.get('search') or '').strip()
+    if search:
+        term = f'%{search}%'
+        user_query = user_query.filter(db.or_(
+            User.name.ilike(term), User.first_surname.ilike(term),
+            User.second_surname.ilike(term), User.username.ilike(term),
+            User.email.ilike(term), User.curp.ilike(term),
+        ))
+    users = user_query.order_by(User.first_surname, User.name).all()
+    users_map = {u.id: u for u in users}
+    filtered_user_ids = [u.id for u in users]
+    if not filtered_user_ids:
+        return [], 0
+
+    all_groups = {g.id: g for g in CandidateGroup.query.filter(CandidateGroup.id.in_(group_ids)).all()}
+    all_campuses = {c.id: c for c in Campus.query.filter(Campus.id.in_(accessible_campus_ids)).all()}
+    pid_set = {c.partner_id for c in all_campuses.values()}
+    all_partners = {p.id: p for p in Partner.query.filter(Partner.id.in_(pid_set)).all()} if pid_set else {}
+    cyc_ids = {g.school_cycle_id for g in all_groups.values() if g.school_cycle_id}
+    all_cycles = {c.id: c for c in SchoolCycle.query.filter(SchoolCycle.id.in_(cyc_ids)).all()} if cyc_ids else {}
+
+    # Source 1: GroupStudyMaterial (direct material assignments)
+    gsm_list = GroupStudyMaterial.query.filter(
+        GroupStudyMaterial.group_id.in_(group_ids),
+        GroupStudyMaterial.is_active == True
+    ).all()
+    group_materials = {}
+    for gsm in gsm_list:
+        group_materials.setdefault(gsm.group_id, []).append(gsm.study_material_id)
+
+    # Source 2: GroupExamMaterial (materials linked via exam assignments)
+    gem_rows = db.session.query(
+        GroupExamMaterial.study_material_id, GroupExam.group_id
+    ).join(GroupExam, GroupExam.id == GroupExamMaterial.group_exam_id).filter(
+        GroupExam.group_id.in_(group_ids)
+    ).all()
+    for mat_id, gid in gem_rows:
+        existing = group_materials.get(gid, [])
+        if mat_id not in existing:
+            group_materials.setdefault(gid, []).append(mat_id)
+
+    mat_ids = list({mid for mids in group_materials.values() for mid in mids})
+    if not mat_ids:
+        return [], 0
+
+    materials = {m.id: m for m in StudyMaterial.query.filter(StudyMaterial.id.in_(mat_ids)).all()}
+    sessions_list = StudySession.query.filter(StudySession.material_id.in_(mat_ids)).order_by(StudySession.session_number).all()
+    session_ids = [s.id for s in sessions_list]
+    topics_list = StudyTopic.query.filter(StudyTopic.session_id.in_(session_ids)).order_by(StudyTopic.order).all()
+
+    mat_sessions = {}
+    for s in sessions_list:
+        mat_sessions.setdefault(s.material_id, []).append(s)
+    ses_topics = {}
+    for t in topics_list:
+        ses_topics.setdefault(t.session_id, []).append(t)
+    topic_ids = [t.id for t in topics_list]
+
+    progress_rows = []
+    if topic_ids and filtered_user_ids:
+        progress_rows = StudentTopicProgress.query.filter(
+            StudentTopicProgress.user_id.in_(filtered_user_ids),
+            StudentTopicProgress.topic_id.in_(topic_ids)
+        ).all()
+    progress_map = {(p.user_id, p.topic_id): p for p in progress_rows}
+
+    rows = []
+    for uid in filtered_user_ids:
+        u = users_map[uid]
+        base = {
+            'user_id': u.id, 'full_name': u.full_name,
+            'name': u.name, 'first_surname': u.first_surname,
+            'second_surname': u.second_surname or '',
+            'username': u.username, 'email': u.email, 'curp': u.curp,
+        }
+        for gid, m_status, m_joined in user_memberships.get(uid, []):
+            grp = all_groups.get(gid)
+            if not grp:
+                continue
+            campus = all_campuses.get(grp.campus_id)
+            partner = all_partners.get(campus.partner_id) if campus else None
+            cycle = all_cycles.get(grp.school_cycle_id) if grp.school_cycle_id else None
+            org = {
+                'partner_name': partner.name if partner else '',
+                'campus_name': campus.name if campus else '',
+                'group_name': grp.name if grp else '',
+                'school_cycle': cycle.name if cycle else '',
+            }
+            for mid in group_materials.get(gid, []):
+                mat = materials.get(mid)
+                if not mat:
+                    continue
+                for sess in mat_sessions.get(mid, []):
+                    for topic in ses_topics.get(sess.id, []):
+                        prog = progress_map.get((uid, topic.id))
+                        rows.append({**base, **org,
+                            'material_name': mat.title,
+                            'session_title': sess.title,
+                            'session_number': sess.session_number,
+                            'topic_title': topic.title,
+                            'total_contents': prog.total_contents if prog else 0,
+                            'completed_contents': prog.completed_contents if prog else 0,
+                            'progress_percentage': round(prog.progress_percentage, 1) if prog else 0.0,
+                            'is_completed': prog.is_completed if prog else False,
+                        })
+    return rows, len(rows)
+
+
+@bp.route('/reports/study-progress', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_study_progress_report():
+    """Reporte de progreso de materiales de estudio."""
+    try:
+        user = g.current_user
+        rows, total = _build_study_progress_query(user, request.args)
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 50, type=int), 200)
+        start = (page - 1) * per_page
+        page_rows = rows[start:start + per_page]
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 0
+        return jsonify({'rows': page_rows, 'total': total, 'page': page, 'per_page': per_page, 'pages': total_pages})
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/reports/study-progress/export', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def export_study_progress_report():
+    """Exportar reporte de progreso de materiales a Excel."""
+    try:
+        user = g.current_user
+        rows, _ = _build_study_progress_query(user, request.args)
+
+        COLS = {
+            'full_name': ('Nombre Completo', lambda r: r.get('full_name', '')),
+            'username': ('Usuario', lambda r: r.get('username', '')),
+            'email': ('Email', lambda r: r.get('email', '')),
+            'curp': ('CURP', lambda r: r.get('curp', '')),
+            'partner_name': ('Partner', lambda r: r.get('partner_name', '')),
+            'campus_name': ('Plantel', lambda r: r.get('campus_name', '')),
+            'group_name': ('Grupo', lambda r: r.get('group_name', '')),
+            'school_cycle': ('Ciclo Escolar', lambda r: r.get('school_cycle', '')),
+            'material_name': ('Material', lambda r: r.get('material_name', '')),
+            'session_title': ('Sesion', lambda r: r.get('session_title', '')),
+            'session_number': ('No. Sesion', lambda r: r.get('session_number')),
+            'topic_title': ('Tema', lambda r: r.get('topic_title', '')),
+            'total_contents': ('Contenidos Totales', lambda r: r.get('total_contents', 0)),
+            'completed_contents': ('Contenidos Completados', lambda r: r.get('completed_contents', 0)),
+            'progress_percentage': ('Avance (%)', lambda r: r.get('progress_percentage', 0)),
+            'is_completed': ('Completado', lambda r: 'Si' if r.get('is_completed') else 'No'),
+        }
+        if user.role == 'responsable':
+            COLS.pop('partner_name', None)
+
+        selected_keys_param = request.args.get('columns', '')
+        selected_keys = [k.strip() for k in selected_keys_param.split(',') if k.strip() in COLS] if selected_keys_param else list(COLS.keys())
+        if not selected_keys:
+            selected_keys = list(COLS.keys())
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Progreso Materiales'
+        headers = [COLS[k][0] for k in selected_keys]
+        extractors = [COLS[k][1] for k in selected_keys]
+
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        for row_idx, row_data in enumerate(rows, 2):
+            for col_idx, extractor in enumerate(extractors, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=extractor(row_data))
+                cell.border = thin_border
+
+        for column_cells in ws.columns:
+            max_len = max((len(str(c.value)) for c in column_cells if c.value), default=0)
+            ws.column_dimensions[column_cells[0].column_letter].width = min(max_len + 4, 50)
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                         as_attachment=True, download_name=f'Reporte_Materiales_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
     except HTTPException:
         raise
     except Exception as e:

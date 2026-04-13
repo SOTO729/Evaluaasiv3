@@ -30,7 +30,7 @@ class Question(db.Model):
     
     id = db.Column(db.String(36), primary_key=True)
     topic_id = db.Column(db.Integer, db.ForeignKey('topics.id'), nullable=False, index=True)
-    question_type_id = db.Column(db.Integer, db.ForeignKey('question_types.id'), nullable=False)
+    question_type_id = db.Column(db.Integer, db.ForeignKey('question_types.id', ondelete='NO ACTION'), nullable=False, index=True)
     question_number = db.Column(db.Integer, nullable=False)
     question_text = db.Column(db.Text, nullable=False)
     image_url = db.Column(db.String(500))  # URL de imagen en Azure Blob
@@ -40,13 +40,13 @@ class Question(db.Model):
     percentage = db.Column(db.Float, default=0)  # DEPRECATED: Ya no se usa para evaluación
     
     # Auditoría
-    created_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_by = db.Column(db.String(36), db.ForeignKey('users.id'))
+    updated_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'))
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
-    question_type = db.relationship('QuestionType', backref='questions')
+    question_type = db.relationship('QuestionType', backref='questions', lazy='joined')
     answers = db.relationship('Answer', backref='question', lazy='dynamic', cascade='all, delete-orphan', order_by='Answer.answer_number')
     
     def __init__(self, **kwargs):

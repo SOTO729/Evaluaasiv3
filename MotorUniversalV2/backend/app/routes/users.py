@@ -362,14 +362,35 @@ def get_dashboard():
                         assigned_exam_ids.add(ge.exam_id)
                         if ge.exam_id not in exam_materials_map:
                             exam_materials_map[ge.exam_id] = set()
-                        # Materiales asociados al examen grupal
-                        gem_list = GroupExamMaterial.query.filter_by(
-                            group_exam_id=ge.id,
-                            is_included=True
-                        ).all()
-                        for gem in gem_list:
-                            assigned_material_ids.add(gem.study_material_id)
-                            exam_materials_map[ge.exam_id].add(gem.study_material_id)
+
+                        # Si el examen requiere pago, verificar que el candidato haya pagado
+                        # antes de incluir los materiales
+                        skip_materials = False
+                        grp = CandidateGroup.query.get(ge.group_id)
+                        if grp:
+                            campus_obj = Campus.query.get(grp.campus_id) if grp.campus_id else None
+                            payments_on = grp.enable_online_payments_override if grp.enable_online_payments_override is not None else (campus_obj.enable_online_payments if campus_obj else False)
+                            cert_cost = float(grp.certification_cost_override or (campus_obj.certification_cost if campus_obj else 0) or 0)
+                            if payments_on and cert_cost > 0:
+                                from app.models.payment import Payment as PaymentCheck2
+                                approved_payment = PaymentCheck2.query.filter_by(
+                                    user_id=str(user_id),
+                                    group_exam_id=ge.id,
+                                    payment_type='certification',
+                                    status='approved'
+                                ).first()
+                                if not approved_payment:
+                                    skip_materials = True
+
+                        if not skip_materials:
+                            # Materiales asociados al examen grupal
+                            gem_list = GroupExamMaterial.query.filter_by(
+                                group_exam_id=ge.id,
+                                is_included=True
+                            ).all()
+                            for gem in gem_list:
+                                assigned_material_ids.add(gem.study_material_id)
+                                exam_materials_map[ge.exam_id].add(gem.study_material_id)
 
             assigned_exam_ids = list(assigned_exam_ids)
             assigned_material_ids = list(assigned_material_ids)

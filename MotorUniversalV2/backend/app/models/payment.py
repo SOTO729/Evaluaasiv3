@@ -28,11 +28,11 @@ class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Quién paga
-    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
 
     # Asignación específica (para pagos de candidatos)
-    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='SET NULL'), nullable=True)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='SET NULL'), nullable=True, index=True)
     payment_type = db.Column(db.String(20), default='voucher', nullable=False)  # 'voucher', 'certification', 'retake'
 
     # Qué se paga

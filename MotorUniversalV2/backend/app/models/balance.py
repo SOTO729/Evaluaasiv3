@@ -23,8 +23,8 @@ class CoordinatorBalance(db.Model):
     __tablename__ = 'coordinator_balances'
     
     id = db.Column(db.Integer, primary_key=True)
-    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Saldo actual en pesos (para este plantel)
     current_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False)
@@ -130,8 +130,8 @@ class BalanceRequest(db.Model):
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
 
     # Destino (plantel obligatorio, grupo opcional para precio especial)
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id'), nullable=False, index=True)  # Para qué plantel
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)  # Grupo con precio especial (opcional)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='NO ACTION'), nullable=False, index=True)  # Para qué plantel
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)  # Grupo con precio especial (opcional)
     
     # Tipo de solicitud
     request_type = db.Column(db.String(20), default='saldo', nullable=False)  # 'saldo' o 'beca'
@@ -147,7 +147,7 @@ class BalanceRequest(db.Model):
     status = db.Column(db.String(30), default='pending', nullable=False, index=True)
     
     # Revisión del financiero (primer nivel)
-    financiero_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    financiero_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     financiero_notes = db.Column(db.Text, nullable=True)
     financiero_recommended_amount = db.Column(db.Numeric(12, 2), nullable=True)  # Monto que recomienda aprobar
     financiero_reviewed_at = db.Column(db.DateTime, nullable=True)
@@ -160,7 +160,7 @@ class BalanceRequest(db.Model):
     attachments = db.Column(db.Text, nullable=True)  # JSON de archivos adjuntos
     
     # Aprobación final (gerente o admin)
-    approved_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    approved_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     approver_notes = db.Column(db.Text, nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     
@@ -268,13 +268,13 @@ class BalanceTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # A quién pertenece el movimiento
-    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Plantel al que afecta el movimiento
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Grupo de referencia (para detalles de auditoría, e.g. qué grupo se asignó)
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Tipo y concepto
     transaction_type = db.Column(db.String(20), nullable=False)  # credit, debit, adjustment
@@ -293,7 +293,7 @@ class BalanceTransaction(db.Model):
     notes = db.Column(db.Text, nullable=True)
     
     # Quién realizó el movimiento (puede ser sistema o usuario)
-    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    created_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Timestamp
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -447,14 +447,14 @@ class CertificateRequest(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     
     # Quién solicita
-    responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    responsable_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Destino
-    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False)
-    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='CASCADE'), nullable=False, index=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)
     
     # Coordinador destino (via user.coordinator_id del responsable)
-    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     
     # Datos de la solicitud (responsable)
     units_requested = db.Column(db.Integer, nullable=False)
@@ -463,12 +463,12 @@ class CertificateRequest(db.Model):
     
     # Datos del coordinador (al revisar/modificar)
     coordinator_units = db.Column(db.Integer, nullable=True)  # Unidades aprobadas por coordinador
-    coordinator_group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True)
+    coordinator_group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)
     coordinator_notes = db.Column(db.Text, nullable=True)
     coordinator_reviewed_at = db.Column(db.DateTime, nullable=True)
     
     # Vinculación con solicitud de saldo (BalanceRequest) cuando el coordinador envía al flujo
-    forwarded_request_id = db.Column(db.Integer, db.ForeignKey('balance_requests.id', ondelete='SET NULL'), nullable=True)
+    forwarded_request_id = db.Column(db.Integer, db.ForeignKey('balance_requests.id', ondelete='SET NULL'), nullable=True, index=True)
     forwarded_at = db.Column(db.DateTime, nullable=True)
     
     # Estado

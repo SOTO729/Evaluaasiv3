@@ -19,6 +19,7 @@ with app.app_context():
             check_and_create_bulk_upload_tables,
             check_and_create_support_chat_tables,
             check_and_add_assigned_state_column,
+            check_and_add_result_mode_column,
         )
         check_and_add_columns()
         check_and_add_study_interactive_columns()
@@ -29,6 +30,7 @@ with app.app_context():
         check_and_create_bulk_upload_tables()
         check_and_create_support_chat_tables()
         check_and_add_assigned_state_column()
+        check_and_add_result_mode_column()
     except Exception as e:
         print(f"⚠️  Auto-migración falló (continuando de todas formas): {e}")
 

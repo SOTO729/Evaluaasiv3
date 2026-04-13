@@ -63,9 +63,6 @@ export default function BadgeTemplateFormPage() {
   const [form, setForm] = useState<FormState>({ ...EMPTY_FORM })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [imageRemoved, setImageRemoved] = useState(false)
-  const [issuerLogoFile, setIssuerLogoFile] = useState<File | null>(null)
-  const [issuerLogoPreview, setIssuerLogoPreview] = useState<string | null>(null)
-  const [issuerLogoRemoved, setIssuerLogoRemoved] = useState(false)
 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -90,19 +87,10 @@ export default function BadgeTemplateFormPage() {
         })
         const previewUrl = t.display_image_url || t.badge_image_url
         if (previewUrl) setImagePreview(previewUrl)
-        if (t.issuer_logo_url) setIssuerLogoPreview(t.issuer_logo_url)
       }).catch(err => {
         console.error(err)
         navigate('/badges/templates')
       }).finally(() => setLoading(false))
-    } else {
-      // Nueva plantilla: pre-rellenar logo del emisor desde plantillas existentes
-      badgeService.getTemplates(1, 100).then(data => {
-        const withLogo = (data.templates || []).find(t => t.issuer_logo_url)
-        if (withLogo?.issuer_logo_url && !issuerLogoPreview) {
-          setIssuerLogoPreview(withLogo.issuer_logo_url)
-        }
-      }).catch(() => {})
     }
   }, [id, isEdit, navigate])
 
@@ -245,12 +233,6 @@ export default function BadgeTemplateFormPage() {
         await badgeService.uploadTemplateImage(templateId, imageFile)
       } else if (imageRemoved && isEdit && templateId) {
         await badgeService.deleteTemplateImage(templateId)
-      }
-
-      if (issuerLogoFile && templateId) {
-        await badgeService.uploadIssuerLogo(templateId, issuerLogoFile)
-      } else if (issuerLogoRemoved && isEdit && templateId) {
-        await badgeService.deleteIssuerLogo(templateId)
       }
 
       navigate('/badges/templates')
@@ -608,51 +590,6 @@ export default function BadgeTemplateFormPage() {
                 <div className="flex items-center fluid-gap-1 fluid-px-2.5 fluid-py-1 bg-blue-100 text-blue-700 rounded-full flex-shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span className="fluid-text-2xs font-medium">Fijo</span>
-                </div>
-              </div>
-
-              {/* Logo del emisor */}
-              <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-200">
-                <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wide fluid-mb-2">Logo del Emisor</p>
-                <p className="fluid-text-2xs text-gray-400 fluid-mb-3">Se mostrará en la página de verificación de la insignia en lugar del ícono por defecto.</p>
-                <div className="flex items-center fluid-gap-3">
-                  {issuerLogoPreview ? (
-                    <div className="relative w-16 h-16 rounded-fluid-lg border-2 border-gray-200 overflow-hidden bg-white flex items-center justify-center flex-shrink-0">
-                      <img src={issuerLogoPreview} alt="Logo emisor" className="w-full h-full object-contain p-1" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIssuerLogoFile(null)
-                          setIssuerLogoPreview(null)
-                          setIssuerLogoRemoved(true)
-                        }}
-                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-sm"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-16 h-16 rounded-fluid-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center flex-shrink-0">
-                      <Globe className="w-6 h-6 text-gray-300" />
-                    </div>
-                  )}
-                  <label className="cursor-pointer fluid-px-3 fluid-py-1.5 bg-blue-50 text-blue-700 rounded-fluid-lg hover:bg-blue-100 transition-colors fluid-text-xs font-medium inline-flex items-center fluid-gap-1.5">
-                    <Upload className="w-3.5 h-3.5" />
-                    {issuerLogoPreview ? 'Cambiar' : 'Subir logo'}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) {
-                          setIssuerLogoFile(file)
-                          setIssuerLogoPreview(URL.createObjectURL(file))
-                          setIssuerLogoRemoved(false)
-                        }
-                      }}
-                    />
-                  </label>
                 </div>
               </div>
             </section>

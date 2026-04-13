@@ -204,7 +204,7 @@ const VerifyPage = () => {
                 {/* Nombre de la insignia */}
                 <div className="text-center">
                   <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Insignia Digital</p>
-                  <h3 className="text-xl font-bold text-gray-900">{data.badge.name}</h3>
+                  <h3 className="text-xl font-bold text-gray-900 break-words">{data.badge.name}</h3>
                 </div>
 
                 {/* Imagen de la plantilla – justo debajo del título, centrada y grande */}
@@ -535,7 +535,7 @@ const VerifyPage = () => {
 
                 {/* Datos de verificación */}
                 <div className="px-6 pb-6 space-y-4">
-                  <h4 className="text-center font-bold text-gray-900 text-lg opacity-0 animate-fadeInUp" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>{data.badge.name}</h4>
+                  <h4 className="text-center font-bold text-gray-900 text-lg break-words opacity-0 animate-fadeInUp" style={{ animationDelay: '150ms', animationFillMode: 'forwards' }}>{data.badge.name}</h4>
 
                   <div className="space-y-3">
                     {/* Emisor */}

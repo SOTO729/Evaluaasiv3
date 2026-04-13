@@ -1579,6 +1579,27 @@ def check_and_add_assigned_state_column():
             db.session.rollback()
 
 
+def check_and_add_result_mode_column():
+    """Agregar columna mode a results para distinguir exam vs simulator"""
+    print("🔍 Verificando columna mode en results...")
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('results')]
+        if 'mode' not in existing_columns:
+            print("  📝 Agregando columna mode a results...")
+            db.session.execute(text("ALTER TABLE results ADD mode VARCHAR(20) NULL"))
+            db.session.commit()
+            print("  ✓ Columna mode agregada a results")
+        else:
+            print("  ✓ Columna mode ya existe en results")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna mode ya existe en results")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
 # ---------------------------------------------------------------------------
 # CURP recovery: detect and re-verify orphaned curp_pending users
 # ---------------------------------------------------------------------------

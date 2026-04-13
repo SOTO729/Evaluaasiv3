@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildCertifications, findMostRecentTab } from '../pages/HomePage'
 import type { Certification } from '../components/candidate/CertificationPathCard'
-import type { DashboardExam, DashboardMaterial } from '../services/dashboardService'
+import type { DashboardExam, DashboardMaterial, ExamResult } from '../services/dashboardService'
 
 // ─── Helpers para crear datos de prueba ────────────────────────────────────
 
@@ -227,6 +227,22 @@ function makeCertExam(overrides: Partial<DashboardExam> = {}): DashboardExam {
   return makeExam(overrides)
 }
 
+function makeResult(overrides: Partial<ExamResult> = {}): ExamResult {
+  return {
+    id: 'r-1',
+    exam_id: 1,
+    score: 0,
+    status: 1,
+    result: 0,
+    start_date: '2026-01-01T00:00:00',
+    end_date: null,
+    duration_seconds: null,
+    certificate_code: null,
+    certificate_url: null,
+    ...overrides,
+  }
+}
+
 // ─── Tests de findMostRecentTab ────────────────────────────────────────────
 
 describe('findMostRecentTab', () => {
@@ -265,7 +281,7 @@ describe('findMostRecentTab', () => {
           id: 1,
           user_stats: {
             attempts: 1, best_score: 95, is_completed: true, is_approved: true,
-            last_attempt: { score: 95, status: 2, result: 1, start_date: '2026-03-28T11:00:00', end_date: '2026-03-28T12:00:00', certificate_code: 'C1', certificate_url: null },
+            last_attempt: makeResult({ score: 95, status: 2, result: 1, start_date: '2026-03-28T11:00:00', end_date: '2026-03-28T12:00:00', certificate_code: 'C1' }),
           },
         })],
       }),
@@ -276,7 +292,7 @@ describe('findMostRecentTab', () => {
           id: 2,
           user_stats: {
             attempts: 1, best_score: 40, is_completed: false, is_approved: false,
-            last_attempt: { score: 40, status: 1, result: 0, start_date: '2026-02-01T09:00:00', end_date: '2026-02-01T10:00:00', certificate_code: null, certificate_url: null },
+            last_attempt: makeResult({ score: 40, start_date: '2026-02-01T09:00:00', end_date: '2026-02-01T10:00:00' }),
           },
         })],
       }),
@@ -294,7 +310,7 @@ describe('findMostRecentTab', () => {
           id: 1,
           user_stats: {
             attempts: 1, best_score: 30, is_completed: false, is_approved: false,
-            last_attempt: { score: 30, status: 1, result: 0, start_date: '2026-01-15T09:00:00', end_date: '2026-01-15T10:00:00', certificate_code: null, certificate_url: null },
+            last_attempt: makeResult({ score: 30, start_date: '2026-01-15T09:00:00', end_date: '2026-01-15T10:00:00' }),
           },
         })],
       }),
@@ -305,7 +321,7 @@ describe('findMostRecentTab', () => {
           id: 2,
           user_stats: {
             attempts: 2, best_score: 55, is_completed: false, is_approved: false,
-            last_attempt: { score: 55, status: 1, result: 0, start_date: '2026-03-20T09:00:00', end_date: '2026-03-20T10:00:00', certificate_code: null, certificate_url: null },
+            last_attempt: makeResult({ score: 55, start_date: '2026-03-20T09:00:00', end_date: '2026-03-20T10:00:00' }),
           },
         })],
       }),
@@ -330,7 +346,7 @@ describe('findMostRecentTab', () => {
           id: 1,
           user_stats: {
             attempts: 1, best_score: 90, is_completed: true, is_approved: true,
-            last_attempt: { score: 90, status: 2, result: 1, start_date: '2026-03-28T14:00:00', end_date: '2026-03-28T15:00:00', certificate_code: 'CERT', certificate_url: null },
+            last_attempt: makeResult({ score: 90, status: 2, result: 1, start_date: '2026-03-28T14:00:00', end_date: '2026-03-28T15:00:00', certificate_code: 'CERT' }),
           },
         })],
       }),
@@ -341,7 +357,7 @@ describe('findMostRecentTab', () => {
           id: 2,
           user_stats: {
             attempts: 1, best_score: 60, is_completed: false, is_approved: false,
-            last_attempt: { score: 60, status: 1, result: 0, start_date: '2026-03-25T09:00:00', end_date: '2026-03-25T10:00:00', certificate_code: null, certificate_url: null },
+            last_attempt: makeResult({ score: 60, start_date: '2026-03-25T09:00:00', end_date: '2026-03-25T10:00:00' }),
           },
         })],
       }),

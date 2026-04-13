@@ -25,6 +25,17 @@ class VmSession(db.Model):
     session_date = db.Column(db.Date, nullable=False)
     start_hour = db.Column(db.Integer, nullable=False)  # 0-23 (hora del día)
     
+    # Tipo de sesión: simulador, examen, parcial
+    session_type = db.Column(db.String(20), default='simulador', nullable=False)
+    
+    # VDI/Workstation asignada (de dbo.Equipo en EvaluaasiConfig)
+    workstation_id = db.Column(db.Integer, nullable=True)  # EquipoId en EvaluaasiConfig
+    workstation_name = db.Column(db.String(30), nullable=True)  # Nombre del VDI (ej: VDI-OF2016-1)
+    workstation_color = db.Column(db.String(7), nullable=True)  # Color hex para UI
+    
+    # Referencia a sesión en EvaluaasiConfig (dbo.Sesion.SesionId)
+    config_session_id = db.Column(db.String(36), nullable=True)
+    
     # Estado: scheduled, completed, cancelled, no_show
     status = db.Column(db.String(20), default='scheduled', nullable=False)
     
@@ -67,6 +78,11 @@ class VmSession(db.Model):
             'session_date': self.session_date.isoformat() if self.session_date else None,
             'start_hour': self.start_hour,
             'end_hour': self.start_hour + 1,  # Siempre 1 hora
+            'session_type': self.session_type or 'simulador',
+            'workstation_id': self.workstation_id,
+            'workstation_name': self.workstation_name,
+            'workstation_color': self.workstation_color,
+            'config_session_id': self.config_session_id,
             'status': self.status,
             'notes': self.notes,
             'created_by_id': self.created_by_id,

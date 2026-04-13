@@ -43,9 +43,13 @@ import {
   Clock,
   AlertTriangle,
   Lock,
-  CreditCard
+  CreditCard,
+  ShoppingCart
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
+import PurchasePreviewModal from '../../components/payments/PurchasePreviewModal'
+import CandidateCheckoutModal from '../../components/payments/CandidateCheckoutModal'
+import { useQueryClient } from '@tanstack/react-query'
 
 // Componente de tarjeta de examen con nuevo diseño
 const ExamCard = ({ 
@@ -59,14 +63,23 @@ const ExamCard = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const queryClient = useQueryClient();
   const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
   const [showApprovedModal, setShowApprovedModal] = useState(false);
+  const [showPurchasePreview, setShowPurchasePreview] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const needsPayment = isCandidate && exam.requires_payment && !exam.is_paid && !exam.is_approved && !exam.is_expired;
 
   const handleCardClick = () => {
     if (isCandidate) {
-      // Si ya está aprobado, mostrar anuncio primero
       if (exam.is_approved) {
         setShowApprovedModal(true);
+        return;
+      }
+      // Si requiere pago, mostrar preview de compra
+      if (needsPayment) {
+        setShowPurchasePreview(true);
         return;
       }
       const params = new URLSearchParams();
@@ -321,6 +334,37 @@ const ExamCard = ({
           </div>
         </div>
       </div>
+    )}
+
+    {/* Modal de vista previa de compra */}
+    {needsPayment && (
+      <PurchasePreviewModal
+        isOpen={showPurchasePreview}
+        groupExamId={exam.group_exam_id || 0}
+        onClose={() => setShowPurchasePreview(false)}
+        onProceedToPayment={() => {
+          setShowPurchasePreview(false);
+          setShowPaymentModal(true);
+        }}
+      />
+    )}
+
+    {/* Modal de pago */}
+    {needsPayment && (
+      <CandidateCheckoutModal
+        isOpen={showPaymentModal}
+        groupExamId={exam.group_exam_id || 0}
+        cost={exam.certification_cost || 0}
+        paymentType="certification"
+        examName={exam.name}
+        onClose={() => setShowPaymentModal(false)}
+        onPaymentComplete={(result) => {
+          if (result.status === 'approved') {
+            setShowPaymentModal(false);
+            queryClient.invalidateQueries({ queryKey: ['mis-examenes'] });
+          }
+        }}
+      />
     )}
     </>
   );

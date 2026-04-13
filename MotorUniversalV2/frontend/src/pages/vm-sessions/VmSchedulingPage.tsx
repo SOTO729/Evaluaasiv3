@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, Monitor, Eye, Building2, User as UserIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, Monitor, Eye, Building2, User as UserIcon, Cpu, ExternalLink, Wifi } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -8,9 +8,11 @@ import {
   getVmSessions,
   createVmSession,
   cancelVmSession,
+  connectToVdi,
   type VmSlot,
   type VmSession,
   type VmAccessInfo,
+  type VdiConnectResult,
 } from '../../services/vmSessionsService';
 
 const DAYS_ES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -18,6 +20,16 @@ const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 const OPERATING_HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8:00 - 19:00
+
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  simulador: 'Simulador',
+  examen: 'Examen',
+  parcial: 'Parcial',
+};
+
+function formatHourLabel(hour: number): string {
+  return `${hour.toString().padStart(2, '0')}:00 - ${(hour + 1).toString().padStart(2, '0')}:00`;
+}
 
 function formatDateStr(d: Date): string {
   const year = d.getFullYear();
@@ -84,6 +96,7 @@ export default function VmSchedulingPage() {
   // Booking
   const [bookingSlot, setBookingSlot] = useState<{ slot: VmSlot; date: Date } | null>(null);
   const [bookingNotes, setBookingNotes] = useState('');
+  const [bookingSessionType, setBookingSessionType] = useState<'simulador' | 'examen' | 'parcial'>('simulador');
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState('');
 
@@ -94,6 +107,10 @@ export default function VmSchedulingPage() {
 
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // VDI Connection
+  const [connectingSessionId, setConnectingSessionId] = useState<number | null>(null);
+  const [connectFallback, setConnectFallback] = useState<VdiConnectResult | null>(null);
 
   // Campus selector para coordinadores
   const [selectedCampusId, setSelectedCampusId] = useState<number | null>(null);
@@ -178,11 +195,13 @@ export default function VmSchedulingPage() {
       await createVmSession({
         session_date: formatDateStr(bookingSlot.date),
         start_hour: bookingSlot.slot.hour,
+        session_type: bookingSessionType,
         notes: bookingNotes || undefined,
         campus_id: isAdminOrCoord ? (campusId || 1) : undefined,
       });
       setBookingSlot(null);
       setBookingNotes('');
+      setBookingSessionType('simulador');
       showToast('success', 'Sesión agendada exitosamente');
       loadWeekSlots();
       loadMySessions();
@@ -217,6 +236,38 @@ export default function VmSchedulingPage() {
   const goToday = () => { setCurrentDate(new Date()); setSelectedDate(new Date()); };
   const prevMonth = () => { const d = new Date(currentDate); d.setMonth(d.getMonth() - 1); setCurrentDate(d); };
   const nextMonth = () => { const d = new Date(currentDate); d.setMonth(d.getMonth() + 1); setCurrentDate(d); };
+
+  // Connect to VDI via Guacamole SSO
+  const handleConnect = async (sessionId: number) => {
+    setConnectingSessionId(sessionId);
+    try {
+      const result = await connectToVdi(sessionId);
+      if (result.connect_url) {
+        window.open(result.connect_url, '_blank', 'noopener,noreferrer');
+        showToast('success', result.message || 'Conexión abierta en nueva pestaña');
+      }
+    } catch (err: any) {
+      const data = err?.response?.data;
+      if (data?.fallback_url) {
+        // Show fallback modal with manual access info
+        setConnectFallback(data as VdiConnectResult);
+      } else {
+        showToast('error', data?.error || 'Error al conectar con la VDI');
+      }
+    } finally {
+      setConnectingSessionId(null);
+    }
+  };
+
+  // Check if a session can connect (synced + today or future)
+  const canConnect = (session: VmSession): boolean => {
+    if (session.status !== 'scheduled') return false;
+    if (!session.config_session_id) return false;
+    const sessionDate = new Date(session.session_date + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return sessionDate >= today;
+  };
 
   // Get slot for a specific day+hour from weekSlots
   const getSlotFor = (day: Date, hour: number): VmSlot | undefined => {
@@ -259,6 +310,16 @@ export default function VmSchedulingPage() {
   if (isLeaderOnly) {
     return (
       <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
+        {/* Toast */}
+        {toast && (
+          <div className={`fixed top-4 right-4 z-50 flex items-center fluid-gap-2 fluid-px-5 fluid-py-3 rounded-fluid-lg shadow-lg animate-fadeSlideIn ${
+            toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}>
+            {toast.type === 'success' ? <CheckCircle className="fluid-icon" /> : <AlertCircle className="fluid-icon" />}
+            <span className="fluid-text-sm font-medium">{toast.message}</span>
+          </div>
+        )}
+
         <div className="bg-blue-50 border border-blue-200 rounded-fluid-2xl fluid-p-8 text-center max-w-lg mx-auto">
           <Calendar className="fluid-icon-xl text-blue-500 mx-auto fluid-mb-4" />
           <h2 className="fluid-text-xl font-bold text-blue-800 fluid-mb-2">Sesiones Gestionadas por tu Responsable</h2>
@@ -270,12 +331,85 @@ export default function VmSchedulingPage() {
               <h3 className="fluid-text-sm font-semibold text-blue-700">Tu sesión asignada:</h3>
               {mySessions.map(s => (
                 <div key={s.id} className="bg-white border border-blue-200 rounded-fluid-lg fluid-px-4 fluid-py-3 fluid-text-sm text-blue-700 font-medium">
-                  📅 {s.session_date} · {s.start_hour_label}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      📅 {s.session_date} · {formatHourLabel(s.start_hour)}
+                      {s.workstation_name && (
+                        <span className="text-blue-500 ml-2 text-xs">· {s.workstation_name}</span>
+                      )}
+                    </div>
+                    {canConnect(s) && (
+                      <button
+                        onClick={() => handleConnect(s.id)}
+                        disabled={connectingSessionId === s.id}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center fluid-gap-1 transition-colors disabled:opacity-50"
+                      >
+                        {connectingSessionId === s.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        )}
+                        Conectar a VDI
+                      </button>
+                    )}
+                    {!s.config_session_id && (
+                      <span className="text-amber-600 text-xs flex items-center fluid-gap-1">
+                        <Clock className="w-3 h-3" />
+                        Pendiente
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Modal: Acceso Manual (Fallback) — leader_only view */}
+        {connectFallback && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+            <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn">
+              <div className="flex items-center justify-between fluid-mb-4">
+                <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
+                  <Monitor className="fluid-icon text-amber-500" />
+                  Acceso Manual a VDI
+                </h3>
+                <button onClick={() => setConnectFallback(null)} className="p-1 hover:bg-gray-100 rounded-fluid-lg transition-colors">
+                  <X className="fluid-icon text-gray-500" />
+                </button>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-fluid-lg fluid-p-4 fluid-mb-4">
+                <p className="fluid-text-sm text-amber-800">{connectFallback.error}</p>
+              </div>
+              <div className="space-y-3 fluid-mb-4">
+                <div className="bg-gray-50 rounded-fluid-lg fluid-p-3">
+                  <p className="fluid-text-xs font-semibold text-gray-500 uppercase fluid-mb-1">URL de Guacamole</p>
+                  <a href={connectFallback.fallback_url} target="_blank" rel="noopener noreferrer"
+                    className="fluid-text-sm text-blue-600 hover:text-blue-800 underline flex items-center fluid-gap-1">
+                    <ExternalLink className="w-3.5 h-3.5" /> {connectFallback.fallback_url}
+                  </a>
+                </div>
+                <div className="bg-gray-50 rounded-fluid-lg fluid-p-3">
+                  <p className="fluid-text-xs font-semibold text-gray-500 uppercase fluid-mb-1">Usuario</p>
+                  <code className="bg-white px-1.5 py-0.5 rounded border text-blue-700 font-mono text-xs">
+                    {connectFallback.fallback_username}
+                  </code>
+                  <p className="fluid-text-xs text-gray-500 fluid-mt-1">Usa tu contraseña de Evaluaasi.</p>
+                </div>
+              </div>
+              <div className="flex fluid-gap-3">
+                <button onClick={() => setConnectFallback(null)}
+                  className="flex-1 fluid-py-3 border border-gray-300 text-gray-700 rounded-fluid-lg hover:bg-gray-50 transition-colors fluid-text-sm font-medium">
+                  Cerrar
+                </button>
+                <a href={connectFallback.fallback_url} target="_blank" rel="noopener noreferrer"
+                  className="flex-1 fluid-py-3 bg-blue-600 text-white rounded-fluid-lg hover:bg-blue-700 transition-colors fluid-text-sm font-medium flex items-center justify-center fluid-gap-2 no-underline">
+                  <ExternalLink className="fluid-icon-sm" /> Ir a Guacamole
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -478,30 +612,64 @@ export default function VmSchedulingPage() {
                     >
                       <div className="min-w-0">
                         <p className={`fluid-text-xs font-bold ${isReadOnly ? 'text-blue-800' : 'text-green-800'} truncate`}>
-                          {session.start_hour_label}
+                          {formatHourLabel(session.start_hour)}
                         </p>
                         <p className={`text-[10px] ${isReadOnly ? 'text-blue-600' : 'text-green-600'}`}>
                           {(() => {
                             const d = new Date(session.session_date + 'T12:00:00');
                             return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`;
                           })()}
+                          {' · '}
+                          <span className="font-medium">{SESSION_TYPE_LABELS[session.session_type] || 'Simulador'}</span>
                         </p>
-                        {(isAdminOrCoord && session.user_name) && (
+                        {session.workstation_name && (
+                          <p className="text-[10px] text-gray-500 truncate flex items-center fluid-gap-0.5 mt-0.5">
+                            <Cpu className="w-2.5 h-2.5" />
+                            {session.workstation_name}
+                          </p>
+                        )}
+                        {(isAdminOrCoord && session.user?.name) && (
                           <p className="text-[10px] text-gray-500 truncate flex items-center fluid-gap-0.5 mt-0.5">
                             <UserIcon className="w-2.5 h-2.5" />
-                            {session.user_name}
+                            {session.user.name}
+                          </p>
+                        )}
+                        {/* Sync status indicator */}
+                        {!session.config_session_id && (
+                          <p className="text-[10px] text-amber-600 flex items-center fluid-gap-0.5 mt-0.5">
+                            <Clock className="w-2.5 h-2.5" />
+                            Pendiente de sincronizar
                           </p>
                         )}
                       </div>
-                      {!isReadOnly && (
-                        <button
-                          onClick={() => setCancelSession(session)}
-                          className="text-red-400 hover:text-red-600 p-0.5 opacity-0 group-hover:opacity-100 transition-all"
-                          title="Cancelar"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <div className="flex flex-col fluid-gap-1 items-end">
+                        {/* Connect button */}
+                        {!isReadOnly && canConnect(session) && (
+                          <button
+                            onClick={() => handleConnect(session.id)}
+                            disabled={connectingSessionId === session.id}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-[10px] font-semibold flex items-center fluid-gap-0.5 transition-colors disabled:opacity-50"
+                            title="Conectar a la VDI"
+                          >
+                            {connectingSessionId === session.id ? (
+                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                            ) : (
+                              <ExternalLink className="w-2.5 h-2.5" />
+                            )}
+                            Conectar
+                          </button>
+                        )}
+                        {/* Cancel button */}
+                        {!isReadOnly && (
+                          <button
+                            onClick={() => setCancelSession(session)}
+                            className="text-red-400 hover:text-red-600 p-0.5 opacity-0 group-hover:opacity-100 transition-all"
+                            title="Cancelar"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -603,18 +771,35 @@ export default function VmSchedulingPage() {
                             >
                               {isMine && !isReadOnly ? (
                                 // Mi sesión agendada (solo si puede interactuar)
-                                <button
-                                  onClick={() => setCancelSession(mySession!)}
-                                  className="absolute inset-0.5 bg-green-500 hover:bg-green-600 rounded-md flex items-center justify-center transition-all group/cell cursor-pointer shadow-sm"
-                                  title={`Tu sesión · ${hour}:00 – ${hour + 1}:00 · Click para cancelar`}
-                                >
-                                  <div className="text-center">
-                                    <CheckCircle className="w-3.5 h-3.5 text-white mx-auto" />
-                                    <span className="text-[9px] text-white font-semibold block mt-0.5">
-                                      Agendada
-                                    </span>
-                                  </div>
-                                </button>
+                                <div className="absolute inset-0.5 flex flex-col">
+                                  <button
+                                    onClick={() => setCancelSession(mySession!)}
+                                    className="flex-1 bg-green-500 hover:bg-green-600 rounded-t-md flex items-center justify-center transition-all group/cell cursor-pointer shadow-sm"
+                                    title={`Tu sesión · ${hour}:00 – ${hour + 1}:00 · ${SESSION_TYPE_LABELS[mySession!.session_type] || 'Simulador'}${mySession!.workstation_name ? ` · ${mySession!.workstation_name}` : ''} · Click para cancelar`}
+                                  >
+                                    <div className="text-center">
+                                      <CheckCircle className="w-3 h-3 text-white mx-auto" />
+                                      <span className="text-[8px] text-white font-semibold block mt-0.5 truncate px-0.5" style={{ maxWidth: '80px' }}>
+                                        {mySession!.workstation_name || 'Agendada'}
+                                      </span>
+                                    </div>
+                                  </button>
+                                  {canConnect(mySession!) && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleConnect(mySession!.id); }}
+                                      disabled={connectingSessionId === mySession!.id}
+                                      className="bg-blue-600 hover:bg-blue-700 rounded-b-md py-0.5 flex items-center justify-center fluid-gap-0.5 transition-colors disabled:opacity-50"
+                                      title="Conectar a VDI"
+                                    >
+                                      {connectingSessionId === mySession!.id ? (
+                                        <Loader2 className="w-2.5 h-2.5 text-white animate-spin" />
+                                      ) : (
+                                        <Wifi className="w-2.5 h-2.5 text-white" />
+                                      )}
+                                      <span className="text-[8px] text-white font-bold">Conectar</span>
+                                    </button>
+                                  )}
+                                </div>
                               ) : isAvailable && !isReadOnly ? (
                                 // Disponible — solo para quienes pueden agendar
                                 <button
@@ -697,6 +882,29 @@ export default function VmSchedulingPage() {
               <p className="fluid-text-sm text-purple-800 fluid-mt-1">
                 <strong>Horario:</strong> {bookingSlot.slot.label}
               </p>
+              <p className="fluid-text-xs text-purple-600 fluid-mt-1">
+                <strong>Disponibles:</strong> {bookingSlot.slot.remaining} de {bookingSlot.slot.max_sessions} VDIs
+              </p>
+            </div>
+
+            <div className="fluid-mb-4">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Tipo de sesión</label>
+              <div className="grid grid-cols-3 fluid-gap-2">
+                {(['simulador', 'examen', 'parcial'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setBookingSessionType(t)}
+                    className={`fluid-py-2 fluid-px-3 rounded-fluid-lg fluid-text-sm font-medium border transition-all ${
+                      bookingSessionType === t
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
+                  >
+                    {SESSION_TYPE_LABELS[t]}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="fluid-mb-4">
@@ -756,7 +964,13 @@ export default function VmSchedulingPage() {
                 <strong>Fecha:</strong> {cancelSession.session_date}
               </p>
               <p className="fluid-text-sm text-red-800 fluid-mt-1">
-                <strong>Horario:</strong> {cancelSession.start_hour_label}
+                <strong>Horario:</strong> {formatHourLabel(cancelSession.start_hour)}
+              </p>
+              <p className="fluid-text-sm text-red-800 fluid-mt-1">
+                <strong>Tipo:</strong> {SESSION_TYPE_LABELS[cancelSession.session_type] || 'Simulador'}
+                {cancelSession.workstation_name && (
+                  <span className="ml-2 text-red-600">· VDI: {cancelSession.workstation_name}</span>
+                )}
               </p>
             </div>
 
@@ -786,6 +1000,85 @@ export default function VmSchedulingPage() {
                 {cancelLoading ? <Loader2 className="fluid-icon-sm animate-spin" /> : <X className="fluid-icon-sm" />}
                 {cancelLoading ? 'Cancelando...' : 'Cancelar Sesión'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Acceso Manual (Fallback si Guacamole SSO falla) */}
+      {connectFallback && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-6 max-w-md w-full animate-fadeSlideIn">
+            <div className="flex items-center justify-between fluid-mb-4">
+              <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
+                <Monitor className="fluid-icon text-amber-500" />
+                Acceso Manual a VDI
+              </h3>
+              <button onClick={() => setConnectFallback(null)} className="p-1 hover:bg-gray-100 rounded-fluid-lg transition-colors">
+                <X className="fluid-icon text-gray-500" />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-fluid-lg fluid-p-4 fluid-mb-4">
+              <p className="fluid-text-sm text-amber-800 fluid-mb-2">
+                {connectFallback.error || 'No se pudo conectar automáticamente.'}
+              </p>
+              <p className="fluid-text-xs text-amber-600">
+                Puedes acceder manualmente siguiendo estos pasos:
+              </p>
+            </div>
+
+            <div className="space-y-3 fluid-mb-4">
+              <div className="bg-gray-50 rounded-fluid-lg fluid-p-3">
+                <p className="fluid-text-xs font-semibold text-gray-500 uppercase fluid-mb-1">1. Abre Guacamole</p>
+                <a
+                  href={connectFallback.fallback_url || 'https://evapub2024.evaluaasi.info'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="fluid-text-sm text-blue-600 hover:text-blue-800 underline break-all flex items-center fluid-gap-1"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                  {connectFallback.fallback_url || 'evapub2024.evaluaasi.info'}
+                </a>
+              </div>
+
+              <div className="bg-gray-50 rounded-fluid-lg fluid-p-3">
+                <p className="fluid-text-xs font-semibold text-gray-500 uppercase fluid-mb-1">2. Ingresa tus credenciales</p>
+                <p className="fluid-text-sm text-gray-700">
+                  <strong>Usuario:</strong>{' '}
+                  <code className="bg-white px-1.5 py-0.5 rounded border text-blue-700 font-mono text-xs">
+                    {connectFallback.fallback_username || user?.username || ''}
+                  </code>
+                </p>
+                <p className="fluid-text-xs text-gray-500 fluid-mt-1">
+                  Usa la misma contraseña con la que inicias sesión en Evaluaasi.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-fluid-lg fluid-p-3">
+                <p className="fluid-text-xs font-semibold text-gray-500 uppercase fluid-mb-1">3. Selecciona tu VDI</p>
+                <p className="fluid-text-sm text-gray-700">
+                  Tu máquina asignada aparecerá automáticamente al iniciar sesión.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex fluid-gap-3">
+              <button
+                onClick={() => setConnectFallback(null)}
+                className="flex-1 fluid-py-3 border border-gray-300 text-gray-700 rounded-fluid-lg hover:bg-gray-50 transition-colors fluid-text-sm font-medium"
+              >
+                Cerrar
+              </button>
+              <a
+                href={connectFallback.fallback_url || 'https://evapub2024.evaluaasi.info'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 fluid-py-3 bg-blue-600 text-white rounded-fluid-lg hover:bg-blue-700 transition-colors fluid-text-sm font-medium flex items-center justify-center fluid-gap-2 no-underline"
+              >
+                <ExternalLink className="fluid-icon-sm" />
+                Ir a Guacamole
+              </a>
             </div>
           </div>
         </div>
