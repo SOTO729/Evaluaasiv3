@@ -128,7 +128,9 @@ def _sync_session_to_config(vm_session, user):
     """
     Sincronizar una sesión de Evaluaasi V2 a EvaluaasiConfig (dbo.Sesion).
     Esto alimenta al sistema legacy (EXE que crea usuarios AD y conexiones Guacamole).
-    Usa config_subsistema_id y config_plantel_id del Campus para el mapeo.
+    - SubsistemaId se resuelve desde el Partner del campus.
+    - PlantelId, CertificacionId, EtapaId se resuelven desde el Campus.
+    - Nombre es el nombre completo del candidato.
     """
     try:
         from app.services.evaluaasi_config_service import create_config_session, SESSION_TYPES
@@ -141,14 +143,22 @@ def _sync_session_to_config(vm_session, user):
         # Usar el username del candidato (mismo que usará en AD/Guacamole)
         nombre_usuario = user.username if user else ''
         
-        # Mapeo Campus → EvaluaasiConfig (SubsistemaId/PlantelId)
+        # Nombre completo del candidato
+        nombre = ''
+        if user:
+            parts = [user.name or '', user.first_surname or '', user.second_surname or '']
+            nombre = ' '.join(p for p in parts if p).strip()
+        
+        # SubsistemaId: desde el Partner del campus
         subsistema_id = 14  # Fallback: Grupo EduIT
         plantel_id = 2      # Fallback
         
         campus = Campus.query.get(vm_session.campus_id) if vm_session.campus_id else None
         if campus:
-            if campus.config_subsistema_id:
-                subsistema_id = campus.config_subsistema_id
+            # Subsistema viene del Partner
+            if campus.partner:
+                if campus.partner.config_subsistema_id:
+                    subsistema_id = campus.partner.config_subsistema_id
             if campus.config_plantel_id:
                 plantel_id = campus.config_plantel_id
         
@@ -171,6 +181,7 @@ def _sync_session_to_config(vm_session, user):
             tipo=session_type_int,
             inicio=inicio,
             final=final,
+            nombre=nombre,
         )
         
         if config_session_id:
@@ -580,6 +591,16 @@ def cancel_session(session_id):
     try:
         db.session.commit()
         
+        # Limpiar usuario AD si fue provisionado
+        try:
+            session_user = User.query.get(session.user_id)
+            if session_user:
+                from app.services.ad_management_service import delete_ad_user
+                delete_ad_user(session_user.username)
+                logger.info(f"AD user {session_user.username} eliminado por cancelación de sesión {session_id}")
+        except Exception as e:
+            logger.warning(f"No se pudo eliminar usuario AD en cancelación: {e}")
+        
         # Sincronizar cancelación a EvaluaasiConfig
         if session.config_session_id:
             try:
@@ -658,6 +679,17 @@ def update_session_status(session_id):
     
     try:
         db.session.commit()
+        
+        # Limpiar usuario AD si la sesión terminó
+        if new_status in ('completed', 'no_show', 'cancelled'):
+            try:
+                target_user = User.query.get(session.user_id)
+                if target_user:
+                    from app.services.ad_management_service import delete_ad_user
+                    delete_ad_user(target_user.username)
+                    logger.info(f"AD user {target_user.username} eliminado por cambio de estado a {new_status}")
+            except Exception as e:
+                logger.warning(f"No se pudo eliminar usuario AD al cambiar estado: {e}")
         
         # Sincronizar estado a EvaluaasiConfig
         if session.config_session_id:
@@ -1350,6 +1382,21 @@ def verify_flow():
     if unsynced > 0:
         results['all_ok'] = False
 
+    # Step 7: Conexión directa a Active Directory (LDAP)
+    try:
+        from app.services.ad_management_service import test_ad_connection
+        ad_ldap = test_ad_connection()
+        results['steps'].append({
+            'step': 7, 'name': 'AD LDAP directo',
+            'ok': ad_ldap.get('ok', False),
+            'detail': f"Conectado a {ad_ldap.get('server', '?')}" if ad_ldap.get('ok') else ad_ldap.get('error', 'Error'),
+        })
+        if not ad_ldap.get('ok'):
+            results['all_ok'] = False
+    except Exception as e:
+        results['steps'].append({'step': 7, 'name': 'AD LDAP directo', 'ok': False, 'detail': str(e)})
+        results['all_ok'] = False
+
     return jsonify(results)
 
 
@@ -1685,22 +1732,54 @@ def connect_to_vdi(session_id):
     elif user.role not in ['admin', 'developer', 'candidato', 'responsable']:
         return jsonify({'error': 'Acceso denegado'}), 403
 
-    # Verificar que la sesión está sincronizada (usuario AD debe existir)
-    if not session.config_session_id:
+    # Verificar que la sesión tiene workstation asignada
+    if not session.workstation_name:
         return jsonify({
-            'error': 'La sesión aún no está sincronizada con Active Directory. '
-                     'El acceso estará disponible después de que se procese (madrugada siguiente).',
+            'error': 'La sesión no tiene una VDI asignada. Contacta a soporte.',
         }), 400
 
-    # Obtener credenciales del candidato
+    # Obtener usuario de la sesión
     target_user = User.query.get(session.user_id)
     if not target_user:
         return jsonify({'error': 'Usuario de la sesión no encontrado'}), 404
 
-    from app.models.user import decrypt_password
-    password = decrypt_password(target_user.encrypted_password)
+    # Provisionar usuario AD just-in-time (Opción B: LDAP directo)
+    password = session.ad_password  # Reusar si ya existe
+    try:
+        from app.services.ad_management_service import provision_ad_for_session
+        ad_result = provision_ad_for_session(session, target_user, ad_password=password)
+        if ad_result:
+            password = ad_result['password']
+            # Guardar la contraseña AD en la sesión para reconexiones
+            if not session.ad_password or session.ad_password != password:
+                session.ad_password = password
+                db.session.commit()
+            logger.info(f"AD provisioned for session {session_id}: action={ad_result.get('action')}")
+        else:
+            logger.warning(f"AD provisioning failed for session {session_id}, trying fallback")
+    except Exception as e:
+        logger.error(f"Error en AD provisioning para sesión {session_id}: {e}")
+
+    # Fallback: si no tenemos contraseña AD, intentar decrypt_password legacy
     if not password:
-        return jsonify({'error': 'No se pudieron obtener las credenciales para Guacamole. Contacta a soporte.'}), 400
+        try:
+            from app.models.user import decrypt_password as decrypt_pw
+            password = decrypt_pw(target_user.encrypted_password)
+        except Exception:
+            pass
+
+    if not password:
+        return jsonify({
+            'error': 'No se pudo provisionar el usuario en Active Directory. '
+                     'Verifica que el servicio AD esté configurado o contacta a soporte.',
+        }), 400
+
+    # Sincronizar a EvaluaasiConfig si no se ha hecho
+    if not session.config_session_id:
+        try:
+            _sync_session_to_config(session, target_user)
+        except Exception as e:
+            logger.warning(f"Sync to EvaluaasiConfig failed during connect: {e}")
 
     # Obtener token de Guacamole vía REST API
     import requests as http_requests

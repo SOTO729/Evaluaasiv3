@@ -598,9 +598,26 @@ def check_and_add_campus_activation_columns():
                 # Costos
                 'certification_cost': 'DECIMAL(10,2) DEFAULT 0',
                 'retake_cost': 'DECIMAL(10,2) DEFAULT 0',
+                'max_retakes': 'INT DEFAULT 0',
                 # Estado de configuración
                 'configuration_completed': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
                 'configuration_completed_at': 'DATETIME' if db_type == 'mssql' else 'TIMESTAMP',
+                # Visibilidad de certificados para candidatos
+                'enable_candidate_certificates': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                # Calendario de sesiones
+                'enable_session_calendar': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'session_scheduling_mode': "NVARCHAR(20) DEFAULT 'leader_only'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'leader_only'",
+                # Mapeo a EvaluaasiConfig (VDI/AD/Guacamole)
+                'config_subsistema_id': 'INT NULL',
+                'config_plantel_id': 'INT NULL',
+                'config_certificacion_id': 'INT NULL',
+                'config_etapa_id': 'INT NULL',
+                # Activo
+                'is_active': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                # Branding
+                'logo_url': 'NVARCHAR(500) NULL' if db_type == 'mssql' else 'VARCHAR(500) NULL',
+                'primary_color': 'NVARCHAR(7) NULL' if db_type == 'mssql' else 'VARCHAR(7) NULL',
+                'secondary_color': 'NVARCHAR(7) NULL' if db_type == 'mssql' else 'VARCHAR(7) NULL',
             }
             
             for column_name, column_def in campus_config_columns.items():
@@ -1600,6 +1617,27 @@ def check_and_add_result_mode_column():
             db.session.rollback()
 
 
+def check_and_add_partner_config_subsistema():
+    """Agregar columna config_subsistema_id a partners para mapeo a EvaluaasiConfig"""
+    print("🔍 Verificando columna config_subsistema_id en partners...")
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('partners')]
+        if 'config_subsistema_id' not in existing_columns:
+            print("  📝 Agregando columna config_subsistema_id a partners...")
+            db.session.execute(text("ALTER TABLE partners ADD config_subsistema_id INT NULL"))
+            db.session.commit()
+            print("  ✓ Columna config_subsistema_id agregada a partners")
+        else:
+            print("  ✓ Columna config_subsistema_id ya existe en partners")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna config_subsistema_id ya existe en partners")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
 # ---------------------------------------------------------------------------
 # CURP recovery: detect and re-verify orphaned curp_pending users
 # ---------------------------------------------------------------------------
@@ -1666,3 +1704,28 @@ def check_and_recover_orphaned_curp_users():
 
     except Exception as e:
         print(f"[CURP-RECOVERY] Error during orphan detection: {e}")
+
+
+def check_and_add_vm_session_ad_password():
+    """Agregar columna ad_password a vm_sessions para almacenar contraseña AD generada"""
+    print("🔍 Verificando columna ad_password en vm_sessions...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'vm_sessions' not in tables:
+            print("  ⚠️  Tabla vm_sessions no existe, saltando...")
+            return
+        existing_columns = [col['name'] for col in inspector.get_columns('vm_sessions')]
+        if 'ad_password' not in existing_columns:
+            print("  📝 Agregando columna ad_password a vm_sessions...")
+            db.session.execute(text("ALTER TABLE vm_sessions ADD ad_password VARCHAR(64) NULL"))
+            db.session.commit()
+            print("  ✓ Columna ad_password agregada a vm_sessions")
+        else:
+            print("  ✓ Columna ad_password ya existe en vm_sessions")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna ad_password ya existe en vm_sessions")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()

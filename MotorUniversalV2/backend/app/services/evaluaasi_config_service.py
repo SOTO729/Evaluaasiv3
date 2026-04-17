@@ -288,7 +288,7 @@ def assign_workstation(target_date, start_hour, end_hour=None, cert_type='OFFICE
 @retry_on_failure(max_retries=3, base_delay=1.0, operation_name='create_config_session')
 def create_config_session(
     subsistema_id, plantel_id, equipo_id, certificacion_id, etapa_id,
-    nombre_usuario, tipo, inicio, final
+    nombre_usuario, tipo, inicio, final, nombre=None
 ):
     """
     Crear una sesión en dbo.Sesion de EvaluaasiConfig.
@@ -303,6 +303,7 @@ def create_config_session(
         tipo: int — 1=simulador, 2=examen, 3=parcial
         inicio: datetime — inicio de la sesión
         final: datetime — fin de la sesión
+        nombre: str — (ignored, dbo.Sesion has no Nombre column)
     
     Returns:
         UUID de la sesión creada o None si falló

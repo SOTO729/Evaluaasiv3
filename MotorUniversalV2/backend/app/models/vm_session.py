@@ -36,7 +36,10 @@ class VmSession(db.Model):
     # Referencia a sesión en EvaluaasiConfig (dbo.Sesion.SesionId)
     config_session_id = db.Column(db.String(36), nullable=True)
     
-    # Estado: scheduled, completed, cancelled, no_show
+    # Contraseña AD generada para esta sesión (se provisiona just-in-time)
+    ad_password = db.Column(db.String(64), nullable=True)
+    
+    # Estado: scheduled, in_progress, completed, cancelled, no_show
     status = db.Column(db.String(20), default='scheduled', nullable=False)
     
     # Notas opcionales

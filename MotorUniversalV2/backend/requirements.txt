@@ -49,6 +49,9 @@ PyMuPDF==1.24.0
 # RENAPO CURP Validation (headless browser)
 playwright==1.49.1
 
+# Active Directory (LDAP)
+ldap3==2.9.1
+
 # Scheduler
 APScheduler==3.10.4
 
