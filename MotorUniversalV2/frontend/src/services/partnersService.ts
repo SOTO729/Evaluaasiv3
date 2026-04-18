@@ -17,6 +17,7 @@ export interface Partner {
   logo_url?: string;
   is_active: boolean;
   notes?: string;
+  config_subsistema_id?: number | null;
   created_at: string;
   updated_at: string;
   states?: PartnerStatePresence[];
@@ -4039,6 +4040,7 @@ export interface ReportRow {
   result?: string;
   result_date?: string | null;
   duration_seconds?: number | null;
+  opportunity_number?: number | null;
   // Certificación
   certificate_code?: string | null;
   eduit_certificate_code?: string | null;
@@ -4096,6 +4098,7 @@ export interface StudyProgressRow {
   group_name?: string;
   school_cycle?: string;
   material_name: string;
+  material_global_progress_percentage: number;
   session_title: string;
   session_number: number;
   topic_title: string;

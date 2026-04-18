@@ -3108,6 +3108,15 @@ def check_exam_access(exam_id):
         attempts_remaining = max(0, total_allowed - results_count)
         attempts_exhausted = results_count >= total_allowed
         
+        # Verificar si el usuario ya aprobó este examen (solo resultados completados con mode=exam)
+        already_passed = Result.query.filter_by(
+            user_id=str(user_id),
+            group_exam_id=group_exam_id,
+            status=1,
+            result=1,
+            mode='exam'
+        ).first() is not None
+        
         # Calcular precio de retoma (group override → campus → 0)
         group = CandidateGroup.query.get(group_exam.group_id)
         retake_cost = 0.0
@@ -3178,13 +3187,14 @@ def check_exam_access(exam_id):
                     retake_requires_payment = True
 
         return jsonify({
-            'can_take': not attempts_exhausted and (not requires_payment or is_paid),
+            'can_take': not attempts_exhausted and not already_passed and (not requires_payment or is_paid),
             'max_attempts': max_attempts,
             'retakes_total': retakes_total,
             'total_allowed': total_allowed,
             'attempts_used': results_count,
             'attempts_remaining': attempts_remaining,
             'attempts_exhausted': attempts_exhausted,
+            'already_passed': already_passed,
             'retake_cost': retake_cost,
             'max_disconnections': group_exam.max_disconnections or 3,
             'expired': False,
@@ -3376,6 +3386,18 @@ def save_exam_result(exam_id):
                         return jsonify({
                             'error': 'Has agotado tus intentos para este examen. Solicita una retoma a tu coordinador.'
                         }), 403
+                    
+                    # Verificar si ya aprobó (solo mode=exam)
+                    if mode == 'exam':
+                        has_passed = Result.query.filter_by(
+                            user_id=str(user_id), group_exam_id=group_exam_id,
+                            status=1, result=1, mode='exam'
+                        ).first()
+                        if has_passed:
+                            print(f"⛔ YA APROBADO: user={user_id}, geid={group_exam_id}")
+                            return jsonify({
+                                'error': 'Ya acreditaste la certificación de este examen. No se permiten más intentos.'
+                            }), 403
             except Exception as att_err:
                 print(f"⚠️ Error validando intentos: {att_err}")
         

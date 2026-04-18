@@ -111,6 +111,7 @@ export default function VmSchedulingPage() {
   // VDI Connection
   const [connectingSessionId, setConnectingSessionId] = useState<number | null>(null);
   const [connectFallback, setConnectFallback] = useState<VdiConnectResult | null>(null);
+  const [connectingModal, setConnectingModal] = useState(false);
 
   // Campus selector para coordinadores
   const [selectedCampusId, setSelectedCampusId] = useState<number | null>(null);
@@ -238,18 +239,28 @@ export default function VmSchedulingPage() {
   const nextMonth = () => { const d = new Date(currentDate); d.setMonth(d.getMonth() + 1); setCurrentDate(d); };
 
   // Connect to VDI via Guacamole SSO
+  // Open window immediately in click context to avoid popup blocker
   const handleConnect = async (sessionId: number) => {
+    const newWindow = window.open('about:blank', '_blank');
     setConnectingSessionId(sessionId);
+    setConnectingModal(true);
     try {
       const result = await connectToVdi(sessionId);
-      if (result.connect_url) {
-        window.open(result.connect_url, '_blank', 'noopener,noreferrer');
+      setConnectingModal(false);
+      if (result.connect_url && newWindow) {
+        newWindow.location.href = result.connect_url;
         showToast('success', result.message || 'Conexión abierta en nueva pestaña');
+      } else if (result.connect_url) {
+        // Fallback if window was still blocked
+        window.location.href = result.connect_url;
+      } else {
+        newWindow?.close();
       }
     } catch (err: any) {
+      newWindow?.close();
+      setConnectingModal(false);
       const data = err?.response?.data;
       if (data?.fallback_url) {
-        // Show fallback modal with manual access info
         setConnectFallback(data as VdiConnectResult);
       } else {
         showToast('error', data?.error || 'Error al conectar con la VDI');
@@ -259,14 +270,19 @@ export default function VmSchedulingPage() {
     }
   };
 
-  // Check if a session can connect (synced + today or future)
+  // Check if a session can connect (synced + within 15 min before start hour)
   const canConnect = (session: VmSession): boolean => {
     if (session.status !== 'scheduled') return false;
     if (!session.config_session_id) return false;
-    const sessionDate = new Date(session.session_date + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return sessionDate >= today;
+    const now = new Date();
+    const sessionStart = new Date(session.session_date + 'T00:00:00');
+    sessionStart.setHours(session.start_hour, 0, 0, 0);
+    const sessionEnd = new Date(sessionStart);
+    sessionEnd.setHours(session.start_hour + 1, 0, 0, 0);
+    // Allow connection starting 15 minutes before session until session ends
+    const earlyAccess = new Date(sessionStart);
+    earlyAccess.setMinutes(earlyAccess.getMinutes() - 15);
+    return now >= earlyAccess && now <= sessionEnd;
   };
 
   // Get slot for a specific day+hour from weekSlots
@@ -338,7 +354,7 @@ export default function VmSchedulingPage() {
                         <span className="text-blue-500 ml-2 text-xs">· {s.workstation_name}</span>
                       )}
                     </div>
-                    {canConnect(s) && (
+                    {canConnect(s) ? (
                       <button
                         onClick={() => handleConnect(s.id)}
                         disabled={connectingSessionId === s.id}
@@ -351,7 +367,12 @@ export default function VmSchedulingPage() {
                         )}
                         Conectar a VDI
                       </button>
-                    )}
+                    ) : s.config_session_id ? (
+                      <span className="text-gray-500 text-xs flex items-center fluid-gap-1">
+                        <Clock className="w-3 h-3" />
+                        Disponible a las {String(s.start_hour).padStart(2, '0')}:00
+                      </span>
+                    ) : null}
                     {!s.config_session_id && (
                       <span className="text-amber-600 text-xs flex items-center fluid-gap-1">
                         <Clock className="w-3 h-3" />
@@ -364,6 +385,22 @@ export default function VmSchedulingPage() {
             </div>
           )}
         </div>
+
+        {/* Modal: Conectando a VDI — leader_only view */}
+        {connectingModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+            <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-8 max-w-sm w-full animate-fadeSlideIn text-center">
+              <div className="relative mx-auto w-16 h-16 fluid-mb-5">
+                <div className="absolute inset-0 rounded-full border-4 border-blue-200" />
+                <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+                <Monitor className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="fluid-text-lg font-bold text-gray-800 fluid-mb-2">Conectando a la máquina virtual</h3>
+              <p className="fluid-text-sm text-gray-500 fluid-mb-1">Preparando tu sesión VDI...</p>
+              <p className="fluid-text-xs text-gray-400">Esto puede tomar unos segundos</p>
+            </div>
+          </div>
+        )}
 
         {/* Modal: Acceso Manual (Fallback) — leader_only view */}
         {connectFallback && (
@@ -1001,6 +1038,22 @@ export default function VmSchedulingPage() {
                 {cancelLoading ? 'Cancelando...' : 'Cancelar Sesión'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Conectando a VDI */}
+      {connectingModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 fluid-p-4">
+          <div className="bg-white rounded-fluid-2xl shadow-2xl fluid-p-8 max-w-sm w-full animate-fadeSlideIn text-center">
+            <div className="relative mx-auto w-16 h-16 fluid-mb-5">
+              <div className="absolute inset-0 rounded-full border-4 border-blue-200" />
+              <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+              <Monitor className="absolute inset-0 m-auto w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="fluid-text-lg font-bold text-gray-800 fluid-mb-2">Conectando a la máquina virtual</h3>
+            <p className="fluid-text-sm text-gray-500 fluid-mb-1">Preparando tu sesión VDI...</p>
+            <p className="fluid-text-xs text-gray-400">Esto puede tomar unos segundos</p>
           </div>
         </div>
       )}

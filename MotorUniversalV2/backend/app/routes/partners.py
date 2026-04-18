@@ -303,7 +303,8 @@ def create_partner():
             website=data.get('website'),
             logo_url=data.get('logo_url'),
             notes=data.get('notes'),
-            is_active=data.get('is_active', True)
+            is_active=data.get('is_active', True),
+            config_subsistema_id=data.get('config_subsistema_id')
         )
         
         db.session.commit()
@@ -340,7 +341,7 @@ def update_partner(partner_id):
                 return jsonify({'error': 'Ya existe un partner con ese RFC'}), 400
         
         # Actualizar campos
-        for field in ['name', 'legal_name', 'rfc', 'country', 'email', 'phone', 'website', 'logo_url', 'notes', 'is_active']:
+        for field in ['name', 'legal_name', 'rfc', 'country', 'email', 'phone', 'website', 'logo_url', 'notes', 'is_active', 'config_subsistema_id']:
             if field in data:
                 setattr(partner, field, data[field])
         
@@ -18343,6 +18344,7 @@ def _build_reports_query(user, params):
 
     # ── Precargar resultados ──
     results_map = {}      # (user_id, exam_id) → [Result] desc by date
+    result_opportunity_map = {}  # result_id -> numero de oportunidad (1,2,3...) por user+exam
     best_results = {}     # (user_id, exam_id) → best Result
     if has_res or has_cert:
         results_q = Result.query.filter(
@@ -18369,13 +18371,50 @@ def _build_reports_query(user, params):
                 elif r.result == existing.result and (r.score or 0) > (existing.score or 0):
                     best_results[key] = r
 
+        # Numerar oportunidades en orden cronológico (intento 1 = más antiguo)
+        for _, attempts in results_map.items():
+            ordered_attempts = sorted(
+                attempts,
+                key=lambda rr: (rr.end_date or rr.start_date or rr.created_at, rr.created_at)
+            )
+            for idx, rr in enumerate(ordered_attempts, start=1):
+                result_opportunity_map[rr.id] = idx
+
     # ── Filtros post-query ──
     std_filter = params.get('standard_id', type=int)
     brand_filter = params.get('brand_id', type=int)
     result_filter = params.get('result')
 
     # ── Helpers para crear campos por categoría ──
+    # Timezone de México para formateo de fechas de registro
+    try:
+        import pytz
+        _mx_tz = pytz.timezone('America/Mexico_City')
+    except Exception:
+        _mx_tz = None
+
+    def _format_registration_dates(created_at):
+        """Formatea created_at en fecha dd/mm/yyyy, hora HH:MM:SS y fecha+hora."""
+        if not created_at:
+            return None, None, None
+        try:
+            if _mx_tz:
+                if created_at.tzinfo is None:
+                    import pytz as _pz
+                    created_at = _pz.utc.localize(created_at)
+                local_dt = created_at.astimezone(_mx_tz)
+            else:
+                local_dt = created_at
+            return (
+                local_dt.strftime('%d/%m/%Y'),
+                local_dt.strftime('%H:%M:%S'),
+                local_dt.strftime('%d/%m/%Y %H:%M:%S'),
+            )
+        except Exception:
+            return None, None, None
+
     def _user_fields(u):
+        reg_date, reg_time, reg_datetime = _format_registration_dates(u.created_at)
         return {
             'user_id': u.id,
             'full_name': u.full_name,
@@ -18392,7 +18431,9 @@ def _build_reports_query(user, params):
             'is_active': u.is_active,
             'curp_verified': u.curp_verified,
             'last_login': u.last_login.isoformat() if u.last_login else None,
-            'created_at': u.created_at.isoformat() if u.created_at else None,
+            'created_at': reg_date,
+            'registration_time': reg_time,
+            'registration_datetime': reg_datetime,
         }
 
     def _org_fields(grp, campus, partner, cycle, m_status=None, m_joined=None):
@@ -18432,13 +18473,15 @@ def _build_reports_query(user, params):
     def _result_fields(res):
         if not res:
             return {'score': None, 'result': 'Sin evaluar',
-                    'result_date': None, 'duration_seconds': None}
+                    'result_date': None, 'duration_seconds': None,
+                    'opportunity_number': None}
         sc = res.score
         return {
             'score': sc,
             'result': 'Aprobado' if res.result == 1 else 'Reprobado',
             'result_date': res.end_date.isoformat() if res.end_date else None,
             'duration_seconds': res.duration_seconds,
+            'opportunity_number': result_opportunity_map.get(res.id),
         }
 
     def _cert_fields(res, ea):
@@ -18455,6 +18498,10 @@ def _build_reports_query(user, params):
     EMPTY_CERT = _cert_fields(None, None)
 
     # ── Construir filas según nivel de profundidad ──
+    # Deduplicación: evitar filas idénticas cuando un usuario está en
+    # múltiples grupos con el mismo examen/estándar/resultado.
+    _emitted_result_ids = set()   # result.id ya emitidos
+    _emitted_std_keys = set()     # (uid, exam_id, std_id) ya emitidos (depth 2)
     rows = []
     for uid in filtered_user_ids:
         u = users_map[uid]
@@ -18514,7 +18561,11 @@ def _build_reports_query(user, params):
                 std_data = _std_fields(ea, std, exam, brand)
 
                 if not has_res:
-                    # Depth 2: per assignment
+                    # Depth 2: per assignment — dedup por (uid, exam, std)
+                    _sk = (uid, ea.exam_id, ea.competency_standard_id)
+                    if _sk in _emitted_std_keys:
+                        continue
+                    _emitted_std_keys.add(_sk)
                     row = {**base, **org, **std_data}
                     if has_cert:
                         best = best_results.get((uid, ea.exam_id))
@@ -18527,6 +18578,11 @@ def _build_reports_query(user, params):
                 if not attempt_results:
                     if result_filter:
                         continue  # Skip "Sin evaluar" when filtering by result
+                    # Dedup: evitar filas "Sin evaluar" repetidas
+                    _sk = (uid, ea.exam_id, ea.competency_standard_id)
+                    if _sk in _emitted_std_keys:
+                        continue
+                    _emitted_std_keys.add(_sk)
                     row = {**base, **org, **std_data, **EMPTY_RES}
                     if has_cert:
                         row.update(EMPTY_CERT)
@@ -18534,10 +18590,13 @@ def _build_reports_query(user, params):
                     continue
 
                 for res in attempt_results:
+                    if res.id in _emitted_result_ids:
+                        continue  # Dedup: este resultado ya fue emitido
                     if result_filter == 'approved' and res.result != 1:
                         continue
                     if result_filter == 'rejected' and res.result != 0:
                         continue
+                    _emitted_result_ids.add(res.id)
                     row = {**base, **org, **std_data, **_result_fields(res)}
                     if has_cert:
                         row.update(_cert_fields(res, ea))
@@ -18616,6 +18675,8 @@ def export_reports():
             'curp_verified': ('CURP Verificada', lambda r: 'Sí' if r.get('curp_verified') else 'No'),
             'last_login': ('Último Login', lambda r: r.get('last_login', '')),
             'created_at': ('Fecha de Registro', lambda r: r.get('created_at', '')),
+            'registration_time': ('Hora de Registro', lambda r: r.get('registration_time', '')),
+            'registration_datetime': ('Fecha y Hora de Registro', lambda r: r.get('registration_datetime', '')),
             # Organización
             'partner_name': ('Partner', lambda r: r.get('partner_name', '')),
             'campus_code': ('Clave Plantel', lambda r: r.get('campus_code', '')),
@@ -18647,6 +18708,7 @@ def export_reports():
             'result': ('Resultado', lambda r: r.get('result', '')),
             'result_date': ('Fecha Evaluación', lambda r: r.get('result_date', '')),
             'duration_seconds': ('Duración (seg)', lambda r: r.get('duration_seconds')),
+            'opportunity_number': ('Número de oportunidad', lambda r: r.get('opportunity_number')),
             # Certificación
             'certificate_code': ('Código Certificado', lambda r: r.get('certificate_code', '')),
             'eduit_certificate_code': ('Código Certificado Eduit', lambda r: r.get('eduit_certificate_code', '')),
@@ -18832,6 +18894,12 @@ def _build_study_progress_query(user, params):
     ses_topics = {}
     for t in topics_list:
         ses_topics.setdefault(t.session_id, []).append(t)
+    material_topic_ids = {}
+    for mid, sessions in mat_sessions.items():
+        topic_ids_for_material = []
+        for sess in sessions:
+            topic_ids_for_material.extend([tp.id for tp in ses_topics.get(sess.id, [])])
+        material_topic_ids[mid] = topic_ids_for_material
     topic_ids = [t.id for t in topics_list]
 
     progress_rows = []
@@ -18842,14 +18910,76 @@ def _build_study_progress_query(user, params):
         ).all()
     progress_map = {(p.user_id, p.topic_id): p for p in progress_rows}
 
+    # Avance global por usuario + material (sin reemplazar el desglose por tema)
+    material_global_progress_map = {}
+    for uid in filtered_user_ids:
+        for mid in mat_ids:
+            topic_ids_for_material = material_topic_ids.get(mid, [])
+            if not topic_ids_for_material:
+                material_global_progress_map[(uid, mid)] = 0.0
+                continue
+
+            total_contents_sum = 0
+            completed_contents_sum = 0
+            topic_progress_values = []
+
+            for tid in topic_ids_for_material:
+                prog = progress_map.get((uid, tid))
+                if prog:
+                    total_contents_sum += prog.total_contents or 0
+                    completed_contents_sum += prog.completed_contents or 0
+                    topic_progress_values.append(prog.progress_percentage or 0.0)
+                else:
+                    topic_progress_values.append(0.0)
+
+            if total_contents_sum > 0:
+                global_pct = round((completed_contents_sum / total_contents_sum) * 100, 1)
+            else:
+                global_pct = round(sum(topic_progress_values) / len(topic_progress_values), 1) if topic_progress_values else 0.0
+
+            material_global_progress_map[(uid, mid)] = global_pct
+
+    # Timezone de México para formateo de fechas de registro
+    try:
+        import pytz
+        _mx_tz_mat = pytz.timezone('America/Mexico_City')
+    except Exception:
+        _mx_tz_mat = None
+
+    def _fmt_reg_dates_mat(created_at):
+        if not created_at:
+            return None, None, None
+        try:
+            if _mx_tz_mat:
+                if created_at.tzinfo is None:
+                    import pytz as _pz
+                    created_at = _pz.utc.localize(created_at)
+                local_dt = created_at.astimezone(_mx_tz_mat)
+            else:
+                local_dt = created_at
+            return (
+                local_dt.strftime('%d/%m/%Y'),
+                local_dt.strftime('%H:%M:%S'),
+                local_dt.strftime('%d/%m/%Y %H:%M:%S'),
+            )
+        except Exception:
+            return None, None, None
+
+    # Deduplicación: evitar filas idénticas cuando un usuario está en
+    # múltiples grupos con el mismo material/tema asignado.
+    _emitted_mat_keys = set()  # (uid, topic_id) ya emitidos
     rows = []
     for uid in filtered_user_ids:
         u = users_map[uid]
+        _reg_date, _reg_time, _reg_datetime = _fmt_reg_dates_mat(u.created_at)
         base = {
             'user_id': u.id, 'full_name': u.full_name,
             'name': u.name, 'first_surname': u.first_surname,
             'second_surname': u.second_surname or '',
             'username': u.username, 'email': u.email, 'curp': u.curp,
+            'created_at': _reg_date,
+            'registration_time': _reg_time,
+            'registration_datetime': _reg_datetime,
         }
         for gid, m_status, m_joined in user_memberships.get(uid, []):
             grp = all_groups.get(gid)
@@ -18870,9 +19000,14 @@ def _build_study_progress_query(user, params):
                     continue
                 for sess in mat_sessions.get(mid, []):
                     for topic in ses_topics.get(sess.id, []):
+                        _mk = (uid, topic.id)
+                        if _mk in _emitted_mat_keys:
+                            continue  # Dedup: este usuario+tema ya fue emitido
+                        _emitted_mat_keys.add(_mk)
                         prog = progress_map.get((uid, topic.id))
                         rows.append({**base, **org,
                             'material_name': mat.title,
+                            'material_global_progress_percentage': material_global_progress_map.get((uid, mid), 0.0),
                             'session_title': sess.title,
                             'session_number': sess.session_number,
                             'topic_title': topic.title,
@@ -18925,6 +19060,7 @@ def export_study_progress_report():
             'group_name': ('Grupo', lambda r: r.get('group_name', '')),
             'school_cycle': ('Ciclo Escolar', lambda r: r.get('school_cycle', '')),
             'material_name': ('Material', lambda r: r.get('material_name', '')),
+            'material_global_progress_percentage': ('Avance Global Material (%)', lambda r: r.get('material_global_progress_percentage', 0.0)),
             'session_title': ('Sesion', lambda r: r.get('session_title', '')),
             'session_number': ('No. Sesion', lambda r: r.get('session_number')),
             'topic_title': ('Tema', lambda r: r.get('topic_title', '')),
@@ -18932,6 +19068,9 @@ def export_study_progress_report():
             'completed_contents': ('Contenidos Completados', lambda r: r.get('completed_contents', 0)),
             'progress_percentage': ('Avance (%)', lambda r: r.get('progress_percentage', 0)),
             'is_completed': ('Completado', lambda r: 'Si' if r.get('is_completed') else 'No'),
+            'created_at': ('Fecha de Registro', lambda r: r.get('created_at', '')),
+            'registration_time': ('Hora de Registro', lambda r: r.get('registration_time', '')),
+            'registration_datetime': ('Fecha y Hora de Registro', lambda r: r.get('registration_datetime', '')),
         }
         if user.role == 'responsable':
             COLS.pop('partner_name', None)

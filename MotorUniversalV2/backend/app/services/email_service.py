@@ -1213,7 +1213,7 @@ def send_contact_form_email(name: str, email: str, subject_text: str, message: s
 # Destinatarios de notificaciones VDI (equipo de operaciones)
 VDI_NOTIFICATION_RECIPIENTS = os.getenv(
     'VDI_NOTIFICATION_EMAILS',
-    'ocorreas@grupoeduit.com,oh@grupoeduit.com,jcamacho@grupoeduit.com,pvaleriano@grupoeduit.com,jrodriguez@grupoeduit.com,namos@grupoeduit.com'
+    'ocorreas@grupoeduit.com'
 ).split(',')
 
 

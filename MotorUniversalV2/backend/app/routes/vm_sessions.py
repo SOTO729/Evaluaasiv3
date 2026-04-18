@@ -1743,36 +1743,34 @@ def connect_to_vdi(session_id):
     if not target_user:
         return jsonify({'error': 'Usuario de la sesión no encontrado'}), 404
 
-    # Provisionar usuario AD just-in-time (Opción B: LDAP directo)
-    password = session.ad_password  # Reusar si ya existe
-    try:
-        from app.services.ad_management_service import provision_ad_for_session
-        ad_result = provision_ad_for_session(session, target_user, ad_password=password)
-        if ad_result:
-            password = ad_result['password']
-            # Guardar la contraseña AD en la sesión para reconexiones
-            if not session.ad_password or session.ad_password != password:
-                session.ad_password = password
-                db.session.commit()
-            logger.info(f"AD provisioned for session {session_id}: action={ad_result.get('action')}")
-        else:
-            logger.warning(f"AD provisioning failed for session {session_id}, trying fallback")
-    except Exception as e:
-        logger.error(f"Error en AD provisioning para sesión {session_id}: {e}")
+    # Obtener URL de Guacamole
+    import requests as http_requests
+    GUACAMOLE_URL = os.environ.get('GUACAMOLE_URL', 'https://evapub2024.evaluaasi.info')
 
-    # Fallback: si no tenemos contraseña AD, intentar decrypt_password legacy
+    # --- Paso 1: Provisionar usuario AD via LDAP (si está disponible) ---
+    password = session.ad_password  # Reusar contraseña guardada
+    ad_provisioned = False
+    try:
+        from app.services.ad_management_service import provision_ad_for_session, AD_CONFIG
+        if AD_CONFIG.get('password'):
+            ad_result = provision_ad_for_session(session, target_user, ad_password=password)
+            if ad_result:
+                password = ad_result['password']
+                if not session.ad_password or session.ad_password != password:
+                    session.ad_password = password
+                    db.session.commit()
+                ad_provisioned = True
+                logger.info(f"AD provisioned for session {session_id}: action={ad_result.get('action')}")
+    except Exception as e:
+        logger.warning(f"AD provisioning no disponible para sesión {session_id}: {e}")
+
+    # Fallback: decrypt_password legacy
     if not password:
         try:
             from app.models.user import decrypt_password as decrypt_pw
             password = decrypt_pw(target_user.encrypted_password)
         except Exception:
             pass
-
-    if not password:
-        return jsonify({
-            'error': 'No se pudo provisionar el usuario en Active Directory. '
-                     'Verifica que el servicio AD esté configurado o contacta a soporte.',
-        }), 400
 
     # Sincronizar a EvaluaasiConfig si no se ha hecho
     if not session.config_session_id:
@@ -1781,83 +1779,52 @@ def connect_to_vdi(session_id):
         except Exception as e:
             logger.warning(f"Sync to EvaluaasiConfig failed during connect: {e}")
 
-    # Obtener token de Guacamole vía REST API
-    import requests as http_requests
-    GUACAMOLE_URL = os.environ.get('GUACAMOLE_URL', 'https://evapub2024.evaluaasi.info')
-
-    try:
-        resp = http_requests.post(
-            f'{GUACAMOLE_URL}/api/tokens',
-            data={'username': target_user.username, 'password': password},
-            headers={'Content-Type': 'application/x-www-form-urlencoded'},
-            timeout=30,
-            verify=True,
-        )
-
-        if resp.status_code == 200:
-            token_data = resp.json()
-            auth_token = token_data.get('authToken')
-            if not auth_token:
-                return jsonify({'error': 'Guacamole no devolvió un token válido'}), 502
-
-            connect_url = f'{GUACAMOLE_URL}/#/?token={auth_token}'
-
-            logger.info(
-                f"Conexión VDI exitosa: session={session_id}, user={target_user.username}, "
-                f"workstation={session.workstation_name}"
+    # --- Paso 2: Intentar SSO con Guacamole (timeout corto: 5s) ---
+    if password:
+        try:
+            resp = http_requests.post(
+                f'{GUACAMOLE_URL}/api/tokens',
+                data={'username': target_user.username, 'password': password},
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                timeout=5,
+                verify=True,
             )
 
-            return jsonify({
-                'connect_url': connect_url,
-                'guacamole_url': GUACAMOLE_URL,
-                'workstation_name': session.workstation_name,
-                'message': 'Conexión lista. Se abrirá en una nueva pestaña.',
-            })
+            if resp.status_code == 200:
+                token_data = resp.json()
+                auth_token = token_data.get('authToken')
+                if auth_token:
+                    connect_url = f'{GUACAMOLE_URL}/#/?token={auth_token}'
+                    logger.info(
+                        f"Conexión VDI exitosa: session={session_id}, user={target_user.username}, "
+                        f"workstation={session.workstation_name}"
+                    )
+                    return jsonify({
+                        'connect_url': connect_url,
+                        'guacamole_url': GUACAMOLE_URL,
+                        'workstation_name': session.workstation_name,
+                        'message': 'Conexión lista. Se abrirá en una nueva pestaña.',
+                    })
+        except (http_requests.Timeout, http_requests.ConnectionError):
+            logger.info(f"Guacamole SSO no alcanzable para sesión {session_id}, usando acceso directo")
+        except Exception as e:
+            logger.warning(f"Error Guacamole SSO: {e}")
 
-        elif resp.status_code == 403:
-            logger.warning(
-                f"Guacamole 403 para {target_user.username} — "
-                f"el usuario AD puede no existir aún o credenciales incorrectas"
-            )
-            return jsonify({
-                'error': 'No se pudo autenticar en Guacamole. '
-                         'El usuario de Active Directory puede no estar creado aún. '
-                         'Intenta después de la madrugada siguiente a la creación de la sesión.',
-                'fallback_url': GUACAMOLE_URL,
-                'fallback_username': target_user.username,
-            }), 400
-
-        else:
-            logger.error(f"Guacamole error {resp.status_code}: {resp.text[:200]}")
-            return jsonify({
-                'error': f'Error de Guacamole (HTTP {resp.status_code}). Intenta acceder manualmente.',
-                'fallback_url': GUACAMOLE_URL,
-                'fallback_username': target_user.username,
-            }), 502
-
-    except http_requests.Timeout:
-        logger.error("Timeout conectando a Guacamole")
-        return jsonify({
-            'error': 'Guacamole no respondió a tiempo. Intenta acceder manualmente.',
-            'fallback_url': GUACAMOLE_URL,
-            'fallback_username': target_user.username,
-        }), 504
-
-    except http_requests.ConnectionError:
-        logger.error("No se pudo conectar a Guacamole")
-        return jsonify({
-            'error': 'No se pudo conectar con Guacamole. El servicio puede estar en mantenimiento.',
-            'fallback_url': GUACAMOLE_URL,
-            'fallback_username': target_user.username,
-        }), 502
-
-    except Exception as e:
-        logger.error(f'Error conectando a Guacamole: {e}')
-        return jsonify({
-            'error': 'Error de conexión con Guacamole. Intenta acceder manualmente.',
-            'fallback_url': GUACAMOLE_URL,
-            'fallback_username': target_user.username,
-        }), 502
+    # --- Paso 3: Respuesta inmediata con acceso directo ---
+    # Si SSO no funcionó, devolver la URL de Guacamole para acceso manual
+    logger.info(
+        f"Acceso directo VDI: session={session_id}, user={target_user.username}, "
+        f"workstation={session.workstation_name}, ad_provisioned={ad_provisioned}"
+    )
+    return jsonify({
+        'connect_url': GUACAMOLE_URL,
+        'guacamole_url': GUACAMOLE_URL,
+        'workstation_name': session.workstation_name,
+        'fallback_url': GUACAMOLE_URL,
+        'fallback_username': target_user.username,
+        'message': f'Accede a Guacamole con tu usuario: {target_user.username}',
+        'ad_provisioned': ad_provisioned,
+    })
 
 
 @bp.route('/guacamole-check', methods=['GET'])

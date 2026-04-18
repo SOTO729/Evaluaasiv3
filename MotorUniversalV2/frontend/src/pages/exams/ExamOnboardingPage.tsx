@@ -29,7 +29,8 @@ import {
   ChevronDown,
   Lock,
   X,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from 'lucide-react';
 
 
@@ -77,6 +78,8 @@ const ExamOnboardingPage = () => {
   const [retakeRequiresPayment, setRetakeRequiresPayment] = useState(false);
   const [retakeCost, setRetakeCost] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [alreadyPassed, setAlreadyPassed] = useState(false);
+  const [accessAttemptsRemaining, setAccessAttemptsRemaining] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   const currentMode = mode === 'simulator' ? 'simulator' : 'exam';
@@ -105,6 +108,11 @@ const ExamOnboardingPage = () => {
       }
       if (data.retake_cost) {
         setRetakeCost(data.retake_cost);
+      }
+      // Already passed check
+      if (data.already_passed) {
+        setAlreadyPassed(true);
+        setAccessAttemptsRemaining(data.attempts_remaining ?? 0);
       }
     }).catch(() => {});
   }, [id, groupExamId]);
@@ -218,6 +226,8 @@ const ExamOnboardingPage = () => {
   };
 
   const handleStartExam = () => {
+    // Si ya aprobó el examen en modo examen, no permitir
+    if (alreadyPassed && currentMode === 'exam') return;
     // Si requiere pago y no está pagado, mostrar modal de pago
     if (requiresPayment && !isPaid) {
       setShowPaymentModal(true);
@@ -607,6 +617,25 @@ const ExamOnboardingPage = () => {
         </div>
 
         {/* Contenido principal con animación */}
+        {alreadyPassed && currentMode === 'exam' && (
+          <div className="max-w-4xl mx-auto fluid-px-8 fluid-pt-6">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-fluid-xl fluid-p-5 flex items-start fluid-gap-4">
+              <ShieldCheck className="fluid-icon-lg text-emerald-600 flex-shrink-0 fluid-mt-1" />
+              <div>
+                <h3 className="font-bold text-emerald-800 fluid-text-base fluid-mb-1">¡Certificación acreditada!</h3>
+                <p className="text-emerald-700 fluid-text-sm">
+                  Ya aprobaste este examen.
+                  {accessAttemptsRemaining != null && accessAttemptsRemaining > 0 && (
+                    <> Tenías <strong>{accessAttemptsRemaining}</strong> intento{accessAttemptsRemaining !== 1 ? 's' : ''} restante{accessAttemptsRemaining !== 1 ? 's' : ''}, pero al haber acreditado la certificación ya no se permiten más intentos.</>
+                  )}
+                </p>
+                <p className="text-emerald-600 fluid-text-xs fluid-mt-2">
+                  Puedes consultar tu resultado en la sección de <strong>Certificaciones</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="bg-white">
           <div 
             className={`max-w-4xl mx-auto fluid-px-8 fluid-py-10 transition-all duration-300 ease-out ${
@@ -647,8 +676,11 @@ const ExamOnboardingPage = () => {
             ) : (
               <button
                 onClick={handleStartExam}
+                disabled={alreadyPassed && currentMode === 'exam'}
                 className={`flex items-center fluid-gap-2 fluid-px-10 fluid-py-3 text-white font-semibold rounded-fluid-lg transition-all shadow-lg fluid-text-base active:scale-95 ${
-                  requiresPayment && !isPaid
+                  alreadyPassed && currentMode === 'exam'
+                    ? 'bg-gray-400 cursor-not-allowed opacity-60'
+                    : requiresPayment && !isPaid
                     ? 'bg-amber-500 hover:bg-amber-600'
                     : isSimulator 
                     ? 'bg-violet-500 hover:bg-violet-600' 

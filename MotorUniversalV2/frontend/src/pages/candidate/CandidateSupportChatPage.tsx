@@ -58,7 +58,7 @@ const CandidateSupportChatPage = () => {
     return () => clearInterval(interval)
   }, [])
 
-  if (user?.role !== 'candidato' && user?.role !== 'responsable') {
+  if (user?.role !== 'candidato' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'responsable_estatal') {
     return <Navigate to="/dashboard" replace />
   }
 

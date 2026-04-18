@@ -61,6 +61,9 @@ class Partner(db.Model):
     # Notas
     notes = db.Column(db.Text)
     
+    # Mapeo a EvaluaasiConfig (SubsistemaId)
+    config_subsistema_id = db.Column(db.Integer, nullable=True)
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -89,6 +92,7 @@ class Partner(db.Model):
             'logo_url': self.logo_url,
             'is_active': self.is_active,
             'notes': self.notes,
+            'config_subsistema_id': self.config_subsistema_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

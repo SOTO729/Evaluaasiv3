@@ -84,6 +84,8 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: 'curp_verified', label: 'CURP Verificada', group: 'Usuario', render: (r) => r.curp_verified ? 'Sí' : 'No' },
   { key: 'last_login', label: 'Último Login', group: 'Usuario' },
   { key: 'created_at', label: 'Fecha de Registro', group: 'Usuario' },
+  { key: 'registration_time', label: 'Hora de Registro', group: 'Usuario' },
+  { key: 'registration_datetime', label: 'Fecha y Hora de Registro', group: 'Usuario' },
   // ── Organización ──
   { key: 'partner_name', label: 'Partner', group: 'Organización', defaultOn: true },
   { key: 'campus_code', label: 'Clave Plantel', group: 'Organización' },
@@ -121,6 +123,7 @@ const ALL_COLUMNS: ColumnDef[] = [
   },
   { key: 'result_date', label: 'Fecha Evaluación', group: 'Resultado' },
   { key: 'duration_seconds', label: 'Duración (seg)', group: 'Resultado' },
+  { key: 'opportunity_number', label: 'Número de oportunidad', group: 'Resultado' },
   // ── Certificación ──
   { key: 'certificate_code', label: 'Código Certificado', group: 'Certificación' },
   { key: 'eduit_certificate_code', label: 'Código Certificado Eduit', group: 'Certificación' },
@@ -131,6 +134,8 @@ const ALL_COLUMNS: ColumnDef[] = [
 /* Columnas para reporte de Materiales de Estudio */
 const MATERIAL_COLUMNS: ColumnDef[] = [
   { key: 'material_name', label: 'Material', group: 'Material', defaultOn: true },
+  { key: 'material_global_progress_percentage', label: 'Avance Global Material (%)', group: 'Material',
+    render: (r: any) => `${r.material_global_progress_percentage ?? 0}%` },
   { key: 'session_title', label: 'Sesión', group: 'Material', defaultOn: true },
   { key: 'session_number', label: 'No. Sesión', group: 'Material' },
   { key: 'topic_title', label: 'Tema', group: 'Material', defaultOn: true },

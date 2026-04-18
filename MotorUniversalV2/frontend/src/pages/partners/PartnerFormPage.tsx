@@ -48,6 +48,7 @@ export default function PartnerFormPage() {
     website: '',
     notes: '',
     is_active: true,
+    config_subsistema_id: null as number | null,
   });
 
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function PartnerFormPage() {
         website: partner.website || '',
         notes: partner.notes || '',
         is_active: partner.is_active,
+        config_subsistema_id: partner.config_subsistema_id ?? null,
       });
       setPartnerStates(partner.states || []);
     } catch (err: any) {
@@ -284,6 +286,20 @@ export default function PartnerFormPage() {
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
                   placeholder="https://ejemplo.com"
+                />
+              </div>
+
+              <div>
+                <label className="block fluid-text-sm font-bold text-gray-700 fluid-mb-2 flex items-center fluid-gap-2">
+                  <Info className="fluid-icon-sm text-gray-400" />
+                  ID Subsistema (EvaluaasiConfig)
+                </label>
+                <input
+                  type="number"
+                  value={formData.config_subsistema_id ?? ''}
+                  onChange={(e) => setFormData({ ...formData, config_subsistema_id: e.target.value ? Number(e.target.value) : null })}
+                  className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all hover:border-blue-300"
+                  placeholder="ID del subsistema en EvaluaasiConfig"
                 />
               </div>
 

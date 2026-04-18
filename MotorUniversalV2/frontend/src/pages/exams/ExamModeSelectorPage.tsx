@@ -42,6 +42,7 @@ interface AccessData {
   attempts_used: number;
   attempts_remaining: number;
   attempts_exhausted: boolean;
+  already_passed?: boolean;
   retake_cost: number;
   expired?: boolean;
   validity_months?: number;
@@ -74,6 +75,8 @@ const ExamModeSelectorPage = () => {
   const handleSelectMode = (mode: 'exam' | 'simulator') => {
     // Bloquear si vigencia expirada
     if (access?.expired) return;
+    // Bloquear si ya aprobó el examen oficial
+    if (access?.already_passed && mode === 'exam') return;
     // Bloquear examen y simulador si no hay intentos
     if (access?.attempts_exhausted) return;
     // Navegar directamente al onboarding (flujo de inicio)
@@ -196,7 +199,7 @@ const ExamModeSelectorPage = () => {
         )}
 
         {/* Alerta de intentos agotados */}
-        {access?.attempts_exhausted && (
+        {access?.attempts_exhausted && !access?.already_passed && (
           <div className="bg-red-50 rounded-fluid-xl shadow-lg border-2 border-red-200 fluid-p-6 fluid-mb-6">
             <div className="flex flex-col items-center text-center fluid-gap-4">
               <div className="fluid-w-16 fluid-h-16 rounded-full bg-red-100 flex items-center justify-center">
@@ -241,6 +244,36 @@ const ExamModeSelectorPage = () => {
           </div>
         )}
 
+        {/* Alerta de examen ya aprobado */}
+        {access?.already_passed && (
+          <div className="bg-emerald-50 rounded-fluid-xl shadow-lg border-2 border-emerald-200 fluid-p-6 fluid-mb-6">
+            <div className="flex flex-col items-center text-center fluid-gap-4">
+              <div className="fluid-w-16 fluid-h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                <Award className="fluid-icon-xl text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="fluid-text-xl font-bold text-emerald-800 fluid-mb-2">
+                  ¡Certificación acreditada!
+                </h3>
+                <p className="fluid-text-base text-emerald-700 fluid-mb-1">
+                  Ya aprobaste el <strong>Examen Oficial</strong> de esta asignación. No se permiten más intentos del examen de certificación.
+                </p>
+                {access.attempts_remaining > 0 && (
+                  <p className="fluid-text-sm text-emerald-600 fluid-mt-2">
+                    Contabas con <strong>{access.attempts_remaining}</strong> {access.attempts_remaining === 1 ? 'intento adicional' : 'intentos adicionales'} que ya no serán necesarios.
+                  </p>
+                )}
+              </div>
+              <div className="w-full max-w-sm bg-white rounded-fluid-lg fluid-p-4 border border-emerald-100">
+                <p className="fluid-text-sm text-gray-600">
+                  Puedes consultar tu resultado y certificado en la sección de <strong>Certificaciones</strong>.
+                  {!access.attempts_exhausted && hasSimulatorContent && ' El simulador continúa disponible para práctica.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Info de intentos restantes (cuando quedan pocos) */}
         {access && !access.attempts_exhausted && access.attempts_remaining <= 2 && access.attempts_remaining > 0 && (
           <div className="bg-amber-50 rounded-fluid-lg fluid-p-3 border border-amber-200 fluid-mb-4">
@@ -269,9 +302,9 @@ const ExamModeSelectorPage = () => {
           {hasExamContent && (
           <button
             onClick={() => handleSelectMode('exam')}
-            disabled={access?.attempts_exhausted}
+            disabled={access?.attempts_exhausted || access?.already_passed}
             className={`group bg-white rounded-fluid-xl shadow-lg border-2 border-transparent fluid-p-6 transition-all duration-300 active:scale-[0.98] ${
-              access?.attempts_exhausted
+              access?.attempts_exhausted || access?.already_passed
                 ? 'opacity-50 cursor-not-allowed grayscale'
                 : 'hover:border-blue-500 hover:shadow-xl hover:-translate-y-1'
             }`}

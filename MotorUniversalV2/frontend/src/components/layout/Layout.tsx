@@ -24,7 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
   
   // Chat unread count para notificación
   const [chatUnreadCount, setChatUnreadCount] = useState(0)
-  const hasChatAccess = user?.role === 'candidato' || user?.role === 'coordinator'
+  const hasChatAccess = user?.role === 'candidato' || user?.role === 'coordinator' || user?.role === 'responsable' || user?.role === 'responsable_partner' || user?.role === 'responsable_estatal'
 
   // Refs y estado para scroll horizontal del navbar
   const navScrollRef = useRef<HTMLDivElement>(null)
@@ -821,7 +821,7 @@ const Layout = ({ children }: LayoutProps) => {
 
                   {/* Opciones del menú */}
                   <div className="fluid-py-2">
-                    {(user?.role === 'candidato' || user?.role === 'coordinator') && (
+                    {(user?.role === 'candidato' || user?.role === 'coordinator' || user?.role === 'responsable' || user?.role === 'responsable_partner' || user?.role === 'responsable_estatal') && (
                       <Link
                         to={user?.role === 'coordinator' ? '/support/communication' : '/chat-soporte'}
                         onClick={() => setIsDropdownOpen(false)}
@@ -920,7 +920,7 @@ const Layout = ({ children }: LayoutProps) => {
               </Link>
               {!isSupportRole && (
                 <>
-              {(user?.role === 'candidato' || user?.role === 'coordinator') && (
+              {(user?.role === 'candidato' || user?.role === 'coordinator' || user?.role === 'responsable' || user?.role === 'responsable_partner' || user?.role === 'responsable_estatal') && (
                 <Link
                   to={user?.role === 'coordinator' ? '/support/communication' : '/chat-soporte'}
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
