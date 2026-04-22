@@ -101,6 +101,10 @@ export interface Campus {
   created_at: string;
   updated_at: string;
   // Campos de configuración
+  config_subsistema_id?: number | null;
+  config_plantel_id?: number | null;
+  config_certificacion_id?: number | null;
+  config_etapa_id?: number | null;
   office_version?: 'office_2016' | 'office_2019' | 'office_365';
   enable_tier_basic?: boolean;
   enable_tier_standard?: boolean;
@@ -672,6 +676,10 @@ export interface CampusConfiguration {
 
 export interface ConfigureCampusRequest {
   office_version?: OfficeVersion;
+  config_subsistema_id?: number | null;
+  config_plantel_id?: number | null;
+  config_certificacion_id?: number | null;
+  config_etapa_id?: number | null;
   enable_tier_basic?: boolean;
   enable_tier_standard?: boolean;
   enable_tier_advanced?: boolean;

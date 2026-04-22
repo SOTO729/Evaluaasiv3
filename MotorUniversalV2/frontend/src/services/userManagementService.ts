@@ -34,6 +34,7 @@ export interface ManagedUser {
   can_view_reports?: boolean;
   coordinator_id?: string;
   coordinator_name?: string;
+  assigned_state?: string;
   document_options?: {
     evaluation_report: boolean;
     certificate: boolean;

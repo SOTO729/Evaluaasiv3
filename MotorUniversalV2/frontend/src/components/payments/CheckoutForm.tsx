@@ -166,9 +166,11 @@ export default function CheckoutForm({
         setCardBrand(methods[0]);
         setIssuerId(undefined);
         // Fetch installments
-        const opts = await getInstallments(total, methods[0].id);
-        setInstallmentOptions(opts);
-        if (opts.length > 0) setInstallments(opts[0].installments);
+          const result = await getInstallments(total, methods[0].id);
+          const opts = result.payer_costs || [];
+          setIssuerId(result.issuer_id);
+          setInstallmentOptions(opts);
+          if (opts.length > 0) setInstallments(opts[0].installments);
       } else {
         setCardBrand(null);
         setInstallmentOptions([]);
@@ -288,6 +290,8 @@ export default function CheckoutForm({
           {step === 1 && (
             <>
               <div className="bg-gray-50 rounded-xl p-4 mb-5 border">
+                <p className="text-sm text-gray-500 mb-1">Plantel</p>
+                <p className="text-base font-semibold text-gray-700 mb-3">{campusName || 'Plantel asignado'}</p>
                 <p className="text-sm text-gray-500 mb-1">Precio por voucher</p>
                 <p className="text-2xl font-bold text-gray-800">
                   ${certificationCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN

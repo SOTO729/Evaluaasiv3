@@ -445,35 +445,44 @@ export default function VdiManagementPage() {
                   </button>
                   {expandedUser === u.sam_account_name && (
                     <div className="mt-2 ml-11 p-3 bg-gray-50 rounded-lg text-xs space-y-1">
+                      {(() => {
+                        const username = u.sam_account_name;
+                        if (!username) {
+                          return <p className="text-gray-400 italic">Usuario sin nombre de cuenta</p>;
+                        }
+                        return (
+                          <>
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              <p className="text-gray-500 font-medium mb-1">Aplicaciones:</p>
+                              {appsLoading === username ? (
+                                <p className="text-gray-400 italic">Cargando...</p>
+                              ) : userApps[username] ? (
+                                userApps[username].length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {userApps[username].map((app: string, idx: number) => (
+                                      <span key={idx} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">{app}</span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-gray-400 italic">Sin aplicaciones</p>
+                                )
+                              ) : (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); loadApplications(username); }}
+                                  className="text-purple-600 hover:text-purple-800 underline"
+                                >
+                                  Ver aplicaciones
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                       <p><span className="text-gray-500">UPN:</span> {u.user_principal_name || '—'}</p>
                       <p><span className="text-gray-500">Path:</span> {u.path || '—'}</p>
                       <p><span className="text-gray-500">Profile:</span> {u.profile_path || '—'}</p>
                       <p><span className="text-gray-500">Workstations:</span> {u.logon_workstations || '—'}</p>
                       <p><span className="text-gray-500">Expira:</span> {u.expired || '—'}</p>
-                      {/* Aplicaciones */}
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        <p className="text-gray-500 font-medium mb-1">Aplicaciones:</p>
-                        {appsLoading === u.sam_account_name ? (
-                          <p className="text-gray-400 italic">Cargando...</p>
-                        ) : userApps[u.sam_account_name] ? (
-                          userApps[u.sam_account_name].length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {userApps[u.sam_account_name].map((app, idx) => (
-                                <span key={idx} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">{app}</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-gray-400 italic">Sin aplicaciones</p>
-                          )
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); loadApplications(u.sam_account_name); }}
-                            className="text-purple-600 hover:text-purple-800 underline"
-                          >
-                            Ver aplicaciones
-                          </button>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>

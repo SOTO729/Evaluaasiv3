@@ -429,6 +429,11 @@ export const examService = {
     expires_at?: string;
     extended_months?: number;
     require_security_pin?: boolean;
+    requires_payment?: boolean;
+    certification_cost?: number;
+    is_paid?: boolean;
+    retake_requires_payment?: boolean;
+    already_passed?: boolean;
   }> => {
     const response = await api.get(`/exams/${examId}/check-access`, {
       params: { geid: groupExamId }
