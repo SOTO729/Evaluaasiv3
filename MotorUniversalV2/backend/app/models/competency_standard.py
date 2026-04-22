@@ -137,6 +137,7 @@ class DeletionRequest(db.Model):
     # Auditoría
     requested_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     requested_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     requester = db.relationship('User', foreign_keys=[requested_by], backref='deletion_requests')
@@ -156,7 +157,8 @@ class DeletionRequest(db.Model):
             'requested_at': self.requested_at.isoformat() if self.requested_at else None,
             'reviewed_by': self.reviewed_by,
             'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
-            'requester_name': self.requester.name if self.requester else None
+            'requester_name': self.requester.name if self.requester else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
     
     def __repr__(self):

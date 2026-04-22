@@ -457,13 +457,15 @@ def create_session():
     else:
         return jsonify({'error': 'Acceso denegado'}), 403
     
-    # --- Validación: capacidad basada en VDIs activas ---
-    max_sessions = _get_max_concurrent_sessions()
-    global_count = _get_global_slot_count(session_date, start_hour)
-    if global_count >= max_sessions:
-        return jsonify({
-            'error': f'Se alcanzó el límite de {max_sessions} sesiones simultáneas en este horario. Selecciona otro horario.',
-        }), 409
+    # --- Validación: capacidad basada en VDIs activas (solo VDI, no local) ---
+    is_local_request = data.get('is_local', False)
+    if not is_local_request:
+        max_sessions = _get_max_concurrent_sessions()
+        global_count = _get_global_slot_count(session_date, start_hour)
+        if global_count >= max_sessions:
+            return jsonify({
+                'error': f'Se alcanzó el límite de {max_sessions} sesiones simultáneas en este horario. Selecciona otro horario.',
+            }), 409
     
     # Verificar que el usuario no tenga otra sesión en la misma fecha y hora
     user_existing = VmSession.query.filter_by(
@@ -483,21 +485,32 @@ def create_session():
     if session_type not in ('simulador', 'examen', 'parcial'):
         session_type = 'simulador'
     
-    # Validar horario según configuración de EvaluaasiConfig
-    try:
-        from app.services.evaluaasi_config_service import validate_schedule_slot, get_cert_type_for_estandar
-        campus_obj = Campus.query.get(target_campus_id) if target_campus_id else None
-        resolved_cert_type = 'OFFICE-2019'
-        if campus_obj and campus_obj.config_certificacion_id:
-            resolved_cert_type = get_cert_type_for_estandar(campus_obj.config_certificacion_id)
-        schedule_check = validate_schedule_slot(start_hour, session_type, resolved_cert_type)
-        if not schedule_check['valid']:
-            return jsonify({'error': schedule_check['reason']}), 400
-    except Exception as e:
-        logger.warning(f"Validación de horario no disponible: {e}")
+    # ¿Es sesión local (Office en PC del candidato)?
+    is_local = data.get('is_local', False)
+    end_hour = data.get('end_hour')
+    office_app = data.get('office_app')
+    office_version = data.get('office_version')
+    level = data.get('level')
+    parcial_units = data.get('parcial_units')
     
-    # Asignar VDI disponible (llenado secuencial, cert_type dinámico)
-    workstation = _assign_workstation_for_session(session_date, start_hour, campus_id=target_campus_id)
+    workstation = None
+    if not is_local:
+        # --- Flujo VDI (original) ---
+        # Validar horario según configuración de EvaluaasiConfig
+        try:
+            from app.services.evaluaasi_config_service import validate_schedule_slot, get_cert_type_for_estandar
+            campus_obj = Campus.query.get(target_campus_id) if target_campus_id else None
+            resolved_cert_type = 'OFFICE-2019'
+            if campus_obj and campus_obj.config_certificacion_id:
+                resolved_cert_type = get_cert_type_for_estandar(campus_obj.config_certificacion_id)
+            schedule_check = validate_schedule_slot(start_hour, session_type, resolved_cert_type)
+            if not schedule_check['valid']:
+                return jsonify({'error': schedule_check['reason']}), 400
+        except Exception as e:
+            logger.warning(f"Validación de horario no disponible: {e}")
+        
+        # Asignar VDI disponible (llenado secuencial, cert_type dinámico)
+        workstation = _assign_workstation_for_session(session_date, start_hour, campus_id=target_campus_id)
     
     # Crear sesión
     session = VmSession(
@@ -506,7 +519,13 @@ def create_session():
         group_id=target_group_id,
         session_date=session_date,
         start_hour=start_hour,
+        end_hour=end_hour,
         session_type=session_type,
+        is_local=is_local,
+        office_app=office_app,
+        office_version=office_version,
+        level=level,
+        parcial_units=parcial_units,
         workstation_id=workstation['equipo_id'] if workstation else None,
         workstation_name=workstation['nombre'] if workstation else None,
         workstation_color=workstation['color'] if workstation else None,
@@ -519,9 +538,10 @@ def create_session():
         db.session.add(session)
         db.session.commit()
         
-        # Sincronizar a EvaluaasiConfig (async-style, no bloquea si falla)
-        target_user = User.query.get(target_user_id)
-        _sync_session_to_config(session, target_user)
+        # Sincronizar a EvaluaasiConfig solo si es VDI (NO local)
+        if not is_local:
+            target_user = User.query.get(target_user_id)
+            _sync_session_to_config(session, target_user)
         
         # Notificar al equipo de operaciones
         try:
@@ -1058,6 +1078,13 @@ def bulk_create_sessions():
     session_type = data.get('session_type', 'simulador')
     if session_type not in ('simulador', 'examen', 'parcial'):
         session_type = 'simulador'
+    
+    is_local = data.get('is_local', False)
+    end_hour = data.get('end_hour')
+    office_app = data.get('office_app')
+    office_version = data.get('office_version')
+    level = data.get('level')
+    parcial_units = data.get('parcial_units')
 
     for s in sessions_data:
         try:
@@ -1065,7 +1092,8 @@ def bulk_create_sessions():
             s_hour = int(s['start_hour'])
             s_user_id = s['user_id']
 
-            if _get_global_slot_count(s_date, s_hour) >= max_sessions:
+            # Capacidad VDI solo aplica si NO es local
+            if not is_local and _get_global_slot_count(s_date, s_hour) >= max_sessions:
                 errors.append({'user_id': s_user_id, 'error': f'Slot {s_date} {s_hour}:00 lleno'})
                 continue
 
@@ -1077,8 +1105,10 @@ def bulk_create_sessions():
                 errors.append({'user_id': s_user_id, 'error': f'Ya tiene sesión en {s_date} {s_hour}:00'})
                 continue
 
-            # Asignar VDI (cert_type dinámico según campus)
-            workstation = _assign_workstation_for_session(s_date, s_hour, campus_id=user.campus_id)
+            # Asignar VDI solo si NO es local
+            workstation = None
+            if not is_local:
+                workstation = _assign_workstation_for_session(s_date, s_hour, campus_id=user.campus_id)
 
             session = VmSession(
                 user_id=str(s_user_id),
@@ -1086,7 +1116,13 @@ def bulk_create_sessions():
                 group_id=group_id,
                 session_date=s_date,
                 start_hour=s_hour,
+                end_hour=s.get('end_hour') or end_hour,
                 session_type=session_type,
+                is_local=is_local,
+                office_app=s.get('office_app') or office_app,
+                office_version=s.get('office_version') or office_version,
+                level=s.get('level') or level,
+                parcial_units=s.get('parcial_units') or parcial_units,
                 workstation_id=workstation['equipo_id'] if workstation else None,
                 workstation_name=workstation['nombre'] if workstation else None,
                 workstation_color=workstation['color'] if workstation else None,
@@ -1102,10 +1138,11 @@ def bulk_create_sessions():
     try:
         db.session.commit()
 
-        # Sincronizar cada sesión creada a EvaluaasiConfig
-        for ses in created:
-            target_user = User.query.get(ses.user_id)
-            _sync_session_to_config(ses, target_user)
+        # Sincronizar cada sesión creada a EvaluaasiConfig (solo VDI, no local)
+        if not is_local:
+            for ses in created:
+                target_user = User.query.get(ses.user_id)
+                _sync_session_to_config(ses, target_user)
 
         return jsonify({
             'message': f'{len(created)} sesiones creadas',

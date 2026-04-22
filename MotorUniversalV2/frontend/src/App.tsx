@@ -45,6 +45,9 @@ const ExamModeSelectorPage = lazy(() => import('./pages/exams/ExamModeSelectorPa
 const ExamOnboardingPage = lazy(() => import('./pages/exams/ExamOnboardingPage'))
 const PendingExamsPage = lazy(() => import('./pages/exams/PendingExamsPage'))
 
+// Downloads
+const OfficeDownloadsPage = lazy(() => import('./pages/downloads/OfficeDownloadsPage'))
+
 // Study Contents
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
 const StudyContentCreatePage = lazy(() => import('./pages/study-contents/StudyContentCreatePage'))
@@ -230,6 +233,7 @@ const SolicitudesResponsablesPage = lazy(() => import('./pages/coordinador/Solic
 const VmSchedulingPage = lazy(() => import('./pages/vm-sessions/VmSchedulingPage'))
 const VdiManagementPage = lazy(() => import('./pages/vm-sessions/VdiManagementPage'))
 const MiPlantelSesionesPage = lazy(() => import('./pages/responsable/MiPlantelSesionesPage'))
+const OfficeSchedulingPage = lazy(() => import('./pages/responsable/OfficeSchedulingPage'))
 const SolicitarCertificadosPage = lazy(() => import('./pages/responsable/SolicitarCertificadosPage'))
 const MisSolicitudesPage = lazy(() => import('./pages/responsable/MisSolicitudesPage'))
 const BrandingConfigPage = lazy(() => import('./pages/responsable/BrandingConfigPage'))
@@ -393,6 +397,9 @@ function App() {
               <Route path="/certificates" element={<RestrictedForGerenteFin><CertificatesPage /></RestrictedForGerenteFin>} />
               <Route path="/certificates/evaluation-report/:examId" element={<RestrictedForGerenteFin><EvaluationReportDetailPage /></RestrictedForGerenteFin>} />
               <Route path="/certificates/evaluation-report/:examId/result/:resultId" element={<RestrictedForGerenteFin><ResultDetailPage /></RestrictedForGerenteFin>} />
+
+              {/* Downloads - Accesible para candidatos, responsables y admin */}
+              <Route path="/downloads" element={<OfficeDownloadsPage />} />
               
               {/* Badges (Insignias Digitales) - Permitido para admin, developer, coordinator, editor */}
               <Route path="/badges/templates" element={<RestrictedForGerenteFinOnly><BadgeTemplatesPage /></RestrictedForGerenteFinOnly>} />
@@ -510,6 +517,7 @@ function App() {
               <Route path="/vm-sessions" element={<VmSchedulingPage />} />
               <Route path="/vm-sessions/admin" element={<VdiManagementPage />} />
               <Route path="/mi-plantel/sesiones" element={<MiPlantelSesionesPage />} />
+              <Route path="/mi-plantel/office" element={<OfficeSchedulingPage />} />
               
               {/* Grupos - Gestión de grupos por plantel */}
               <Route path="/grupos" element={<GruposListPage />} />

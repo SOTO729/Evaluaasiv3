@@ -1639,6 +1639,226 @@ def check_and_add_partner_config_subsistema():
 
 
 # ---------------------------------------------------------------------------
+# Office local sessions & VB6 integration tables
+# ---------------------------------------------------------------------------
+
+def check_and_create_office_tables():
+    """Crear tablas para VB6 Office integration y agregar columnas Office a tablas existentes."""
+    print("🔍 Verificando tablas y columnas Office local...")
+    db_type = get_db_type()
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # --- 1. Columnas nuevas en vm_sessions ---
+        if 'vm_sessions' in tables:
+            cols = [c['name'] for c in inspector.get_columns('vm_sessions')]
+            vm_new_cols = {
+                'is_local': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'office_app': 'VARCHAR(20) NULL',
+                'office_version': 'VARCHAR(20) NULL',
+                'level': 'VARCHAR(20) NULL',
+                'parcial_units': 'VARCHAR(200) NULL',
+                'end_hour': 'INT NULL',
+            }
+            for col_name, col_def in vm_new_cols.items():
+                if col_name not in cols:
+                    try:
+                        db.session.execute(text(f"ALTER TABLE vm_sessions ADD {col_name} {col_def}"))
+                        db.session.commit()
+                        print(f"  ✓ vm_sessions.{col_name} agregada")
+                    except Exception as e:
+                        db.session.rollback()
+                        if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                            print(f"  ❌ Error vm_sessions.{col_name}: {e}")
+        
+        # --- 2. Columnas nuevas en campuses ---
+        if 'campuses' in tables:
+            cols = [c['name'] for c in inspector.get_columns('campuses')]
+            campus_new_cols = {
+                'enable_office_exams': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'enable_office_simulators': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+            }
+            for col_name, col_def in campus_new_cols.items():
+                if col_name not in cols:
+                    try:
+                        db.session.execute(text(f"ALTER TABLE campuses ADD {col_name} {col_def}"))
+                        db.session.commit()
+                        print(f"  ✓ campuses.{col_name} agregada")
+                    except Exception as e:
+                        db.session.rollback()
+                        if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                            print(f"  ❌ Error campuses.{col_name}: {e}")
+        
+        # --- 3. Columnas nuevas en candidate_groups ---
+        if 'candidate_groups' in tables:
+            cols = [c['name'] for c in inspector.get_columns('candidate_groups')]
+            group_new_cols = {
+                'enable_office_exams_override': 'BIT NULL' if db_type == 'mssql' else 'BOOLEAN NULL',
+                'enable_office_simulators_override': 'BIT NULL' if db_type == 'mssql' else 'BOOLEAN NULL',
+            }
+            for col_name, col_def in group_new_cols.items():
+                if col_name not in cols:
+                    try:
+                        db.session.execute(text(f"ALTER TABLE candidate_groups ADD {col_name} {col_def}"))
+                        db.session.commit()
+                        print(f"  ✓ candidate_groups.{col_name} agregada")
+                    except Exception as e:
+                        db.session.rollback()
+                        if 'already exists' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                            print(f"  ❌ Error candidate_groups.{col_name}: {e}")
+        
+        # --- 4. Crear tabla office_exam_results ---
+        if 'office_exam_results' not in tables:
+            print("  📝 Creando tabla office_exam_results...")
+            nvarchar = 'NVARCHAR' if db_type == 'mssql' else 'VARCHAR'
+            ntext = 'NVARCHAR(MAX)' if db_type == 'mssql' else 'TEXT'
+            bit = 'BIT' if db_type == 'mssql' else 'BOOLEAN'
+            now_fn = 'GETUTCDATE()' if db_type == 'mssql' else "CURRENT_TIMESTAMP"
+            
+            sql = f"""
+            CREATE TABLE office_exam_results (
+                id {nvarchar}(36) NOT NULL PRIMARY KEY,
+                user_id {nvarchar}(36) NOT NULL,
+                vm_session_id INT NULL,
+                campus_id INT NULL,
+                group_id INT NULL,
+                session_type VARCHAR(20) NOT NULL DEFAULT 'examen',
+                office_app VARCHAR(20) NULL,
+                office_version VARCHAR(20) NULL,
+                level VARCHAR(20) NULL,
+                score INT DEFAULT 0,
+                passing_score INT DEFAULT 400,
+                passed {bit} DEFAULT 0,
+                total_questions INT DEFAULT 0,
+                correct_answers INT DEFAULT 0,
+                voucher_code VARCHAR(50) NULL,
+                voucher_expired {bit} DEFAULT 0,
+                answers_data {ntext} NULL,
+                parcial_sessions_data {ntext} NULL,
+                assigned_sessions VARCHAR(200) NULL,
+                parcial_session_number INT NULL,
+                calendario_id VARCHAR(100) NULL,
+                app_version VARCHAR(50) NULL,
+                ip_address VARCHAR(45) NULL,
+                mac_address VARCHAR(50) NULL,
+                pc_name VARCHAR(100) NULL,
+                status VARCHAR(20) DEFAULT 'in_progress',
+                duration_seconds INT NULL,
+                started_at DATETIME NULL,
+                finished_at DATETIME NULL,
+                certificate_code VARCHAR(50) NULL,
+                created_at DATETIME DEFAULT {now_fn},
+                updated_at DATETIME DEFAULT {now_fn}
+            )
+            """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✓ Tabla office_exam_results creada")
+        
+        # --- 5. Crear tabla vb6_session_tokens ---
+        if 'vb6_session_tokens' not in tables:
+            print("  📝 Creando tabla vb6_session_tokens...")
+            nvarchar = 'NVARCHAR' if db_type == 'mssql' else 'VARCHAR'
+            bit = 'BIT' if db_type == 'mssql' else 'BOOLEAN'
+            now_fn = 'GETUTCDATE()' if db_type == 'mssql' else "CURRENT_TIMESTAMP"
+            
+            sql = f"""
+            CREATE TABLE vb6_session_tokens (
+                id {nvarchar}(36) NOT NULL PRIMARY KEY,
+                user_id {nvarchar}(36) NOT NULL,
+                vm_session_id INT NULL,
+                session_type VARCHAR(20) NULL,
+                ip_address VARCHAR(45) NULL,
+                created_at DATETIME DEFAULT {now_fn},
+                expires_at DATETIME NULL,
+                is_active {bit} DEFAULT 1
+            )
+            """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✓ Tabla vb6_session_tokens creada")
+        
+        # --- 6. Crear tabla office_app_versions ---
+        if 'office_app_versions' not in tables:
+            print("  📝 Creando tabla office_app_versions...")
+            nvarchar = 'NVARCHAR' if db_type == 'mssql' else 'VARCHAR'
+            bit = 'BIT' if db_type == 'mssql' else 'BOOLEAN'
+            now_fn = 'GETUTCDATE()' if db_type == 'mssql' else "CURRENT_TIMESTAMP"
+            
+            sql = f"""
+            CREATE TABLE office_app_versions (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                app_name VARCHAR(50) NOT NULL UNIQUE,
+                app_type VARCHAR(20) NOT NULL DEFAULT 'examen',
+                min_version VARCHAR(20) NULL,
+                latest_version VARCHAR(20) NULL,
+                download_url {nvarchar}(500) NULL,
+                is_active {bit} DEFAULT 1,
+                updated_at DATETIME DEFAULT {now_fn}
+            )
+            """ if db_type == 'mssql' else f"""
+            CREATE TABLE office_app_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                app_name VARCHAR(50) NOT NULL UNIQUE,
+                app_type VARCHAR(20) NOT NULL DEFAULT 'examen',
+                min_version VARCHAR(20) NULL,
+                latest_version VARCHAR(20) NULL,
+                download_url VARCHAR(500) NULL,
+                is_active BOOLEAN DEFAULT 1,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✓ Tabla office_app_versions creada")
+        
+        # --- 7. Agregar group_exam_id a tablas existentes (asignación reemplaza voucher) ---
+        try:
+            cols_oer = [r[0].lower() for r in db.session.execute(text(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='office_exam_results'"
+                if db_type == 'mssql' else
+                "PRAGMA table_info(office_exam_results)"
+            )).fetchall()]
+            if db_type != 'mssql':
+                cols_oer = [r[1].lower() for r in db.session.execute(text("PRAGMA table_info(office_exam_results)")).fetchall()]
+            
+            if 'group_exam_id' not in cols_oer:
+                db.session.execute(text("ALTER TABLE office_exam_results ADD group_exam_id INT NULL"))
+                db.session.commit()
+                print("  ✓ Columna group_exam_id agregada a office_exam_results")
+        except Exception as e:
+            db.session.rollback()
+            if 'already' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                print(f"  ⚠ group_exam_id en office_exam_results: {e}")
+
+        try:
+            cols_vb6 = [r[0].lower() for r in db.session.execute(text(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='vb6_session_tokens'"
+                if db_type == 'mssql' else
+                "PRAGMA table_info(vb6_session_tokens)"
+            )).fetchall()]
+            if db_type != 'mssql':
+                cols_vb6 = [r[1].lower() for r in db.session.execute(text("PRAGMA table_info(vb6_session_tokens)")).fetchall()]
+            
+            if 'group_exam_id' not in cols_vb6:
+                db.session.execute(text("ALTER TABLE vb6_session_tokens ADD group_exam_id INT NULL"))
+                db.session.commit()
+                print("  ✓ Columna group_exam_id agregada a vb6_session_tokens")
+        except Exception as e:
+            db.session.rollback()
+            if 'already' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                print(f"  ⚠ group_exam_id en vb6_session_tokens: {e}")
+
+        print("✅ Verificación Office local completada")
+        
+    except Exception as e:
+        print(f"❌ Error en migración Office: {e}")
+        db.session.rollback()
+
+
+# ---------------------------------------------------------------------------
 # CURP recovery: detect and re-verify orphaned curp_pending users
 # ---------------------------------------------------------------------------
 

@@ -33,6 +33,11 @@ export interface VmSession {
   start_hour: number;
   end_hour: number;
   session_type: 'simulador' | 'examen' | 'parcial';
+  is_local: boolean;
+  office_app: string | null;
+  office_version: string | null;
+  level: string | null;
+  parcial_units: string | null;
   workstation_id: number | null;
   workstation_name: string | null;
   workstation_color: string | null;
@@ -93,7 +98,13 @@ export async function getAvailableSlots(params: {
 export async function createVmSession(data: {
   session_date: string;
   start_hour: number;
+  end_hour?: number;
   session_type?: 'simulador' | 'examen' | 'parcial';
+  is_local?: boolean;
+  office_app?: string;
+  office_version?: string;
+  level?: string;
+  parcial_units?: string;
   user_id?: string;
   campus_id?: number;
   notes?: string;
@@ -185,6 +196,12 @@ export async function autoDistribute(data: {
 export async function bulkCreateSessions(data: {
   group_id: number;
   session_type?: 'simulador' | 'examen' | 'parcial';
+  is_local?: boolean;
+  end_hour?: number;
+  office_app?: string;
+  office_version?: string;
+  level?: string;
+  parcial_units?: string;
   sessions: { user_id: string; session_date: string; start_hour: number; notes?: string }[];
 }): Promise<{
   message: string;

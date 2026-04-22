@@ -39,6 +39,7 @@ class ConocerUploadBatch(db.Model):
     completed_at = db.Column(db.DateTime)  # Fin del procesamiento
     error_message = db.Column(db.Text)  # Error global si falló todo el batch
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     uploader = db.relationship('User', backref=db.backref('conocer_upload_batches', lazy='dynamic'))
@@ -66,6 +67,7 @@ class ConocerUploadBatch(db.Model):
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
             'error_message': self.error_message,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         if include_uploader and self.uploader:
             data['uploader_name'] = f"{self.uploader.name or ''} {self.uploader.first_surname or ''}".strip()

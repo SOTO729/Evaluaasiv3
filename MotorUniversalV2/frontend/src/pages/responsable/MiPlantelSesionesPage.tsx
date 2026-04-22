@@ -55,6 +55,7 @@ function sameDay(a: Date, b: Date) {
 }
 
 type SlotMap = Record<string, VmSlot[]>;
+type DetailSlot = { date: string; hour: number };
 
 export default function MiPlantelSesionesPage() {
   // Groups
@@ -85,6 +86,12 @@ export default function MiPlantelSesionesPage() {
   const [cancelTarget, setCancelTarget] = useState<VmSession | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Group detail modal (slot-based)
+  const [detailSlot, setDetailSlot] = useState<DetailSlot | null>(null);
+  const [detailSelectedCandidates, setDetailSelectedCandidates] = useState<string[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   // Auto-distribute
   const [proposal, setProposal] = useState<ProposalItem[] | null>(null);
@@ -173,8 +180,38 @@ export default function MiPlantelSesionesPage() {
 
   // Slot/session helpers
   const getSlot = (day: Date, hour: number) => weekSlots[fmt(day)]?.find(s => s.hour === hour);
-  const getGroupSession = (day: Date, hour: number) =>
-    sessions.find(s => s.session_date === fmt(day) && s.start_hour === hour);
+  const getGroupSessions = (day: Date, hour: number) =>
+    sessions.filter(s => s.session_date === fmt(day) && s.start_hour === hour && s.status === 'scheduled');
+
+  const groupedSessionsForSidebar = useMemo(() => {
+    const map: Record<string, VmSession[]> = {};
+    for (const s of sessions) {
+      const key = `${s.session_date}|${s.start_hour}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(s);
+    }
+    return Object.entries(map)
+      .map(([key, grouped]) => ({ key, grouped }))
+      .sort((a, b) => {
+        const [ad, ah] = a.key.split('|');
+        const [bd, bh] = b.key.split('|');
+        return ad.localeCompare(bd) || Number(ah) - Number(bh);
+      });
+  }, [sessions]);
+
+  const activeDetailSessions = useMemo(() => {
+    if (!detailSlot) return [];
+    return sessions.filter(s => (
+      s.session_date === detailSlot.date &&
+      s.start_hour === detailSlot.hour &&
+      s.status === 'scheduled'
+    ));
+  }, [detailSlot, sessions]);
+
+  const candidatesAvailableForDetail = useMemo(() => {
+    const currentIds = new Set(activeDetailSessions.map(s => String(s.user_id)));
+    return candidates.filter(c => !currentIds.has(String(c.user_id)));
+  }, [activeDetailSessions, candidates]);
 
   // Book for candidate (leader_only)
   const handleAssign = async () => {
@@ -221,6 +258,48 @@ export default function MiPlantelSesionesPage() {
     } catch (err: any) {
       showToast('error', err?.response?.data?.error || 'Error al cancelar');
     } finally { setCancelLoading(false); }
+  };
+
+  const openDetail = (day: Date, hour: number) => {
+    setDetailSlot({ date: fmt(day), hour });
+    setDetailSelectedCandidates([]);
+    setDetailError('');
+  };
+
+  const toggleDetailCandidate = (uid: string) => {
+    setDetailSelectedCandidates(prev => (
+      prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
+    ));
+  };
+
+  const addCandidatesToSlot = async () => {
+    if (!detailSlot || !selectedGroupId || detailSelectedCandidates.length === 0) return;
+
+    setDetailLoading(true);
+    setDetailError('');
+    try {
+      await bulkCreateSessions({
+        group_id: selectedGroupId,
+        sessions: detailSelectedCandidates.map(uid => ({
+          user_id: uid,
+          session_date: detailSlot.date,
+          start_hour: detailSlot.hour,
+          notes: `Agregado a agenda de grupo ${selectedGroup?.name || ''}`,
+        })),
+      });
+      showToast('success', `Se agregaron ${detailSelectedCandidates.length} miembro(s)`);
+      setDetailSelectedCandidates([]);
+      loadWeekSlots();
+      loadSessions();
+      if (selectedGroupId) {
+        const res = await getGroupCandidates(selectedGroupId);
+        setCandidates(res.candidates);
+      }
+    } catch (err: any) {
+      setDetailError(err?.response?.data?.error || 'Error al agregar miembros');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   // Auto-distribute
@@ -388,24 +467,25 @@ export default function MiPlantelSesionesPage() {
                 <p className="fluid-text-xs text-gray-400 text-center fluid-py-3">Sin sesiones esta semana</p>
               ) : (
                 <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {sessions.map(s => (
-                    <div key={s.id} className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg fluid-px-3 fluid-py-2 group">
+                  {groupedSessionsForSidebar.map(({ key, grouped }) => {
+                    const first = grouped[0];
+                    return (
+                    <div key={key} className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg fluid-px-3 fluid-py-2 group cursor-pointer" onClick={() => openDetail(new Date(first.session_date + 'T12:00:00'), first.start_hour)}>
                       <div className="min-w-0">
-                        <p className="fluid-text-xs font-bold text-teal-800 truncate">{s.start_hour_label}</p>
+                        <p className="fluid-text-xs font-bold text-teal-800 truncate">{first.start_hour_label}</p>
                         <p className="text-[10px] text-teal-600">
-                          {(() => { const d = new Date(s.session_date + 'T12:00:00'); return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`; })()}
+                          {(() => { const d = new Date(first.session_date + 'T12:00:00'); return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`; })()}
                         </p>
-                        {s.user_name && (
-                          <p className="text-[10px] text-gray-500 truncate mt-0.5">👤 {s.user_name}</p>
-                        )}
+                        <p className="text-[10px] text-gray-500 truncate mt-0.5">👥 {grouped.length} miembro(s)</p>
                       </div>
                       {isLeaderOnly && (
-                        <button onClick={() => setCancelTarget(s)} className="text-red-400 hover:text-red-600 p-0.5 opacity-0 group-hover:opacity-100 transition-all" title="Cancelar">
+                        <button onClick={(e) => { e.stopPropagation(); setCancelTarget(first); }} className="text-red-400 hover:text-red-600 p-0.5 opacity-0 group-hover:opacity-100 transition-all" title="Cancelar uno">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -470,23 +550,25 @@ export default function MiPlantelSesionesPage() {
                         </td>
                         {weekDays.map((day, di) => {
                           const slot = getSlot(day, hour);
-                          const groupSes = getGroupSession(day, hour);
+                          const slotSessions = getGroupSessions(day, hour);
+                          const firstSlotSession = slotSessions[0];
                           const isPast = slot?.is_past ?? false;
                           const globalCount = slot?.global_count ?? 0;
                           const remaining = slot?.remaining ?? 0;
                           const isFull = remaining === 0;
                           const todayCol = isToday(day);
 
-                          if (groupSes) {
-                            // This group has a session here
+                          if (slotSessions.length > 0) {
+                            // This group has one or more sessions in this slot
                             return (
                               <td key={di} className={`border-b border-r last:border-r-0 border-gray-200 h-12 relative ${todayCol ? 'bg-teal-50/30' : ''}`}>
                                 <div
                                   className={`absolute inset-0.5 rounded-md flex flex-col items-center justify-center text-center cursor-pointer transition-all ${isLeaderOnly ? 'bg-teal-500 hover:bg-teal-600' : 'bg-primary-400'} shadow-sm`}
-                                  onClick={() => { if (isLeaderOnly) setCancelTarget(groupSes); }}
-                                  title={isLeaderOnly ? `${groupSes.user_name || 'Candidato'} · Click para cancelar` : `${groupSes.user_name || 'Candidato'}`}
+                                  onClick={() => openDetail(day, hour)}
+                                  title={isLeaderOnly ? `Click para ver/editar miembros (${slotSessions.length})` : `Miembros: ${slotSessions.length}`}
                                 >
-                                  <span className="text-[9px] text-white font-semibold truncate max-w-full px-1">{groupSes.user_name || 'Asignado'}</span>
+                                  <span className="text-[9px] text-white font-semibold truncate max-w-full px-1">Grupo: {selectedGroup?.name || 'Asignado'}</span>
+                                  <span className="text-[8px] text-white/80">{slotSessions.length} miembro(s)</span>
                                   <span className="text-[8px] text-white/70">{globalCount}/{slot?.max_sessions ?? 4}</span>
                                 </div>
                               </td>
@@ -588,6 +670,107 @@ export default function MiPlantelSesionesPage() {
               <button onClick={handleAssign} disabled={!bookingCandidateId || bookingLoading} className="fluid-px-4 fluid-py-2 fluid-text-sm bg-teal-600 text-white rounded-fluid-lg hover:bg-teal-700 disabled:opacity-50 flex items-center fluid-gap-2 transition-colors">
                 {bookingLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Asignar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Group slot detail (edit members individually) ── */}
+      {detailSlot && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setDetailSlot(null)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="fluid-p-6 border-b border-gray-100">
+              <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
+                <Users className="w-5 h-5 text-teal-600" />
+                Detalle de agenda del grupo
+              </h3>
+              <p className="fluid-text-sm text-gray-500 fluid-mt-1">
+                {selectedGroup?.name} · {detailSlot.date} · {String(detailSlot.hour).padStart(2, '0')}:00
+              </p>
+            </div>
+
+            <div className="fluid-p-6 space-y-5">
+              {detailError && (
+                <div className="bg-red-50 border border-red-200 rounded-fluid-lg fluid-p-3 fluid-text-sm text-red-700 flex items-center fluid-gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />{detailError}
+                </div>
+              )}
+
+              <div>
+                <h4 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-2">Miembros agendados</h4>
+                {activeDetailSessions.length > 0 ? (
+                  <div className="border border-gray-200 rounded-fluid-lg divide-y divide-gray-100">
+                    {activeDetailSessions.map(s => (
+                      <div key={s.id} className="flex items-center justify-between fluid-px-3 fluid-py-2">
+                        <div>
+                          <p className="fluid-text-sm text-gray-700">{s.user_name || s.user?.name || s.user?.email || s.user_id}</p>
+                          <p className="text-[11px] text-gray-400">Sesión #{s.id}</p>
+                        </div>
+                        <button
+                          onClick={() => setCancelTarget(s)}
+                          className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="fluid-text-sm text-gray-500">No hay miembros agendados en este bloque.</p>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between fluid-mb-2">
+                  <h4 className="fluid-text-sm font-semibold text-gray-700">Agregar miembros</h4>
+                  {candidatesAvailableForDetail.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (detailSelectedCandidates.length === candidatesAvailableForDetail.length) {
+                          setDetailSelectedCandidates([]);
+                        } else {
+                          setDetailSelectedCandidates(candidatesAvailableForDetail.map(c => c.user_id));
+                        }
+                      }}
+                      className="fluid-text-xs text-teal-600 hover:text-teal-700 font-medium"
+                    >
+                      {detailSelectedCandidates.length === candidatesAvailableForDetail.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                    </button>
+                  )}
+                </div>
+
+                {candidatesAvailableForDetail.length === 0 ? (
+                  <p className="fluid-text-sm text-gray-500">Todos los miembros del grupo ya están agendados en este bloque.</p>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto border border-gray-200 rounded-fluid-lg divide-y divide-gray-100">
+                    {candidatesAvailableForDetail.map(c => (
+                      <label key={c.user_id} className="flex items-center fluid-gap-3 fluid-px-3 fluid-py-2 hover:bg-gray-50 cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={detailSelectedCandidates.includes(c.user_id)}
+                          onChange={() => toggleDetailCandidate(c.user_id)}
+                          className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                        />
+                        <span className="fluid-text-sm text-gray-700">{c.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="fluid-p-6 border-t border-gray-100 flex justify-end fluid-gap-3">
+              <button onClick={() => setDetailSlot(null)} className="fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600 hover:bg-gray-100 rounded-fluid-lg transition-colors">
+                Cerrar
+              </button>
+              <button
+                onClick={addCandidatesToSlot}
+                disabled={detailLoading || detailSelectedCandidates.length === 0}
+                className="fluid-px-4 fluid-py-2 fluid-text-sm bg-teal-600 text-white rounded-fluid-lg hover:bg-teal-700 disabled:opacity-50 flex items-center fluid-gap-2 transition-colors"
+              >
+                {detailLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Agregar seleccionados {detailSelectedCandidates.length > 0 ? `(${detailSelectedCandidates.length})` : ''}
               </button>
             </div>
           </div>

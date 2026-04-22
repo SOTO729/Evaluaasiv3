@@ -106,6 +106,7 @@ class IssuedBadge(db.Model):
     claimed_at = db.Column(db.DateTime, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self, include_credential=False):
         data = {
@@ -129,6 +130,7 @@ class IssuedBadge(db.Model):
             'verify_url': self.verify_url,
             'credential_url': self.credential_url,
             'is_signed': self._has_proof(),
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         if include_credential:
             data['credential_json'] = self.credential_json

@@ -1,0 +1,12 @@
+{
+  "name": "evaluasoap-proxy",
+  "version": "1.0.0",
+  "description": "SOAP reverse proxy for VB6 EXEs → MotorV2 Container App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

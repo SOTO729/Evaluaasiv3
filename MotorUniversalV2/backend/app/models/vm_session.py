@@ -28,6 +28,16 @@ class VmSession(db.Model):
     # Tipo de sesión: simulador, examen, parcial
     session_type = db.Column(db.String(20), default='simulador', nullable=False)
     
+    # Sesión local (Office en PC del candidato, NO VDI remota)
+    is_local = db.Column(db.Boolean, default=False, nullable=False)
+    
+    # Office-specific (para sesiones locales)
+    office_app = db.Column(db.String(20), nullable=True)  # 'word', 'excel', 'powerpoint'
+    office_version = db.Column(db.String(20), nullable=True)  # viene de config del grupo
+    level = db.Column(db.String(20), nullable=True)  # 'basico', 'avanzado'
+    parcial_units = db.Column(db.String(200), nullable=True)  # "1,3,10,15" unidades asignadas (parciales)
+    end_hour = db.Column(db.Integer, nullable=True)  # hora fin (para Office: rango horario)
+    
     # VDI/Workstation asignada (de dbo.Equipo en EvaluaasiConfig)
     workstation_id = db.Column(db.Integer, nullable=True)  # EquipoId en EvaluaasiConfig
     workstation_name = db.Column(db.String(30), nullable=True)  # Nombre del VDI (ej: VDI-OF2016-1)
@@ -80,8 +90,13 @@ class VmSession(db.Model):
             'group_id': self.group_id,
             'session_date': self.session_date.isoformat() if self.session_date else None,
             'start_hour': self.start_hour,
-            'end_hour': self.start_hour + 1,  # Siempre 1 hora
+            'end_hour': self.end_hour if self.end_hour is not None else self.start_hour + 1,
             'session_type': self.session_type or 'simulador',
+            'is_local': self.is_local or False,
+            'office_app': self.office_app,
+            'office_version': self.office_version,
+            'level': self.level,
+            'parcial_units': self.parcial_units,
             'workstation_id': self.workstation_id,
             'workstation_name': self.workstation_name,
             'workstation_color': self.workstation_color,

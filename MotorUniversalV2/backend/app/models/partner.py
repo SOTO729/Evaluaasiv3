@@ -141,6 +141,7 @@ class PartnerStatePresence(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Índice único para evitar duplicados
     __table_args__ = (
@@ -157,6 +158,7 @@ class PartnerStatePresence(db.Model):
             'regional_contact_phone': self.regional_contact_phone,
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -223,6 +225,10 @@ class Campus(db.Model):
     # Evaluaciones parciales
     enable_partial_evaluations = db.Column(db.Boolean, default=False)  # Habilitar evaluaciones parciales
     enable_unscheduled_partials = db.Column(db.Boolean, default=False)  # Parciales sin agendar
+    
+    # Exámenes y simuladores de Office (locales, requieren agenda)
+    enable_office_exams = db.Column(db.Boolean, default=False)  # Habilitar exámenes de Office
+    enable_office_simulators = db.Column(db.Boolean, default=False)  # Habilitar simuladores de Office
     
     # Máquinas virtuales
     enable_virtual_machines = db.Column(db.Boolean, default=False)  # Usar VMs para exámenes
@@ -324,6 +330,8 @@ class Campus(db.Model):
             'enable_digital_badge': self.enable_digital_badge if self.enable_digital_badge is not None else False,
             'enable_partial_evaluations': self.enable_partial_evaluations if self.enable_partial_evaluations is not None else False,
             'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
+            'enable_office_exams': self.enable_office_exams if self.enable_office_exams is not None else False,
+            'enable_office_simulators': self.enable_office_simulators if self.enable_office_simulators is not None else False,
             'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
             'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
             'enable_candidate_certificates': self.enable_candidate_certificates if self.enable_candidate_certificates is not None else False,
@@ -354,6 +362,8 @@ class Campus(db.Model):
                 'enable_digital_badge': self.enable_digital_badge if self.enable_digital_badge is not None else False,
                 'enable_partial_evaluations': self.enable_partial_evaluations if self.enable_partial_evaluations is not None else False,
                 'enable_unscheduled_partials': self.enable_unscheduled_partials if self.enable_unscheduled_partials is not None else False,
+                'enable_office_exams': self.enable_office_exams if self.enable_office_exams is not None else False,
+                'enable_office_simulators': self.enable_office_simulators if self.enable_office_simulators is not None else False,
                 'enable_virtual_machines': self.enable_virtual_machines if self.enable_virtual_machines is not None else False,
                 'enable_online_payments': self.enable_online_payments if self.enable_online_payments is not None else False,
                 'enable_candidate_certificates': self.enable_candidate_certificates if self.enable_candidate_certificates is not None else False,
@@ -456,6 +466,7 @@ class CampusCompetencyStandard(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Índice único para evitar duplicados
     __table_args__ = (
@@ -476,7 +487,8 @@ class CampusCompetencyStandard(db.Model):
                 'sector': standard.sector
             } if standard else None,
             'is_active': self.is_active,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -573,6 +585,10 @@ class CandidateGroup(db.Model):
     enable_partial_evaluations_override = db.Column(db.Boolean)
     enable_unscheduled_partials_override = db.Column(db.Boolean)
     
+    # Exámenes y simuladores de Office
+    enable_office_exams_override = db.Column(db.Boolean)
+    enable_office_simulators_override = db.Column(db.Boolean)
+    
     # Máquinas virtuales
     enable_virtual_machines_override = db.Column(db.Boolean)
     
@@ -635,6 +651,8 @@ class CandidateGroup(db.Model):
                 'enable_digital_badge_override': self.enable_digital_badge_override,
                 'enable_partial_evaluations_override': self.enable_partial_evaluations_override,
                 'enable_unscheduled_partials_override': self.enable_unscheduled_partials_override,
+                'enable_office_exams_override': self.enable_office_exams_override,
+                'enable_office_simulators_override': self.enable_office_simulators_override,
                 'enable_virtual_machines_override': self.enable_virtual_machines_override,
                 'enable_online_payments_override': self.enable_online_payments_override,
                 'enable_candidate_certificates_override': self.enable_candidate_certificates_override,
@@ -657,6 +675,8 @@ class CandidateGroup(db.Model):
                     'enable_digital_badge': self.enable_digital_badge_override if self.enable_digital_badge_override is not None else self.campus.enable_digital_badge,
                     'enable_partial_evaluations': self.enable_partial_evaluations_override if self.enable_partial_evaluations_override is not None else self.campus.enable_partial_evaluations,
                     'enable_unscheduled_partials': self.enable_unscheduled_partials_override if self.enable_unscheduled_partials_override is not None else self.campus.enable_unscheduled_partials,
+                    'enable_office_exams': self.enable_office_exams_override if self.enable_office_exams_override is not None else (self.campus.enable_office_exams if self.campus.enable_office_exams is not None else False),
+                    'enable_office_simulators': self.enable_office_simulators_override if self.enable_office_simulators_override is not None else (self.campus.enable_office_simulators if self.campus.enable_office_simulators is not None else False),
                     'enable_virtual_machines': self.enable_virtual_machines_override if self.enable_virtual_machines_override is not None else self.campus.enable_virtual_machines,
                     'enable_online_payments': self.enable_online_payments_override if self.enable_online_payments_override is not None else self.campus.enable_online_payments,
                     'enable_candidate_certificates': self.enable_candidate_certificates_override if self.enable_candidate_certificates_override is not None else (self.campus.enable_candidate_certificates if self.campus.enable_candidate_certificates is not None else False),
@@ -697,6 +717,7 @@ class GroupMember(db.Model):
     notes = db.Column(db.Text)
     
     joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Índice único para evitar duplicados
     __table_args__ = (
@@ -714,6 +735,7 @@ class GroupMember(db.Model):
             'status': self.status,
             'notes': self.notes,
             'joined_at': self.joined_at.isoformat() if self.joined_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         
         if include_user and self.user:
@@ -783,6 +805,8 @@ class GroupExam(db.Model):
     expires_at = db.Column(db.DateTime, nullable=True)  # Fecha de expiración calculada
     extended_months = db.Column(db.Integer, default=0, nullable=False)  # Meses adicionales otorgados
     
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     # Índice único para evitar duplicados
     __table_args__ = (
         db.UniqueConstraint('group_id', 'exam_id', name='uq_group_exam'),
@@ -836,6 +860,7 @@ class GroupExam(db.Model):
             'expires_at': self.effective_expires_at.isoformat() if self.effective_expires_at else None,
             'extended_months': self.extended_months or 0,
             'is_expired': self.is_expired,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         
         # Contar miembros asignados si es tipo 'selected'
@@ -962,6 +987,7 @@ class GroupExamMaterial(db.Model):
     study_material_id = db.Column(db.Integer, db.ForeignKey('study_contents.id', ondelete='CASCADE'), nullable=False, index=True)
     is_included = db.Column(db.Boolean, default=True)
     added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     group_exam = db.relationship('GroupExam', backref=db.backref('custom_materials', lazy='dynamic', cascade='all, delete-orphan'))
@@ -973,6 +999,7 @@ class GroupExamMaterial(db.Model):
             'study_material_id': self.study_material_id,
             'is_included': self.is_included,
             'added_at': self.added_at.isoformat() if self.added_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -1044,6 +1071,8 @@ class GroupStudyMaterial(db.Model):
     expires_at = db.Column(db.DateTime, nullable=True)
     extended_months = db.Column(db.Integer, default=0, nullable=False)
     
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     # Índice único para evitar duplicados
     __table_args__ = (
         db.UniqueConstraint('group_id', 'study_material_id', name='uq_group_study_material'),
@@ -1068,6 +1097,7 @@ class GroupStudyMaterial(db.Model):
             'validity_months': self.validity_months,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'extended_months': self.extended_months or 0,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         
         # Contar miembros asignados si es tipo 'selected'
@@ -1161,6 +1191,8 @@ class EcmCandidateAssignment(db.Model):
     assigned_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     assignment_source = db.Column(db.String(20), default='bulk', nullable=False)  # 'bulk' o 'selected'
     
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     # Estado del trámite CONOCER
     tramite_status = db.Column(db.String(20), default='pendiente', nullable=False)  # pendiente, en_tramite, entregado
     
@@ -1233,6 +1265,7 @@ class EcmCandidateAssignment(db.Model):
             'extended_months': self.extended_months or 0,
             'is_expired': self.is_expired,
             'tramite_status': self.tramite_status,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -1382,7 +1415,7 @@ class EcmRetake(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     assignment_id = db.Column(db.Integer, db.ForeignKey('ecm_candidate_assignments.id', ondelete='CASCADE'), nullable=False, index=True)
-    group_exam_id = db.Column(db.Integer, nullable=False)  # GroupExam donde se aplica la retoma
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='NO ACTION'), nullable=False)  # GroupExam donde se aplica la retoma
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     
     # Costo cobrado
@@ -1393,11 +1426,12 @@ class EcmRetake(db.Model):
     status = db.Column(db.String(20), default='active', nullable=False)  # active, used, expired
     
     # Intentos: la retoma da exactamente 1 intento adicional
-    result_id = db.Column(db.String(36))  # ID del Result generado al usar la retoma (nullable)
+    result_id = db.Column(db.String(36), db.ForeignKey('results.id', ondelete='SET NULL'))  # ID del Result generado al usar la retoma (nullable)
     
     applied_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
     applied_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     used_at = db.Column(db.DateTime)  # Cuando el candidato usó la retoma
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     assignment = db.relationship('EcmCandidateAssignment', backref=db.backref('retakes', lazy='dynamic'))
@@ -1423,6 +1457,7 @@ class EcmRetake(db.Model):
             'applied_by_id': self.applied_by_id,
             'applied_at': self.applied_at.isoformat() if self.applied_at else None,
             'used_at': self.used_at.isoformat() if self.used_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
 
@@ -1463,6 +1498,7 @@ class BulkUploadBatch(db.Model):
     original_filename = db.Column(db.String(300))
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relaciones
     uploaded_by = db.relationship('User', foreign_keys=[uploaded_by_id], backref=db.backref('bulk_uploads', lazy='dynamic'))
@@ -1497,6 +1533,7 @@ class BulkUploadBatch(db.Model):
             'emails_failed': self.emails_failed,
             'original_filename': self.original_filename,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         if include_members:
             data['members'] = [m.to_dict() for m in self.members.order_by(BulkUploadMember.row_number).all()]

@@ -200,6 +200,33 @@ def create_app(config_name='development'):
         print(f"[INIT] ❌ Error importando payments_bp: {e}")
         raise
     
+    # Downloads (EXEs Office para candidatos/responsables)
+    try:
+        from app.routes.downloads import bp as downloads_bp
+        app.register_blueprint(downloads_bp, url_prefix='/api/downloads')
+        print("[INIT] ✅ downloads registrado (descargas Office)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando downloads_bp: {e}")
+        raise
+
+    # VB6 Office integration (REST API para apps VB6 legacy)
+    try:
+        from app.routes.vb6 import bp as vb6_bp
+        app.register_blueprint(vb6_bp, url_prefix='/api/vb6')
+        print("[INIT] ✅ vb6 registrado (integración Office VB6)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando vb6_bp: {e}")
+        raise
+    
+    # SOAP-compatible layer for VB6 legacy apps (same XML format as srvcsvls7-1)
+    try:
+        from app.routes.soap_compat import bp as soap_compat_bp
+        app.register_blueprint(soap_compat_bp)  # sin prefix — EXEs llaman a /AdminTools.asmx directo
+        print("[INIT] ✅ soap_compat registrado (capa SOAP para VB6)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando soap_compat_bp: {e}")
+        raise
+    
     print("[INIT] ✅ Todos los blueprints registrados correctamente")
     
     # Verificar y agregar columna label_style si no existe
@@ -212,6 +239,13 @@ def create_app(config_name='development'):
             check_and_create_bulk_upload_tables()
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando tablas: {e}")
+
+        # Office local sessions & VB6 integration tables
+        try:
+            from app.auto_migrate import check_and_create_office_tables
+            check_and_create_office_tables()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando tablas Office: {e}")
 
         # Add issuer_logo columns to badge_templates
         try:

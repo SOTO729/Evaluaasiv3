@@ -80,6 +80,7 @@ from app.models.support_chat import (
     SupportMessage
 )
 from app.models.payment import Payment, PAYMENT_STATUS
+from app.models.office_exam import OfficeExamResult, Vb6SessionToken, OfficeAppVersion
 
 __all__ = [
     'User',

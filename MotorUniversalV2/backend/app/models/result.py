@@ -15,14 +15,14 @@ class Result(db.Model):
     id = db.Column(db.String(36), primary_key=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     voucher_id = db.Column(db.Integer, db.ForeignKey('vouchers.id', ondelete='NO ACTION'), nullable=True, index=True)  # Nullable para permitir resultados sin voucher
-    exam_id = db.Column(db.Integer, nullable=False, index=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exams.id', ondelete='NO ACTION'), nullable=False, index=True)
     
     # Relación con Estándar de Competencia (ECM) - los resultados se asocian al ECM
     competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Contexto de grupo - de qué asignación proviene este resultado
-    group_id = db.Column(db.Integer, nullable=True, index=True)
-    group_exam_id = db.Column(db.Integer, nullable=True, index=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)
+    group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='NO ACTION'), nullable=True, index=True)
     
     # Modo: 'exam' o 'simulator' (null = exam para compatibilidad)
     mode = db.Column(db.String(20), nullable=True)

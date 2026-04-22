@@ -86,7 +86,7 @@ class User(db.Model):
     phone = db.Column(db.String(20))
     
     # Institucional
-    campus_id = db.Column(db.Integer, index=True)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), index=True)
     subsystem_id = db.Column(db.Integer)
     
     # Fecha de nacimiento (requerido para responsables y candidatos)

@@ -20,7 +20,7 @@ class Voucher(db.Model):
     
     # Configuración institucional
     subsystem_id = db.Column(db.Integer, nullable=False)
-    campus_id = db.Column(db.Integer, nullable=False)
+    campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='NO ACTION'), nullable=False)
     certification_id = db.Column(db.Integer, nullable=False)
     application_id = db.Column(db.Integer, nullable=False)
     
