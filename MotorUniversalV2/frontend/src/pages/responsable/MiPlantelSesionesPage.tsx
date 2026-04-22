@@ -54,6 +54,10 @@ function sameDay(a: Date, b: Date) {
   return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
 }
 
+function hourLabel(start: number, end: number) {
+  return `${String(start).padStart(2, '0')}:00-${String(end).padStart(2, '0')}:00`;
+}
+
 type SlotMap = Record<string, VmSlot[]>;
 type DetailSlot = { date: string; hour: number };
 
@@ -472,7 +476,7 @@ export default function MiPlantelSesionesPage() {
                     return (
                     <div key={key} className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-lg fluid-px-3 fluid-py-2 group cursor-pointer" onClick={() => openDetail(new Date(first.session_date + 'T12:00:00'), first.start_hour)}>
                       <div className="min-w-0">
-                        <p className="fluid-text-xs font-bold text-teal-800 truncate">{first.start_hour_label}</p>
+                        <p className="fluid-text-xs font-bold text-teal-800 truncate">{hourLabel(first.start_hour, first.end_hour ?? first.start_hour + 1)}</p>
                         <p className="text-[10px] text-teal-600">
                           {(() => { const d = new Date(first.session_date + 'T12:00:00'); return `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`; })()}
                         </p>
@@ -551,7 +555,6 @@ export default function MiPlantelSesionesPage() {
                         {weekDays.map((day, di) => {
                           const slot = getSlot(day, hour);
                           const slotSessions = getGroupSessions(day, hour);
-                          const firstSlotSession = slotSessions[0];
                           const isPast = slot?.is_past ?? false;
                           const globalCount = slot?.global_count ?? 0;
                           const remaining = slot?.remaining ?? 0;
@@ -704,7 +707,7 @@ export default function MiPlantelSesionesPage() {
                     {activeDetailSessions.map(s => (
                       <div key={s.id} className="flex items-center justify-between fluid-px-3 fluid-py-2">
                         <div>
-                          <p className="fluid-text-sm text-gray-700">{s.user_name || s.user?.name || s.user?.email || s.user_id}</p>
+                          <p className="fluid-text-sm text-gray-700">{s.user?.name || s.user?.email || s.user_id}</p>
                           <p className="text-[11px] text-gray-400">Sesión #{s.id}</p>
                         </div>
                         <button
@@ -784,8 +787,8 @@ export default function MiPlantelSesionesPage() {
             <div className="fluid-p-6 border-b border-gray-100">
               <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2"><X className="w-5 h-5 text-red-500" />Cancelar sesión</h3>
               <p className="fluid-text-sm text-gray-500 fluid-mt-1">
-                {cancelTarget.user_name && <span className="font-medium">{cancelTarget.user_name} · </span>}
-                {cancelTarget.start_hour_label} · {cancelTarget.session_date}
+                <span className="font-medium">{cancelTarget.user?.name || cancelTarget.user?.email || cancelTarget.user_id} · </span>
+                {hourLabel(cancelTarget.start_hour, cancelTarget.end_hour ?? cancelTarget.start_hour + 1)} · {cancelTarget.session_date}
               </p>
             </div>
             <div className="fluid-p-6">

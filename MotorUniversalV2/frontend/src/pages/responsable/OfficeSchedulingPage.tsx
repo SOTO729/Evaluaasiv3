@@ -59,6 +59,10 @@ function isToday(d: Date) {
   return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
 }
 
+function hourLabel(start: number, end: number) {
+  return `${String(start).padStart(2, '0')}:00 – ${String(end).padStart(2, '0')}:00`;
+}
+
 type SessionGroup = {
   key: string;
   session_date: string;
@@ -516,7 +520,7 @@ export default function OfficeSchedulingPage() {
           <div className="grid grid-cols-7 divide-x divide-gray-100">
             {weekDays.map((day, idx) => {
               const dateStr = fmt(day);
-              const daySessions = sessionsByDate[dateStr] || [];
+              const daySessions = sessionGroupsByDate[dateStr] || [];
               const today = isToday(day);
               return (
                 <div key={idx} className={`min-h-[180px] ${today ? 'bg-teal-50/50' : ''}`}>
@@ -530,9 +534,9 @@ export default function OfficeSchedulingPage() {
                     {daySessions.length === 0 && (
                       <p className="text-[10px] text-gray-300 text-center fluid-py-4">Sin sesiones</p>
                     )}
-                    {daySessions.map(groupBlock => {
+                    {daySessions.map((groupBlock: SessionGroup) => {
                       const color = getAppColor(groupBlock.office_app || 'gray');
-                      const scheduledCount = groupBlock.sessions.filter(s => s.status === 'scheduled').length;
+                      const scheduledCount = groupBlock.sessions.filter((s: VmSession) => s.status === 'scheduled').length;
                       return (
                         <div
                           key={groupBlock.key}
@@ -551,7 +555,7 @@ export default function OfficeSchedulingPage() {
                             {getAppIcon(groupBlock.office_app || '')}
                             <span className="text-[10px] font-bold uppercase truncate">{groupBlock.office_app}</span>
                           </div>
-                          <p className="text-[10px] font-semibold text-gray-700">{groupBlock.start_hour}:00 – {groupBlock.end_hour}:00</p>
+                          <p className="text-[10px] font-semibold text-gray-700">{hourLabel(groupBlock.start_hour, groupBlock.end_hour)}</p>
                           <p className="text-[9px] text-gray-500">Grupo: {selectedGroup?.name}</p>
                           <div className="flex items-center justify-between mt-1">
                             <span className="text-[8px] text-gray-400 capitalize">{groupBlock.session_type}{groupBlock.level ? ` · ${groupBlock.level}` : ''}</span>
