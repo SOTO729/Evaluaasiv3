@@ -106,6 +106,7 @@ export interface Campus {
   config_certificacion_id?: number | null;
   config_etapa_id?: number | null;
   office_version?: 'office_2016' | 'office_2019' | 'office_365';
+  office_exam_level?: 'intermedio' | 'avanzado';
   enable_tier_basic?: boolean;
   enable_tier_standard?: boolean;
   enable_tier_advanced?: boolean;
@@ -661,6 +662,7 @@ export interface CampusConfiguration {
   // Calendario de sesiones
   enable_session_calendar: boolean;  // Habilitar calendario de sesiones
   session_scheduling_mode: 'leader_only' | 'candidate_self';  // Modo de agendamiento
+  office_exam_level: 'intermedio' | 'avanzado';  // Nivel de examen Office permitido
   
   // Vigencia
   assignment_validity_months: number;  // Meses de vigencia tras asignación
@@ -692,6 +694,7 @@ export interface ConfigureCampusRequest {
   require_exam_pin?: boolean;
   enable_session_calendar?: boolean;
   session_scheduling_mode?: 'leader_only' | 'candidate_self';
+  office_exam_level?: 'intermedio' | 'avanzado';
   assignment_validity_months?: number;
   certification_cost?: number;
   retake_cost?: number;
@@ -871,6 +874,7 @@ export interface GroupConfigOverrides {
   require_exam_pin_override?: boolean | null;
   enable_session_calendar_override?: boolean | null;
   session_scheduling_mode_override?: 'leader_only' | 'candidate_self' | null;
+  office_exam_level_override?: 'intermedio' | 'avanzado' | null;
   certification_cost_override?: number | null;
   retake_cost_override?: number | null;
   assignment_validity_months_override?: number | null;
@@ -906,6 +910,7 @@ export interface GroupConfigResponse {
     require_exam_pin: boolean;
     enable_session_calendar: boolean;
     session_scheduling_mode: 'leader_only' | 'candidate_self';
+    office_exam_level: 'intermedio' | 'avanzado';
     certification_cost: number;
     retake_cost: number;
     assignment_validity_months: number;
@@ -925,6 +930,7 @@ export interface GroupConfigResponse {
     require_exam_pin: boolean;
     enable_session_calendar: boolean;
     session_scheduling_mode: 'leader_only' | 'candidate_self';
+    office_exam_level: 'intermedio' | 'avanzado';
     certification_cost: number;
     retake_cost: number;
     assignment_validity_months: number;

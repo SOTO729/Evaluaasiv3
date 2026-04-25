@@ -276,7 +276,7 @@ function App() {
       <AuthProvider>
         <GlobalNotifications />
         <BrowserRouter>
-          <InactivityWatcher timeoutMinutes={15}>
+          <InactivityWatcher>
             <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
               <Routes>
             {/* Landing Page - Public */}

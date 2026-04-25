@@ -2004,13 +2004,19 @@ def configure_campus(campus_id):
         if 'require_exam_pin' in data:
             campus.require_exam_pin = bool(data['require_exam_pin'])
         
-        # Calendario de sesiones
+        # Modo de calendario de sesiones
         if 'enable_session_calendar' in data:
             campus.enable_session_calendar = bool(data['enable_session_calendar'])
         if 'session_scheduling_mode' in data:
             mode = data['session_scheduling_mode']
             if mode in ('leader_only', 'candidate_self'):
                 campus.session_scheduling_mode = mode
+
+        # Nivel de examen Office
+        if 'office_exam_level' in data:
+            level = data['office_exam_level']
+            if level in ('intermedio', 'avanzado'):
+                campus.office_exam_level = level
         
         # Mapeo a EvaluaasiConfig (VDIs/AD/Guacamole)
         if 'config_subsistema_id' in data:
@@ -3123,6 +3129,7 @@ def get_group_config(group_id):
             'require_exam_pin': campus.require_exam_pin or False,
             'enable_session_calendar': campus.enable_session_calendar or False,
             'session_scheduling_mode': campus.session_scheduling_mode or 'leader_only',
+            'office_exam_level': campus.office_exam_level or 'intermedio',
             'config_subsistema_id': campus.config_subsistema_id,
             'config_plantel_id': campus.config_plantel_id,
             'config_certificacion_id': campus.config_certificacion_id,
@@ -3148,6 +3155,7 @@ def get_group_config(group_id):
             'require_exam_pin_override': group.require_exam_pin_override,
             'enable_session_calendar_override': group.enable_session_calendar_override,
             'session_scheduling_mode_override': group.session_scheduling_mode_override,
+            'office_exam_level_override': group.office_exam_level_override,
             'certification_cost_override': float(group.certification_cost_override) if group.certification_cost_override is not None else None,
             'retake_cost_override': float(group.retake_cost_override) if group.retake_cost_override is not None else None,
             'max_retakes_override': group.max_retakes_override,
@@ -3169,6 +3177,7 @@ def get_group_config(group_id):
             'require_exam_pin': group.require_exam_pin_override if group.require_exam_pin_override is not None else (campus.require_exam_pin or False),
             'enable_session_calendar': group.enable_session_calendar_override if group.enable_session_calendar_override is not None else (campus.enable_session_calendar or False),
             'session_scheduling_mode': group.session_scheduling_mode_override if group.session_scheduling_mode_override else (campus.session_scheduling_mode or 'leader_only'),
+            'office_exam_level': group.office_exam_level_override if group.office_exam_level_override else (campus.office_exam_level or 'intermedio'),
             'certification_cost': float(group.certification_cost_override) if group.certification_cost_override is not None else (float(campus.certification_cost) if campus.certification_cost else 0),
             'retake_cost': float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus.retake_cost else 0),
             'max_retakes': group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus.max_retakes is not None else 0),
@@ -3283,7 +3292,13 @@ def update_group_config(group_id):
             mode = data['session_scheduling_mode_override']
             if mode in ('leader_only', 'candidate_self', None):
                 group.session_scheduling_mode_override = mode
-        
+
+        # Nivel de examen Office
+        if 'office_exam_level_override' in data:
+            level = data['office_exam_level_override']
+            if level in ('intermedio', 'avanzado', None):
+                group.office_exam_level_override = level
+
         # Campo de versión de office
         if 'office_version_override' in data:
             group.office_version_override = data['office_version_override']
@@ -3354,6 +3369,7 @@ def reset_group_config(group_id):
         group.require_exam_pin_override = None
         group.enable_session_calendar_override = None
         group.session_scheduling_mode_override = None
+        group.office_exam_level_override = None
         group.certification_cost_override = None
         group.retake_cost_override = None
         group.max_retakes_override = None

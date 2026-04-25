@@ -2,6 +2,7 @@
 Modelos para Insignias Digitales (Open Badges 3.0)
 """
 from datetime import datetime
+import os
 from app import db
 
 
@@ -149,8 +150,15 @@ class IssuedBadge(db.Model):
 
     @property
     def verify_url(self):
-        import os
-        base = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+        explicit = (os.environ.get('SWA_BASE_URL') or '').strip()
+        if explicit:
+            base = explicit.rstrip('/')
+        else:
+            api_base = (os.environ.get('API_BASE_URL') or '').strip().lower()
+            if '-dev.' in api_base or 'api-dev' in api_base or 'dev.evaluaasi.com' in api_base:
+                base = 'https://dev.evaluaasi.com'
+            else:
+                base = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
         return f"{base}/verify/{self.badge_code}"
 
     @property

@@ -215,6 +215,7 @@ class Campus(db.Model):
     
     # Versión de Office para certificación
     office_version = db.Column(db.String(20), default='office_365')  # office_2016, office_2019, office_365
+    office_exam_level = db.Column(db.String(20), default='intermedio')  # intermedio, avanzado
     
     # Tiers de certificación habilitados
     enable_tier_basic = db.Column(db.Boolean, default=False)  # Constancia de participación Eduit
@@ -324,6 +325,7 @@ class Campus(db.Model):
             'cycle_count': self.school_cycles.with_entities(db.func.count()).scalar() if self.school_cycles else 0,
             # Campos de configuración siempre incluidos (con valores por defecto si son None)
             'office_version': self.office_version or 'office_365',
+            'office_exam_level': self.office_exam_level or 'intermedio',
             'enable_tier_basic': self.enable_tier_basic if self.enable_tier_basic is not None else True,
             'enable_tier_standard': self.enable_tier_standard if self.enable_tier_standard is not None else False,
             'enable_tier_advanced': self.enable_tier_advanced if self.enable_tier_advanced is not None else False,
@@ -356,6 +358,7 @@ class Campus(db.Model):
         if include_config:
             data['config'] = {
                 'office_version': self.office_version or 'office_365',
+                'office_exam_level': self.office_exam_level or 'intermedio',
                 'enable_tier_basic': self.enable_tier_basic if self.enable_tier_basic is not None else True,
                 'enable_tier_standard': self.enable_tier_standard if self.enable_tier_standard is not None else False,
                 'enable_tier_advanced': self.enable_tier_advanced if self.enable_tier_advanced is not None else False,
@@ -574,6 +577,7 @@ class CandidateGroup(db.Model):
     
     # Versión de Office
     office_version_override = db.Column(db.String(20))
+    office_exam_level_override = db.Column(db.String(20))
     
     # Tiers de certificación
     enable_tier_basic_override = db.Column(db.Boolean)
@@ -659,6 +663,7 @@ class CandidateGroup(db.Model):
                 'require_exam_pin_override': self.require_exam_pin_override,
                 'enable_session_calendar_override': self.enable_session_calendar_override,
                 'session_scheduling_mode_override': self.session_scheduling_mode_override,
+                'office_exam_level_override': self.office_exam_level_override,
                 'certification_cost_override': float(self.certification_cost_override) if self.certification_cost_override is not None else None,
                 'retake_cost_override': float(self.retake_cost_override) if self.retake_cost_override is not None else None,
                 'max_retakes_override': self.max_retakes_override,
@@ -683,6 +688,7 @@ class CandidateGroup(db.Model):
                     'require_exam_pin': self.require_exam_pin_override if self.require_exam_pin_override is not None else (self.campus.require_exam_pin if self.campus.require_exam_pin is not None else False),
                     'enable_session_calendar': self.enable_session_calendar_override if self.enable_session_calendar_override is not None else (self.campus.enable_session_calendar if self.campus.enable_session_calendar is not None else False),
                     'session_scheduling_mode': self.session_scheduling_mode_override if self.session_scheduling_mode_override else (self.campus.session_scheduling_mode or 'leader_only'),
+                    'office_exam_level': self.office_exam_level_override if self.office_exam_level_override else (self.campus.office_exam_level or 'intermedio'),
                     'certification_cost': float(self.certification_cost_override) if self.certification_cost_override is not None else (float(self.campus.certification_cost) if self.campus.certification_cost else 0),
                     'retake_cost': float(self.retake_cost_override) if self.retake_cost_override is not None else (float(self.campus.retake_cost) if self.campus.retake_cost else 0),
                     'max_retakes': self.max_retakes_override if self.max_retakes_override is not None else (self.campus.max_retakes if self.campus.max_retakes is not None else 0),

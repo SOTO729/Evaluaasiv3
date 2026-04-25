@@ -27,8 +27,21 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # ─── Connection config ───
+# SMTP (default transport — Office 365 / Gmail / etc.)
+SMTP_HOST = os.getenv('MAIL_SERVER', 'smtp.office365.com').strip()
+SMTP_PORT = int(os.getenv('MAIL_PORT', '587'))
+SMTP_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').strip().lower() in {'1', 'true', 'yes'}
+SMTP_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').strip().lower() in {'1', 'true', 'yes'}
+SMTP_USERNAME = os.getenv('MAIL_USERNAME', '').strip()
+SMTP_PASSWORD = os.getenv('MAIL_PASSWORD', '').strip()
+SMTP_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', '').strip() or SMTP_USERNAME
+SMTP_DISPLAY_NAME = os.getenv('MAIL_DISPLAY_NAME', 'Evaluaasi').strip()
+SMTP_TIMEOUT = int(os.getenv('MAIL_TIMEOUT', '20'))
+
+# Legacy ACS (kept for backward-compat, only used if SMTP not configured)
 ACS_CONNECTION_STRING = os.getenv('ACS_CONNECTION_STRING', '')
-ACS_SENDER_EMAIL = os.getenv('ACS_SENDER_EMAIL', 'DoNotReply@15832cde-409e-4487-a3e6-d8da9a86f6b8.azurecomm.net')
+ACS_SENDER_EMAIL = os.getenv('ACS_SENDER_EMAIL', SMTP_DEFAULT_SENDER or 'noreply@evaluaasi.com')
+
 APP_URL = os.getenv('APP_URL', 'https://app.evaluaasi.com')
 API_URL = os.getenv('API_URL', 'https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io')
 CONTACT_RECIPIENT = os.getenv('CONTACT_RECIPIENT', 'contacto@evaluaasi.com')
@@ -89,72 +102,120 @@ def verify_email_action_token(token: str) -> dict | None:
         return None
 
 
+def _smtp_configured() -> bool:
+    """Return True when SMTP credentials are present."""
+    return bool(SMTP_HOST and SMTP_USERNAME and SMTP_PASSWORD and SMTP_DEFAULT_SENDER)
+
+
 def _get_client():
-    """Obtener cliente de email ACS (lazy init)."""
-    if not ACS_CONNECTION_STRING:
-        logger.warning("ACS_CONNECTION_STRING no configurado — emails deshabilitados")
-        return None
-    try:
-        from azure.communication.email import EmailClient
-        return EmailClient.from_connection_string(ACS_CONNECTION_STRING)
-    except Exception as e:
-        logger.error(f"Error creando EmailClient: {e}")
-        return None
+    """
+    Devuelve un identificador del transporte de email disponible.
+    'smtp' si MAIL_* configurado, 'acs' si solo ACS, None si no hay nada.
+    Mantenido por compatibilidad con tests/legacy.
+    """
+    if _smtp_configured():
+        return 'smtp'
+    if ACS_CONNECTION_STRING:
+        try:
+            from azure.communication.email import EmailClient
+            return EmailClient.from_connection_string(ACS_CONNECTION_STRING)
+        except Exception as e:
+            logger.error(f"Error creando EmailClient: {e}")
+            return None
+    logger.warning("Ni MAIL_* ni ACS_CONNECTION_STRING configurados — emails deshabilitados")
+    return None
 
 
-def send_email(
+def _format_sender_address(addr: str) -> str:
+    """Formatear sender con display name si aplica."""
+    if not addr:
+        return ''
+    if '<' in addr or not SMTP_DISPLAY_NAME:
+        return addr
+    return f"{SMTP_DISPLAY_NAME} <{addr}>"
+
+
+def _send_via_smtp(
     to: str,
     subject: str,
     html: str,
-    plain_text: Optional[str] = None,
-    sender: Optional[str] = None,
-    reply_to: Optional[str] = None,
-    attachments: Optional[list] = None,
-    cc: Optional[list] = None,
+    plain_text: Optional[str],
+    sender: Optional[str],
+    reply_to: Optional[str],
+    attachments: Optional[list],
+    cc: Optional[list],
 ) -> bool:
-    """
-    Enviar un email.
-    
-    Args:
-        to: Dirección del destinatario principal
-        subject: Asunto del correo
-        html: Contenido HTML
-        plain_text: Contenido texto plano (opcional)
-        sender: Dirección del remitente (opcional, usa default ACS)
-        reply_to: Dirección de respuesta (opcional)
-        attachments: Lista de dicts con {name, content_type, content_base64} (opcional)
-        cc: Lista de direcciones de correo para CC (opcional)
-    
-    Returns True si se envió correctamente, False en caso de error.
-    NO lanza excepciones para no interrumpir flujos principales.
-    
-    Note: If TEST_EMAIL_OVERRIDE env var is set, all emails go to that address.
-    """
-    client = _get_client()
-    if not client:
-        logger.info(f"[EMAIL SKIP] to={to} subject={subject}")
+    """Enviar email vía SMTP (Office365/STARTTLS)."""
+    import smtplib
+    import ssl
+    from email.message import EmailMessage
+
+    from_addr = sender or SMTP_DEFAULT_SENDER or SMTP_USERNAME
+    if not from_addr:
+        logger.error("[EMAIL ERROR] sender/MAIL_DEFAULT_SENDER no configurado")
         return False
 
-    # Test override: redirect all emails to test recipient
-    original_to = to
-    if TEST_EMAIL_OVERRIDE:
-        to = TEST_EMAIL_OVERRIDE
-        subject = f"[TEST→{original_to}] {subject}"
-        cc = None  # Don't CC in test mode
-        logger.info(f"[EMAIL TEST OVERRIDE] original={original_to} → test={to}")
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = _format_sender_address(from_addr)
+    msg['To'] = to
+    if cc:
+        msg['Cc'] = ', '.join(cc)
+    if reply_to:
+        msg['Reply-To'] = reply_to
 
+    # Cuerpo: plain text como fallback + HTML alternativo
+    msg.set_content(plain_text or 'Este correo requiere un cliente con soporte HTML.')
+    msg.add_alternative(html, subtype='html')
+
+    # Adjuntos
+    if attachments:
+        import base64
+        for att in attachments:
+            try:
+                content = base64.b64decode(att['content_base64'])
+                ctype = att.get('content_type') or 'application/octet-stream'
+                maintype, _, subtype = ctype.partition('/')
+                if not subtype:
+                    maintype, subtype = 'application', 'octet-stream'
+                msg.add_attachment(content, maintype=maintype, subtype=subtype, filename=att['name'])
+            except Exception as e:
+                logger.error(f"[EMAIL] error adjuntando {att.get('name')}: {e}")
+
+    rcpt = [to] + (cc or [])
+    context = ssl.create_default_context()
+    try:
+        if SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=SMTP_TIMEOUT) as smtp:
+                if SMTP_USERNAME and SMTP_PASSWORD:
+                    smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+                smtp.send_message(msg, from_addr=SMTP_USERNAME or from_addr, to_addrs=rcpt)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT) as smtp:
+                smtp.ehlo()
+                if SMTP_USE_TLS:
+                    smtp.starttls(context=context)
+                    smtp.ehlo()
+                if SMTP_USERNAME and SMTP_PASSWORD:
+                    smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+                smtp.send_message(msg, from_addr=SMTP_USERNAME or from_addr, to_addrs=rcpt)
+        logger.info(f"[EMAIL OK] smtp to={to} subject={subject!r}")
+        return True
+    except Exception as e:
+        logger.error(f"[EMAIL ERROR] smtp to={to} subject={subject!r} error={e}")
+        return False
+
+
+def _send_via_acs(client, to, subject, html, plain_text, sender, reply_to, attachments, cc) -> bool:
+    """Envío legacy vía Azure Communication Services (kept for fallback)."""
     try:
         recipients = {"to": [{"address": to}]}
         if cc:
             recipients["cc"] = [{"address": addr} for addr in cc]
-        
         message = {
             "senderAddress": sender or ACS_SENDER_EMAIL,
             "recipients": recipients,
-            "content": {
-                "subject": subject,
-                "html": html,
-            },
+            "content": {"subject": subject, "html": html},
         }
         if plain_text:
             message["content"]["plainText"] = plain_text
@@ -169,14 +230,59 @@ def send_email(
                 }
                 for att in attachments
             ]
-
         poller = client.begin_send(message)
         result = poller.result(timeout=10)
-        logger.info(f"[EMAIL OK] to={to} subject={subject} id={result.get('id', 'n/a')}")
+        logger.info(f"[EMAIL OK] acs to={to} id={result.get('id', 'n/a')}")
         return True
     except Exception as e:
-        logger.error(f"[EMAIL ERROR] to={to} subject={subject} error={e}")
+        logger.error(f"[EMAIL ERROR] acs to={to} subject={subject!r} error={e}")
         return False
+
+
+def send_email(
+    to: str,
+    subject: str,
+    html: str,
+    plain_text: Optional[str] = None,
+    sender: Optional[str] = None,
+    reply_to: Optional[str] = None,
+    attachments: Optional[list] = None,
+    cc: Optional[list] = None,
+) -> bool:
+    """
+    Enviar un email vía SMTP (Office 365 por defecto). Usa ACS solo si SMTP no está configurado.
+
+    Args:
+        to: Dirección del destinatario principal
+        subject: Asunto del correo
+        html: Contenido HTML
+        plain_text: Contenido texto plano (opcional)
+        sender: Dirección del remitente (opcional, usa MAIL_DEFAULT_SENDER)
+        reply_to: Dirección de respuesta (opcional)
+        attachments: Lista de dicts con {name, content_type, content_base64} (opcional)
+        cc: Lista de direcciones de correo para CC (opcional)
+
+    Returns True si se envió correctamente, False en caso de error.
+    NO lanza excepciones para no interrumpir flujos principales.
+
+    Note: If TEST_EMAIL_OVERRIDE env var is set, all emails go to that address.
+    """
+    # Test override
+    original_to = to
+    if TEST_EMAIL_OVERRIDE:
+        to = TEST_EMAIL_OVERRIDE
+        subject = f"[TEST→{original_to}] {subject}"
+        cc = None
+        logger.info(f"[EMAIL TEST OVERRIDE] original={original_to} → test={to}")
+
+    if _smtp_configured():
+        return _send_via_smtp(to, subject, html, plain_text, sender, reply_to, attachments, cc)
+
+    client = _get_client()
+    if not client or client == 'smtp':
+        logger.info(f"[EMAIL SKIP] to={to} subject={subject!r}")
+        return False
+    return _send_via_acs(client, to, subject, html, plain_text, sender, reply_to, attachments, cc)
 
 
 # ═══════════════════════════════════════════════════════════════

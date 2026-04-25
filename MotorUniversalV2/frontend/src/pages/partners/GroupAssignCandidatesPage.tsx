@@ -41,6 +41,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import { useGroupBasePath } from '../../hooks/useGroupBasePath';
+import { useAuthStore } from '../../store/authStore';
 import CandidateAssignmentSuccessModal from './CandidateAssignmentSuccessModal';
 import type { AddedCandidateInfo } from './CandidateAssignmentSuccessModal';
 import {
@@ -75,6 +76,8 @@ export default function GroupAssignCandidatesPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+  const { user: currentUser } = useAuthStore();
+  const canBulkUploadCandidates = !isResponsable || !!currentUser?.can_bulk_create_candidates;
 
   useEffect(() => {
     if (isResponsable && !canManage) navigate(basePath, { replace: true });
@@ -613,13 +616,15 @@ export default function GroupAssignCandidatesPage() {
                 </h1>
               </div>
             </div>
-            <button
-              onClick={() => navigate(`${basePath}/bulk-upload`)}
-              className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium transition-colors fluid-text-sm backdrop-blur-sm"
-            >
-              <FileSpreadsheet className="fluid-icon-sm" />
-              Carga Masiva Excel
-            </button>
+            {canBulkUploadCandidates && (
+              <button
+                onClick={() => navigate(`${basePath}/bulk-upload`)}
+                className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white rounded-fluid-xl font-medium transition-colors fluid-text-sm backdrop-blur-sm"
+              >
+                <FileSpreadsheet className="fluid-icon-sm" />
+                Carga Masiva Excel
+              </button>
+            )}
           </div>
 
           {/* Stats en header */}

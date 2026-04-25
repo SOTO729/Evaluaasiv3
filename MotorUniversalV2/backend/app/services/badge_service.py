@@ -8,6 +8,7 @@ import json
 import uuid
 import string
 import random
+import os
 import qrcode
 from io import BytesIO
 from datetime import datetime, timedelta
@@ -17,8 +18,21 @@ from dateutil.relativedelta import relativedelta
 from app import db
 from app.models.badge import BadgeTemplate, IssuedBadge
 
+def _resolve_swa_base_url():
+    """Resuelve base URL del frontend (SWA) priorizando env explícita."""
+    explicit = (os.environ.get('SWA_BASE_URL') or '').strip()
+    if explicit:
+        return explicit.rstrip('/')
+
+    api_base = (os.environ.get('API_BASE_URL') or '').strip().lower()
+    if '-dev.' in api_base or 'api-dev' in api_base or 'dev.evaluaasi.com' in api_base:
+        return 'https://dev.evaluaasi.com'
+
+    return 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+
+
 # Base URL
-SWA_BASE = "https://app.evaluaasi.com"
+SWA_BASE = _resolve_swa_base_url()
 
 
 def _get_ed25519_private_key():
@@ -371,6 +385,13 @@ def _is_badge_enabled_for_result(result, user):
                     return True
                 if g.enable_digital_badge_override is None and g.campus and g.campus.enable_digital_badge:
                     return True
+
+    # 2b) Responsables/auxiliares: no pertenecen a un grupo pero sí a un campus
+    if user and getattr(user, 'role', None) in ('responsable', 'auxiliar') and getattr(user, 'campus_id', None):
+        from app.models.partner import Campus
+        camp = Campus.query.get(user.campus_id)
+        if camp and camp.enable_digital_badge:
+            return True
 
     # 3) Legacy: campo directo del usuario
     return getattr(user, 'enable_digital_badge', False)

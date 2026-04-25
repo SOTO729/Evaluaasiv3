@@ -103,6 +103,8 @@ const CERT_CARDS: CertCard[] = [
 export default function GroupDocumentsPage() {
   const { groupId } = useParams();
   const { isResponsable, basePath } = useGroupBasePath(groupId);
+  const parsedGroupId = Number(groupId);
+  const hasValidGroupId = Number.isInteger(parsedGroupId) && parsedGroupId > 0;
   
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [stats, setStats] = useState<GroupCertificatesStats | null>(null);
@@ -110,15 +112,22 @@ export default function GroupDocumentsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    if (!hasValidGroupId) {
+      setError('Grupo inválido. Verifica la URL e intenta de nuevo.');
+      setLoading(false);
+      return;
+    }
+
+    loadData(parsedGroupId);
   }, [groupId]);
 
-  const loadData = async () => {
+  const loadData = async (targetGroupId: number) => {
     try {
       setLoading(true);
+      setError(null);
       const [groupData, statsData] = await Promise.all([
-        getGroup(Number(groupId)),
-        getGroupCertificatesStats(Number(groupId)),
+        getGroup(targetGroupId),
+        getGroupCertificatesStats(targetGroupId),
       ]);
       setGroup(groupData);
       setStats(statsData);

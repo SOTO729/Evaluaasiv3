@@ -25,6 +25,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import { useGroupBasePath } from '../../hooks/useGroupBasePath';
+import { useAuthStore } from '../../store/authStore';
 import CandidateAssignmentSuccessModal from './CandidateAssignmentSuccessModal';
 import type { BulkUploadResult } from './CandidateAssignmentSuccessModal';
 import {
@@ -41,10 +42,16 @@ export default function GroupBulkUploadPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+  const { user: currentUser } = useAuthStore();
+  const canBulkUploadCandidates = !isResponsable || !!currentUser?.can_bulk_create_candidates;
 
   useEffect(() => {
     if (isResponsable && !canManage) navigate(basePath, { replace: true });
   }, [isResponsable, canManage, navigate, basePath]);
+
+  useEffect(() => {
+    if (isResponsable && !canBulkUploadCandidates) navigate(basePath, { replace: true });
+  }, [isResponsable, canBulkUploadCandidates, navigate, basePath]);
 
   // Estado del grupo
   const [group, setGroup] = useState<CandidateGroup | null>(null);

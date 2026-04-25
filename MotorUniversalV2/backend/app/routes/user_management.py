@@ -84,6 +84,13 @@ def management_required(f):
     return decorated
 
 
+def _ensure_bulk_upload_allowed(current_user):
+    """Restringir altas masivas para responsables sin permiso explícito."""
+    if current_user.role == 'responsable' and not bool(getattr(current_user, 'can_bulk_create_candidates', False)):
+        return jsonify({'error': 'No tienes permiso para realizar altas masivas de candidatos'}), 403
+    return None
+
+
 def admin_required(f):
     """Decorador que requiere rol de admin o developer"""
     @wraps(f)
@@ -2451,6 +2458,9 @@ def preview_bulk_upload_candidates():
     """
     try:
         current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
         group_id = request.form.get('group_id', type=int)
 
         # Validar grupo si se especificó
@@ -2688,6 +2698,9 @@ def bulk_upload_candidates():
 
         CHUNK = 500
         current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
         group_id = request.form.get('group_id', type=int)
 
         # Validar grupo
@@ -2864,9 +2877,14 @@ def bulk_upload_candidates():
             except HTTPException:
                 raise
             except Exception as e:
-                db.session.rollback()
+                # Expunge solo el usuario fallido para no perder los anteriores pendientes.
+                # db.session.rollback() no se usa aquí porque cancelaría todos los usuarios
+                # no committeados del lote actual (potencialmente cientos de alumnos).
+                try:
+                    db.session.expunge(new_user)
+                except Exception:
+                    pass
                 create_errors.append({'row': r['row'], 'email': r['email'] or '(vacío)', 'error': str(e)})
-                batch_count = 0
 
         # Commit remanente
         if batch_count > 0:
@@ -2878,32 +2896,6 @@ def bulk_upload_candidates():
                 db.session.rollback()
                 import logging
                 logging.getLogger(__name__).error(f'Error en commit final bulk: {e}')
-
-        # Enviar emails de bienvenida (con retry individual)
-        emails_sent = 0
-        emails_failed = 0
-        if created:
-            try:
-                from app.services.email_service import send_welcome_email
-                # Batch-fetch los usuarios creados para enviar email
-                created_usernames = [c['username'] for c in created if c.get('email')]
-                created_users_map = {}
-                for i in range(0, len(created_usernames), CHUNK):
-                    chunk = created_usernames[i:i + CHUNK]
-                    users = User.query.filter(User.username.in_(chunk)).all()
-                    for u in users:
-                        created_users_map[u.username] = u
-
-                for c in created:
-                    if c.get('email') and c['username'] in created_users_map:
-                        try:
-                            send_welcome_email(created_users_map[c['username']], c['password'])
-                            emails_sent += 1
-                        except Exception:
-                            emails_failed += 1
-            except Exception as email_err:
-                import logging
-                logging.getLogger(__name__).error(f'Error enviando welcome emails bulk: {email_err}')
 
         # Asignar a grupo si aplica
         group_assignment = None
@@ -2969,6 +2961,8 @@ def bulk_upload_candidates():
         all_errors = validation_errors + create_errors
 
         # ======= GUARDAR REGISTRO DE CARGA MASIVA EN HISTORIAL =======
+        # IMPORTANTE: se guarda ANTES del envío de emails para garantizar que siempre
+        # quede registro aunque el envío de emails tarde o falle.
         batch_record_id = None
         try:
             from app.models.partner import BulkUploadBatch, BulkUploadMember, Campus as CampusModel
@@ -3012,8 +3006,8 @@ def bulk_upload_candidates():
                 total_existing_assigned=len(existing_assigned),
                 total_errors=len(all_errors),
                 total_skipped=len(skipped),
-                emails_sent=emails_sent,
-                emails_failed=emails_failed,
+                emails_sent=0,      # Se actualiza en segundo plano tras el envío async
+                emails_failed=0,
                 original_filename=original_filename,
             )
             db.session.add(batch_rec)
@@ -3061,7 +3055,7 @@ def bulk_upload_candidates():
                     batch_id=batch_rec.id,
                     row_number=err.get('row'),
                     email=err.get('email'),
-                    full_name=err.get('nombre', ''),
+                    full_name=err.get('nombre', err.get('name', '')),
                     status='error',
                     error_message=(err.get('error') or '')[:500],
                 ))
@@ -3088,6 +3082,68 @@ def bulk_upload_candidates():
                 db.session.rollback()
             except Exception:
                 pass
+
+        # ======= ENVÍO DE EMAILS DE BIENVENIDA (EN SEGUNDO PLANO) =======
+        # Se ejecuta en un thread independiente para evitar timeouts en cargas grandes.
+        # Los contadores emails_sent/emails_failed se actualizan en el batch record
+        # una vez que el thread termina.
+        emails_sent = 0
+        emails_failed = 0
+        if created:
+            import threading
+            from flask import current_app as _cur_app
+            _email_app = _cur_app._get_current_object()
+            _emails_payload = [
+                {'username': c['username'], 'email': c.get('email'), 'password': c['password']}
+                for c in created if c.get('email')
+            ]
+
+            def _send_welcome_emails_bg(app_obj, payload, b_id):
+                import logging as _log
+                _logger = _log.getLogger(__name__)
+                sent = 0
+                failed = 0
+                with app_obj.app_context():
+                    try:
+                        from app.services.email_service import send_welcome_email
+                        usernames = [p['username'] for p in payload]
+                        users_map = {}
+                        for i in range(0, len(usernames), 500):
+                            chunk_u = User.query.filter(
+                                User.username.in_(usernames[i:i + 500])
+                            ).all()
+                            for u in chunk_u:
+                                users_map[u.username] = u
+                        for p in payload:
+                            if p['email'] and p['username'] in users_map:
+                                try:
+                                    send_welcome_email(users_map[p['username']], p['password'])
+                                    sent += 1
+                                except Exception:
+                                    failed += 1
+                    except Exception as _e:
+                        _logger.error(f'Error enviando welcome emails bulk (bg): {_e}')
+                    # Actualizar contadores en el batch record
+                    if b_id:
+                        try:
+                            from app.models.partner import BulkUploadBatch as _BUB
+                            _batch = _BUB.query.get(b_id)
+                            if _batch:
+                                _batch.emails_sent = sent
+                                _batch.emails_failed = failed
+                                db.session.commit()
+                        except Exception as _ue:
+                            _logger.error(f'Error actualizando email counts en batch {b_id}: {_ue}')
+                            try:
+                                db.session.rollback()
+                            except Exception:
+                                pass
+
+            threading.Thread(
+                target=_send_welcome_emails_bg,
+                args=(_email_app, _emails_payload, batch_record_id),
+                daemon=True,
+            ).start()
 
         response_data = {
             'message': f'Proceso completado: {len(created)} creados, {len(existing_assigned)} existentes asignados',
@@ -3313,6 +3369,11 @@ def download_bulk_upload_template():
     Descargar plantilla Excel para carga masiva de candidatos
     """
     try:
+        current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
+
         import io
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -3666,6 +3727,9 @@ def list_bulk_upload_history():
         from app.models.partner import BulkUploadBatch
 
         current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         per_page = min(per_page, 100)
@@ -3711,6 +3775,9 @@ def get_bulk_upload_detail(batch_id):
         from werkzeug.exceptions import HTTPException
 
         current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
         batch = BulkUploadBatch.query.get_or_404(batch_id)
 
         # Multi-tenant
@@ -3742,6 +3809,9 @@ def export_bulk_upload_batch(batch_id):
         import io
 
         current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
         batch = BulkUploadBatch.query.get_or_404(batch_id)
 
         # Multi-tenant

@@ -106,6 +106,7 @@ export default function UsersListPage() {
   const isSoporte = currentUser?.role === 'soporte';
   const canManageUsers = isAdmin || isCoordinator || isResponsable;
   const canAssignToGroup = isAdmin || isCoordinator || (isResponsable && currentUser?.can_manage_groups);
+  const canBulkUploadCandidates = !isResponsable || !!currentUser?.can_bulk_create_candidates;
   
   // Animación: primera carga anima todo, recargas solo la tabla
   const isFirstLoad = useRef(true);
@@ -475,23 +476,27 @@ export default function UsersListPage() {
           
           {!isSoporte && (
           <div className="flex flex-col sm:flex-row fluid-gap-3">
-            {/* Botón de carga masiva */}
-            <button
-              onClick={() => setShowBulkUploadModal(true)}
-              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-            >
-              <Upload className="fluid-icon-sm" />
-              Carga Masiva
-            </button>
+            {canBulkUploadCandidates && (
+              <>
+                {/* Botón de carga masiva */}
+                <button
+                  onClick={() => setShowBulkUploadModal(true)}
+                  className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                >
+                  <Upload className="fluid-icon-sm" />
+                  Carga Masiva
+                </button>
 
-            {/* Enlace al historial de altas masivas */}
-            <Link
-              to="/user-management/bulk-history"
-              className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
-            >
-              <Activity className="fluid-icon-sm" />
-              Historial Altas
-            </Link>
+                {/* Enlace al historial de altas masivas */}
+                <Link
+                  to="/user-management/bulk-history"
+                  className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                >
+                  <Activity className="fluid-icon-sm" />
+                  Historial Altas
+                </Link>
+              </>
+            )}
             
             <Link
               to="/user-management/new"

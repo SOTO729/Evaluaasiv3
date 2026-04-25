@@ -10,8 +10,8 @@ interface InactivityWatcherProps {
 
 export const InactivityWatcher = ({
   children,
-  timeoutMinutes = 15,
-  warningMinutes = 5
+  timeoutMinutes,
+  warningMinutes
 }: InactivityWatcherProps) => {
   const { showCountdown, secondsLeft, dismissCountdown } = useInactivityLogout({
     timeoutMinutes,
@@ -29,7 +29,9 @@ export const InactivityWatcher = ({
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
-  const pct = Math.max(0, (secondsLeft / (warningMinutes * 60)) * 100);
+  // Para barra de progreso usamos los segundos restantes vs el warning configurado en hook (10 default).
+  const warnRef = warningMinutes ?? 10;
+  const pct = Math.max(0, (secondsLeft / (warnRef * 60)) * 100);
   const isUrgent = secondsLeft <= 60;
 
   return (

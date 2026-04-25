@@ -17,6 +17,11 @@ import {
   Phone,
   FileText,
   Smile,
+  Paperclip,
+  Image as ImageIcon,
+  File as FileIcon,
+  Download,
+  Loader2,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { loadSupportSettings, subscribeSupportSettings } from '../../support/supportSettings'
@@ -170,6 +175,64 @@ const satisfactionLabel: Record<number, string> = {
   5: 'Excelente',
 }
 
+// ─── Adjuntos ──────────────────────────────────────────────
+const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024 // 10 MB
+const ATTACHMENT_ACCEPT =
+  'image/png,image/jpeg,image/webp,image/gif,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.ms-excel,text/plain,text/csv,audio/mpeg,audio/mp4,audio/ogg,audio/webm'
+
+function formatFileSize(bytes?: number | null): string {
+  if (!bytes || bytes <= 0) return ''
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function isImageMime(mime?: string | null): boolean {
+  return !!mime && mime.startsWith('image/')
+}
+
+function isAudioMime(mime?: string | null): boolean {
+  return !!mime && mime.startsWith('audio/')
+}
+
+/** Comprime una imagen en cliente: max 1280px lado mayor, JPEG q=0.8.
+ *  Devuelve la imagen comprimida o el archivo original si no se pudo comprimir.
+ */
+async function compressImageIfNeeded(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file
+  try {
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+      const im = new Image()
+      im.onload = () => resolve(im)
+      im.onerror = reject
+      im.src = dataUrl
+    })
+    const maxSide = 1280
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height))
+    const w = Math.round(img.width * scale)
+    const h = Math.round(img.height * scale)
+    if (scale === 1 && file.size < 800 * 1024) return file
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    ctx.drawImage(img, 0, 0, w, h)
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8))
+    if (!blob || blob.size >= file.size) return file
+    const newName = file.name.replace(/\.\w+$/, '.jpg')
+    return new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() })
+  } catch {
+    return file
+  }
+}
+
 const SupportChatWorkspace = ({ mode }: Props) => {
   const { user } = useAuthStore()
 
@@ -184,6 +247,19 @@ const SupportChatWorkspace = ({ mode }: Props) => {
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
   const [messages, setMessages] = useState<SupportChatMessage[]>([])
   const [messageText, setMessageText] = useState('')
+
+  // Adjunto en preparación para el próximo mensaje
+  const [pendingAttachment, setPendingAttachment] = useState<{
+    url: string
+    name: string
+    mime_type: string
+    size_bytes: number
+  } | null>(null)
+  const [attachmentUploading, setAttachmentUploading] = useState(false)
+  const [attachmentProgress, setAttachmentProgress] = useState(0)
+  const [attachmentError, setAttachmentError] = useState<string | null>(null)
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [statusFilter, setStatusFilter] = useState<SupportConversationStatus | 'all'>(
     mode === 'support' ? 'open' : 'all'
@@ -408,17 +484,22 @@ const SupportChatWorkspace = ({ mode }: Props) => {
 
   const handleSendMessage = async (event: FormEvent) => {
     event.preventDefault()
-    if (!selectedConversationId || !messageText.trim()) return
+    if (!selectedConversationId) return
+    const trimmed = messageText.trim()
+    if (!trimmed && !pendingAttachment) return
 
     try {
       setSending(true)
       setError(null)
 
       await supportChatService.sendMessage(selectedConversationId, {
-        content: messageText.trim(),
+        content: trimmed || undefined,
+        attachment: pendingAttachment || undefined,
       })
 
       setMessageText('')
+      setPendingAttachment(null)
+      setAttachmentError(null)
       await loadMessages(selectedConversationId)
       await loadConversations(true)
     } catch (err: any) {
@@ -426,6 +507,50 @@ const SupportChatWorkspace = ({ mode }: Props) => {
     } finally {
       setSending(false)
     }
+  }
+
+  const triggerFilePicker = () => {
+    setAttachmentError(null)
+    fileInputRef.current?.click()
+  }
+
+  const handleAttachmentSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = '' // permitir reseleccionar el mismo archivo
+    if (!file || !selectedConversationId) return
+
+    if (file.size > ATTACHMENT_MAX_BYTES) {
+      setAttachmentError(`El archivo excede el tamaño máximo de ${ATTACHMENT_MAX_BYTES / (1024 * 1024)} MB`)
+      return
+    }
+
+    setAttachmentError(null)
+    setAttachmentUploading(true)
+    setAttachmentProgress(0)
+    try {
+      const toUpload = await compressImageIfNeeded(file)
+      const result = await supportChatService.uploadAttachment(
+        selectedConversationId,
+        toUpload,
+        (pct) => setAttachmentProgress(pct),
+      )
+      setPendingAttachment({
+        url: result.url,
+        name: result.name || toUpload.name,
+        mime_type: result.mime_type || toUpload.type || 'application/octet-stream',
+        size_bytes: result.size_bytes ?? toUpload.size,
+      })
+    } catch (err: any) {
+      setAttachmentError(err?.response?.data?.error || 'No se pudo subir el archivo')
+    } finally {
+      setAttachmentUploading(false)
+      setAttachmentProgress(0)
+    }
+  }
+
+  const handleRemovePendingAttachment = () => {
+    setPendingAttachment(null)
+    setAttachmentError(null)
   }
 
   const handleCreateConversation = async (event: FormEvent) => {
@@ -915,19 +1040,52 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                             }`}
                           >
                             {msg.content && <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
-                            {msg.attachment?.url && (
-                              <a
-                                href={msg.attachment.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`mt-2 inline-flex items-center gap-1 text-xs underline ${
-                                  mine ? 'text-primary-100' : 'text-primary-600'
-                                }`}
-                              >
-                                <Mail className="h-3 w-3" />
-                                Ver adjunto
-                              </a>
-                            )}
+                            {msg.attachment?.url && (() => {
+                              const att = msg.attachment
+                              if (isImageMime(att.mime_type)) {
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={() => setImagePreviewUrl(att.url)}
+                                    className={`${msg.content ? 'mt-2' : ''} block overflow-hidden rounded-lg border ${mine ? 'border-primary-400/50' : 'border-gray-200'}`}
+                                  >
+                                    <img
+                                      src={att.url}
+                                      alt={att.name || 'Imagen'}
+                                      loading="lazy"
+                                      className="max-h-72 max-w-full object-contain bg-black/5"
+                                    />
+                                  </button>
+                                )
+                              }
+                              if (isAudioMime(att.mime_type)) {
+                                return (
+                                  <audio
+                                    controls
+                                    src={att.url}
+                                    className={`${msg.content ? 'mt-2' : ''} w-full max-w-xs`}
+                                  />
+                                )
+                              }
+                              const isPdf = att.mime_type === 'application/pdf'
+                              return (
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`${msg.content ? 'mt-2' : ''} flex items-center gap-2 rounded-lg border px-3 py-2 text-xs ${
+                                    mine
+                                      ? 'border-primary-400/50 bg-primary-700/40 text-white hover:bg-primary-700/60'
+                                      : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {isPdf ? <FileText className="h-4 w-4 flex-shrink-0" /> : <FileIcon className="h-4 w-4 flex-shrink-0" />}
+                                  <span className="flex-1 truncate">{att.name || 'Archivo'}</span>
+                                  {att.size_bytes ? <span className="opacity-75">{formatFileSize(att.size_bytes)}</span> : null}
+                                  <Download className="h-3.5 w-3.5 opacity-75" />
+                                </a>
+                              )
+                            })()}
                           </div>
                           <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-gray-500">
                             <CircleDot className="h-2.5 w-2.5" />
@@ -977,6 +1135,32 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                   </div>
                 )}
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={triggerFilePicker}
+                    disabled={
+                      selectedConversation.status === 'closed' ||
+                      candidateChatBlocked ||
+                      supportConversationTransferred ||
+                      attachmentUploading ||
+                      !!pendingAttachment
+                    }
+                    title="Adjuntar archivo"
+                    className="inline-flex h-fit items-center justify-center rounded-xl border border-gray-300 bg-white px-3 py-2 text-gray-600 hover:bg-gray-50 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {attachmentUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="h-4 w-4" />
+                    )}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ATTACHMENT_ACCEPT}
+                    onChange={handleAttachmentSelected}
+                    className="hidden"
+                  />
                   <textarea
                     ref={chatTextareaRef}
                     value={messageText}
@@ -997,13 +1181,66 @@ const SupportChatWorkspace = ({ mode }: Props) => {
                   />
                   <button
                     type="submit"
-                    disabled={selectedConversation.status === 'closed' || candidateChatBlocked || supportConversationTransferred || sending || !messageText.trim()}
+                    disabled={
+                      selectedConversation.status === 'closed' ||
+                      candidateChatBlocked ||
+                      supportConversationTransferred ||
+                      sending ||
+                      attachmentUploading ||
+                      (!messageText.trim() && !pendingAttachment)
+                    }
                     className="inline-flex h-fit items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
                   >
                     <Send className="h-4 w-4" />
                     Enviar
                   </button>
                 </div>
+                {(pendingAttachment || attachmentUploading || attachmentError) && (
+                  <div className="mt-2">
+                    {attachmentUploading && (
+                      <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary-600" />
+                        <span>Subiendo archivo... {attachmentProgress}%</span>
+                        <div className="ml-auto h-1.5 w-32 overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className="h-full bg-primary-600 transition-all"
+                            style={{ width: `${attachmentProgress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {pendingAttachment && !attachmentUploading && (
+                      <div className="flex items-center gap-2 rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-xs text-primary-800">
+                        {isImageMime(pendingAttachment.mime_type) ? (
+                          <img
+                            src={pendingAttachment.url}
+                            alt={pendingAttachment.name}
+                            className="h-10 w-10 rounded object-cover"
+                          />
+                        ) : isImageMime(pendingAttachment.mime_type) ? (
+                          <ImageIcon className="h-4 w-4" />
+                        ) : (
+                          <FileIcon className="h-4 w-4" />
+                        )}
+                        <div className="flex flex-col">
+                          <span className="font-medium truncate max-w-[200px]">{pendingAttachment.name}</span>
+                          <span className="opacity-70">{formatFileSize(pendingAttachment.size_bytes)}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemovePendingAttachment}
+                          className="ml-auto rounded-full p-1 hover:bg-primary-100"
+                          title="Quitar adjunto"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                    {attachmentError && (
+                      <p className="mt-1 text-xs text-red-600">{attachmentError}</p>
+                    )}
+                  </div>
+                )}
                 <div className="mt-2 flex items-center justify-start text-xs">
                   <p
                     className={
@@ -1203,6 +1440,28 @@ const SupportChatWorkspace = ({ mode }: Props) => {
           }}
           isAdmin={isSupportLike}
         />
+      )}
+
+      {/* Lightbox imagen */}
+      {imagePreviewUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setImagePreviewUrl(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            onClick={(e) => { e.stopPropagation(); setImagePreviewUrl(null) }}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={imagePreviewUrl}
+            alt="Vista previa"
+            className="max-h-[90vh] max-w-[90vw] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   )

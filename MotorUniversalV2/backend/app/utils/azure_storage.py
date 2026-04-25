@@ -133,16 +133,62 @@ class AzureStorageService:
         except AzureError as e:
             print(f"Error uploading to Azure: {str(e)}")
             return None
-    
+
+    def upload_file_cool(self, file, folder='general', content_type=None):
+        """
+        Sube archivo a Azure Blob en tier Cool (más económico para acceso poco frecuente).
+
+        Args:
+            file: FileStorage de Flask
+            folder: carpeta lógica dentro del contenedor
+            content_type: override opcional del content-type
+
+        Returns:
+            str | None: URL pública del blob (sin SAS) o None si falla.
+        """
+        client = self.blob_service_client
+        container = self.container_name
+
+        if not client and self.video_blob_client:
+            client = self.video_blob_client
+            container = self.video_container_name
+
+        if not client:
+            print("No Azure storage client available (cool)")
+            return None
+
+        try:
+            filename = secure_filename(file.filename or '')
+            ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else 'bin'
+            unique_filename = f"{uuid.uuid4().hex}.{ext}"
+            blob_name = f"{folder}/{unique_filename}"
+
+            ctype = content_type or getattr(file, 'content_type', None) or 'application/octet-stream'
+
+            blob_client = client.get_blob_client(container=container, blob=blob_name)
+            blob_client.upload_blob(
+                file,
+                overwrite=True,
+                content_settings=ContentSettings(
+                    content_type=ctype,
+                    content_disposition=f'inline; filename="{filename or unique_filename}"',
+                ),
+                standard_blob_tier=StandardBlobTier.COOL,
+            )
+            return blob_client.url
+        except AzureError as e:
+            print(f"Error uploading to Azure (cool): {str(e)}")
+            return None
+
     def upload_video(self, file_or_path, original_filename=None):
         """
         Subir video a la cuenta de almacenamiento Cool tier (optimizada para costos)
         Soporta tanto FileStorage como path de archivo
-        
+
         Args:
             file_or_path: FileStorage de Flask o path a archivo en disco
             original_filename: Nombre original del archivo (requerido si es path)
-        
+
         Returns:
             str: URL del video subido con SAS token o None si falla
         """

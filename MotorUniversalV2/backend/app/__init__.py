@@ -191,6 +191,30 @@ def create_app(config_name='development'):
     app.register_blueprint(user_management_bp)
     print("[INIT] ✅ user-management registrado")
 
+    # Mapeo admin de partners/campuses → EvaluaasiConfig (legacy)
+    try:
+        from app.routes.admin_config_mapping import bp as admin_config_mapping_bp
+        app.register_blueprint(admin_config_mapping_bp)
+        print("[INIT] ✅ admin-config-mapping registrado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando admin_config_mapping_bp: {e}")
+
+    # Verificación admin del estado AD (SOAP ADWebService)
+    try:
+        from app.routes.admin_ad_check import bp as admin_ad_check_bp
+        app.register_blueprint(admin_ad_check_bp)
+        print("[INIT] ✅ admin-ad-check registrado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando admin_ad_check_bp: {e}")
+
+    # Verificación admin del envío de email (SMTP)
+    try:
+        from app.routes.admin_email_check import bp as admin_email_check_bp
+        app.register_blueprint(admin_email_check_bp)
+        print("[INIT] ✅ admin-email-check registrado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando admin_email_check_bp: {e}")
+
     # Pagos en línea (Mercado Pago)
     try:
         from app.routes.payments import bp as payments_bp

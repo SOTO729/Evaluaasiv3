@@ -20,6 +20,22 @@ from app.models.user import User
 bp = Blueprint('badges', __name__)
 
 
+def _resolve_swa_base_url():
+    """Resuelve base URL del frontend (SWA) priorizando env explícita."""
+    import os
+    explicit = (os.environ.get('SWA_BASE_URL') or '').strip()
+    if explicit:
+        return explicit.rstrip('/')
+
+    # Fallback robusto para DEV: inferir por API_BASE_URL cuando exista
+    api_base = (os.environ.get('API_BASE_URL') or '').strip().lower()
+    if '-dev.' in api_base or 'api-dev' in api_base or 'dev.evaluaasi.com' in api_base:
+        return 'https://dev.evaluaasi.com'
+
+    # Fallback final por entorno
+    return 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+
+
 # ──────────────────────────────────────────────
 # Helper: emisión retroactiva de insignias
 # ──────────────────────────────────────────────
@@ -951,7 +967,7 @@ def badge_share_preview(code):
     image_url = f"{api_base}/api/badges/share-image/{code}.png"
 
     # Determine SPA verify URL
-    swa_base = os.environ.get('SWA_BASE_URL', 'https://app.evaluaasi.com')
+    swa_base = _resolve_swa_base_url()
     verify_url = f"{swa_base}/verify/{escape(code)}"
 
     html = f'''<!DOCTYPE html>
@@ -1445,7 +1461,7 @@ def linkedin_callback():
     state = request.args.get('state', '')
     error = request.args.get('error')
 
-    swa_base = os.environ.get('SWA_BASE_URL', 'https://app.evaluaasi.com')
+    swa_base = _resolve_swa_base_url()
 
     if error:
         return _redirect_html(f"{swa_base}/certificates?linkedin_error={error}")

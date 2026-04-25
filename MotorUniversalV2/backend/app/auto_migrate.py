@@ -576,6 +576,7 @@ def check_and_add_campus_activation_columns():
             campus_config_columns = {
                 # Versión de Office
                 'office_version': "NVARCHAR(20) DEFAULT 'office_365'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'office_365'",
+                'office_exam_level': "NVARCHAR(20) DEFAULT 'intermedio'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'intermedio'",
                 # Tiers de certificación
                 'enable_tier_basic': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
                 'enable_tier_standard': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
@@ -1679,6 +1680,7 @@ def check_and_create_office_tables():
             campus_new_cols = {
                 'enable_office_exams': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
                 'enable_office_simulators': 'BIT DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN DEFAULT FALSE',
+                'office_exam_level': "NVARCHAR(20) DEFAULT 'intermedio'" if db_type == 'mssql' else "VARCHAR(20) DEFAULT 'intermedio'",
             }
             for col_name, col_def in campus_new_cols.items():
                 if col_name not in cols:
@@ -1697,6 +1699,7 @@ def check_and_create_office_tables():
             group_new_cols = {
                 'enable_office_exams_override': 'BIT NULL' if db_type == 'mssql' else 'BOOLEAN NULL',
                 'enable_office_simulators_override': 'BIT NULL' if db_type == 'mssql' else 'BOOLEAN NULL',
+                'office_exam_level_override': 'NVARCHAR(20) NULL' if db_type == 'mssql' else 'VARCHAR(20) NULL',
             }
             for col_name, col_def in group_new_cols.items():
                 if col_name not in cols:

@@ -94,6 +94,7 @@ export default function GroupFormPage() {
     require_exam_pin_override: null as boolean | null,
     enable_session_calendar_override: null as boolean | null,
     session_scheduling_mode_override: null as 'leader_only' | 'candidate_self' | null,
+    office_exam_level_override: null as 'intermedio' | 'avanzado' | null,
     certification_cost_override: null as number | null,
     retake_cost_override: null as number | null,
     max_retakes_override: null as number | null,
@@ -191,6 +192,7 @@ export default function GroupFormPage() {
         require_exam_pin_override: config.group_overrides.require_exam_pin_override ?? null,
         enable_session_calendar_override: config.group_overrides.enable_session_calendar_override ?? null,
         session_scheduling_mode_override: (config.group_overrides.session_scheduling_mode_override as 'leader_only' | 'candidate_self' | null) ?? null,
+        office_exam_level_override: (config.group_overrides.office_exam_level_override as 'intermedio' | 'avanzado' | null) ?? null,
         certification_cost_override: config.group_overrides.certification_cost_override ?? null,
         retake_cost_override: config.group_overrides.retake_cost_override ?? null,
         max_retakes_override: (config.group_overrides as any).max_retakes_override ?? null,
@@ -842,6 +844,27 @@ export default function GroupFormPage() {
                               </select>
                             </div>
                           )}
+
+                          {/* Nivel de examen Office */}
+                          <div className="ml-0 mt-1 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                            <p className="text-xs text-indigo-700 font-medium mb-2">Nivel de examen Office</p>
+                            <select
+                              value={configOverrides.office_exam_level_override ?? 'inherited'}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setConfigOverrides(prev => ({
+                                  ...prev,
+                                  office_exam_level_override: val === 'inherited' ? null : val as 'intermedio' | 'avanzado'
+                                }));
+                                setConfigChanged(true);
+                              }}
+                              className="w-full px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                            >
+                              <option value="inherited">Heredado del plantel ({groupConfig?.campus_config?.office_exam_level === 'avanzado' ? 'Avanzado' : 'Intermedio'})</option>
+                              <option value="intermedio">Intermedio</option>
+                              <option value="avanzado">Avanzado</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
                     </div>

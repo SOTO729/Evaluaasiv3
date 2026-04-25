@@ -158,6 +158,28 @@ export const supportChatService = {
     return response.data?.message
   },
 
+  async uploadAttachment(
+    conversationId: number,
+    file: File,
+    onProgress?: (pct: number) => void
+  ): Promise<ChatAttachment> {
+    const form = new FormData()
+    form.append('file', file)
+    const response = await api.post(
+      `/support/chat/conversations/${conversationId}/attachments`,
+      form,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (evt) => {
+          if (onProgress && evt.total) {
+            onProgress(Math.round((evt.loaded * 100) / evt.total))
+          }
+        },
+      }
+    )
+    return response.data?.attachment as ChatAttachment
+  },
+
   async markRead(conversationId: number, last_message_id?: number): Promise<void> {
     await api.post(`/support/chat/conversations/${conversationId}/read`, {
       last_message_id,

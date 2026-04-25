@@ -139,6 +139,7 @@ export default function CampusActivationPage() {
   const [activeStep, setActiveStep] = useState<number | null>(null); // Para navegación manual entre pasos
   const [configData, setConfigData] = useState<ConfigureCampusRequest>({
     office_version: 'office_365',
+    office_exam_level: 'intermedio' as 'intermedio' | 'avanzado',
     enable_tier_basic: true,
     enable_tier_standard: true,
     enable_tier_advanced: false,
@@ -200,6 +201,7 @@ export default function CampusActivationPage() {
       setConfigData(prev => ({
         ...prev,
         office_version: campus.office_version || prev.office_version,
+        office_exam_level: campus.office_exam_level ?? prev.office_exam_level,
         enable_tier_basic: campus.enable_tier_basic ?? prev.enable_tier_basic,
         enable_tier_standard: campus.enable_tier_standard ?? prev.enable_tier_standard,
         enable_tier_advanced: campus.enable_tier_advanced ?? prev.enable_tier_advanced,
@@ -1659,6 +1661,50 @@ export default function CampusActivationPage() {
                           </span>
                           <span className="text-xs text-gray-500 mt-1">{option.desc}</span>
                           {configData.office_version === option.value && (
+                            <div className="absolute top-2 right-2">
+                              <CheckCircle2 className="w-5 h-5 text-indigo-600" />
+                            </div>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Nivel de Examen Office */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                      <Monitor className="w-4 h-4" />
+                      Nivel de Examen Office
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-4">Define el nivel máximo de examen Office disponible para los grupos de este plantel</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { value: 'intermedio', label: 'Intermedio', desc: 'Exámenes de nivel intermedio' },
+                        { value: 'avanzado', label: 'Avanzado', desc: 'Exámenes de nivel avanzado (incluye intermedio)' },
+                      ].map((option) => (
+                        <label
+                          key={option.value}
+                          className={`relative flex flex-col p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                            configData.office_exam_level === option.value
+                              ? 'border-indigo-500 bg-indigo-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="office_exam_level"
+                            value={option.value}
+                            checked={configData.office_exam_level === option.value}
+                            onChange={() => setConfigData(prev => ({ ...prev, office_exam_level: option.value as 'intermedio' | 'avanzado' }))}
+                            className="sr-only"
+                          />
+                          <span className={`font-medium ${
+                            configData.office_exam_level === option.value ? 'text-indigo-700' : 'text-gray-800'
+                          }`}>
+                            {option.label}
+                          </span>
+                          <span className="text-xs text-gray-500 mt-1">{option.desc}</span>
+                          {configData.office_exam_level === option.value && (
                             <div className="absolute top-2 right-2">
                               <CheckCircle2 className="w-5 h-5 text-indigo-600" />
                             </div>

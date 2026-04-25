@@ -156,6 +156,7 @@ export default function CampusFormPage() {
     require_exam_pin: false,
     enable_session_calendar: false,
     session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
+    office_exam_level: 'intermedio' as 'intermedio' | 'avanzado',
     config_subsistema_id: null as number | null,
     config_plantel_id: null as number | null,
     config_certificacion_id: null as number | null,
@@ -258,6 +259,7 @@ export default function CampusFormPage() {
           require_exam_pin: campus.require_exam_pin ?? false,
           enable_session_calendar: campus.enable_session_calendar ?? false,
           session_scheduling_mode: campus.session_scheduling_mode ?? 'leader_only',
+          office_exam_level: (campus.office_exam_level ?? 'intermedio') as 'intermedio' | 'avanzado',
           config_subsistema_id: campus.config_subsistema_id ?? null,
           config_plantel_id: campus.config_plantel_id ?? null,
           config_certificacion_id: campus.config_certificacion_id ?? null,
@@ -474,6 +476,7 @@ export default function CampusFormPage() {
             require_exam_pin: configData.require_exam_pin,
             enable_session_calendar: configData.enable_session_calendar,
             session_scheduling_mode: configData.session_scheduling_mode,
+            office_exam_level: configData.office_exam_level,
             config_subsistema_id: configData.config_subsistema_id,
             config_plantel_id: configData.config_plantel_id,
             config_certificacion_id: configData.config_certificacion_id,
@@ -528,6 +531,7 @@ export default function CampusFormPage() {
         require_exam_pin: configData.require_exam_pin,
         enable_session_calendar: configData.enable_session_calendar,
         session_scheduling_mode: configData.session_scheduling_mode,
+        office_exam_level: configData.office_exam_level,
         config_subsistema_id: configData.config_subsistema_id,
         config_plantel_id: configData.config_plantel_id,
         config_certificacion_id: configData.config_certificacion_id,
@@ -1357,6 +1361,37 @@ export default function CampusFormPage() {
                         </div>
                       )}
                       {/* Mapeo EvaluaasiConfig (VDIs) */}
+                      {/* Nivel de examen Office */}
+                      <div className="ml-0 fluid-p-4 bg-indigo-50 rounded-fluid-xl border border-indigo-200">
+                        <p className="fluid-text-xs text-indigo-700 font-medium mb-3">Nivel de examen Office permitido</p>
+                        <div className="flex gap-3">
+                          {[
+                            { value: 'intermedio', label: 'Intermedio', desc: 'Solo exámenes nivel intermedio' },
+                            { value: 'avanzado', label: 'Avanzado', desc: 'Incluye nivel avanzado e intermedio' },
+                          ].map(opt => (
+                            <label
+                              key={opt.value}
+                              className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                                configData.office_exam_level === opt.value ? 'border-indigo-400 bg-white shadow-sm' : 'border-gray-200 hover:border-gray-300 bg-white'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name="office_exam_level_edit"
+                                value={opt.value}
+                                checked={configData.office_exam_level === opt.value}
+                                onChange={() => handleConfigChange('office_exam_level', opt.value)}
+                                className="text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <div>
+                                <span className="text-sm font-medium text-gray-800">{opt.label}</span>
+                                <p className="text-xs text-gray-500">{opt.desc}</p>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
                       {(configData.enable_virtual_machines || configData.enable_session_calendar) && (
                         <div className="ml-6 fluid-p-4 bg-gray-50 rounded-fluid-xl border border-gray-200">
                           <p className="fluid-text-xs text-gray-600 mb-3 font-medium">Mapeo a EvaluaasiConfig (VDIs)</p>

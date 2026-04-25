@@ -325,7 +325,7 @@ def get_dashboard():
         exam_materials_map = {}  # exam_id -> set of material_ids (solo candidatos)
         
         if current_user.role == 'candidato':
-            from app.models.partner import GroupExam, GroupMember, GroupExamMember, GroupExamMaterial, CandidateGroup
+            from app.models.partner import GroupExam, GroupMember, GroupExamMember, GroupExamMaterial, CandidateGroup, Campus
             
             memberships = GroupMember.query.filter_by(
                 user_id=str(user_id),
@@ -757,9 +757,27 @@ def get_dashboard():
                 raise
             except Exception as e:
                 pass  # Mantener defaults si hay error
-        
-        # Si el candidato tiene insignias emitidas, habilitar la sección aunque el campus no lo tenga activo
-        if current_user.role == 'candidato' and not document_options['digital_badge']:
+
+        # Responsables / auxiliares: document_options basados en su campus directo
+        # (no pertenecen a un grupo, pero sí a un plantel)
+        if current_user.role in ('responsable', 'auxiliar') and current_user.campus_id:
+            try:
+                from app.models.partner import Campus as _Campus2
+                _camp = _Campus2.query.get(current_user.campus_id)
+                if _camp:
+                    if _camp.enable_tier_standard is not None:
+                        document_options['certificate'] = bool(_camp.enable_tier_standard)
+                    conocer_enabled = bool(_camp.enable_tier_advanced) if _camp.enable_tier_advanced is not None else False
+                    document_options['conocer_certificate'] = conocer_enabled and can_receive_conocer
+                    badge_enabled = bool(_camp.enable_digital_badge) if _camp.enable_digital_badge is not None else False
+                    document_options['digital_badge'] = badge_enabled and can_receive_badge
+            except HTTPException:
+                raise
+            except Exception:
+                pass
+
+        # Si el usuario (cualquier rol) tiene insignias emitidas, habilitar la sección aunque el campus no lo tenga activo
+        if not document_options['digital_badge']:
             try:
                 from app.models.badge import IssuedBadge
                 has_badges = IssuedBadge.query.filter_by(

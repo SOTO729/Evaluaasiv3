@@ -588,6 +588,9 @@ const Layout = ({ children }: LayoutProps) => {
                     <Link to="/mi-plantel/office" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/office') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Office Local</Link>
                   </>
                 )}
+                {user?.role === 'coordinator' && (
+                  <Link to="/mi-plantel/office" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/office') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Office Local</Link>
+                )}
                 {user?.role === 'responsable_partner' && (
                   <Link 
                     to="/mi-partner" 
@@ -1303,6 +1306,14 @@ const Layout = ({ children }: LayoutProps) => {
                     </div>
                   </Link>
                 </>
+              )}
+              {user?.role === 'coordinator' && (
+                <Link to="/mi-plantel/office" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/mi-plantel/office') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    Office Local
+                  </div>
+                </Link>
               )}
               {user?.role === 'responsable_partner' && (
                 <Link 

@@ -7,24 +7,49 @@ interface UseInactivityLogoutOptions {
   enabled?: boolean;
 }
 
+// Roles que NO deben tener cierre por inactividad (responsables manejan
+// portales largos; candidato tiene su propio timeout más estricto)
+const RESPONSABLE_ROLES = ['responsable', 'responsable_partner', 'responsable_estatal'];
+
+// Configuración por rol cuando no se pasa override explícito.
+// candidato: 15 min con warning de 5 min.
+// resto (gerente, financiero, soporte, editor, coordinator, admin, etc.):
+// 3 días (4320 min) con warning de 10 min.
+const ROLE_TIMEOUT_DEFAULTS: Record<string, { timeout: number; warning: number }> = {
+  candidato: { timeout: 15, warning: 5 },
+};
+const DEFAULT_TIMEOUT_MINUTES = 60 * 24 * 3; // 3 días
+const DEFAULT_WARNING_MINUTES = 10;
+
 /**
  * Hook para cerrar sesión automáticamente después de un período de inactividad.
- * Muestra un countdown modal los últimos N minutos (por defecto 5).
- * Solo aplica para usuarios tipo "candidato".
+ * - Candidato: 15 min con warning de 5 min.
+ * - Responsable / responsable_partner / responsable_estatal: NO aplica.
+ * - Resto de roles: 3 días con warning de 10 min.
+ * Las opciones permiten sobreescribir manualmente el timeout/warning.
  */
 export const useInactivityLogout = (options: UseInactivityLogoutOptions = {}) => {
-  const {
-    timeoutMinutes = 15,
-    warningMinutes = 5,
-    enabled = true
-  } = options;
-
   const { user, logout, isAuthenticated } = useAuthStore();
-  const isCandidato = user?.role === 'candidato';
-  const shouldTrack = enabled && isAuthenticated && isCandidato;
+  const role = user?.role || '';
+
+  // ¿Aplica el watcher para este rol?
+  const isResponsable = RESPONSABLE_ROLES.includes(role);
+  const roleApplies = isAuthenticated && !!role && !isResponsable;
+
+  // Resolver timeout/warning efectivos según rol y overrides
+  const roleDefaults = ROLE_TIMEOUT_DEFAULTS[role] || {
+    timeout: DEFAULT_TIMEOUT_MINUTES,
+    warning: DEFAULT_WARNING_MINUTES,
+  };
+  const timeoutMinutes = options.timeoutMinutes ?? roleDefaults.timeout;
+  const warningMinutes = options.warningMinutes ?? roleDefaults.warning;
+  const enabled = options.enabled ?? true;
+
+  const isCandidato = role === 'candidato';
+  const shouldTrack = enabled && roleApplies;
 
   const timeoutMs = timeoutMinutes * 60 * 1000;
-  const warningMs = timeoutMs - warningMinutes * 60 * 1000;
+  const warningMs = Math.max(0, timeoutMs - warningMinutes * 60 * 1000);
 
   // Countdown state
   const [showCountdown, setShowCountdown] = useState(false);

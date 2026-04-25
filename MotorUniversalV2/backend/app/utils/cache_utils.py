@@ -51,17 +51,31 @@ def cached_with_user(timeout=300):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            cache_key = make_cache_key_with_user()
-            
-            # Intentar obtener del cache
-            cached_response = cache.get(cache_key)
-            if cached_response is not None:
-                return cached_response
-            
-            # Ejecutar la función y cachear el resultado
+            try:
+                cache_key = make_cache_key_with_user()
+            except Exception as e:
+                # Fail-open: si no se puede construir la llave, no bloquear el endpoint.
+                print(f"[CACHE] Warning: could not build cache key for {f.__name__}: {e}")
+                return f(*args, **kwargs)
+
+            try:
+                # Intentar obtener del cache
+                cached_response = cache.get(cache_key)
+                if cached_response is not None:
+                    return cached_response
+            except Exception as e:
+                # Fail-open: error de Redis/cache no debe romper la API.
+                print(f"[CACHE] Warning: cache.get failed for {cache_key}: {e}")
+
+            # Ejecutar la función
             response = f(*args, **kwargs)
-            cache.set(cache_key, response, timeout=timeout)
-            
+
+            try:
+                # Intentar guardar en cache sin afectar la respuesta al usuario.
+                cache.set(cache_key, response, timeout=timeout)
+            except Exception as e:
+                print(f"[CACHE] Warning: cache.set failed for {cache_key}: {e}")
+
             return response
         return decorated_function
     return decorator

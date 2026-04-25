@@ -19,7 +19,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User
 from app.models.vm_session import VmSession
-from app.models.partner import CandidateGroup, GroupMember, Campus, GroupExam
+from app.models.partner import CandidateGroup, GroupMember, Campus, GroupExam, SchoolCycle
 
 logger = logging.getLogger(__name__)
 
@@ -30,43 +30,89 @@ FALLBACK_MAX_SESSIONS = 18
 
 def get_candidate_vm_context(user_id):
     """Obtener campus_id, group_id, y config de sesiones del candidato."""
-    membership = GroupMember.query.filter_by(
+    memberships = GroupMember.query.filter_by(
         user_id=str(user_id),
         status='active'
-    ).first()
-    
-    if not membership:
-        return None, None, False, 'leader_only'
-    
-    group = CandidateGroup.query.get(membership.group_id)
-    if not group or not group.campus:
-        return None, None, False, 'leader_only'
-    
-    campus = group.campus
-    
-    # Config efectiva: grupo override → campus
-    vm_enabled = False
-    if group.enable_virtual_machines_override is not None:
-        vm_enabled = group.enable_virtual_machines_override
-    elif campus.enable_virtual_machines is not None:
-        vm_enabled = campus.enable_virtual_machines
-    
-    session_calendar = False
-    if group.enable_session_calendar_override is not None:
-        session_calendar = group.enable_session_calendar_override
-    elif campus.enable_session_calendar is not None:
-        session_calendar = campus.enable_session_calendar
+    ).all()
 
-    scheduling_mode = (
-        group.session_scheduling_mode_override
-        if group.session_scheduling_mode_override
-        else (campus.session_scheduling_mode or 'leader_only')
+    if not memberships:
+        return None, None, False, 'leader_only'
+
+    contexts = []
+    for membership in memberships:
+        group = CandidateGroup.query.get(membership.group_id)
+        if not group or not group.campus:
+            continue
+
+        campus = group.campus
+
+        # Config efectiva: grupo override → campus
+        vm_enabled = False
+        if group.enable_virtual_machines_override is not None:
+            vm_enabled = group.enable_virtual_machines_override
+        elif campus.enable_virtual_machines is not None:
+            vm_enabled = campus.enable_virtual_machines
+
+        session_calendar = False
+        if group.enable_session_calendar_override is not None:
+            session_calendar = group.enable_session_calendar_override
+        elif campus.enable_session_calendar is not None:
+            session_calendar = campus.enable_session_calendar
+
+        scheduling_mode = (
+            group.session_scheduling_mode_override
+            if group.session_scheduling_mode_override
+            else (campus.session_scheduling_mode or 'leader_only')
+        )
+
+        # El candidato puede agendar si VMs o calendario están habilitados
+        enabled = vm_enabled or session_calendar
+
+        contexts.append({
+            'campus_id': campus.id,
+            'group_id': group.id,
+            'enabled': enabled,
+            'scheduling_mode': scheduling_mode,
+        })
+
+    if not contexts:
+        return None, None, False, 'leader_only'
+
+    # Prioridad para candidatos con múltiples grupos:
+    # 1) Grupo habilitado y en modo candidate_self
+    # 2) Grupo habilitado (aunque sea leader_only)
+    # 3) Cualquier grupo disponible
+    preferred = next(
+        (c for c in contexts if c['enabled'] and c['scheduling_mode'] == 'candidate_self'),
+        None,
     )
-    
-    # El candidato puede agendar si VMs o calendario están habilitados
-    enabled = vm_enabled or session_calendar
-    
-    return campus.id, group.id, enabled, scheduling_mode
+    if not preferred:
+        preferred = next((c for c in contexts if c['enabled']), None)
+    if not preferred:
+        preferred = contexts[0]
+
+    return (
+        preferred['campus_id'],
+        preferred['group_id'],
+        preferred['enabled'],
+        preferred['scheduling_mode'],
+    )
+
+
+def _get_coordinator_campus_ids(user_id):
+    """Obtener IDs de campuses accesibles para coordinador."""
+    campus_ids = [c.id for c in Campus.query.filter_by(responsable_id=str(user_id)).all()]
+    if campus_ids:
+        return campus_ids
+
+    partner_ids = db.session.query(db.text("partner_id")).from_statement(
+        db.text("SELECT partner_id FROM user_partners WHERE user_id = :uid")
+    ).params(uid=str(user_id)).all()
+    p_ids = [p[0] for p in partner_ids]
+    if not p_ids:
+        return []
+
+    return [c.id for c in Campus.query.filter(Campus.partner_id.in_(p_ids)).all()]
 
 
 def _get_global_slot_count(session_date, start_hour):
@@ -149,27 +195,53 @@ def _sync_session_to_config(vm_session, user):
             parts = [user.name or '', user.first_surname or '', user.second_surname or '']
             nombre = ' '.join(p for p in parts if p).strip()
         
-        # SubsistemaId: desde el Partner del campus
-        subsistema_id = 14  # Fallback: Grupo EduIT
-        plantel_id = 2      # Fallback
-        
+        # ── Resolución de IDs hacia EvaluaasiConfig ──
+        # Fallbacks pensados para entorno de PRUEBAS (no productivos)
+        # para no contaminar el subsistema 14 (Grupo EduIT) productivo.
+        FALLBACK_SUBSISTEMA = 9   # PRUEBAS
+        FALLBACK_PLANTEL    = 2
+        FALLBACK_CERT       = 1
+        FALLBACK_ETAPA      = 1
+
+        subsistema_id    = FALLBACK_SUBSISTEMA
+        plantel_id       = FALLBACK_PLANTEL
+        certificacion_id = FALLBACK_CERT
+        etapa_id         = FALLBACK_ETAPA
+
+        missing = []
         campus = Campus.query.get(vm_session.campus_id) if vm_session.campus_id else None
         if campus:
-            # Subsistema viene del Partner
-            if campus.partner:
-                if campus.partner.config_subsistema_id:
-                    subsistema_id = campus.partner.config_subsistema_id
+            if campus.partner and campus.partner.config_subsistema_id:
+                subsistema_id = campus.partner.config_subsistema_id
+            else:
+                missing.append('partner.config_subsistema_id')
             if campus.config_plantel_id:
                 plantel_id = campus.config_plantel_id
-        
-        certificacion_id = 1  # Default (ECM0054)
-        etapa_id = 1  # Default
-        
-        if campus:
+            else:
+                missing.append('campus.config_plantel_id')
             if campus.config_certificacion_id:
                 certificacion_id = campus.config_certificacion_id
+            else:
+                missing.append('campus.config_certificacion_id')
             if campus.config_etapa_id:
                 etapa_id = campus.config_etapa_id
+            else:
+                missing.append('campus.config_etapa_id')
+        else:
+            missing.append('vm_session.campus_id')
+
+        if missing:
+            partner_label = (
+                f"{campus.partner.name} (id={campus.partner.id})"
+                if campus and campus.partner else 'N/A'
+            )
+            campus_label = f"{campus.name} (id={campus.id})" if campus else 'N/A'
+            logger.warning(
+                "CONFIG_SYNC_FALLBACK partner=%s campus=%s user=%s missing=%s "
+                "→ usando sub=%s plantel=%s cert=%s etapa=%s",
+                partner_label, campus_label, nombre_usuario or 'N/A',
+                ','.join(missing), subsistema_id, plantel_id, certificacion_id, etapa_id,
+            )
         
         config_session_id = create_config_session(
             subsistema_id=subsistema_id,
@@ -838,18 +910,61 @@ def get_available_slots():
 @bp.route('/responsable-groups', methods=['GET'])
 @jwt_required()
 def get_responsable_groups():
-    """Grupos con calendario de sesiones habilitado en el plantel del responsable."""
+    """Grupos con calendario de sesiones habilitado para responsable/coordinador."""
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
-    if not user or user.role != 'responsable' or not user.campus_id:
+    if not user or user.role not in ['responsable', 'coordinator']:
         return jsonify({'error': 'Acceso denegado'}), 403
 
-    campus = Campus.query.get(user.campus_id)
+    campuses = []
+    if user.role == 'responsable':
+        if not user.campus_id:
+            return jsonify({'error': 'Acceso denegado'}), 403
+        campus = Campus.query.get(user.campus_id)
+        if campus:
+            campuses = [campus]
+    else:
+        campus_ids = _get_coordinator_campus_ids(user_id)
+        if campus_ids:
+            campuses = Campus.query.filter(Campus.id.in_(campus_ids)).order_by(Campus.name).all()
+
+    if not campuses:
+        return jsonify({'campus_id': None, 'campus_name': '', 'groups': [], 'campuses': []})
+
+    campus_id_param = request.args.get('campus_id', type=int)
+    if campus_id_param:
+        campus = next((c for c in campuses if c.id == campus_id_param), None)
+        if not campus:
+            return jsonify({'error': 'Plantel no accesible'}), 403
+    else:
+        campus = campuses[0]
+
     if not campus:
         return jsonify({'error': 'Plantel no encontrado'}), 404
 
-    groups = CandidateGroup.query.filter_by(campus_id=user.campus_id).all()
+    cycles = SchoolCycle.query.filter_by(
+        campus_id=campus.id,
+        is_active=True,
+    ).order_by(
+        SchoolCycle.created_at.desc(),
+        SchoolCycle.id.desc(),
+    ).all()
+
+    school_cycle_id_param = request.args.get('school_cycle_id', type=int)
+    cycles_by_id = {c.id: c for c in cycles}
+    if school_cycle_id_param:
+        if school_cycle_id_param not in cycles_by_id:
+            return jsonify({'error': 'Ciclo escolar no accesible'}), 403
+        selected_school_cycle_id = school_cycle_id_param
+    else:
+        selected_school_cycle_id = cycles[0].id if cycles else None
+
+    groups_query = CandidateGroup.query.filter_by(campus_id=campus.id)
+    if selected_school_cycle_id:
+        groups_query = groups_query.filter(CandidateGroup.school_cycle_id == selected_school_cycle_id)
+
+    groups = groups_query.all()
     result = []
     for g in groups:
         session_enabled = (
@@ -872,14 +987,33 @@ def get_responsable_groups():
         result.append({
             'id': g.id,
             'name': g.name,
+            'school_cycle_id': g.school_cycle_id,
+            'school_cycle_name': g.school_cycle.name if g.school_cycle else None,
             'scheduling_mode': scheduling_mode,
             'member_count': member_count,
+            'office_exam_level': (
+                g.office_exam_level_override
+                if g.office_exam_level_override
+                else (campus.office_exam_level or 'intermedio')
+            ),
         })
 
     return jsonify({
-        'campus_id': user.campus_id,
+        'campus_id': campus.id,
         'campus_name': campus.name,
         'groups': result,
+        'campuses': [{'id': c.id, 'name': c.name} for c in campuses],
+        'school_cycles': [
+            {
+                'id': c.id,
+                'name': c.name,
+                'is_current': c.is_current,
+                'created_at': c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in cycles
+        ],
+        'selected_school_cycle_id': selected_school_cycle_id,
+        'selected_campus_id': campus.id,
     })
 
 
@@ -890,7 +1024,7 @@ def get_group_candidates():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
-    if not user or user.role != 'responsable' or not user.campus_id:
+    if not user or user.role not in ['responsable', 'coordinator']:
         return jsonify({'error': 'Acceso denegado'}), 403
 
     group_id = request.args.get('group_id', type=int)
@@ -898,8 +1032,16 @@ def get_group_candidates():
         return jsonify({'error': 'group_id es requerido'}), 400
 
     group = CandidateGroup.query.get(group_id)
-    if not group or group.campus_id != user.campus_id:
+    if not group:
         return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404
+
+    if user.role == 'responsable':
+        if not user.campus_id or group.campus_id != user.campus_id:
+            return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404
+    else:
+        campus_ids = _get_coordinator_campus_ids(user_id)
+        if group.campus_id not in campus_ids:
+            return jsonify({'error': 'Grupo no encontrado en tu alcance'}), 404
 
     members = GroupMember.query.filter_by(group_id=group_id, status='active').all()
     candidates = []
@@ -936,7 +1078,7 @@ def auto_distribute():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
-    if not user or user.role != 'responsable' or not user.campus_id:
+    if not user or user.role not in ['responsable', 'coordinator']:
         return jsonify({'error': 'Acceso denegado'}), 403
 
     data = request.get_json()
@@ -945,10 +1087,20 @@ def auto_distribute():
         return jsonify({'error': 'group_id es requerido'}), 400
 
     group = CandidateGroup.query.get(group_id)
-    if not group or group.campus_id != user.campus_id:
+    if not group:
         return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404
 
-    campus = Campus.query.get(user.campus_id)
+    if user.role == 'responsable':
+        if not user.campus_id or group.campus_id != user.campus_id:
+            return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 404
+        target_campus_id = user.campus_id
+    else:
+        campus_ids = _get_coordinator_campus_ids(user_id)
+        if group.campus_id not in campus_ids:
+            return jsonify({'error': 'Grupo no encontrado en tu alcance'}), 404
+        target_campus_id = group.campus_id
+
+    campus = Campus.query.get(target_campus_id)
     scheduling_mode = (
         group.session_scheduling_mode_override
         if group.session_scheduling_mode_override
@@ -1057,7 +1209,7 @@ def bulk_create_sessions():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
 
-    if not user or user.role != 'responsable' or not user.campus_id:
+    if not user or user.role not in ['responsable', 'coordinator']:
         return jsonify({'error': 'Acceso denegado'}), 403
 
     data = request.get_json()
@@ -1068,8 +1220,18 @@ def bulk_create_sessions():
         return jsonify({'error': 'group_id y sessions son requeridos'}), 400
 
     group = CandidateGroup.query.get(group_id)
-    if not group or group.campus_id != user.campus_id:
+    if not group:
         return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 403
+
+    if user.role == 'responsable':
+        if not user.campus_id or group.campus_id != user.campus_id:
+            return jsonify({'error': 'Grupo no encontrado en tu plantel'}), 403
+        target_campus_id = user.campus_id
+    else:
+        campus_ids = _get_coordinator_campus_ids(user_id)
+        if group.campus_id not in campus_ids:
+            return jsonify({'error': 'Grupo no encontrado en tu alcance'}), 403
+        target_campus_id = group.campus_id
 
     created = []
     errors = []
@@ -1108,11 +1270,11 @@ def bulk_create_sessions():
             # Asignar VDI solo si NO es local
             workstation = None
             if not is_local:
-                workstation = _assign_workstation_for_session(s_date, s_hour, campus_id=user.campus_id)
+                workstation = _assign_workstation_for_session(s_date, s_hour, campus_id=target_campus_id)
 
             session = VmSession(
                 user_id=str(s_user_id),
-                campus_id=user.campus_id,
+                campus_id=target_campus_id,
                 group_id=group_id,
                 session_date=s_date,
                 start_hour=s_hour,

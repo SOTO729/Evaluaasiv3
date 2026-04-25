@@ -619,38 +619,17 @@ def send_support_user_email(target: str, template: str) -> dict[str, Any]:
 
     subject, body = _build_support_email_template(template_key, user)
 
-    mail_server = os.getenv("MAIL_SERVER", "").strip()
-    mail_port = int(os.getenv("MAIL_PORT", "587"))
-    mail_use_tls = os.getenv("MAIL_USE_TLS", "true").strip().lower() in {"1", "true", "yes"}
-    mail_use_ssl = os.getenv("MAIL_USE_SSL", "false").strip().lower() in {"1", "true", "yes"}
-    mail_username = os.getenv("MAIL_USERNAME", "").strip()
-    mail_password = os.getenv("MAIL_PASSWORD", "").strip()
-    mail_default_sender = os.getenv("MAIL_DEFAULT_SENDER", "").strip() or mail_username
-
-    if not mail_server:
-        raise ValueError("MAIL_SERVER no está configurado")
-    if not mail_default_sender:
-        raise ValueError("MAIL_DEFAULT_SENDER o MAIL_USERNAME no está configurado")
-
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = mail_default_sender
-    msg["To"] = recipient_email
-    msg.set_content(body)
-
-    context = ssl.create_default_context()
-    if mail_use_ssl:
-        with smtplib.SMTP_SSL(mail_server, mail_port, context=context, timeout=20) as smtp:
-            if mail_username and mail_password:
-                smtp.login(mail_username, mail_password)
-            smtp.send_message(msg)
-    else:
-        with smtplib.SMTP(mail_server, mail_port, timeout=20) as smtp:
-            if mail_use_tls:
-                smtp.starttls(context=context)
-            if mail_username and mail_password:
-                smtp.login(mail_username, mail_password)
-            smtp.send_message(msg)
+    # Usar el servicio central (SMTP O365 con display name + TEST_EMAIL_OVERRIDE)
+    from app.services.email_service import send_email
+    html_body = "<pre style=\"font-family: inherit; white-space: pre-wrap;\">" + body + "</pre>"
+    success = send_email(
+        to=recipient_email,
+        subject=subject,
+        html=html_body,
+        plain_text=body,
+    )
+    if not success:
+        raise ValueError("No se pudo enviar el correo. Verifica la configuración SMTP.")
 
     return {
         "message": "Correo enviado correctamente",

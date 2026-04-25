@@ -35,7 +35,16 @@ ALLOWED_ATTACHMENT_MIMES = {
     part.strip().lower()
     for part in os.getenv(
         "SUPPORT_CHAT_ATTACHMENT_MIMES",
-        "application/pdf,image/png,image/jpeg,text/plain",
+        # Imágenes (chat solo permite imágenes + documentos, sin video)
+        "image/png,image/jpeg,image/webp,image/gif,"
+        # Documentos
+        "application/pdf,"
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+        "application/msword,application/vnd.ms-excel,"
+        "text/plain,text/csv,"
+        # Audio (corto, opcional)
+        "audio/mpeg,audio/mp4,audio/ogg,audio/webm",
     ).split(",")
     if part.strip()
 }
@@ -368,6 +377,66 @@ def list_conversations():
             "pages": paginated.pages,
         }
     )
+
+
+@bp.route("/conversations/<int:conversation_id>/attachments", methods=["POST"])
+@chat_user_required
+def upload_message_attachment(conversation_id: int):
+    """Sube un adjunto (multipart/form-data) y devuelve el descriptor para
+    enviarlo posteriormente con `POST .../messages`. El blob se guarda en
+    Cool tier dentro de `support-chat-attachments/`.
+    """
+    from app.utils.azure_storage import AzureStorageService
+
+    current_user = g.current_user
+    conversation, error_response = _conversation_for_user_or_403(conversation_id, current_user)
+    if error_response:
+        return error_response
+
+    if conversation.status == "closed":
+        return jsonify({"error": "La conversación está cerrada"}), 409
+
+    if "file" not in request.files:
+        return jsonify({"error": "Se requiere un archivo en el campo 'file'"}), 400
+
+    upload = request.files["file"]
+    if not upload or not upload.filename:
+        return jsonify({"error": "Archivo vacío"}), 400
+
+    mime_type = (upload.mimetype or "application/octet-stream").lower()
+    if ALLOWED_ATTACHMENT_MIMES and mime_type not in ALLOWED_ATTACHMENT_MIMES:
+        return jsonify({"error": f"Tipo de archivo no permitido: {mime_type}"}), 415
+
+    upload.stream.seek(0, os.SEEK_END)
+    size_bytes = upload.stream.tell()
+    upload.stream.seek(0)
+
+    if size_bytes <= 0:
+        return jsonify({"error": "Archivo vacío"}), 400
+    if size_bytes > MAX_ATTACHMENT_BYTES:
+        return jsonify({
+            "error": f"El archivo excede el tamaño máximo de {MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB"
+        }), 413
+
+    try:
+        azure = AzureStorageService()
+        blob_url = azure.upload_file_cool(
+            upload, folder="support-chat-attachments", content_type=mime_type
+        )
+    except Exception as e:  # noqa: BLE001
+        return jsonify({"error": f"Error al subir archivo: {e}"}), 500
+
+    if not blob_url:
+        return jsonify({"error": "No se pudo subir el archivo a Azure Storage"}), 500
+
+    return jsonify({
+        "attachment": {
+            "url": blob_url,
+            "name": upload.filename,
+            "mime_type": mime_type,
+            "size_bytes": size_bytes,
+        }
+    }), 201
 
 
 @bp.route("/conversations/<int:conversation_id>/messages", methods=["POST"])

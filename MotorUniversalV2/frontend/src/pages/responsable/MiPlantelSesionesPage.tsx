@@ -91,6 +91,11 @@ export default function MiPlantelSesionesPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  // Cancel batch (todo el grupo en un slot)
+  const [cancelBatch, setCancelBatch] = useState<VmSession[] | null>(null);
+  const [cancelBatchReason, setCancelBatchReason] = useState('');
+  const [cancelBatchLoading, setCancelBatchLoading] = useState(false);
+
   // Group detail modal (slot-based)
   const [detailSlot, setDetailSlot] = useState<DetailSlot | null>(null);
   const [detailSelectedCandidates, setDetailSelectedCandidates] = useState<string[]>([]);
@@ -262,6 +267,37 @@ export default function MiPlantelSesionesPage() {
     } catch (err: any) {
       showToast('error', err?.response?.data?.error || 'Error al cancelar');
     } finally { setCancelLoading(false); }
+  };
+
+  // Cancel sesiones de todo el grupo en un slot
+  const handleCancelBatch = async () => {
+    if (!cancelBatch || cancelBatch.length === 0) return;
+    setCancelBatchLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        cancelBatch.map(s => cancelVmSession(s.id, cancelBatchReason))
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      const ok = results.length - failed;
+      setCancelBatch(null);
+      setCancelBatchReason('');
+      setDetailSlot(null);
+      if (failed === 0) {
+        showToast('success', `Se quitaron ${ok} sesión(es) del grupo`);
+      } else if (ok === 0) {
+        showToast('error', `No se pudo quitar ninguna sesión (${failed} fallidas)`);
+      } else {
+        showToast('error', `Se quitaron ${ok}, ${failed} fallaron`);
+      }
+      loadWeekSlots();
+      loadSessions();
+      if (selectedGroupId) {
+        const res = await getGroupCandidates(selectedGroupId);
+        setCandidates(res.candidates);
+      }
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.error || 'Error al quitar sesiones');
+    } finally { setCancelBatchLoading(false); }
   };
 
   const openDetail = (day: Date, hour: number) => {
@@ -701,7 +737,18 @@ export default function MiPlantelSesionesPage() {
               )}
 
               <div>
-                <h4 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-2">Miembros agendados</h4>
+                <div className="flex items-center justify-between fluid-mb-2">
+                  <h4 className="fluid-text-sm font-semibold text-gray-700">Miembros agendados</h4>
+                  {activeDetailSessions.length > 1 && (
+                    <button
+                      onClick={() => setCancelBatch(activeDetailSessions)}
+                      className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center fluid-gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      Quitar todos ({activeDetailSessions.length})
+                    </button>
+                  )}
+                </div>
                 {activeDetailSessions.length > 0 ? (
                   <div className="border border-gray-200 rounded-fluid-lg divide-y divide-gray-100">
                     {activeDetailSessions.map(s => (
@@ -774,6 +821,41 @@ export default function MiPlantelSesionesPage() {
               >
                 {detailLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Agregar seleccionados {detailSelectedCandidates.length > 0 ? `(${detailSelectedCandidates.length})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Cancel batch (todo el grupo) ── */}
+      {cancelBatch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => { setCancelBatch(null); setCancelBatchReason(''); }}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="fluid-p-6 border-b border-gray-100">
+              <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
+                <X className="w-5 h-5 text-red-500" />
+                Quitar sesión para todo el grupo
+              </h3>
+              <p className="fluid-text-sm text-gray-500 fluid-mt-1">
+                Se cancelarán {cancelBatch.length} sesión(es) agendadas en este bloque.
+              </p>
+            </div>
+            <div className="fluid-p-6">
+              <p className="fluid-text-sm text-gray-600 fluid-mb-3">Esta acción cancelará la sesión para todos los miembros agendados en este horario. ¿Deseas continuar?</p>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Motivo (opcional)</label>
+              <textarea
+                value={cancelBatchReason}
+                onChange={e => setCancelBatchReason(e.target.value)}
+                className="w-full border border-gray-300 rounded-fluid-lg fluid-px-3 fluid-py-2 fluid-text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                rows={2}
+                placeholder="Motivo de cancelación..."
+              />
+            </div>
+            <div className="fluid-p-6 border-t border-gray-100 flex justify-end fluid-gap-3">
+              <button onClick={() => { setCancelBatch(null); setCancelBatchReason(''); }} className="fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600 hover:bg-gray-100 rounded-fluid-lg transition-colors">Volver</button>
+              <button onClick={handleCancelBatch} disabled={cancelBatchLoading} className="fluid-px-4 fluid-py-2 fluid-text-sm bg-red-600 text-white rounded-fluid-lg hover:bg-red-700 disabled:opacity-50 flex items-center fluid-gap-2 transition-colors">
+                {cancelBatchLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Quitar todas ({cancelBatch.length})
               </button>
             </div>
           </div>

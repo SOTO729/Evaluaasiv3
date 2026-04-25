@@ -135,8 +135,18 @@ export async function updateVmSessionStatus(
 export interface ResponsableGroup {
   id: number;
   name: string;
+  school_cycle_id?: number | null;
+  school_cycle_name?: string | null;
   scheduling_mode: 'leader_only' | 'candidate_self';
   member_count: number;
+  office_exam_level: 'intermedio' | 'avanzado';
+}
+
+export interface ResponsableSchoolCycle {
+  id: number;
+  name: string;
+  is_current?: boolean;
+  created_at?: string | null;
 }
 
 export interface GroupCandidate {
@@ -156,12 +166,22 @@ export interface ProposalItem {
 }
 
 /** Obtener grupos con calendario de sesiones del plantel del responsable */
-export async function getResponsableGroups(): Promise<{
+export async function getResponsableGroups(campusId?: number, schoolCycleId?: number): Promise<{
   campus_id: number;
   campus_name: string;
   groups: ResponsableGroup[];
+  campuses?: { id: number; name: string }[];
+  school_cycles?: ResponsableSchoolCycle[];
+  selected_school_cycle_id?: number | null;
+  selected_campus_id?: number;
 }> {
-  const response = await api.get('/vm-sessions/responsable-groups');
+  const params: Record<string, number> = {};
+  if (campusId) params.campus_id = campusId;
+  if (schoolCycleId) params.school_cycle_id = schoolCycleId;
+
+  const response = await api.get('/vm-sessions/responsable-groups', {
+    params: Object.keys(params).length > 0 ? params : undefined,
+  });
   return response.data;
 }
 

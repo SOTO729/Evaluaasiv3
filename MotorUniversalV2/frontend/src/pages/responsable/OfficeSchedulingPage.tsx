@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ChevronLeft, ChevronRight, Calendar, AlertCircle, CheckCircle,
-  Loader2, Users, Monitor, Plus, X, FileSpreadsheet, FileText, Presentation,
+  Loader2, Users, Monitor, Plus, X, FileSpreadsheet, FileText, Presentation, Building2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { useAuthStore } from '../../store/authStore';
 import {
   getResponsableGroups,
   getVmSessions,
@@ -13,6 +14,7 @@ import {
   getGroupCandidates,
   type VmSession,
   type ResponsableGroup,
+  type ResponsableSchoolCycle,
   type GroupCandidate,
 } from '../../services/vmSessionsService';
 
@@ -32,7 +34,6 @@ const SESSION_TYPES = [
 ] as const;
 
 const LEVELS = [
-  { value: 'basico', label: 'Básico' },
   { value: 'intermedio', label: 'Intermedio' },
   { value: 'avanzado', label: 'Avanzado' },
 ] as const;
@@ -44,6 +45,29 @@ const PARCIAL_SESSIONS = Array.from({ length: 17 }, (_, i) => ({
 
 function fmt(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function parseIsoDate(iso: string): Date | null {
+  if (!iso) return null;
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+}
+
+function getDateRange(fromIso: string, toIso: string): string[] {
+  const from = parseIsoDate(fromIso);
+  const to = parseIsoDate(toIso);
+  if (!from || !to || from > to) return [];
+
+  const result: string[] = [];
+  const cursor = new Date(from);
+  while (cursor <= to) {
+    result.push(fmt(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
 }
 
 function weekOf(ref: Date): Date[] {
@@ -88,9 +112,16 @@ type SessionGroupFilter = {
 };
 
 export default function OfficeSchedulingPage() {
+  const { user } = useAuthStore();
+  const isCoordinator = user?.role === 'coordinator';
+
   // Groups
   const [groups, setGroups] = useState<ResponsableGroup[]>([]);
   const [campusName, setCampusName] = useState('');
+  const [campusOptions, setCampusOptions] = useState<{ id: number; name: string }[]>([]);
+  const [selectedCampusId, setSelectedCampusId] = useState<number | null>(null);
+  const [schoolCycles, setSchoolCycles] = useState<ResponsableSchoolCycle[]>([]);
+  const [selectedSchoolCycleId, setSelectedSchoolCycleId] = useState<number | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [groupsLoading, setGroupsLoading] = useState(true);
 
@@ -107,10 +138,12 @@ export default function OfficeSchedulingPage() {
   // Create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
+    schedule_mode: 'single' as 'single' | 'range',
     session_type: 'examen' as string,
     office_app: 'excel' as string,
     level: '' as string,
     date: fmt(new Date()),
+    date_to: fmt(new Date()),
     start_hour: 9,
     end_hour: 10,
     parcial_units: [] as string[],
@@ -124,6 +157,10 @@ export default function OfficeSchedulingPage() {
   const [cancelTarget, setCancelTarget] = useState<VmSession | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
 
+  // Cancel batch (entire group block)
+  const [cancelBatch, setCancelBatch] = useState<VmSession[] | null>(null);
+  const [cancelBatchLoading, setCancelBatchLoading] = useState(false);
+
   // Group detail modal
   const [detailFilter, setDetailFilter] = useState<SessionGroupFilter | null>(null);
   const [detailSelectedCandidates, setDetailSelectedCandidates] = useState<string[]>([]);
@@ -135,18 +172,66 @@ export default function OfficeSchedulingPage() {
 
   const weekDays = useMemo(() => weekOf(currentDate), [currentDate]);
   const selectedGroup = useMemo(() => groups.find(g => g.id === selectedGroupId) ?? null, [groups, selectedGroupId]);
+  const scheduleDatesPreview = useMemo(() => (
+    createForm.schedule_mode === 'single'
+      ? [createForm.date]
+      : getDateRange(createForm.date, createForm.date_to)
+  ), [createForm.schedule_mode, createForm.date, createForm.date_to]);
+  const totalSessionsPreview = useMemo(
+    () => createForm.selectedCandidates.length * scheduleDatesPreview.length,
+    [createForm.selectedCandidates.length, scheduleDatesPreview.length]
+  );
 
   useEffect(() => {
+    let mounted = true;
+    setGroupsLoading(true);
+
     (async () => {
       try {
-        const res = await getResponsableGroups();
+        const res = await getResponsableGroups(
+          isCoordinator ? (selectedCampusId || undefined) : undefined,
+          selectedSchoolCycleId || undefined
+        );
+        if (!mounted) return;
+
         setGroups(res.groups);
-        setCampusName(res.campus_name);
-        if (res.groups.length > 0) setSelectedGroupId(res.groups[0].id);
-      } catch { /* empty */ }
-      finally { setGroupsLoading(false); }
+        setCampusName(res.campus_name || '');
+        setCampusOptions(res.campuses || []);
+        setSchoolCycles(res.school_cycles || []);
+
+        if (isCoordinator && !selectedCampusId && res.selected_campus_id) {
+          setSelectedCampusId(res.selected_campus_id);
+        }
+
+        if (res.selected_school_cycle_id !== undefined) {
+          setSelectedSchoolCycleId(res.selected_school_cycle_id ?? null);
+        } else if ((res.school_cycles || []).length === 0) {
+          setSelectedSchoolCycleId(null);
+        }
+
+        if (res.groups.length > 0) {
+          setSelectedGroupId(prev => (
+            prev && res.groups.some(g => g.id === prev)
+              ? prev
+              : res.groups[0].id
+          ));
+        } else {
+          setSelectedGroupId(null);
+        }
+      } catch {
+        if (!mounted) return;
+        setGroups([]);
+        setCampusName('');
+        setSchoolCycles([]);
+        setSelectedSchoolCycleId(null);
+        setSelectedGroupId(null);
+      } finally {
+        if (mounted) setGroupsLoading(false);
+      }
     })();
-  }, []);
+
+    return () => { mounted = false; };
+  }, [isCoordinator, selectedCampusId, selectedSchoolCycleId]);
 
   useEffect(() => {
     if (!selectedGroupId) return;
@@ -156,10 +241,18 @@ export default function OfficeSchedulingPage() {
         setCandidates(res.candidates);
       } catch { setCandidates([]); }
     })();
+    // Reset level if current group doesn't allow avanzado
+    const group = groups.find(g => g.id === selectedGroupId);
+    if (group && group.office_exam_level !== 'avanzado') {
+      setCreateForm(prev => ({ ...prev, level: prev.level === 'avanzado' ? 'intermedio' : prev.level }));
+    }
   }, [selectedGroupId]);
 
   const loadSessions = useCallback(async () => {
-    if (!selectedGroupId) return;
+    if (!selectedGroupId) {
+      setSessions([]);
+      return;
+    }
     setSessionsLoading(true);
     try {
       const days = weekOf(currentDate);
@@ -279,6 +372,21 @@ export default function OfficeSchedulingPage() {
       setCreateError('Selecciona al menos un candidato');
       return;
     }
+
+    const targetDates = createForm.schedule_mode === 'single'
+      ? [createForm.date]
+      : getDateRange(createForm.date, createForm.date_to);
+
+    if (targetDates.length === 0) {
+      setCreateError('El rango de fechas no es válido');
+      return;
+    }
+
+    if (targetDates.length > 31) {
+      setCreateError('El rango máximo permitido es de 31 días');
+      return;
+    }
+
     setCreateLoading(true);
     setCreateError('');
     try {
@@ -286,9 +394,9 @@ export default function OfficeSchedulingPage() {
         ? createForm.parcial_units.join(',')
         : undefined;
 
-      if (createForm.selectedCandidates.length === 1) {
+      if (createForm.selectedCandidates.length === 1 && targetDates.length === 1) {
         await createVmSession({
-          session_date: createForm.date,
+          session_date: targetDates[0],
           start_hour: createForm.start_hour,
           end_hour: createForm.end_hour,
           session_type: createForm.session_type as 'examen' | 'simulador' | 'parcial',
@@ -300,6 +408,15 @@ export default function OfficeSchedulingPage() {
           notes: `Office local: ${createForm.office_app} ${createForm.session_type}`,
         });
       } else {
+        const sessionsPayload = createForm.selectedCandidates.flatMap(uid => (
+          targetDates.map(sessionDate => ({
+            user_id: uid,
+            session_date: sessionDate,
+            start_hour: createForm.start_hour,
+            notes: `Office local: ${createForm.office_app} ${createForm.session_type}`,
+          }))
+        ));
+
         await bulkCreateSessions({
           group_id: selectedGroupId!,
           session_type: createForm.session_type as 'examen' | 'simulador' | 'parcial',
@@ -308,14 +425,13 @@ export default function OfficeSchedulingPage() {
           office_app: createForm.office_app,
           level: createForm.level || undefined,
           parcial_units,
-          sessions: createForm.selectedCandidates.map(uid => ({
-            user_id: uid,
-            session_date: createForm.date,
-            start_hour: createForm.start_hour,
-          })),
+          sessions: sessionsPayload,
         });
       }
-      showToast('success', `${createForm.selectedCandidates.length} sesión(es) creada(s)`);
+      showToast(
+        'success',
+        `${createForm.selectedCandidates.length * targetDates.length} sesión(es) creada(s)`
+      );
       setShowCreateModal(false);
       setCreateForm(prev => ({ ...prev, selectedCandidates: [], selectAll: false }));
       loadSessions();
@@ -335,6 +451,30 @@ export default function OfficeSchedulingPage() {
     } catch (err: any) {
       showToast('error', err?.response?.data?.error || 'Error al cancelar');
     } finally { setCancelLoading(false); }
+  };
+
+  const handleCancelBatch = async () => {
+    if (!cancelBatch || cancelBatch.length === 0) return;
+    setCancelBatchLoading(true);
+    try {
+      const results = await Promise.allSettled(
+        cancelBatch.map(s => cancelVmSession(s.id))
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      const ok = results.length - failed;
+      setCancelBatch(null);
+      setDetailFilter(null);
+      if (failed === 0) {
+        showToast('success', `Se quitaron ${ok} sesión(es) del grupo`);
+      } else if (ok === 0) {
+        showToast('error', `No se pudo quitar ninguna sesión (${failed} fallidas)`);
+      } else {
+        showToast('error', `Se quitaron ${ok}, ${failed} fallaron`);
+      }
+      loadSessions();
+    } catch (err: any) {
+      showToast('error', err?.response?.data?.error || 'Error al quitar sesiones');
+    } finally { setCancelBatchLoading(false); }
   };
 
   const openGroupDetail = (g: SessionGroup) => {
@@ -434,7 +574,7 @@ export default function OfficeSchedulingPage() {
 
   if (groupsLoading) return <div className="fluid-p-6 max-w-[2800px] mx-auto"><LoadingSpinner message="Cargando grupos..." /></div>;
 
-  if (groups.length === 0) {
+  if (groups.length === 0 && !isCoordinator) {
     return (
       <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
         <div className="bg-amber-50 border border-amber-200 rounded-fluid-2xl fluid-p-8 text-center max-w-lg mx-auto">
@@ -466,14 +606,55 @@ export default function OfficeSchedulingPage() {
             </h1>
             <p className="fluid-text-sm text-white/70 fluid-mt-1">Programa evaluaciones de Office en equipos locales</p>
           </div>
-          <div className="flex items-center fluid-gap-3">
+          <div className="flex items-center fluid-gap-3 flex-wrap justify-end">
+            {isCoordinator && campusOptions.length > 0 && (
+              <>
+                <Building2 className="w-5 h-5 text-white/60" />
+                <select
+                  value={selectedCampusId || ''}
+                  onChange={e => {
+                    setSelectedCampusId(Number(e.target.value));
+                    setSelectedSchoolCycleId(null);
+                  }}
+                  className="bg-white/15 text-white border border-white/20 rounded-fluid-lg fluid-px-4 fluid-py-2 fluid-text-sm backdrop-blur-sm focus:ring-2 focus:ring-white/30 focus:outline-none appearance-none cursor-pointer"
+                  style={{ minWidth: '220px' }}
+                >
+                  {campusOptions.map(c => (
+                    <option key={c.id} value={c.id} className="text-gray-800 bg-white">
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {schoolCycles.length > 0 && (
+              <>
+                <Calendar className="w-5 h-5 text-white/60" />
+                <select
+                  value={selectedSchoolCycleId || ''}
+                  onChange={e => setSelectedSchoolCycleId(Number(e.target.value))}
+                  className="bg-white/15 text-white border border-white/20 rounded-fluid-lg fluid-px-4 fluid-py-2 fluid-text-sm backdrop-blur-sm focus:ring-2 focus:ring-white/30 focus:outline-none appearance-none cursor-pointer"
+                  style={{ minWidth: '220px' }}
+                >
+                  {schoolCycles.map(c => (
+                    <option key={c.id} value={c.id} className="text-gray-800 bg-white">
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <Users className="w-5 h-5 text-white/60" />
             <select
               value={selectedGroupId || ''}
               onChange={e => { setSelectedGroupId(Number(e.target.value)); }}
+              disabled={groups.length === 0}
               className="bg-white/15 text-white border border-white/20 rounded-fluid-lg fluid-px-4 fluid-py-2 fluid-text-sm backdrop-blur-sm focus:ring-2 focus:ring-white/30 focus:outline-none appearance-none cursor-pointer"
               style={{ minWidth: '220px' }}
             >
+              {groups.length === 0 && (
+                <option value="" className="text-gray-800 bg-white">Sin grupos habilitados</option>
+              )}
               {groups.map(g => (
                 <option key={g.id} value={g.id} className="text-gray-800 bg-white">
                   {g.name} ({g.member_count})
@@ -490,6 +671,7 @@ export default function OfficeSchedulingPage() {
           </div>
           <button
             onClick={() => { setShowCreateModal(true); setCreateError(''); }}
+            disabled={groups.length === 0}
             className="ml-auto flex items-center fluid-gap-2 bg-white/20 hover:bg-white/30 fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -497,6 +679,12 @@ export default function OfficeSchedulingPage() {
           </button>
         </div>
       </div>
+
+      {groups.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
+          <p className="fluid-text-sm text-amber-700">No hay grupos habilitados para el plantel seleccionado.</p>
+        </div>
+      )}
 
       {/* Week navigator */}
       <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm fluid-mb-6">
@@ -640,7 +828,11 @@ export default function OfficeSchedulingPage() {
                 <div>
                   <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Nivel</label>
                   <div className="flex fluid-gap-2">
-                    {LEVELS.map(l => (
+                    {LEVELS.filter(l =>
+                      selectedGroup?.office_exam_level === 'avanzado'
+                        ? true
+                        : l.value !== 'avanzado'
+                    ).map(l => (
                       <button
                         key={l.value}
                         onClick={() => setCreateForm(prev => ({ ...prev, level: prev.level === l.value ? '' : l.value }))}
@@ -654,6 +846,11 @@ export default function OfficeSchedulingPage() {
                       </button>
                     ))}
                   </div>
+                  {selectedGroup?.office_exam_level === 'intermedio' && (
+                    <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                      Este grupo solo permite exámenes de nivel intermedio
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -687,18 +884,63 @@ export default function OfficeSchedulingPage() {
                 </div>
               )}
 
+              {/* Modalidad de fecha */}
+              <div>
+                <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">Programación</label>
+                <div className="flex fluid-gap-2">
+                  <button
+                    onClick={() => setCreateForm(prev => ({ ...prev, schedule_mode: 'single', date_to: prev.date }))}
+                    className={`fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-medium border transition-colors ${
+                      createForm.schedule_mode === 'single'
+                        ? 'bg-teal-600 text-white border-teal-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                    }`}
+                  >
+                    Fecha única
+                  </button>
+                  <button
+                    onClick={() => setCreateForm(prev => ({ ...prev, schedule_mode: 'range', date_to: prev.date_to || prev.date }))}
+                    className={`fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-medium border transition-colors ${
+                      createForm.schedule_mode === 'range'
+                        ? 'bg-teal-600 text-white border-teal-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                    }`}
+                  >
+                    Rango de fechas
+                  </button>
+                </div>
+              </div>
+
               {/* Fecha y hora */}
-              <div className="grid grid-cols-3 fluid-gap-4">
+              <div className={`grid fluid-gap-4 ${createForm.schedule_mode === 'range' ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Fecha</label>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    {createForm.schedule_mode === 'range' ? 'Desde' : 'Fecha'}
+                  </label>
                   <input
                     type="date"
                     value={createForm.date}
                     min={fmt(new Date())}
-                    onChange={e => setCreateForm(prev => ({ ...prev, date: e.target.value }))}
+                    onChange={e => setCreateForm(prev => ({
+                      ...prev,
+                      date: e.target.value,
+                      date_to: prev.date_to < e.target.value ? e.target.value : prev.date_to,
+                    }))}
                     className="w-full border border-gray-300 rounded-fluid-lg fluid-px-3 fluid-py-2 fluid-text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
                   />
                 </div>
+                {createForm.schedule_mode === 'range' && (
+                  <div>
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Hasta</label>
+                    <input
+                      type="date"
+                      value={createForm.date_to}
+                      min={createForm.date}
+                      onChange={e => setCreateForm(prev => ({ ...prev, date_to: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-fluid-lg fluid-px-3 fluid-py-2 fluid-text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Hora inicio</label>
                   <select
@@ -767,7 +1009,7 @@ export default function OfficeSchedulingPage() {
                 className="fluid-px-4 fluid-py-2 fluid-text-sm bg-teal-600 text-white rounded-fluid-lg hover:bg-teal-700 disabled:opacity-50 flex items-center fluid-gap-2 transition-colors"
               >
                 {createLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                Programar {createForm.selectedCandidates.length > 0 && `(${createForm.selectedCandidates.length})`}
+                Programar {totalSessionsPreview > 0 && `(${totalSessionsPreview} sesiones)`}
               </button>
             </div>
           </div>
@@ -800,7 +1042,18 @@ export default function OfficeSchedulingPage() {
               )}
 
               <div>
-                <h4 className="fluid-text-sm font-semibold text-gray-700 fluid-mb-2">Miembros agendados</h4>
+                <div className="flex items-center justify-between fluid-mb-2">
+                  <h4 className="fluid-text-sm font-semibold text-gray-700">Miembros agendados</h4>
+                  {activeDetailGroup && activeDetailGroup.sessions.length > 1 && (
+                    <button
+                      onClick={() => setCancelBatch(activeDetailGroup.sessions)}
+                      className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center fluid-gap-1"
+                    >
+                      <X className="w-3 h-3" />
+                      Quitar todos ({activeDetailGroup.sessions.length})
+                    </button>
+                  )}
+                </div>
                 {activeDetailGroup && activeDetailGroup.sessions.length > 0 ? (
                   <div className="border border-gray-200 rounded-fluid-lg divide-y divide-gray-100">
                     {activeDetailGroup.sessions.map(s => (
@@ -875,6 +1128,33 @@ export default function OfficeSchedulingPage() {
               >
                 {detailLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                 Agregar seleccionados {detailSelectedCandidates.length > 0 ? `(${detailSelectedCandidates.length})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Batch Modal (todo el grupo) ── */}
+      {cancelBatch && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setCancelBatch(null)}>
+          <div className="bg-white rounded-fluid-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="fluid-p-6 border-b border-gray-100">
+              <h3 className="fluid-text-lg font-bold text-gray-800 flex items-center fluid-gap-2">
+                <X className="w-5 h-5 text-red-500" />
+                Quitar sesión para todo el grupo
+              </h3>
+              <p className="fluid-text-sm text-gray-500 fluid-mt-1">
+                Se cancelarán {cancelBatch.length} sesión(es) agendadas en este bloque.
+              </p>
+            </div>
+            <div className="fluid-p-6">
+              <p className="fluid-text-sm text-gray-600">Esta acción cancelará la sesión para todos los miembros agendados en este horario. ¿Deseas continuar?</p>
+            </div>
+            <div className="fluid-p-6 border-t border-gray-100 flex justify-end fluid-gap-3">
+              <button onClick={() => setCancelBatch(null)} className="fluid-px-4 fluid-py-2 fluid-text-sm text-gray-600 hover:bg-gray-100 rounded-fluid-lg transition-colors">Volver</button>
+              <button onClick={handleCancelBatch} disabled={cancelBatchLoading} className="fluid-px-4 fluid-py-2 fluid-text-sm bg-red-600 text-white rounded-fluid-lg hover:bg-red-700 disabled:opacity-50 flex items-center fluid-gap-2 transition-colors">
+                {cancelBatchLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                Quitar todas ({cancelBatch.length})
               </button>
             </div>
           </div>
