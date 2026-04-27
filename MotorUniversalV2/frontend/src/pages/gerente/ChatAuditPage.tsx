@@ -199,7 +199,7 @@ export default function ChatAuditPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <Link
-              to="/gerente"
+              to={normalizedRole === 'coordinator' ? '/support/communication' : '/gerente'}
               className="inline-flex items-center justify-center rounded-fluid-lg bg-white/15 p-2 hover:bg-white/25 transition"
             >
               <ArrowLeft className="h-5 w-5" />

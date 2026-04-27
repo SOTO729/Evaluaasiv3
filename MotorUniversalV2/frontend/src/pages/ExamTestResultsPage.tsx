@@ -132,6 +132,24 @@ const ExamTestResultsPage: React.FC = () => {
   // Expandir/colapsar secciones
   const [expandedExercises, setExpandedExercises] = useState<Record<string, boolean>>({});
 
+  // Al salir de esta página, forzar un refresh completo de la app para que
+  // los certificados/insignias generados al aprobar aparezcan en otras vistas
+  // (dashboard, certificados, perfil, etc.) sin requerir F5 manual.
+  useEffect(() => {
+    return () => {
+      // Programamos el reload en el siguiente tick, cuando React Router ya
+      // actualizó window.location.pathname al destino. Si seguimos en la misma
+      // ruta /results (no debería ocurrir en cleanup) lo evitamos por seguridad.
+      const currentResultsPath = `/test-exams/${examId}/results`;
+      setTimeout(() => {
+        if (window.location.pathname !== currentResultsPath) {
+          window.location.reload();
+        }
+      }, 0);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Obtener datos de la navegación con manejo defensivo
   const rawState = location.state;
   

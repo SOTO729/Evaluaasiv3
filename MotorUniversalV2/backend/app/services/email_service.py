@@ -51,6 +51,19 @@ EMAIL_ACTION_SECRET = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-producti
 # Used for testing email flows in DEV environment
 TEST_EMAIL_OVERRIDE = os.getenv('TEST_EMAIL_OVERRIDE', '')
 
+# CC fijo para auditoría/pruebas en correos de solicitudes de saldo.
+# Se agrega a cc_emails de TODOS los correos de balance (creación, recomendación, aprobación, rechazo).
+BALANCE_AUDIT_CC = [e.strip() for e in os.getenv('BALANCE_AUDIT_CC', 'diegosoto14927@gmail.com').split(',') if e.strip()]
+
+
+def _merge_balance_cc(cc_emails):
+    """Devuelve cc_emails + BALANCE_AUDIT_CC sin duplicados, preservando orden."""
+    base = list(cc_emails) if cc_emails else []
+    for extra in BALANCE_AUDIT_CC:
+        if extra and extra not in base:
+            base.append(extra)
+    return base or None
+
 # Token expiration: 7 days
 EMAIL_TOKEN_MAX_AGE = 7 * 24 * 3600
 
@@ -1196,7 +1209,7 @@ def send_balance_batch_approval_email(
         subject=f"[Evaluaasi] {count_label} de {coordinator_name} — ${total_amount:,.2f} pendiente{'s' if len(items) > 1 else ''} de aprobación",
         html=_base_template("Solicitudes de aprobación", body),
         plain_text=f"{count_label} por ${total_amount:,.2f} de {coordinator_name}. Aprobar: {approve_url} | Rechazar: {reject_url}",
-        cc=cc_emails,
+        cc=_merge_balance_cc(cc_emails),
     )
 
 
@@ -1271,6 +1284,7 @@ def send_balance_delegation_notification_email(
         subject=f"[Evaluaasi] {type_label} aprobada por delegación — {financiero_name} — ${amount_approved:,.2f}",
         html=_base_template("Aprobación por delegación", body),
         plain_text=f"Solicitud de {type_label} por ${amount_approved:,.2f} aprobada por {financiero_name} (delegación). Detalle: {detail_url}",
+        cc=_merge_balance_cc(None),
     )
 
 
@@ -1496,6 +1510,7 @@ def send_balance_resolution_email(
         subject=subject,
         html=_base_template("Resolución de solicitud", body),
         plain_text=f"Tu solicitud de {type_label} por ${amount:,.2f} fue {'aprobada' if approved else 'rechazada'}.",
+        cc=_merge_balance_cc(None),
     )
 
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap, FileText, RefreshCw, Mail, X, Award, ExternalLink } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap, FileText, RefreshCw, Mail, X, Award, ExternalLink, Code, Copy, Check } from 'lucide-react'
 
 interface VerificationData {
   valid: boolean
@@ -55,6 +55,36 @@ const VerifyPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [showReverifyModal, setShowReverifyModal] = useState(false)
   const [reverifyPhase, setReverifyPhase] = useState<'verifying' | 'done'>('verifying')
+  const [jsonModal, setJsonModal] = useState<{ json: string; loading: boolean; error: string | null } | null>(null)
+  const [jsonCopied, setJsonCopied] = useState(false)
+
+  // Fetch + show OB3 credential JSON inline (modal)
+  const handleViewCredentialJson = async () => {
+    if (!data?.badge?.credential_url) return
+    setJsonModal({ json: '', loading: true, error: null })
+    try {
+      const res = await fetch(data.badge.credential_url)
+      const text = await res.text()
+      let formatted = text
+      try {
+        formatted = JSON.stringify(JSON.parse(text), null, 2)
+      } catch {
+        // not JSON or already formatted — use raw
+      }
+      setJsonModal({ json: formatted, loading: false, error: null })
+    } catch (e: any) {
+      setJsonModal({ json: '', loading: false, error: 'No se pudo cargar la credencial JSON-LD' })
+    }
+  }
+
+  const handleCopyJson = async () => {
+    if (!jsonModal?.json) return
+    try {
+      await navigator.clipboard.writeText(jsonModal.json)
+      setJsonCopied(true)
+      setTimeout(() => setJsonCopied(false), 1800)
+    } catch { /* ignore */ }
+  }
 
   // Reset animation phase when modal opens
   useEffect(() => {
@@ -322,15 +352,33 @@ const VerifyPage = () => {
 
                 {/* OB3 credential link */}
                 {data.badge.credential_url && (
-                  <div className="bg-blue-50 rounded-xl p-3 text-center">
-                    <a
-                      href={data.badge.credential_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 text-xs font-medium transition-colors"
-                    >
-                      🔗 Ver Credencial Open Badges 3.0 (JSON-LD)
-                    </a>
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Code className="w-4 h-4 text-blue-600" />
+                      <p className="text-sm font-semibold text-blue-900">Credencial Open Badges 3.0</p>
+                    </div>
+                    <p className="text-xs text-blue-700/80 mb-3">
+                      Esta insignia incluye una credencial verificable en formato JSON-LD conforme al estándar W3C / 1EdTech.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleViewCredentialJson}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                      >
+                        <Code className="w-3.5 h-3.5" />
+                        Ver JSON-LD
+                      </button>
+                      <a
+                        href={data.badge.credential_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-blue-200 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Abrir en pestaña
+                      </a>
+                    </div>
                   </div>
                 )}
 
@@ -608,7 +656,99 @@ const VerifyPage = () => {
           </div>
         </div>
       )}
+
+      {/* JSON-LD Modal */}
+      {jsonModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setJsonModal(null)}
+        >
+          <div
+            className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[85vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                  <Code className="w-4 h-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-sm truncate">Credencial JSON-LD</h3>
+                  <p className="text-xs text-gray-500 truncate">Open Badges 3.0 — {data?.badge?.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {!jsonModal.loading && !jsonModal.error && (
+                  <button
+                    onClick={handleCopyJson}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                    title="Copiar JSON"
+                  >
+                    {jsonCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {jsonCopied ? 'Copiado' : 'Copiar'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setJsonModal(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-white/60 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 overflow-auto flex-1 bg-gray-50">
+              {jsonModal.loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-gray-500">Cargando credencial…</p>
+                  </div>
+                </div>
+              ) : jsonModal.error ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-2" />
+                    <p className="text-sm text-red-600">{jsonModal.error}</p>
+                  </div>
+                </div>
+              ) : (
+                <pre className="text-xs font-mono leading-relaxed bg-white rounded-xl p-4 border border-gray-200 overflow-auto whitespace-pre">
+                  <code
+                    className="text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: highlightJson(jsonModal.json) }}
+                  />
+                </pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+// Lightweight JSON syntax highlighter — escapes HTML and wraps tokens in colored spans
+function highlightJson(json: string): string {
+  const escaped = json
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  return escaped.replace(
+    /("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+    (match) => {
+      let cls = 'text-emerald-700' // number
+      if (/^"/.test(match)) {
+        cls = /:$/.test(match) ? 'text-blue-700 font-semibold' : 'text-rose-600'
+      } else if (/true|false/.test(match)) {
+        cls = 'text-amber-600 font-semibold'
+      } else if (/null/.test(match)) {
+        cls = 'text-gray-400 italic'
+      }
+      return `<span class="${cls}">${match}</span>`
+    }
   )
 }
 

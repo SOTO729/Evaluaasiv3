@@ -430,21 +430,31 @@ def webhook():
     # Obtener topic y data_id de query params o body
     topic = request.args.get('type') or request.args.get('topic') or body.get('type', '')
     data_id = request.args.get('data.id') or (body.get('data', {}) or {}).get('id', '')
+    is_live = bool(body.get('live_mode', True))
 
     if not data_id:
         logger.warning('Webhook sin data_id: args=%s body=%s', dict(request.args), body)
         return jsonify({'status': 'ignored'}), 200
 
-    # Verificar firma si hay signature
-    if x_signature:
+    # Verificar firma — se omite en pruebas del panel (live_mode=false) para
+    # permitir validar la URL desde MercadoPago. Para pagos reales (live_mode=true)
+    # la firma siempre se valida si el header está presente.
+    if x_signature and is_live:
         parts = dict(p.split('=', 1) for p in x_signature.split(',') if '=' in p)
-        ts = parts.get('ts', '')
-        v1 = parts.get('v1', '')
+        ts = parts.get('ts', '').strip()
+        v1 = parts.get('v1', '').strip()
         if not verify_webhook_signature(x_request_id, str(data_id), ts, v1):
-            logger.warning('Firma de webhook inválida')
+            logger.warning(
+                'Firma de webhook inválida (live=%s, data_id=%s, request_id=%s)',
+                is_live, data_id, x_request_id,
+            )
             return jsonify({'error': 'Invalid signature'}), 401
 
-    logger.info('Webhook recibido: topic=%s, data_id=%s', topic, data_id)
+    logger.info('Webhook recibido: topic=%s, data_id=%s, live=%s', topic, data_id, is_live)
+
+    # En modo prueba (live_mode=false) no procesamos pagos, solo confirmamos 200
+    if not is_live:
+        return jsonify({'status': 'ok', 'mode': 'test'}), 200
 
     try:
         process_webhook_notification(topic, str(data_id), full_body=body)

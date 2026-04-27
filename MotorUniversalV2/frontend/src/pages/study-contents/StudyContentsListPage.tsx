@@ -25,7 +25,8 @@ import {
   FileText,
   Calendar,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -53,9 +54,10 @@ interface MaterialCardProps {
   index?: number;
   showStatus?: boolean;
   isCandidate?: boolean;
+  onDelete?: (material: StudyMaterial) => void;
 }
 
-const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCandidate = false }: MaterialCardProps) => (
+const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCandidate = false, onDelete }: MaterialCardProps) => (
   <div
     className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100 group animate-stagger-in"
     style={{ animationDelay: `${index * 50}ms` }}
@@ -101,6 +103,19 @@ const MaterialCard = ({ material, navigate, index = 0, showStatus = true, isCand
             )}
           </span>
         </div>
+      )}
+
+      {/* Botón eliminar - solo admin */}
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(material); }}
+          className="absolute top-3 right-3 p-1.5 rounded-full bg-red-600/90 hover:bg-red-700 text-white shadow-md transition-colors opacity-0 group-hover:opacity-100"
+          title="Eliminar material (solo admin)"
+          aria-label="Eliminar material"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
 
@@ -280,10 +295,11 @@ const StudyContentsListPage = () => {
   };
 
   // La función de eliminar se mantiene comentada por si se necesita en el futuro
-  // const openDeleteModal = (material: StudyMaterial) => {
-  //   setMaterialToDelete(material);
-  //   setDeleteModalOpen(true);
-  // };
+  const openDeleteModal = (material: StudyMaterial) => {
+    if (user?.role !== 'admin') return;
+    setMaterialToDelete(material);
+    setDeleteModalOpen(true);
+  };
 
   return (
     <div className="fluid-p-6 animate-fade-in-up">
@@ -401,6 +417,7 @@ const StudyContentsListPage = () => {
                         navigate={navigate}
                         index={index}
                         showStatus={true}
+                        onDelete={user?.role === 'admin' ? openDeleteModal : undefined}
                       />
                     ))}
                   </div>
@@ -432,6 +449,7 @@ const StudyContentsListPage = () => {
                         navigate={navigate}
                         index={index}
                         showStatus={true}
+                        onDelete={user?.role === 'admin' ? openDeleteModal : undefined}
                       />
                     ))}
                   </div>

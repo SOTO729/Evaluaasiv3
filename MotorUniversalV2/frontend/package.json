@@ -46,6 +46,7 @@
     "react-quill-new": "^3.7.0",
     "react-router-dom": "^6.21.0",
     "recharts": "^3.7.0",
+    "scorm-again": "^3.0.4",
     "tailwind-merge": "^2.2.0",
     "zod": "^3.22.4",
     "zustand": "^4.4.7"

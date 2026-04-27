@@ -661,16 +661,23 @@ def delete_material(material_id):
         material = StudyMaterial.query.get_or_404(material_id)
         
         # Eliminar archivos de Azure Storage antes de borrar el material
+        import re as _re
         for session in material.sessions:
             for topic in session.topics:
-                # Eliminar archivo de video si existe
-                if topic.video and topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
-                    try:
-                        azure_storage.delete_video(topic.video.video_url)
-                    except HTTPException:
-                        raise
-                    except Exception as e:
-                        print(f"Error eliminando video {topic.video.video_url}: {e}")
+                # Eliminar archivo de video si existe (+ thumbnail)
+                if topic.video:
+                    if topic.video.video_url and 'blob.core.windows.net' in topic.video.video_url:
+                        try:
+                            azure_storage.delete_video(topic.video.video_url)
+                        except HTTPException:
+                            raise
+                        except Exception as e:
+                            print(f"Error eliminando video {topic.video.video_url}: {e}")
+                    if getattr(topic.video, 'thumbnail_url', None) and 'blob.core.windows.net' in topic.video.thumbnail_url:
+                        try:
+                            azure_storage.delete_file(topic.video.thumbnail_url)
+                        except Exception as e:
+                            print(f"Error eliminando thumbnail {topic.video.thumbnail_url}: {e}")
                 # Eliminar archivo descargable si existe
                 if topic.downloadable_exercise and topic.downloadable_exercise.file_url and 'blob.core.windows.net' in topic.downloadable_exercise.file_url:
                     try:
@@ -679,7 +686,30 @@ def delete_material(material_id):
                         raise
                     except Exception as e:
                         print(f"Error eliminando descargable {topic.downloadable_exercise.file_url}: {e}")
-                
+                # Eliminar imágenes embebidas en HTML de la lectura
+                if getattr(topic, 'reading', None) and topic.reading and topic.reading.content:
+                    for url in _re.findall(r'https://[^\s"\'<>)]+\.blob\.core\.windows\.net/[^\s"\'<>)]+', topic.reading.content):
+                        try:
+                            azure_storage.delete_file(url)
+                        except Exception as e:
+                            print(f"Error eliminando imagen embebida {url}: {e}")
+                # Eliminar paquete SCORM si existe (blob folder por prefijo)
+                try:
+                    from app.models.study_scorm import StudyScormPackage
+                    scorm = StudyScormPackage.query.filter_by(topic_id=topic.id).first()
+                    if scorm and scorm.blob_base_url and 'blob.core.windows.net' in scorm.blob_base_url:
+                        try:
+                            # blob_base_url = https://acct.blob.core.windows.net/scorm-packages/<uuid>
+                            from urllib.parse import urlparse
+                            parsed = urlparse(scorm.blob_base_url)
+                            parts = parsed.path.lstrip('/').split('/', 1)
+                            if len(parts) == 2 and parts[0] == 'scorm-packages':
+                                azure_storage.delete_scorm_prefix(parts[1])
+                        except Exception as e:
+                            print(f"Error eliminando SCORM {scorm.blob_base_url}: {e}")
+                except ImportError:
+                    pass
+
                 # Eliminar ejercicio interactivo si existe (pasos, acciones e imágenes)
                 if topic.interactive_exercise:
                     exercise_id = topic.interactive_exercise.id
@@ -1053,6 +1083,7 @@ def create_topic(material_id, session_id):
         allow_video = data.get('allow_video') if data.get('allow_video') is not None else True
         allow_downloadable = data.get('allow_downloadable') if data.get('allow_downloadable') is not None else True
         allow_interactive = data.get('allow_interactive') if data.get('allow_interactive') is not None else True
+        allow_scorm = data.get('allow_scorm') if data.get('allow_scorm') is not None else True
         
         logging.warning(f"Final values - reading: {allow_reading}, video: {allow_video}, downloadable: {allow_downloadable}, interactive: {allow_interactive}")
         
@@ -1065,7 +1096,8 @@ def create_topic(material_id, session_id):
             allow_reading=allow_reading,
             allow_video=allow_video,
             allow_downloadable=allow_downloadable,
-            allow_interactive=allow_interactive
+            allow_interactive=allow_interactive,
+            allow_scorm=allow_scorm
         )
         
         db.session.add(topic)
@@ -1124,6 +1156,8 @@ def update_topic(material_id, session_id, topic_id):
             topic.allow_downloadable = data.get('allow_downloadable')
         if 'allow_interactive' in data:
             topic.allow_interactive = data.get('allow_interactive')
+        if 'allow_scorm' in data:
+            topic.allow_scorm = data.get('allow_scorm')
         
         db.session.commit()
         

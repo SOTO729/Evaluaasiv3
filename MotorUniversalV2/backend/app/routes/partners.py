@@ -47,6 +47,92 @@ def coordinator_required(f):
     return decorated
 
 
+def reports_access_required(f):
+    """Decorador específico para endpoints de reportes.
+    Permite: admin, developer, coordinator, auxiliar, responsable,
+    responsable_partner, responsable_estatal.
+    Excluye: soporte (no debe acceder a reportes).
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'No autorizado'}), 401
+        allowed = ['admin', 'developer', 'coordinator', 'auxiliar',
+                   'responsable', 'responsable_partner', 'responsable_estatal']
+        if user.role not in allowed:
+            return jsonify({'error': 'Acceso denegado. No tienes permisos para acceder a reportes.'}), 403
+        if user.role == 'responsable' and not user.campus_id:
+            return jsonify({'error': 'No tienes un plantel asignado'}), 403
+        if user.role == 'responsable_estatal' and not user.assigned_state:
+            return jsonify({'error': 'No tienes un estado asignado'}), 403
+        g.current_user = user
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _get_partner_id_for_partner_role(user):
+    """Para responsable_partner / responsable_estatal: obtiene el partner_id
+    asociado vía la tabla user_partners. Retorna None si no tiene."""
+    from app.models.partner import user_partners
+    row = db.session.query(user_partners).filter(user_partners.c.user_id == user.id).first()
+    return row.partner_id if row else None
+
+
+def _resolve_reports_campus_scope(user, partner_id_param=None, campus_id_param=None,
+                                  coord_id=None):
+    """Resuelve la lista de campus_ids accesibles para el usuario actual
+    según su rol, aplicando los filtros opcionales de partner_id y campus_id
+    enviados desde el cliente.
+
+    Roles soportados:
+      - admin / developer: sin restricción (filtra solo si el cliente envía partner_id/campus_id)
+      - coordinator / auxiliar: limitado a campuses con coordinator_id == coord_id
+      - responsable: solo su campus_id
+      - responsable_partner: todos los campuses de su partner asociado
+      - responsable_estatal: campuses de su partner filtrados por state_name == assigned_state
+
+    Retorna (campus_ids, error_response_o_None).
+    error_response es una tupla (jsonify, status) si el rol requiere setup que no tiene.
+    """
+    role = user.role
+
+    if role == 'responsable':
+        if not user.campus_id:
+            return [], None
+        ids = [user.campus_id]
+        if campus_id_param and campus_id_param in ids:
+            return [campus_id_param], None
+        return ids, None
+
+    if role in ('responsable_partner', 'responsable_estatal'):
+        partner_id = _get_partner_id_for_partner_role(user)
+        if not partner_id:
+            return [], None
+        cq = Campus.query.filter_by(partner_id=partner_id)
+        if role == 'responsable_estatal':
+            if not user.assigned_state:
+                return [], None
+            cq = cq.filter(Campus.state_name == user.assigned_state)
+        ids = [c.id for c in cq.with_entities(Campus.id).all()]
+        if campus_id_param and campus_id_param in ids:
+            return [campus_id_param], None
+        return ids, None
+
+    # admin / developer / coordinator / auxiliar
+    if partner_id_param:
+        cq = Campus.query.filter_by(partner_id=partner_id_param)
+    else:
+        cq = Campus.query
+    if coord_id:
+        cq = cq.filter_by(coordinator_id=coord_id)
+    ids = [c.id for c in cq.with_entities(Campus.id).all()]
+    if campus_id_param and campus_id_param in ids:
+        return [campus_id_param], None
+    return ids, None
+
+
 # ============== CURP EXTRANJEROS ==============
 # Personas extranjeras reciben un CURP genérico basado en su género.
 # Estos CURPs pueden repetirse en la app.
@@ -12581,10 +12667,13 @@ def download_bulk_exam_assign_template(group_id):
         if error:
             return error
         
-        # Obtener miembros del grupo (status='active')
-        members = group.members.filter_by(status='active').all()
+        # Obtener miembros del grupo (status='active') restringidos a candidatos y responsables de plantel
+        members = [
+            m for m in group.members.filter_by(status='active').all()
+            if m.user and m.user.role in ('candidato', 'responsable')
+        ]
         if not members:
-            return jsonify({'error': 'El grupo no tiene miembros activos'}), 400
+            return jsonify({'error': 'El grupo no tiene candidatos ni responsables activos'}), 400
         
         # Crear workbook
         wb = Workbook()
@@ -12604,8 +12693,8 @@ def download_bulk_exam_assign_template(group_id):
             bottom=Side(style='thin')
         )
         
-        # Headers - Solo Nombre de Usuario
-        headers = ['Nombre de Usuario', 'Nombre Completo (opcional)']
+        # Headers — identificadores aceptados (basta con uno por fila)
+        headers = ['Nombre de Usuario', 'Correo', 'CURP', 'Nombre Completo (opcional)']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = header_font
@@ -12617,12 +12706,16 @@ def download_bulk_exam_assign_template(group_id):
         for row, member in enumerate(members, 2):
             user = member.user
             if user:
-                ws.cell(row=row, column=1, value=user.username).border = thin_border
-                ws.cell(row=row, column=2, value=user.full_name or '').border = thin_border
+                ws.cell(row=row, column=1, value=user.username or '').border = thin_border
+                ws.cell(row=row, column=2, value=user.email or '').border = thin_border
+                ws.cell(row=row, column=3, value=user.curp or '').border = thin_border
+                ws.cell(row=row, column=4, value=user.full_name or '').border = thin_border
         
         # Ajustar anchos de columna
-        ws.column_dimensions['A'].width = 30
-        ws.column_dimensions['B'].width = 45
+        ws.column_dimensions['A'].width = 24
+        ws.column_dimensions['B'].width = 32
+        ws.column_dimensions['C'].width = 22
+        ws.column_dimensions['D'].width = 40
         
         # === Hoja 2: Instrucciones ===
         ws2 = wb.create_sheet(title="Instrucciones")
@@ -12630,24 +12723,26 @@ def download_bulk_exam_assign_template(group_id):
         instructions = [
             ("INSTRUCCIONES DE USO", None),
             ("", None),
-            ("1. Este archivo contiene la lista de usuarios del grupo.", None),
+            ("1. Este archivo contiene los miembros del grupo (candidatos y responsables de plantel).", None),
             ("2. El examen a asignar ya fue seleccionado en el paso 1.", None),
             ("3. ELIMINE las filas de los usuarios a quienes NO desea asignar el examen.", None),
-            ("4. Mantenga solo los usuarios que SÍ deben recibir la asignación.", None),
+            ("4. Conserve solo los usuarios que SI deben recibir la asignación.", None),
             ("5. Suba este archivo para procesar las asignaciones.", None),
             ("", None),
             ("IDENTIFICACIÓN DE USUARIOS:", None),
-            ("- Se identifica a los usuarios por su 'Nombre de Usuario'.", None),
-            ("- El campo 'Nombre Completo' es solo informativo.", None),
+            ("- Cada fila se identifica por ‘Nombre de Usuario’, ‘Correo’ o ‘CURP’.", None),
+            ("- Basta con que UNO de los tres campos coincida con un miembro del grupo.", None),
+            ("- Si llenas varios, deben corresponder al mismo usuario; en caso contrario la fila se reporta como error.", None),
+            ("- Solo se aceptan candidatos y responsables de plantel que ya sean miembros del grupo.", None),
             ("", None),
             ("NOTAS IMPORTANTES:", None),
             ("- Si un usuario ya tiene el examen asignado, se omitirá.", None),
-            ("- Solo se procesarán usuarios que pertenezcan al grupo.", None),
+            ("- Las filas vacías se ignoran.", None),
         ]
         
         for row, (text, _) in enumerate(instructions, 1):
             cell = ws2.cell(row=row, column=1, value=text)
-            if row == 1 or row == 9 or row == 14:
+            if row == 1 or row == 9 or row == 16:
                 cell.font = Font(bold=True, size=12)
             else:
                 cell.font = Font(size=11)
@@ -12760,18 +12855,25 @@ def bulk_assign_exams_by_ecm(group_id):
         # Obtener headers
         headers = [cell.value for cell in ws[1]]
         
-        # Encontrar columna de username
+        # Encontrar columnas de identificadores: cualquiera basta (username, email, curp)
         username_col = None
+        email_col = None
+        curp_col = None
         
         for idx, header in enumerate(headers):
-            if header:
-                header_lower = str(header).lower().strip()
-                if 'nombre de usuario' in header_lower or 'username' in header_lower:
-                    username_col = idx
+            if not header:
+                continue
+            header_lower = str(header).lower().strip()
+            if 'nombre de usuario' in header_lower or 'username' in header_lower or header_lower == 'usuario':
+                username_col = idx
+            elif 'correo' in header_lower or 'email' in header_lower or 'e-mail' in header_lower:
+                email_col = idx
+            elif 'curp' in header_lower:
+                curp_col = idx
         
-        if username_col is None:
+        if username_col is None and email_col is None and curp_col is None:
             return jsonify({
-                'error': 'El archivo debe tener la columna "Nombre de Usuario"'
+                'error': 'El archivo debe tener al menos una columna de identificación: "Nombre de Usuario", "Correo" o "CURP"'
             }), 400
         
         # Procesar filas
@@ -12782,11 +12884,17 @@ def bulk_assign_exams_by_ecm(group_id):
             'errors': []
         }
         
-        # Obtener miembros del grupo con sus usuarios
-        group_members = {m.user_id: m.user for m in group.members.filter_by(status='active').all() if m.user}
+        # Obtener miembros del grupo con sus usuarios — SOLO candidatos y responsables de plantel
+        group_members = {
+            m.user_id: m.user
+            for m in group.members.filter_by(status='active').all()
+            if m.user and m.user.role in ('candidato', 'responsable')
+        }
         
-        # Crear índice para búsqueda rápida por username
+        # Índices para búsqueda rápida
         users_by_username = {u.username.lower(): uid for uid, u in group_members.items() if u.username}
+        users_by_email = {u.email.lower(): uid for uid, u in group_members.items() if u.email}
+        users_by_curp = {u.curp.upper(): uid for uid, u in group_members.items() if u.curp}
         
         # Verificar/crear GroupExam (solo si no es dry_run)
         group_exam = GroupExam.query.filter_by(
@@ -12811,28 +12919,126 @@ def bulk_assign_exams_by_ecm(group_id):
             db.session.flush()
         
         for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
-            # Obtener username
-            username = str(row[username_col]).strip() if username_col is not None and row[username_col] else None
+            # Leer identificadores
+            def _cell(idx):
+                if idx is None or idx >= len(row) or row[idx] is None:
+                    return None
+                val = str(row[idx]).strip()
+                return val or None
             
-            # Si no hay username, saltar fila
-            if not username:
+            username = _cell(username_col)
+            email = _cell(email_col)
+            curp = _cell(curp_col)
+            
+            # Si la fila está totalmente vacía, ignórala
+            if not username and not email and not curp:
                 continue
             
             results['processed'] += 1
+            identifier_label = username or email or curp or '(sin datos)'
             
-            # Buscar usuario por username
-            user_id = None
-            if username.lower() in users_by_username:
-                user_id = users_by_username[username.lower()]
+            # Resolver user_id por cada identificador
+            matched_ids = []
+            if username and username.lower() in users_by_username:
+                matched_ids.append(('usuario', users_by_username[username.lower()]))
+            if email and email.lower() in users_by_email:
+                matched_ids.append(('correo', users_by_email[email.lower()]))
+            if curp and curp.upper() in users_by_curp:
+                matched_ids.append(('CURP', users_by_curp[curp.upper()]))
             
-            if not user_id:
+            if not matched_ids:
+                # Diagnóstico más específico: ¿existe el usuario en el sistema?
+                provided = []
+                if username:
+                    provided.append(f"usuario \"{username}\"")
+                if email:
+                    provided.append(f"correo \"{email}\"")
+                if curp:
+                    provided.append(f"CURP \"{curp}\"")
+                provided_str = ", ".join(provided) if provided else "(sin datos)"
+
+                # Buscar al usuario globalmente para dar contexto
+                global_user = None
+                if username:
+                    global_user = User.query.filter(db.func.lower(User.username) == username.lower()).first()
+                if not global_user and email:
+                    global_user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+                if not global_user and curp:
+                    global_user = User.query.filter(db.func.upper(User.curp) == curp.upper()).first()
+
+                if global_user is None:
+                    error_msg = f"No se encontró ningún usuario con {provided_str} en el sistema. Verifica que los datos estén correctos."
+                else:
+                    role_label = {
+                        'candidato': 'candidato',
+                        'responsable': 'responsable de plantel',
+                        'coordinator': 'coordinador',
+                        'admin': 'administrador',
+                        'editor': 'editor',
+                        'soporte': 'soporte',
+                        'gerente': 'gerente',
+                        'financiero': 'financiero',
+                        'auxiliar': 'auxiliar',
+                        'developer': 'desarrollador',
+                        'editor_invitado': 'editor invitado',
+                        'responsable_partner': 'responsable de partner',
+                        'responsable_estatal': 'responsable estatal',
+                    }.get(global_user.role, global_user.role)
+
+                    if global_user.role not in ('candidato', 'responsable'):
+                        error_msg = (
+                            f"El usuario \"{global_user.username}\" ({global_user.full_name or 'sin nombre'}) "
+                            f"tiene rol {role_label}; solo se pueden asignar exámenes a candidatos o responsables de plantel."
+                        )
+                    elif global_user.id not in group_members:
+                        # Existe pero no es miembro activo del grupo (o no es candidato/responsable activo)
+                        is_member_any = any(m.user_id == global_user.id for m in group.members.all())
+                        if is_member_any:
+                            error_msg = (
+                                f"El usuario \"{global_user.username}\" ({global_user.full_name or 'sin nombre'}) "
+                                f"pertenece al grupo pero no está activo. Reactívalo antes de asignarle exámenes."
+                            )
+                        else:
+                            error_msg = (
+                                f"El usuario \"{global_user.username}\" ({global_user.full_name or 'sin nombre'}) "
+                                f"no es miembro de este grupo. Agrégalo al grupo antes de asignarle exámenes."
+                            )
+                    else:
+                        # No debería llegar aquí porque global_user.id estaría en users_by_*
+                        error_msg = (
+                            f"No se pudo asociar al usuario \"{global_user.username}\" con la fila ({provided_str})."
+                        )
+
                 results['errors'].append({
                     'row': row_num,
-                    'identifier': username,
-                    'user_name': username,
-                    'error': 'Usuario no encontrado en el grupo'
+                    'identifier': identifier_label,
+                    'user_name': global_user.full_name if global_user else identifier_label,
+                    'error': error_msg
                 })
                 continue
+            
+            # Si vienen varios identificadores y apuntan a distintos usuarios, marcar como error
+            unique_ids = {uid for _, uid in matched_ids}
+            if len(unique_ids) > 1:
+                # Construir desglose de a qué usuario apunta cada identificador
+                detail = []
+                for label, uid in matched_ids:
+                    u = group_members.get(uid)
+                    if u:
+                        detail.append(f"{label} \"{username if label == 'usuario' else email if label == 'correo' else curp}\" → {u.username} ({u.full_name or 'sin nombre'})")
+                results['errors'].append({
+                    'row': row_num,
+                    'identifier': identifier_label,
+                    'user_name': identifier_label,
+                    'error': (
+                        "Los datos de la fila corresponden a usuarios distintos del grupo: "
+                        + "; ".join(detail)
+                        + ". Verifica que usuario, correo y CURP pertenezcan a la misma persona."
+                    )
+                })
+                continue
+            
+            user_id = matched_ids[0][1]
             
             # Verificar si el usuario ya tiene este examen asignado
             if group_exam:
@@ -12846,10 +13052,10 @@ def bulk_assign_exams_by_ecm(group_id):
                     results['skipped'].append({
                         'row': row_num,
                         'user_id': str(user_id),
-                        'username': username,
-                        'user_name': user_info.full_name if user_info else username,
-                        'email': user_info.email if user_info else '',
-                        'curp': user_info.curp if user_info else '',
+                        'username': user_info.username if user_info else (username or ''),
+                        'user_name': user_info.full_name if user_info else identifier_label,
+                        'email': user_info.email if user_info else (email or ''),
+                        'curp': user_info.curp if user_info else (curp or ''),
                         'reason': 'Usuario ya tiene este examen asignado'
                     })
                     continue
@@ -12860,10 +13066,10 @@ def bulk_assign_exams_by_ecm(group_id):
                     results['skipped'].append({
                         'row': row_num,
                         'user_id': str(user_id),
-                        'username': username,
-                        'user_name': user_info.full_name if user_info else username,
-                        'email': user_info.email if user_info else '',
-                        'curp': user_info.curp if user_info else '',
+                        'username': user_info.username if user_info else (username or ''),
+                        'user_name': user_info.full_name if user_info else identifier_label,
+                        'email': user_info.email if user_info else (email or ''),
+                        'curp': user_info.curp if user_info else (curp or ''),
                         'reason': 'El examen está asignado a todo el grupo'
                     })
                     continue
@@ -12902,10 +13108,10 @@ def bulk_assign_exams_by_ecm(group_id):
             results['assigned'].append({
                 'row': row_num,
                 'user_id': str(user_id),
-                'username': username,
-                'user_name': user.full_name if user else username,
-                'email': user.email if user else '',
-                'curp': user.curp if user else '',
+                'username': user.username if user else (username or ''),
+                'user_name': user.full_name if user else identifier_label,
+                'email': user.email if user else (email or ''),
+                'curp': user.curp if user else (curp or ''),
                 'exam_name': exam.name
             })
         
@@ -18098,7 +18304,7 @@ def _download_cosu_pdf_from_blob():
 
 @bp.route('/reports/filters', methods=['GET'])
 @jwt_required()
-@coordinator_required
+@reports_access_required
 def get_report_filters():
     """Obtener opciones de filtros disponibles para reportes.
     Devuelve partners, planteles, ciclos, grupos, estándares, marcas, etc.
@@ -18106,11 +18312,20 @@ def get_report_filters():
     try:
         user = g.current_user
         is_resp = user.role == 'responsable'
+        is_resp_partner = user.role == 'responsable_partner'
+        is_resp_estatal = user.role == 'responsable_estatal'
+        partner_role = is_resp_partner or is_resp_estatal
 
         # ── Partners ──
         partners_data = []
         coord_id = _get_coordinator_filter(user)
-        if not is_resp:
+        if partner_role:
+            pid = _get_partner_id_for_partner_role(user)
+            if pid:
+                p = Partner.query.get(pid)
+                if p:
+                    partners_data = [{'id': p.id, 'name': p.name}]
+        elif not is_resp:
             pq = Partner.query.order_by(Partner.name)
             if coord_id:
                 pq = pq.filter(Partner.coordinator_id == coord_id)
@@ -18120,6 +18335,14 @@ def get_report_filters():
         # ── Planteles ──
         if is_resp:
             campuses = Campus.query.filter_by(id=user.campus_id).all() if user.campus_id else []
+        elif partner_role:
+            if partners_data:
+                cq = Campus.query.filter_by(partner_id=partners_data[0]['id'])
+                if is_resp_estatal:
+                    cq = cq.filter(Campus.state_name == user.assigned_state)
+                campuses = cq.order_by(Campus.name).all()
+            else:
+                campuses = []
         else:
             campus_q = Campus.query.filter(
                 Campus.partner_id.in_([p['id'] for p in partners_data])
@@ -18219,22 +18442,15 @@ def _build_reports_query(user, params):
 
     # ── Obtener user_ids en scope ──
     if has_org:
-        # --- Scope por grupos (lógica original) ---
-        if is_resp:
-            accessible_campus_ids = [user.campus_id] if user.campus_id else []
-        else:
-            partner_id_filter = params.get('partner_id', type=int)
-            if partner_id_filter:
-                campus_q = Campus.query.filter_by(partner_id=partner_id_filter)
-            else:
-                campus_q = Campus.query
-            if coord_id:
-                campus_q = campus_q.filter_by(coordinator_id=coord_id)
-            accessible_campus_ids = [c.id for c in campus_q.all()]
-
+        # --- Scope por grupos ---
+        partner_id_filter = params.get('partner_id', type=int)
         campus_filter = params.get('campus_id', type=int)
-        if campus_filter and campus_filter in accessible_campus_ids:
-            accessible_campus_ids = [campus_filter]
+        accessible_campus_ids, _scope_err = _resolve_reports_campus_scope(
+            user,
+            partner_id_param=partner_id_filter,
+            campus_id_param=campus_filter,
+            coord_id=coord_id,
+        )
 
         if not accessible_campus_ids:
             return [], 0
@@ -18272,12 +18488,44 @@ def _build_reports_query(user, params):
             user_memberships.setdefault(uid, []).append((gid, st, joined))
     else:
         # --- Solo usuarios: scope directo sin grupos ---
-        if is_resp:
-            uq = User.query.filter(User.campus_id == user.campus_id) if user.campus_id else User.query.filter(False)
+        # Estrategia: combinar (a) usuarios con User.campus_id directo y
+        # (b) usuarios cuya membresía de grupo pertenece a un campus accesible.
+        # Esto cubre candidatos que no tienen User.campus_id pero sí están
+        # en un grupo de un campus del scope.
+        partner_role = user.role in ('responsable_partner', 'responsable_estatal')
+        if is_resp or partner_role:
+            scope_campus_ids, _ = _resolve_reports_campus_scope(
+                user, coord_id=coord_id
+            )
         elif coord_id:
-            uq = User.query.filter(User.coordinator_id == coord_id)
+            scope_campus_ids = [c.id for c in Campus.query.filter_by(coordinator_id=coord_id).with_entities(Campus.id).all()]
         else:
+            scope_campus_ids = None  # admin/developer: sin restricción
+
+        if scope_campus_ids is None:
             uq = User.query
+        elif not scope_campus_ids:
+            uq = User.query.filter(db.literal(False))
+        else:
+            # (a) usuarios con campus_id directo dentro del scope
+            direct_q = User.query.filter(User.campus_id.in_(scope_campus_ids)).with_entities(User.id)
+            # (b) usuarios miembros de cualquier grupo de los campuses del scope
+            scope_group_ids = [
+                g_id for (g_id,) in db.session.query(CandidateGroup.id)
+                .filter(CandidateGroup.campus_id.in_(scope_campus_ids)).all()
+            ]
+            if scope_group_ids:
+                member_q = db.session.query(GroupMember.user_id).filter(
+                    GroupMember.group_id.in_(scope_group_ids),
+                    GroupMember.status.notin_(['curp_pending', 'curp_verifying']),
+                )
+                allowed_ids = {uid for (uid,) in direct_q.all()} | {uid for (uid,) in member_q.all()}
+            else:
+                allowed_ids = {uid for (uid,) in direct_q.all()}
+            if not allowed_ids:
+                return [], 0
+            uq = User.query.filter(User.id.in_(list(allowed_ids)))
+
         uq = uq.filter(User.role.in_(['candidato', 'responsable']))
         user_ids = [u.id for u in uq.with_entities(User.id).all()]
         user_memberships = {}
@@ -18623,7 +18871,7 @@ def _build_reports_query(user, params):
 
 @bp.route('/reports', methods=['GET'])
 @jwt_required()
-@coordinator_required
+@reports_access_required
 def get_reports():
     """Endpoint principal de reportes con filtros avanzados.
     Accesible por coordinador y responsable."""
@@ -18658,7 +18906,7 @@ def get_reports():
 
 @bp.route('/reports/export', methods=['GET'])
 @jwt_required()
-@coordinator_required
+@reports_access_required
 def export_reports():
     """Exportar reportes a Excel con los mismos filtros.
     Soporta parámetro 'columns' (comma-separated) para elegir qué columnas incluir."""
@@ -18732,9 +18980,11 @@ def export_reports():
             'expires_at': ('Vigencia', lambda r: r.get('expires_at', '')),
         }
 
-        # Ocultar costo de certificación para responsables
+        # Ocultar columnas sensibles para responsables (alineado con UI HIDDEN_FOR_RESPONSABLE)
         if user.role == 'responsable':
-            ALL_COLUMNS.pop('certification_cost', None)
+            for _hidden_key in ('certification_cost', 'partner_name', 'campus_code',
+                                'campus_name', 'campus_state', 'campus_city', 'director_name'):
+                ALL_COLUMNS.pop(_hidden_key, None)
 
         # Si se envía 'columns', filtrar solo esas columnas
         selected_keys_param = request.args.get('columns', '')
@@ -18810,18 +19060,14 @@ def _build_study_progress_query(user, params):
     is_resp = user.role == 'responsable'
     coord_id = _get_coordinator_filter(user)
 
-    if is_resp:
-        accessible_campus_ids = [user.campus_id] if user.campus_id else []
-    else:
-        partner_id_filter = params.get('partner_id', type=int)
-        campus_q = Campus.query.filter_by(partner_id=partner_id_filter) if partner_id_filter else Campus.query
-        if coord_id:
-            campus_q = campus_q.filter_by(coordinator_id=coord_id)
-        accessible_campus_ids = [c.id for c in campus_q.all()]
-
+    partner_id_filter = params.get('partner_id', type=int)
     campus_filter = params.get('campus_id', type=int)
-    if campus_filter and campus_filter in accessible_campus_ids:
-        accessible_campus_ids = [campus_filter]
+    accessible_campus_ids, _ = _resolve_reports_campus_scope(
+        user,
+        partner_id_param=partner_id_filter,
+        campus_id_param=campus_filter,
+        coord_id=coord_id,
+    )
     if not accessible_campus_ids:
         return [], 0
 
@@ -19037,7 +19283,7 @@ def _build_study_progress_query(user, params):
 
 @bp.route('/reports/study-progress', methods=['GET'])
 @jwt_required()
-@coordinator_required
+@reports_access_required
 def get_study_progress_report():
     """Reporte de progreso de materiales de estudio."""
     try:
@@ -19059,7 +19305,7 @@ def get_study_progress_report():
 
 @bp.route('/reports/study-progress/export', methods=['GET'])
 @jwt_required()
-@coordinator_required
+@reports_access_required
 def export_study_progress_report():
     """Exportar reporte de progreso de materiales a Excel."""
     try:
@@ -19090,6 +19336,7 @@ def export_study_progress_report():
         }
         if user.role == 'responsable':
             COLS.pop('partner_name', None)
+            COLS.pop('campus_name', None)
 
         selected_keys_param = request.args.get('columns', '')
         selected_keys = [k.strip() for k in selected_keys_param.split(',') if k.strip() in COLS] if selected_keys_param else list(COLS.keys())

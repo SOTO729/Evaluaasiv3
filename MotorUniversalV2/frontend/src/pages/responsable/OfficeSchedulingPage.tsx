@@ -167,6 +167,16 @@ export default function OfficeSchedulingPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
 
+  // Selección múltiple de miembros agendados (para edición masiva)
+  const [selectedAttendees, setSelectedAttendees] = useState<number[]>([]);
+
+  // Limpiar selección al cerrar el modal de detalle
+  useEffect(() => {
+    if (!detailFilter) {
+      setSelectedAttendees([]);
+    }
+  }, [detailFilter]);
+
   // Toast
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -1042,34 +1052,94 @@ export default function OfficeSchedulingPage() {
               )}
 
               <div>
-                <div className="flex items-center justify-between fluid-mb-2">
-                  <h4 className="fluid-text-sm font-semibold text-gray-700">Miembros agendados</h4>
-                  {activeDetailGroup && activeDetailGroup.sessions.length > 1 && (
-                    <button
-                      onClick={() => setCancelBatch(activeDetailGroup.sessions)}
-                      className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center fluid-gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      Quitar todos ({activeDetailGroup.sessions.length})
-                    </button>
-                  )}
+                <div className="flex items-center justify-between fluid-mb-2 flex-wrap fluid-gap-2">
+                  <h4 className="fluid-text-sm font-semibold text-gray-700">
+                    Miembros agendados
+                    {selectedAttendees.length > 0 && (
+                      <span className="fluid-ml-2 fluid-text-xs font-medium text-teal-600">
+                        ({selectedAttendees.length} seleccionado{selectedAttendees.length === 1 ? '' : 's'})
+                      </span>
+                    )}
+                  </h4>
+                  <div className="flex items-center fluid-gap-2">
+                    {activeDetailGroup && activeDetailGroup.sessions.length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (selectedAttendees.length === activeDetailGroup.sessions.length) {
+                            setSelectedAttendees([]);
+                          } else {
+                            setSelectedAttendees(activeDetailGroup.sessions.map(s => s.id));
+                          }
+                        }}
+                        className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                      >
+                        {selectedAttendees.length === activeDetailGroup.sessions.length
+                          ? 'Deseleccionar todos'
+                          : 'Seleccionar todos'}
+                      </button>
+                    )}
+                    {activeDetailGroup && selectedAttendees.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const ids = new Set(selectedAttendees);
+                          const subset = activeDetailGroup.sessions.filter(s => ids.has(s.id));
+                          if (subset.length > 0) setCancelBatch(subset);
+                        }}
+                        className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center fluid-gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Quitar seleccionados ({selectedAttendees.length})
+                      </button>
+                    )}
+                    {activeDetailGroup && activeDetailGroup.sessions.length > 1 && selectedAttendees.length === 0 && (
+                      <button
+                        onClick={() => setCancelBatch(activeDetailGroup.sessions)}
+                        className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center fluid-gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Quitar todos ({activeDetailGroup.sessions.length})
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {activeDetailGroup && activeDetailGroup.sessions.length > 0 ? (
                   <div className="border border-gray-200 rounded-fluid-lg divide-y divide-gray-100">
-                    {activeDetailGroup.sessions.map(s => (
-                      <div key={s.id} className="flex items-center justify-between fluid-px-3 fluid-py-2">
-                        <div>
-                          <p className="fluid-text-sm text-gray-700">{(s as any).user_name || s.user?.name || s.user?.email || s.user_id}</p>
-                          <p className="text-[11px] text-gray-400">Sesión #{s.id}</p>
-                        </div>
-                        <button
-                          onClick={() => setCancelTarget(s)}
-                          className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+                    {activeDetailGroup.sessions.map(s => {
+                      const checked = selectedAttendees.includes(s.id);
+                      return (
+                        <label
+                          key={s.id}
+                          className={`flex items-center justify-between fluid-px-3 fluid-py-2 cursor-pointer transition-colors ${
+                            checked ? 'bg-teal-50' : 'hover:bg-gray-50'
+                          }`}
                         >
-                          Quitar
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center fluid-gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAttendees(prev => [...prev, s.id]);
+                                } else {
+                                  setSelectedAttendees(prev => prev.filter(id => id !== s.id));
+                                }
+                              }}
+                              className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 flex-shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <p className="fluid-text-sm text-gray-700 truncate">{(s as any).user_name || s.user?.name || s.user?.email || s.user_id}</p>
+                              <p className="text-[11px] text-gray-400">Sesión #{s.id}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCancelTarget(s); }}
+                            className="fluid-px-3 fluid-py-1 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex-shrink-0"
+                          >
+                            Quitar
+                          </button>
+                        </label>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="fluid-text-sm text-gray-500">No hay miembros agendados.</p>

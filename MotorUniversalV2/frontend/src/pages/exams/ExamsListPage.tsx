@@ -44,7 +44,8 @@ import {
   AlertTriangle,
   Lock,
   CreditCard,
-  ShoppingCart
+  ShoppingCart,
+  Trash2
 } from 'lucide-react'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import PurchasePreviewModal from '../../components/payments/PurchasePreviewModal'
@@ -55,16 +56,19 @@ import { useQueryClient } from '@tanstack/react-query'
 const ExamCard = ({ 
   exam,
   index = 0,
-  showStatus = true
+  showStatus = true,
+  onDelete
 }: { 
   exam: any;
   index?: number;
   showStatus?: boolean;
+  onDelete?: (exam: any) => void;
 }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
   const isCandidate = user?.role === 'candidato' || user?.role === 'responsable';
+  const isAdmin = user?.role === 'admin';
   const [showApprovedModal, setShowApprovedModal] = useState(false);
   const [showPurchasePreview, setShowPurchasePreview] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -189,10 +193,21 @@ const ExamCard = ({
         )}
 
         {/* Version Badge */}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 flex items-center gap-2">
           <span className="px-2 py-1 rounded-full text-xs font-mono bg-black/30 text-white">
             {exam.version}
           </span>
+          {isAdmin && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onDelete(exam); }}
+              className="p-1.5 rounded-full bg-red-600/90 hover:bg-red-700 text-white shadow-md transition-colors opacity-0 group-hover:opacity-100"
+              title="Eliminar examen (solo admin)"
+              aria-label="Eliminar examen"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -359,8 +374,9 @@ const ExamCard = ({
         examName={exam.name}
         onClose={() => setShowPaymentModal(false)}
         onPaymentComplete={(result) => {
+          // No cerrar el modal aquí: dejar que el usuario vea la pantalla
+          // de resultado (palomita + confeti, o cruz de error) y cierre manualmente.
           if (result.status === 'approved') {
-            setShowPaymentModal(false);
             queryClient.invalidateQueries({ queryKey: ['mis-examenes'] });
           }
         }}
@@ -474,11 +490,11 @@ const ExamsListPage = () => {
     }
   };
 
-  // La función de eliminar se mantiene comentada por si se necesita en el futuro
-  // const openDeleteModal = (exam: any) => {
-  //   setExamToDelete(exam);
-  //   setDeleteModalOpen(true);
-  // };
+  const openDeleteModal = (exam: any) => {
+    if (user?.role !== 'admin') return;
+    setExamToDelete(exam);
+    setDeleteModalOpen(true);
+  };
 
   const canCreateExam = user?.role === 'admin' || user?.role === 'editor' || user?.role === 'editor_invitado'
 
@@ -611,6 +627,7 @@ const ExamsListPage = () => {
                         key={exam.id} 
                         exam={exam}
                         index={index}
+                        onDelete={openDeleteModal}
                       />
                     ))}
                   </div>
@@ -640,6 +657,7 @@ const ExamsListPage = () => {
                         key={exam.id} 
                         exam={exam}
                         index={index}
+                        onDelete={openDeleteModal}
                       />
                     ))}
                   </div>

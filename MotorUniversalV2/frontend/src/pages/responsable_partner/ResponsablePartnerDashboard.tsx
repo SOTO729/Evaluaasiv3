@@ -27,6 +27,7 @@ const ResponsablePartnerDashboard = () => {
   const [selectedState, setSelectedState] = useState('')
   const isEstatal = user?.role === 'responsable_estatal'
   const certsRoute = isEstatal ? '/mi-estado/certificados' : '/mi-partner/certificados'
+  const reportsRoute = isEstatal ? '/mi-estado/reportes' : '/mi-partner/reportes'
 
   useEffect(() => {
     loadDashboard()
@@ -327,7 +328,7 @@ const ResponsablePartnerDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 fluid-gap-4">
         <div
           onClick={() => navigate(certsRoute)}
           className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:shadow-lg hover:border-amber-200 transition-all active:scale-[0.98]"
@@ -340,6 +341,19 @@ const ResponsablePartnerDashboard = () => {
           </div>
           <h3 className="font-semibold text-gray-800 fluid-text-base">Certificados</h3>
           <p className="fluid-text-sm text-gray-500 fluid-mt-1">Todos los certificados por plantel y estado</p>
+        </div>
+        <div
+          onClick={() => navigate(reportsRoute)}
+          className="bg-white rounded-fluid-xl border border-gray-200 fluid-p-5 cursor-pointer group hover:shadow-lg hover:border-emerald-200 transition-all active:scale-[0.98]"
+        >
+          <div className="flex items-start justify-between fluid-mb-3">
+            <div className="w-11 h-11 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            </div>
+            <ArrowRight className="fluid-icon text-gray-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+          </div>
+          <h3 className="font-semibold text-gray-800 fluid-text-base">Reportes</h3>
+          <p className="fluid-text-sm text-gray-500 fluid-mt-1">{isEstatal ? 'Datos de planteles de tu estado' : 'Datos de todos los planteles del partner'}</p>
         </div>
         <div
           onClick={() => navigate('/dashboard')}

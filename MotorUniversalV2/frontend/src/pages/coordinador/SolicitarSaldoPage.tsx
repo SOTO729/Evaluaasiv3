@@ -87,6 +87,7 @@ export default function SolicitarSaldoPage() {
   const [searchParams] = useSearchParams();
   const preselectedCampusId = searchParams.get('campusId') ? Number(searchParams.get('campusId')) : null;
   const preselectedGroupId = searchParams.get('groupId') ? Number(searchParams.get('groupId')) : null;
+  const fromAssignExam = searchParams.get('from') === 'assign-exam';
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -112,6 +113,11 @@ export default function SolicitarSaldoPage() {
   const [newLineUnits, setNewLineUnits] = useState<number>(0);
   
   const [justification, setJustification] = useState('');
+
+  // Modal de bienvenida cuando llega desde la asignación de examen con grupo preseleccionado
+  const [showPreselectModal, setShowPreselectModal] = useState<boolean>(
+    Boolean(fromAssignExam && preselectedCampusId && preselectedGroupId)
+  );
   
   // Archivos adjuntos
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -1285,6 +1291,61 @@ export default function SolicitarSaldoPage() {
           </div>
         </div>
       </div>
+
+      {/* Modal informativo cuando se llega desde /assign-exam/review */}
+      {showPreselectModal && (() => {
+        const campus = campuses.find(c => c.id === preselectedCampusId);
+        const cache = preselectedCampusId ? groupsCache[preselectedCampusId] : undefined;
+        const group = cache?.groups.find(g => g.id === preselectedGroupId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+              <div className="bg-primary-50 border-b border-primary-200 px-6 py-4 flex items-start gap-3">
+                <div className="bg-primary-100 rounded-full p-2">
+                  <Wallet className="w-5 h-5 text-primary-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-primary-900 text-base">Solicitar saldo para el grupo</h3>
+                  <p className="text-xs text-primary-700 mt-0.5">Te trajimos aquí desde la asignación de examen</p>
+                </div>
+                <button onClick={() => setShowPreselectModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="px-6 py-5 space-y-3">
+                <p className="text-sm text-gray-700">
+                  Detectamos que el saldo del grupo no era suficiente para completar la asignación. Hemos preseleccionado el plantel y grupo para que solicites saldo de inmediato:
+                </p>
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Building2 className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <span className="text-gray-500">Plantel:</span>
+                    <span className="font-medium text-gray-900 truncate">{campus?.name || 'Cargando...'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                    <span className="text-gray-500">Grupo:</span>
+                    <span className="font-medium text-gray-900 truncate">
+                      {cache?.loading ? 'Cargando grupos...' : (group?.name || 'No disponible')}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Solo necesitas indicar la cantidad de unidades a solicitar y la justificación.
+                </p>
+              </div>
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+                <button
+                  onClick={() => setShowPreselectModal(false)}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors text-sm"
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

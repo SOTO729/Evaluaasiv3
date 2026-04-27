@@ -331,7 +331,7 @@ export default function ExamAssignmentReviewPage() {
                   Te faltan <strong>{formatCurrency(Math.abs(costPreview.remaining_balance))}</strong> para completar esta asignación.
                 </p>
               )}
-              <Link to={isResponsable ? '/solicitar-certificados' : '/solicitar-saldo'} className="inline-flex items-center fluid-gap-1 fluid-text-sm text-red-700 hover:text-red-900 font-medium mt-2 underline">
+              <Link to={isResponsable ? '/solicitar-certificados' : `/solicitar-saldo?campusId=${group?.campus_id || ''}&groupId=${groupId}&from=assign-exam`} className="inline-flex items-center fluid-gap-1 fluid-text-sm text-red-700 hover:text-red-900 font-medium mt-2 underline">
                 {isResponsable ? 'Solicitar más vouchers →' : 'Solicitar más saldo →'}
               </Link>
             </div>

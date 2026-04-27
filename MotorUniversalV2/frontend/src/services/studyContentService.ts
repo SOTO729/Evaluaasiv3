@@ -53,11 +53,24 @@ export interface StudyTopic {
   allow_video?: boolean;
   allow_downloadable?: boolean;
   allow_interactive?: boolean;
+  allow_scorm?: boolean;
   // Los 4 elementos
   reading?: StudyReading;
   video?: StudyVideo;
   downloadable_exercise?: StudyDownloadableExercise;
   interactive_exercise?: StudyInteractiveExercise;
+  // SCORM (5to elemento opcional)
+  has_scorm?: boolean;
+  scorm_package?: {
+    id: number;
+    title: string;
+    version: string;
+    launch_url: string;
+    entry_point: string;
+    blob_base_url: string;
+    file_count?: number;
+    size_bytes?: number;
+  } | null;
 }
 
 export interface StudyReading {
@@ -162,6 +175,7 @@ export interface CreateSessionData {
   allow_video?: boolean;
   allow_downloadable?: boolean;
   allow_interactive?: boolean;
+  allow_scorm?: boolean;
 }
 
 export interface CreateTopicData {
@@ -173,6 +187,7 @@ export interface CreateTopicData {
   allow_video?: boolean;
   allow_downloadable?: boolean;
   allow_interactive?: boolean;
+  allow_scorm?: boolean;
 }
 
 export interface CreateReadingData {

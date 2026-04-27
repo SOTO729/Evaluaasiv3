@@ -10,6 +10,7 @@ import {
   Building2,
   CalendarClock,
   UserCog,
+  Eye,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Layout from '../layout/Layout'
@@ -170,6 +171,22 @@ const SupportLayout = () => {
                   >
                     <UserCog className="h-4 w-4" />
                     Gestión de Usuarios
+                  </span>
+                )}
+              </NavLink>
+            )}
+            {isCoordinatorView && (
+              <NavLink to="/chat-audit">
+                {({ isActive }) => (
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                      isActive
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    }`}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Auditoría de chats
                   </span>
                 )}
               </NavLink>

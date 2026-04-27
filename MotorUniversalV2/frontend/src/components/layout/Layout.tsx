@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
 import { getMiPlantel, getCandidatoBranding } from '../../services/partnersService'
 import { supportChatService } from '../../services/supportChatService'
+import { checkVmAccess } from '../../services/vmSessionsService'
 import ExamInProgressWidget from '../ExamInProgressWidget'
 
 interface LayoutProps {
@@ -73,6 +74,17 @@ const Layout = ({ children }: LayoutProps) => {
     enabled: user?.role === 'candidato',
     staleTime: 10 * 60 * 1000, // 10 minutos
   })
+
+  // Para candidatos: saber si su responsable gestiona las sesiones (leader_only)
+  // En ese caso ocultamos el enlace "Sesiones" del navbar.
+  const { data: vmAccessData } = useQuery({
+    queryKey: ['vm-access-candidato'],
+    queryFn: checkVmAccess,
+    enabled: user?.role === 'candidato',
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  })
+  const hideCandidatoSessions = user?.role === 'candidato' && vmAccessData?.scheduling_mode === 'leader_only'
 
   const hasBranding = user?.role === 'responsable' || user?.role === 'candidato'
   const campusName = user?.role === 'responsable'
@@ -478,7 +490,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
-                {user?.role === 'candidato' && candidatoBrandingData?.enable_session_calendar && (
+                {user?.role === 'candidato' && candidatoBrandingData?.enable_session_calendar && !hideCandidatoSessions && (
                   <Link 
                     to="/vm-sessions" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -490,7 +502,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
-                {(user?.role === 'candidato' || user?.role === 'responsable') && (
+                {user?.role === 'candidato' && (
                   <Link 
                     to="/downloads" 
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -586,10 +598,8 @@ const Layout = ({ children }: LayoutProps) => {
                     {user?.can_view_reports && <Link to="/mi-plantel/reportes" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname === '/mi-plantel/reportes' ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Reportes</Link>}
                     <Link to="/mi-plantel/sesiones" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/sesiones') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Sesiones</Link>
                     <Link to="/mi-plantel/office" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/office') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Office Local</Link>
+                    <Link to="/downloads" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/downloads') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Descargas</Link>
                   </>
-                )}
-                {user?.role === 'coordinator' && (
-                  <Link to="/mi-plantel/office" className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${location.pathname.startsWith('/mi-plantel/office') ? 'text-primary-600 font-semibold bg-primary-50' : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'}`}>Office Local</Link>
                 )}
                 {user?.role === 'responsable_partner' && (
                   <Link 
@@ -699,7 +709,7 @@ const Layout = ({ children }: LayoutProps) => {
                     Monitoreo
                   </Link>
                 )}
-                {['gerente', 'soporte', 'coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
+                {['gerente', 'soporte', 'admin', 'developer'].includes(user?.role ?? '') && (
                   <Link
                     to="/gerente/chat-audit"
                     className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
@@ -881,6 +891,18 @@ const Layout = ({ children }: LayoutProps) => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                         </svg>
                         Personalizar Portal
+                      </Link>
+                    )}
+                    {user?.role === 'coordinator' && (
+                      <Link
+                        to="/mi-plantel/office"
+                        onClick={() => setIsDropdownOpen(false)}
+                        className="w-full flex items-center fluid-px-5 fluid-py-4 fluid-text-base text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <svg className="fluid-icon-lg fluid-mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7l9-4 9 4M4 10v10h16V10M9 21V12h6v9" />
+                        </svg>
+                        Office Local
                       </Link>
                     )}
                     <Link
@@ -1105,7 +1127,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['candidato', 'admin', 'developer'].includes(user?.role ?? '') && (
+              {['candidato', 'admin', 'developer'].includes(user?.role ?? '') && !hideCandidatoSessions && (
                 <Link 
                   to="/vm-sessions" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -1123,7 +1145,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {(user?.role === 'candidato' || user?.role === 'responsable') && (
+              {user?.role === 'candidato' && (
                 <Link 
                   to="/downloads" 
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
@@ -1305,15 +1327,13 @@ const Layout = ({ children }: LayoutProps) => {
                       Office Local
                     </div>
                   </Link>
+                  <Link to="/downloads" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/downloads') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div className="flex items-center">
+                      <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                      Descargas
+                    </div>
+                  </Link>
                 </>
-              )}
-              {user?.role === 'coordinator' && (
-                <Link to="/mi-plantel/office" className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${location.pathname.startsWith('/mi-plantel/office') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}`} onClick={() => setIsMobileMenuOpen(false)}>
-                  <div className="flex items-center">
-                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                    Office Local
-                  </div>
-                </Link>
               )}
               {user?.role === 'responsable_partner' && (
                 <Link 
@@ -1469,7 +1489,7 @@ const Layout = ({ children }: LayoutProps) => {
                   </div>
                 </Link>
               )}
-              {['gerente', 'soporte', 'coordinator', 'admin', 'developer'].includes(user?.role ?? '') && (
+              {['gerente', 'soporte', 'admin', 'developer'].includes(user?.role ?? '') && (
                 <Link
                   to="/gerente/chat-audit"
                   className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${

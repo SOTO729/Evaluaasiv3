@@ -308,7 +308,7 @@ export default function StandardDetailPage() {
                   className="w-full pl-10 pr-4 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent fluid-text-sm"
                 />
               </div>
-              {(isAdmin || isEditor) && (
+              {(isAdmin || (isEditor && user?.role !== 'coordinator')) && (
                 <Link
                   to={`/exams/create?standard=${standard.id}`}
                   className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-lg fluid-text-sm font-medium transition-colors whitespace-nowrap"

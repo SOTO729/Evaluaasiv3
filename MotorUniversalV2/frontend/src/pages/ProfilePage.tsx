@@ -964,7 +964,9 @@ const ProfilePage = () => {
                   </div>
                   {assignments.length > 0 && (
                     <span className="fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-full bg-purple-100 text-purple-700">
-                      {assignments.length} {profile?.role === 'responsable' ? 'registro' : 'asignación'}{assignments.length !== 1 ? 's' : ''}
+                      {assignments.length} {profile?.role === 'responsable'
+                        ? (assignments.length !== 1 ? 'registros' : 'registro')
+                        : (assignments.length !== 1 ? 'asignaciones' : 'asignación')}
                     </span>
                   )}
                 </div>

@@ -72,8 +72,11 @@ import {
   PlayCircle,
   Check,
   Clock,
+  Package,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import ScormUploader from '../../components/scorm/ScormUploader';
+import { attachScormToTopic, deleteScormPackage, ScormPackage } from '../../services/scormService';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 import { isAzureUrl } from '../../utils/urlHelpers';
@@ -294,6 +297,10 @@ const StudyContentDetailPage = () => {
   const [isDownloadingImages, setIsDownloadingImages] = useState(false);
   const [interactiveSteps, setInteractiveSteps] = useState<StudyInteractiveExerciseStep[]>([]);
   const [loadingInteractiveSteps, setLoadingInteractiveSteps] = useState(false);
+
+  // SCORM modal state
+  const [scormModalTopic, setScormModalTopic] = useState<StudyTopic | null>(null);
+  const [scormBusy, setScormBusy] = useState(false);
 
   // Validation modal state
   const [showValidationModal, setShowValidationModal] = useState(false);
@@ -770,7 +777,8 @@ const StudyContentDetailPage = () => {
         allow_reading: topic.allow_reading ?? true,
         allow_video: topic.allow_video ?? true,
         allow_downloadable: topic.allow_downloadable ?? true,
-        allow_interactive: topic.allow_interactive ?? true
+        allow_interactive: topic.allow_interactive ?? true,
+        allow_scorm: topic.allow_scorm ?? true
       });
     } else {
       setEditingTopic(null);
@@ -781,7 +789,8 @@ const StudyContentDetailPage = () => {
         allow_reading: true,
         allow_video: true,
         allow_downloadable: true,
-        allow_interactive: true
+        allow_interactive: true,
+        allow_scorm: true
       });
     }
     setTopicModalOpen(true);
@@ -798,7 +807,8 @@ const StudyContentDetailPage = () => {
       allow_reading: topicForm.allow_reading,
       allow_video: topicForm.allow_video,
       allow_downloadable: topicForm.allow_downloadable,
-      allow_interactive: topicForm.allow_interactive
+      allow_interactive: topicForm.allow_interactive,
+      allow_scorm: topicForm.allow_scorm
     };
     console.log('=== DATOS A ENVIAR ===');
     console.log(JSON.stringify(dataToSend, null, 2));
@@ -1750,6 +1760,36 @@ const StudyContentDetailPage = () => {
                                     </p>
                                   </div>
                                 )}
+
+                                {/* SCORM 1.2 - solo si allow_scorm es true */}
+                                {(topic.allow_scorm !== false) && (
+                                  <div
+                                    onClick={() => {
+                                      if (material.is_published) {
+                                        setToast({ message: 'Cambie el material a borrador para editar el contenido', type: 'error' });
+                                        return;
+                                      }
+                                      setScormModalTopic(topic);
+                                    }}
+                                    className={`fluid-p-3 rounded-fluid-lg border transition-colors ${
+                                      material.is_published
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : 'cursor-pointer'
+                                    } ${
+                                      topic.has_scorm ? 'bg-green-50 border-green-200' : 'bg-white'
+                                    } ${
+                                      !material.is_published && (topic.has_scorm ? 'hover:bg-green-100' : 'hover:bg-gray-100')
+                                    }`}
+                                  >
+                                    <div className="flex items-center fluid-gap-2 fluid-mb-1">
+                                      <Package className={`fluid-icon-sm ${topic.has_scorm ? 'text-green-600' : 'text-gray-400'}`} />
+                                      <span className="font-medium fluid-text-sm">Paquete SCORM</span>
+                                    </div>
+                                    <p className="fluid-text-xs text-gray-500">
+                                      {topic.scorm_package ? topic.scorm_package.title : 'Sin contenido'}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1923,6 +1963,23 @@ const StudyContentDetailPage = () => {
                 <div className="flex items-center fluid-gap-2">
                   <Gamepad2 className="fluid-icon-sm text-purple-600" />
                   <span className="font-medium text-gray-700">Ejercicio Interactivo</span>
+                </div>
+              </label>
+
+              <label className={`flex items-center fluid-gap-3 fluid-p-3 rounded-fluid-lg border-2 cursor-pointer transition-all ${
+                topicForm.allow_scorm
+                  ? 'border-indigo-500 bg-indigo-50'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={topicForm.allow_scorm ?? true}
+                  onChange={(e) => setTopicForm({ ...topicForm, allow_scorm: e.target.checked })}
+                  className="fluid-icon-sm text-indigo-600 rounded focus:ring-indigo-500"
+                />
+                <div className="flex items-center fluid-gap-2">
+                  <Package className="fluid-icon-sm text-indigo-600" />
+                  <span className="font-medium text-gray-700">Paquete SCORM</span>
                 </div>
               </label>
             </div>
@@ -3663,6 +3720,74 @@ const StudyContentDetailPage = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal SCORM */}
+      {scormModalTopic && (
+        <Modal
+          isOpen={true}
+          onClose={() => setScormModalTopic(null)}
+          title={scormModalTopic.has_scorm ? 'Reemplazar paquete SCORM' : 'Subir paquete SCORM'}
+          size="lg"
+        >
+          <div className="space-y-4">
+            {scormModalTopic.has_scorm && scormModalTopic.scorm_package && (
+              <div className="bg-blue-50 border border-blue-200 rounded p-3 text-sm">
+                <div className="font-medium text-blue-900">Paquete actual: {scormModalTopic.scorm_package.title}</div>
+                <div className="text-xs text-blue-700">
+                  Versión {scormModalTopic.scorm_package.version} ·{' '}
+                  {scormModalTopic.scorm_package.file_count ?? '—'} archivos ·{' '}
+                  {scormModalTopic.scorm_package.size_bytes != null
+                    ? `${(scormModalTopic.scorm_package.size_bytes / 1024 / 1024).toFixed(1)} MB`
+                    : ''}
+                </div>
+                <button
+                  type="button"
+                  disabled={scormBusy}
+                  onClick={async () => {
+                    if (!scormModalTopic.scorm_package) return;
+                    if (!confirm('¿Eliminar el paquete SCORM actual? Se borrarán los assets del storage y el progreso de los candidatos.')) return;
+                    setScormBusy(true);
+                    try {
+                      await deleteScormPackage(scormModalTopic.scorm_package.id);
+                      setToast({ message: 'Paquete SCORM eliminado', type: 'success' });
+                      setScormModalTopic(null);
+                      await loadMaterial();
+                    } catch (e: unknown) {
+                      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
+                        || 'Error eliminando paquete';
+                      setToast({ message: msg, type: 'error' });
+                    } finally {
+                      setScormBusy(false);
+                    }
+                  }}
+                  className="mt-2 px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                >
+                  Eliminar paquete actual
+                </button>
+              </div>
+            )}
+            <ScormUploader
+              defaultTitle={scormModalTopic.title}
+              onCancel={() => setScormModalTopic(null)}
+              onUploaded={async (pkg: ScormPackage) => {
+                setScormBusy(true);
+                try {
+                  await attachScormToTopic(scormModalTopic.id, pkg.id);
+                  setToast({ message: 'Paquete SCORM asociado al tema', type: 'success' });
+                  setScormModalTopic(null);
+                  await loadMaterial();
+                } catch (e: unknown) {
+                  const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error
+                    || 'Error asociando paquete al tema';
+                  setToast({ message: msg, type: 'error' });
+                } finally {
+                  setScormBusy(false);
+                }
+              }}
+            />
+          </div>
+        </Modal>
       )}
     </div>
   );

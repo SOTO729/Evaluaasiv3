@@ -21,6 +21,10 @@ from app.models.study_content import (
     StudyInteractiveExerciseStep,
     StudyInteractiveExerciseAction
 )
+from app.models.study_scorm import (
+    StudyScormPackage,
+    StudyScormAttempt,
+)
 from app.models.student_progress import (
     StudentContentProgress,
     StudentTopicProgress

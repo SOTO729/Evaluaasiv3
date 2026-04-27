@@ -173,6 +173,7 @@ class StudyTopic(db.Model):
     allow_video = db.Column(db.Boolean, default=True, nullable=False)
     allow_downloadable = db.Column(db.Boolean, default=True, nullable=False)
     allow_interactive = db.Column(db.Boolean, default=True, nullable=False)
+    allow_scorm = db.Column(db.Boolean, default=True, nullable=False)
     
     # Auditoría
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -183,9 +184,19 @@ class StudyTopic(db.Model):
     video = db.relationship('StudyVideo', backref='topic', uselist=False, cascade='all, delete-orphan')
     downloadable_exercise = db.relationship('StudyDownloadableExercise', backref='topic', uselist=False, cascade='all, delete-orphan')
     interactive_exercise = db.relationship('StudyInteractiveExercise', backref='topic', uselist=False, cascade='all, delete-orphan')
+    scorm_package = db.relationship('StudyScormPackage', backref='topic', uselist=False, cascade='all, delete-orphan')
     
     def to_dict(self, include_elements=False):
         """Convierte el tema a diccionario"""
+        # has_scorm/allow_scorm tolerantes al estado pre-migración
+        try:
+            _allow_scorm = self.allow_scorm if self.allow_scorm is not None else True
+        except Exception:
+            _allow_scorm = True
+        try:
+            _has_scorm = self.scorm_package is not None
+        except Exception:
+            _has_scorm = False
         data = {
             'id': self.id,
             'session_id': self.session_id,
@@ -197,10 +208,12 @@ class StudyTopic(db.Model):
             'allow_video': self.allow_video if self.allow_video is not None else True,
             'allow_downloadable': self.allow_downloadable if self.allow_downloadable is not None else True,
             'allow_interactive': self.allow_interactive if self.allow_interactive is not None else True,
+            'allow_scorm': _allow_scorm,
             'has_reading': self.reading is not None,
             'has_video': self.video is not None,
             'has_downloadable': self.downloadable_exercise is not None,
             'has_interactive': self.interactive_exercise is not None,
+            'has_scorm': _has_scorm,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -210,6 +223,10 @@ class StudyTopic(db.Model):
             data['video'] = self.video.to_dict() if self.video else None
             data['downloadable_exercise'] = self.downloadable_exercise.to_dict() if self.downloadable_exercise else None
             data['interactive_exercise'] = self.interactive_exercise.to_dict(include_steps=True) if self.interactive_exercise else None
+            try:
+                data['scorm_package'] = self.scorm_package.to_dict() if self.scorm_package else None
+            except Exception:
+                data['scorm_package'] = None
         
         return data
 

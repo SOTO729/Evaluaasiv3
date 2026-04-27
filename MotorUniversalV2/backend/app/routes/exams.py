@@ -676,6 +676,7 @@ def delete_exam(exam_id):
     from app.models.question import Question
     from app.models.answer import Answer
     from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
+    from app.models.result import Result
     
     exam = Exam.query.get(exam_id)
     
@@ -722,9 +723,20 @@ def delete_exam(exam_id):
         # Eliminar results
         db.session.execute(text('DELETE FROM dbo.results WHERE exam_id = :exam_id'), {'exam_id': exam_id})
         
-        # Eliminar group_exam_materials de group_exams relacionados
+        # Eliminar ecm_retakes (FK a ecm_candidate_assignments) y ecm_candidate_assignments
+        db.session.execute(text('''
+            DELETE FROM dbo.ecm_retakes
+            WHERE assignment_id IN (SELECT id FROM dbo.ecm_candidate_assignments WHERE exam_id = :exam_id)
+        '''), {'exam_id': exam_id})
+        db.session.execute(text('DELETE FROM dbo.ecm_candidate_assignments WHERE exam_id = :exam_id'), {'exam_id': exam_id})
+        
+        # Eliminar group_exam_materials y group_exam_members de group_exams relacionados
         db.session.execute(text('''
             DELETE FROM dbo.group_exam_materials 
+            WHERE group_exam_id IN (SELECT id FROM dbo.group_exams WHERE exam_id = :exam_id)
+        '''), {'exam_id': exam_id})
+        db.session.execute(text('''
+            DELETE FROM dbo.group_exam_members
             WHERE group_exam_id IN (SELECT id FROM dbo.group_exams WHERE exam_id = :exam_id)
         '''), {'exam_id': exam_id})
         
@@ -758,7 +770,12 @@ def delete_exam(exam_id):
         Category.query.filter_by(exam_id=exam_id).delete()
         
         # 8. Finalmente eliminar el examen
-        db.session.delete(exam)
+        # Limpiar el estado de la sesión para evitar que SQLAlchemy intente
+        # nulificar relaciones con cascade default (ej. ecm_candidate_assignments
+        # cuyo backref no tiene passive_deletes definido).
+        db.session.expunge(exam)
+        db.session.expire_all()
+        db.session.execute(text('DELETE FROM dbo.exams WHERE id = :exam_id'), {'exam_id': exam_id})
         db.session.commit()
         
         return jsonify({'message': 'Examen eliminado exitosamente'}), 200

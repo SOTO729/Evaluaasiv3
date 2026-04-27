@@ -10,7 +10,6 @@ import {
   X,
   AlertCircle,
   Loader2,
-  CheckCircle2,
   Clock,
   XCircle,
   ChevronLeft,
@@ -26,6 +25,7 @@ import {
   type ProcessPaymentResponse,
 } from '../../services/paymentService';
 import { useAuthStore } from '../../store/authStore';
+import Confetti from '../ui/Confetti';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -500,12 +500,18 @@ export default function CheckoutForm({
           {/* ── Step 3: Result ──────────────────────────────── */}
           {step === 3 && result && (
             <div className="text-center py-4">
+              {result.status === 'approved' && <Confetti count={120} duration={4} zIndex={70} />}
               {result.status === 'approved' ? (
                 <>
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="w-8 h-8 text-green-600" />
+                  <div className="relative w-32 h-32 mx-auto mb-6">
+                    <div className="absolute inset-0 rounded-full bg-emerald-200/60 animate-ping" />
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-2xl shadow-emerald-500/40 flex items-center justify-center animate-fade-in-up">
+                      <svg className="w-20 h-20" viewBox="0 0 40 40" fill="none">
+                        <path d="M11 20.5L17.5 27L29 14" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
                   </div>
-                  <h4 className="text-xl font-bold text-gray-800 mb-2">Pago exitoso</h4>
+                  <h4 className="text-3xl font-extrabold text-gray-800 mb-2">¡Pago exitoso!</h4>
                   <p className="text-gray-600 mb-1">
                     Se han acreditado <strong>{units} voucher{units !== 1 ? 's' : ''}</strong> a tu plantel.
                   </p>
@@ -515,10 +521,10 @@ export default function CheckoutForm({
                 </>
               ) : result.status === 'processing' ? (
                 <>
-                  <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Clock className="w-8 h-8 text-amber-600" />
+                  <div className="w-28 h-28 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-5 ring-4 ring-amber-50 shadow-lg">
+                    <Clock className="w-16 h-16 text-amber-600" />
                   </div>
-                  <h4 className="text-xl font-bold text-gray-800 mb-2">Pago en proceso</h4>
+                  <h4 className="text-2xl font-bold text-gray-800 mb-2">Pago en proceso</h4>
                   <p className="text-gray-600 mb-1">
                     Tu pago está siendo procesado. Los vouchers se acreditarán automáticamente.
                   </p>
@@ -528,10 +534,10 @@ export default function CheckoutForm({
                 </>
               ) : (
                 <>
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <XCircle className="w-8 h-8 text-red-500" />
+                  <div className="w-28 h-28 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-5 ring-4 ring-red-50 shadow-lg animate-fade-in-up">
+                    <XCircle className="w-16 h-16 text-red-500" strokeWidth={2.2} />
                   </div>
-                  <h4 className="text-xl font-bold text-gray-800 mb-2">Pago rechazado</h4>
+                  <h4 className="text-2xl font-bold text-gray-800 mb-2">Pago rechazado</h4>
                   <p className="text-gray-600 mb-1">
                     {STATUS_DETAIL_MESSAGES[result.mp_status_detail] || 'No se pudo procesar el pago. Intenta con otra tarjeta.'}
                   </p>

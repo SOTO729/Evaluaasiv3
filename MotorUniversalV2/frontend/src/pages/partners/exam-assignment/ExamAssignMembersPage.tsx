@@ -2,7 +2,7 @@
  * Página 3/4: Asignación de Miembros
  * Recibe SelectMaterialsState de la página anterior
  * Para 'all' y 'selected': Navega a → /assign-exam/review con AssignMembersState
- * Para 'bulk': Proceso completo se maneja aquí (carga masiva por ECM)
+ * Para 'bulk': Carga masiva por archivo Excel con usuario, correo o CURP
  */
 import { useState, useEffect, useCallback, useRef, useLayoutEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
@@ -453,7 +453,7 @@ export default function ExamAssignMembersPage() {
             className={`fluid-p-4 border-2 rounded-fluid-xl cursor-pointer transition-all ${assignmentType === 'bulk' ? 'border-green-500 bg-green-50 ring-2 ring-green-200' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}>
             <div className="flex items-center fluid-gap-3">
               <FileSpreadsheet className={`fluid-icon-lg ${assignmentType === 'bulk' ? 'text-green-600' : 'text-gray-400'}`} />
-              <div><h4 className="font-medium text-gray-900 fluid-text-base">Carga Masiva</h4><p className="fluid-text-sm text-gray-500">Asignar por código ECM</p></div>
+              <div><h4 className="font-medium text-gray-900 fluid-text-base">Carga Masiva</h4><p className="fluid-text-sm text-gray-500">Asignar por archivo (usuario, correo o CURP)</p></div>
             </div>
           </div>
         </div>
@@ -678,8 +678,10 @@ export default function ExamAssignMembersPage() {
         {assignmentType === 'bulk' && (
           <div className="border-t pt-4">
             <div className="bg-green-50 border border-green-200 rounded-fluid-xl fluid-p-4 fluid-mb-4">
-              <h4 className="font-medium text-green-800 fluid-mb-2 flex items-center fluid-gap-2"><FileSpreadsheet className="fluid-icon-base" />Asignación Masiva por Código ECM</h4>
-              <p className="fluid-text-sm text-green-700">Con esta opción puedes asignar diferentes exámenes a diferentes candidatos usando un archivo Excel. Cada candidato puede tener un código ECM distinto.</p>
+              <h4 className="font-medium text-green-800 fluid-mb-2 flex items-center fluid-gap-2"><FileSpreadsheet className="fluid-icon-base" />Asignación masiva por archivo Excel</h4>
+              <p className="fluid-text-sm text-green-700">
+                Sube un archivo Excel con la lista de usuarios a asignar. Cada fila identifica al usuario por <strong>nombre de usuario</strong>, <strong>correo</strong> o <strong>CURP</strong> (basta con uno). Solo se pueden asignar candidatos y responsables de plantel que ya pertenezcan a este grupo.
+              </p>
             </div>
 
             {/* Step 1: Download template */}
@@ -689,7 +691,7 @@ export default function ExamAssignMembersPage() {
                 className="flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white border border-green-600 text-green-600 rounded-fluid-xl hover:bg-green-50 disabled:opacity-50 transition-all fluid-text-sm">
                 {downloadingTemplate ? <><Loader2 className="fluid-icon-sm animate-spin" />Descargando...</> : <><Download className="fluid-icon-sm" />Descargar Plantilla Excel</>}
               </button>
-              <p className="fluid-text-xs text-gray-500 mt-1">La plantilla incluye los miembros del grupo y un catálogo de códigos ECM disponibles.</p>
+              <p className="fluid-text-xs text-gray-500 mt-1">La plantilla incluye los miembros del grupo (candidatos y responsables de plantel) con sus columnas <em>Nombre de Usuario</em>, <em>Correo</em> y <em>CURP</em>. Conserva solo a quienes deseas asignar.</p>
             </div>
 
             {/* Step 2: Upload file - auto-processes on selection */}

@@ -720,6 +720,135 @@ class AzureStorageService:
             print(f"Error uploading WebP image to Azure: {str(e)}")
             return None
 
+    # ──────────────────────────────────────────────────────────────
+    # SCORM helpers
+    # ──────────────────────────────────────────────────────────────
+    SCORM_CONTAINER = os.getenv('AZURE_SCORM_CONTAINER', 'scorm-packages')
+
+    def _get_main_account_credentials(self):
+        """Devuelve (account_name, account_key) del primary connection string."""
+        if not self.connection_string:
+            return None, None
+        name = None
+        key = None
+        m = re.search(r'AccountName=([^;]+)', self.connection_string)
+        if m:
+            name = m.group(1)
+        m = re.search(r'AccountKey=([^;]+)', self.connection_string)
+        if m:
+            key = m.group(1)
+        return name, key
+
+    def _ensure_scorm_container(self):
+        """Garantiza que el contenedor scorm-packages exista (público a nivel blob)."""
+        if not self.blob_service_client:
+            return False
+        try:
+            container = self.blob_service_client.get_container_client(self.SCORM_CONTAINER)
+            if not container.exists():
+                # Crear con acceso público de blob (lectura anónima de assets)
+                from azure.storage.blob import PublicAccess
+                self.blob_service_client.create_container(
+                    self.SCORM_CONTAINER,
+                    public_access=PublicAccess.Blob,
+                )
+            return True
+        except AzureError as e:
+            print(f"Error ensuring SCORM container: {e}")
+            return False
+
+    def generate_scorm_upload_sas(self, original_filename: str, ttl_minutes: int = 60):
+        """Genera SAS de escritura para que el cliente suba el .zip directo al blob.
+
+        Returns dict {upload_id, blob_name, upload_url, expires_at} o None.
+        """
+        if not self.blob_service_client:
+            return None
+        account_name, account_key = self._get_main_account_credentials()
+        if not (account_name and account_key):
+            return None
+        if not self._ensure_scorm_container():
+            return None
+
+        upload_id = uuid.uuid4().hex
+        safe_ext = 'zip'
+        if '.' in (original_filename or ''):
+            ext = original_filename.rsplit('.', 1)[1].lower()
+            if ext in ('zip',):
+                safe_ext = ext
+        blob_name = f"_uploads/{upload_id}.{safe_ext}"
+        expires = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
+
+        sas = generate_blob_sas(
+            account_name=account_name,
+            container_name=self.SCORM_CONTAINER,
+            blob_name=blob_name,
+            account_key=account_key,
+            permission=BlobSasPermissions(write=True, create=True),
+            expiry=expires,
+        )
+        url = f"https://{account_name}.blob.core.windows.net/{self.SCORM_CONTAINER}/{blob_name}?{sas}"
+        return {
+            'upload_id': upload_id,
+            'blob_name': blob_name,
+            'container': self.SCORM_CONTAINER,
+            'upload_url': url,
+            'expires_at': expires.isoformat(),
+        }
+
+    def get_scorm_blob_client(self, blob_name: str):
+        """Cliente del blob temporal del upload."""
+        if not self.blob_service_client:
+            return None
+        return self.blob_service_client.get_blob_client(
+            container=self.SCORM_CONTAINER,
+            blob=blob_name,
+        )
+
+    def upload_scorm_asset(self, data: bytes, blob_path: str, content_type: str):
+        """Sube un archivo extraído del paquete a `scorm-packages/<blob_path>`."""
+        if not self.blob_service_client:
+            return None
+        try:
+            client = self.blob_service_client.get_blob_client(
+                container=self.SCORM_CONTAINER,
+                blob=blob_path,
+            )
+            client.upload_blob(
+                data,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type),
+            )
+            return client.url
+        except AzureError as e:
+            print(f"Error uploading SCORM asset {blob_path}: {e}")
+            return None
+
+    def delete_scorm_prefix(self, prefix: str) -> int:
+        """Borra todos los blobs bajo `scorm-packages/<prefix>/`. Devuelve cuántos."""
+        if not self.blob_service_client:
+            return 0
+        try:
+            container = self.blob_service_client.get_container_client(self.SCORM_CONTAINER)
+            count = 0
+            normalized = prefix.rstrip('/') + '/'
+            for blob in container.list_blobs(name_starts_with=normalized):
+                try:
+                    container.delete_blob(blob.name)
+                    count += 1
+                except AzureError as e:
+                    print(f"  fallo al borrar {blob.name}: {e}")
+            return count
+        except AzureError as e:
+            print(f"Error deleting SCORM prefix {prefix}: {e}")
+            return 0
+
+    def scorm_base_url(self, prefix: str) -> str:
+        account_name, _ = self._get_main_account_credentials()
+        if not account_name:
+            return ''
+        return f"https://{account_name}.blob.core.windows.net/{self.SCORM_CONTAINER}/{prefix.rstrip('/')}"
+
     def upload_bytes(self, data, blob_name, content_type='application/octet-stream'):
         """
         Subir bytes crudos a Azure Blob Storage con blob_name explícito.

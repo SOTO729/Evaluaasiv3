@@ -484,10 +484,12 @@ function App() {
               {/* Responsable de Partner */}
               <Route path="/mi-partner" element={<ResponsablePartnerDashboard />} />
               <Route path="/mi-partner/certificados" element={<ResponsablePartnerCertificadosPage />} />
+              <Route path="/mi-partner/reportes" element={<ReportsPage backPath="/mi-partner" />} />
               
               {/* Responsable Estatal */}
               <Route path="/mi-estado" element={<ResponsablePartnerDashboard />} />
               <Route path="/mi-estado/certificados" element={<ResponsablePartnerCertificadosPage />} />
+              <Route path="/mi-estado/reportes" element={<ReportsPage backPath="/mi-estado" />} />
               
               {/* Financiero - Gestión de Solicitudes de Saldo */}
               <Route path="/financiero" element={<FinancieroDashboard />} />
@@ -502,6 +504,8 @@ function App() {
               <Route path="/gerente/monitoreo" element={<GerenteMonitoreoPage />} />
               <Route path="/gerente/certificados" element={<GerenteCertificadosPage />} />
               <Route path="/gerente/chat-audit" element={<ChatAuditPage />} />
+              {/* Coordinador - Auditoría de chats (acceso desde /support/communication) */}
+              <Route path="/chat-audit" element={<ChatAuditPage />} />
               
               {/* Coordinador - Gestión de Saldo */}
               <Route path="/mi-saldo" element={<MiSaldoPage />} />

@@ -31,9 +31,11 @@ import {
   Image,
   Target,
   Clock,
+  Package,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
+import ScormPlayer from '../../components/scorm/ScormPlayer';
 import { isAzureUrl } from '../../utils/urlHelpers';
 
 // Función para calcular similitud entre dos strings (algoritmo de Levenshtein)
@@ -82,13 +84,13 @@ const StudyContentPreviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentSessionIndex, setCurrentSessionIndex] = useState(0);
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'reading' | 'video' | 'downloadable' | 'interactive'>('reading');
+  const [activeTab, setActiveTab] = useState<'reading' | 'video' | 'downloadable' | 'interactive' | 'scorm'>('reading');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set([0]));
   const [isScrolled, setIsScrolled] = useState(false);
 
   // Función para cambiar de tab y hacer scroll hacia arriba con título extendido
-  const handleTabChange = (tab: 'reading' | 'video' | 'downloadable' | 'interactive') => {
+  const handleTabChange = (tab: 'reading' | 'video' | 'downloadable' | 'interactive' | 'scorm') => {
     setActiveTab(tab);
     // Resetear el estado de scroll para mostrar el título extendido
     setIsScrolled(false);
@@ -409,6 +411,8 @@ const StudyContentPreviewPage: React.FC = () => {
       setActiveTab('interactive');
     } else if (topic.allow_downloadable !== false && topic.downloadable_exercise) {
       setActiveTab('downloadable');
+    } else if (topic.allow_scorm !== false && topic.scorm_package) {
+      setActiveTab('scorm');
     } else {
       // Si no hay ninguno con contenido, abrir lectura por defecto
       setActiveTab('reading');
@@ -1088,14 +1092,15 @@ const StudyContentPreviewPage: React.FC = () => {
     return currentTopicIndex > 0 || currentSessionIndex > 0;
   };
 
-  // Obtener los tabs disponibles para el tema actual en orden: Lectura > Video > Interactivo > Descargable
-  const getAvailableTabs = (topic: any): Array<'reading' | 'video' | 'downloadable' | 'interactive'> => {
+  // Obtener los tabs disponibles para el tema actual en orden: Lectura > Video > Interactivo > Descargable > SCORM
+  const getAvailableTabs = (topic: any): Array<'reading' | 'video' | 'downloadable' | 'interactive' | 'scorm'> => {
     if (!topic) return [];
-    const tabs: Array<'reading' | 'video' | 'downloadable' | 'interactive'> = [];
+    const tabs: Array<'reading' | 'video' | 'downloadable' | 'interactive' | 'scorm'> = [];
     if (topic.allow_reading !== false && topic.reading) tabs.push('reading');
     if (topic.allow_video !== false && topic.video) tabs.push('video');
     if (topic.allow_interactive !== false && topic.interactive_exercise) tabs.push('interactive');
     if (topic.allow_downloadable !== false && topic.downloadable_exercise) tabs.push('downloadable');
+    if (topic.allow_scorm !== false && topic.scorm_package) tabs.push('scorm');
     return tabs;
   };
 
@@ -1532,6 +1537,21 @@ const StudyContentPreviewPage: React.FC = () => {
                       </div>
                     </button>
                   )}
+                  {currentTopic?.allow_scorm !== false && currentTopic?.scorm_package && (
+                    <button
+                      onClick={() => handleTabChange('scorm')}
+                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
+                        activeTab === 'scorm'
+                          ? 'border-primary-600 text-primary-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center fluid-gap-1">
+                        <Package className="fluid-icon-xs" />
+                        <span className={isScrolled ? 'hidden sm:inline' : ''}>SCORM</span>
+                      </div>
+                    </button>
+                  )}
                 </nav>
               </div>
             </div>
@@ -1776,6 +1796,25 @@ const StudyContentPreviewPage: React.FC = () => {
                     <div className="flex flex-col items-center justify-center fluid-py-10 text-gray-400">
                       <Download className="fluid-icon-xl fluid-mb-3 text-gray-300" />
                       <p className="fluid-text-sm">No hay ejercicio descargable para este tema</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SCORM */}
+              {activeTab === 'scorm' && (
+                <div>
+                  {currentTopic?.scorm_package ? (
+                    <article className="w-full">
+                      <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 fluid-mb-2 border-b border-gray-300">
+                        {currentTopic.scorm_package.title}
+                      </h2>
+                      <ScormPlayer pkg={currentTopic.scorm_package} />
+                    </article>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center fluid-py-10 text-gray-400">
+                      <Package className="fluid-icon-xl fluid-mb-3 text-gray-300" />
+                      <p className="fluid-text-sm">No hay paquete SCORM para este tema</p>
                     </div>
                   )}
                 </div>

@@ -1952,3 +1952,65 @@ def check_and_add_vm_session_ad_password():
         else:
             print(f"  ❌ Error: {e}")
             db.session.rollback()
+
+
+# ---------------------------------------------------------------------------
+# SCORM 1.2: tablas study_scorm_packages / study_scorm_attempts y columna allow_scorm
+# ---------------------------------------------------------------------------
+
+def check_and_create_scorm_tables():
+    """Crear tablas SCORM y agregar columna allow_scorm a study_topics si faltan."""
+    print("🔍 Verificando tablas SCORM...")
+    try:
+        from app.models.study_scorm import StudyScormPackage, StudyScormAttempt
+
+        inspector = inspect(db.engine)
+        existing_tables = set(inspector.get_table_names())
+
+        if 'study_scorm_packages' not in existing_tables:
+            print("  📝 Creando tabla study_scorm_packages...")
+            StudyScormPackage.__table__.create(bind=db.engine, checkfirst=True)
+            db.session.commit()
+            print("  ✅ Tabla study_scorm_packages creada")
+        else:
+            print("  ✓ Tabla study_scorm_packages ya existe")
+
+        if 'study_scorm_attempts' not in existing_tables:
+            print("  📝 Creando tabla study_scorm_attempts...")
+            StudyScormAttempt.__table__.create(bind=db.engine, checkfirst=True)
+            db.session.commit()
+            print("  ✅ Tabla study_scorm_attempts creada")
+        else:
+            print("  ✓ Tabla study_scorm_attempts ya existe")
+
+        # Columna allow_scorm en study_topics
+        if 'study_topics' in existing_tables:
+            topic_columns = {c['name'] for c in inspector.get_columns('study_topics')}
+            if 'allow_scorm' not in topic_columns:
+                db_type = get_db_type()
+                try:
+                    if db_type == 'mssql':
+                        db.session.execute(text(
+                            "ALTER TABLE study_topics ADD allow_scorm BIT NOT NULL DEFAULT 1"
+                        ))
+                    else:
+                        db.session.execute(text(
+                            "ALTER TABLE study_topics ADD COLUMN allow_scorm BOOLEAN NOT NULL DEFAULT 1"
+                        ))
+                    db.session.commit()
+                    print("  ✅ Columna allow_scorm agregada a study_topics")
+                except Exception as e:
+                    db.session.rollback()
+                    if 'already' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print("  ⚠️  allow_scorm ya existe en study_topics")
+                    else:
+                        print(f"  ❌ No se pudo agregar allow_scorm: {e}")
+            else:
+                print("  ✓ Columna allow_scorm ya existe en study_topics")
+    except Exception as e:
+        print(f"❌ Error en migración SCORM: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+

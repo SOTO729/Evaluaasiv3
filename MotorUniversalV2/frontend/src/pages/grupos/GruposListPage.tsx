@@ -53,14 +53,17 @@ export default function GruposListPage() {
   // Búsqueda
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filtros avanzados
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  // Filtros avanzados — abiertos por defecto para responsables (para mostrar ciclo)
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(isResponsable);
   const [filterCycle, setFilterCycle] = useState('');
   const [filterPartnerId, setFilterPartnerId] = useState<number | ''>('')
 
   // Opciones de filtrado (vienen del backend)
   const [availableCycles, setAvailableCycles] = useState<string[]>([]);
   const [availablePartners, setAvailablePartners] = useState<Array<{ id: number; name: string }>>([]);
+
+  // Solo aplicar el ciclo más nuevo una vez (responsables)
+  const cycleAutoSelectedRef = useRef(false);
 
   // Paginación server-side
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,6 +120,21 @@ export default function GruposListPage() {
     const timer = setTimeout(() => handleSearch(1, pageSize), 400);
     return () => clearTimeout(timer);
   }, [handleSearch, pageSize]);
+
+  // Para responsables: auto-seleccionar el ciclo escolar más nuevo la primera
+  // vez que cargan opciones disponibles (los ciclos vienen ordenados asc; el
+  // último elemento es el más reciente). El usuario puede limpiarlo después.
+  useEffect(() => {
+    if (
+      isResponsable &&
+      !cycleAutoSelectedRef.current &&
+      availableCycles.length > 0 &&
+      filterCycle === ''
+    ) {
+      cycleAutoSelectedRef.current = true;
+      setFilterCycle(availableCycles[availableCycles.length - 1]);
+    }
+  }, [isResponsable, availableCycles, filterCycle]);
 
   // Sincronizar pageInputValue con currentPage
   useEffect(() => {
@@ -382,7 +400,8 @@ export default function GruposListPage() {
         {showAdvancedFilters && (
           <div className="fluid-mt-4 fluid-pt-4 border-t border-gray-100">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* Filtro por Partner */}
+              {/* Filtro por Partner — oculto para responsable de plantel */}
+              {!isResponsable && (
               <div>
                 <label className="block fluid-text-xs font-medium text-gray-500 fluid-mb-1.5 uppercase tracking-wide">
                   <Building2 className="w-3.5 h-3.5 inline mr-1" />
@@ -403,6 +422,7 @@ export default function GruposListPage() {
                   ))}
                 </select>
               </div>
+              )}
 
               {/* Filtro por Ciclo Escolar */}
               <div>

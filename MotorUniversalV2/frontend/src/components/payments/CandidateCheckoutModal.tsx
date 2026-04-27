@@ -28,6 +28,7 @@ import {
   type CandidatePaymentResponse,
 } from '../../services/paymentService';
 import { useAuthStore } from '../../store/authStore';
+import Confetti from '../ui/Confetti';
 
 interface CandidateCheckoutModalProps {
   isOpen: boolean;
@@ -416,21 +417,24 @@ export default function CandidateCheckoutModal({
           {/* ── Step 2: Result ──────────────────────────────── */}
           {step === 2 && result && (
             <div className="p-4 sm:p-6">
+              {result.status === 'approved' && <Confetti count={140} duration={4.5} zIndex={70} />}
               {result.status === 'approved' ? (
                 <div className="text-center py-6">
                   {/* Animated success circle */}
-                  <div className="relative w-28 h-28 mx-auto mb-6">
+                  <div className="relative w-36 h-36 mx-auto mb-6">
                     {/* Confetti ring */}
                     <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-200 via-green-100 to-teal-200 animate-confetti-burst" />
+                    {/* Pulse ring */}
+                    <div className="absolute inset-0 rounded-full bg-emerald-300/40 animate-ping" />
                     {/* Main circle */}
-                    <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 animate-check-circle flex items-center justify-center">
-                      <svg className="w-14 h-14" viewBox="0 0 40 40" fill="none">
-                        <path d="M12 20.5L18 26.5L28 14.5" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="animate-check-stroke" />
+                    <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-2xl shadow-emerald-500/40 animate-check-circle flex items-center justify-center">
+                      <svg className="w-20 h-20" viewBox="0 0 40 40" fill="none">
+                        <path d="M11 20.5L17.5 27L29 14" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="animate-check-stroke" />
                       </svg>
                     </div>
                   </div>
 
-                  <h4 className="text-2xl font-extrabold text-gray-800 mb-2 animate-fade-in-up">¡Pago exitoso!</h4>
+                  <h4 className="text-3xl font-extrabold text-gray-800 mb-2 animate-fade-in-up">¡Pago exitoso!</h4>
 
                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-5 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                     <p className="text-emerald-800 text-sm font-medium mb-1">
@@ -486,12 +490,12 @@ export default function CandidateCheckoutModal({
                 </div>
               ) : result.status === 'processing' ? (
                 <div className="text-center py-6">
-                  <div className="w-24 h-24 mx-auto mb-5">
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center ring-4 ring-amber-50 animate-check-circle">
-                      <Clock className="w-11 h-11 text-amber-600" />
+                  <div className="w-32 h-32 mx-auto mb-5">
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center ring-4 ring-amber-50 animate-check-circle shadow-lg">
+                      <Clock className="w-16 h-16 text-amber-600" />
                     </div>
                   </div>
-                  <h4 className="text-xl font-bold text-gray-800 mb-2">Pago en proceso</h4>
+                  <h4 className="text-2xl font-bold text-gray-800 mb-2">Pago en proceso</h4>
                   <p className="text-gray-600 text-sm mb-1">Tu pago está siendo procesado. Se desbloqueará automáticamente cuando se confirme.</p>
                   <p className="text-xs text-gray-400 mb-6">
                     {STATUS_DETAIL_MESSAGES[result.mp_status_detail] || 'Te notificaremos cuando se confirme.'}
@@ -503,12 +507,12 @@ export default function CandidateCheckoutModal({
                 </div>
               ) : (
                 <div className="text-center py-6">
-                  <div className="w-24 h-24 mx-auto mb-5">
-                    <div className="w-full h-full rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center ring-4 ring-red-50 animate-check-circle">
-                      <XCircle className="w-11 h-11 text-red-500" />
+                  <div className="w-32 h-32 mx-auto mb-5">
+                    <div className="w-full h-full rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center ring-4 ring-red-50 animate-check-circle shadow-lg">
+                      <XCircle className="w-16 h-16 text-red-500" strokeWidth={2.2} />
                     </div>
                   </div>
-                  <h4 className="text-xl font-bold text-gray-800 mb-2">Pago rechazado</h4>
+                  <h4 className="text-2xl font-bold text-gray-800 mb-2">Pago rechazado</h4>
                   <p className="text-gray-600 text-sm mb-1">
                     {STATUS_DETAIL_MESSAGES[result.mp_status_detail] || 'No se pudo procesar el pago. Intenta con otra tarjeta.'}
                   </p>

@@ -167,6 +167,14 @@ def create_app(config_name='development'):
     print("[INIT] ✅ activity registrado (logs de actividad)")
     app.register_blueprint(badges_bp, url_prefix='/api/badges')
     print("[INIT] ✅ badges registrado (insignias digitales)")
+
+    # SCORM 1.2
+    try:
+        from app.routes.scorm import scorm_bp
+        app.register_blueprint(scorm_bp, url_prefix='/api/scorm')
+        print("[INIT] ✅ scorm registrado (SCORM 1.2 packages + attempts)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando scorm_bp: {e}")
     
     from app.routes.badges import short_share_bp
     app.register_blueprint(short_share_bp)

@@ -27,6 +27,7 @@ import {
   Activity,
   Building2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import BulkUploadModal from '../../components/users/BulkUploadModal';
@@ -38,6 +39,7 @@ import {
   toggleUserActive,
   getAvailableRoles,
   exportSelectedUsersCredentials,
+  bulkDeleteUsers,
   getAvailableCampuses,
   ManagedUser,
   UserStats,
@@ -89,6 +91,9 @@ export default function UsersListPage() {
   // Selección de usuarios para exportar (persiste entre páginas)
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [bulkDeleteResult, setBulkDeleteResult] = useState<{ deleted: number; failed: number } | null>(null);
   
   // Modal de asignar a grupo
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -185,9 +190,22 @@ export default function UsersListPage() {
       }
       
       const data = await getUsers(params);
-      setUsers(data.users);
-      setTotalPages(data.pages > 0 ? data.pages : Math.ceil(data.total / perPage));
-      setTotal(data.total);
+      // Filtrado defensivo en frontend: un coordinador NUNCA debe ver usuarios
+      // que pertenezcan a otro coordinador (aunque el backend los devuelva).
+      // Reglas: ve a sí mismo + cualquier usuario cuyo coordinator_id === su id.
+      let visibleUsers = data.users;
+      let visibleTotal = data.total;
+      if (isCoordinator && currentUser?.id) {
+        const myId = currentUser.id;
+        visibleUsers = data.users.filter(u =>
+          u.id === myId || (u.coordinator_id && u.coordinator_id === myId)
+        );
+        const removed = data.users.length - visibleUsers.length;
+        visibleTotal = Math.max(0, data.total - removed);
+      }
+      setUsers(visibleUsers);
+      setTotalPages(visibleTotal > 0 ? Math.ceil(visibleTotal / perPage) : 1);
+      setTotal(visibleTotal);
       
       // Animar tabla en recargas (no en primera carga)
       if (!isFirstLoad.current) {
@@ -330,6 +348,29 @@ export default function UsersListPage() {
       setError(err.message || 'Error al exportar usuarios');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // Eliminar usuarios seleccionados (solo admin)
+  const handleBulkDelete = async () => {
+    if (!isAdmin) return;
+    if (selectedUsers.size === 0) {
+      setError('Selecciona al menos un usuario para eliminar');
+      return;
+    }
+    try {
+      setIsBulkDeleting(true);
+      const result = await bulkDeleteUsers(Array.from(selectedUsers));
+      setBulkDeleteResult({ deleted: result.deleted_count, failed: result.failed.length });
+      setShowBulkDeleteModal(false);
+      setSelectedUsers(new Set());
+      // Refrescar lista
+      loadData();
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Error al eliminar usuarios');
+      setShowBulkDeleteModal(false);
+    } finally {
+      setIsBulkDeleting(false);
     }
   };
   
@@ -726,6 +767,18 @@ export default function UsersListPage() {
                   Asignar a Grupo
                 </button>
               )}
+
+              {isAdmin && (
+                <button
+                  onClick={() => setShowBulkDeleteModal(true)}
+                  disabled={selectedUsers.size === 0 || isExporting || isBulkDeleting}
+                  className="inline-flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                  title="Eliminar permanentemente los usuarios seleccionados (solo admin)"
+                >
+                  <Trash2 className="fluid-icon-sm" />
+                  Eliminar Seleccionados ({selectedUsers.size})
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -757,7 +810,90 @@ export default function UsersListPage() {
         </div>
       )}
 
-      {/* Tabla de usuarios */}
+      {/* Modal Confirmación Eliminar Masivo */}
+      {showBulkDeleteModal && isAdmin && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-red-50 border-b border-red-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-800 fluid-text-lg">
+                  Eliminar {selectedUsers.size} {selectedUsers.size === 1 ? 'usuario' : 'usuarios'}
+                </h3>
+                <p className="fluid-text-sm text-red-700 fluid-mt-1">
+                  Esta acción es <strong>irreversible</strong>. Se eliminarán permanentemente los usuarios seleccionados junto con todos sus datos asociados (resultados, progreso, asignaciones, etc.).
+                </p>
+                <p className="fluid-text-xs text-red-600 fluid-mt-2">
+                  No se eliminarán usuarios con rol admin o developer.
+                </p>
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end fluid-gap-3 bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setShowBulkDeleteModal(false)}
+                disabled={isBulkDeleting}
+                className="fluid-px-5 py-2.5 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-800 rounded-fluid-lg font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="inline-flex items-center fluid-gap-2 fluid-px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <div className="fluid-w-4 fluid-h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="fluid-icon-sm" />
+                    Sí, eliminar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Resultado Eliminación Masiva */}
+      {bulkDeleteResult && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in-up">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="bg-green-50 border-b border-green-200 fluid-p-5 flex items-start fluid-gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <UserCheck className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-green-800 fluid-text-lg">Eliminación completada</h3>
+                <p className="fluid-text-sm text-green-700 fluid-mt-1">
+                  {bulkDeleteResult.deleted} {bulkDeleteResult.deleted === 1 ? 'usuario eliminado' : 'usuarios eliminados'} correctamente.
+                </p>
+                {bulkDeleteResult.failed > 0 && (
+                  <p className="fluid-text-sm text-red-700 fluid-mt-1">
+                    {bulkDeleteResult.failed} no pudieron eliminarse.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="fluid-p-5 flex justify-end bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setBulkDeleteResult(null)}
+                className="fluid-px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-fluid-lg font-medium transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div key={tableAnimKey} className={`bg-white rounded-fluid-xl shadow-sm border-2 border-gray-200 overflow-hidden ${tableAnimKey > 0 ? 'animate-fade-in-up' : ''}`}>
         {/* Paginación Superior */}
         {totalPages >= 1 && (

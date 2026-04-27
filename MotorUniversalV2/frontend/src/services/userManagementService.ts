@@ -289,6 +289,19 @@ export async function deleteUser(userId: string): Promise<{
   return response.data;
 }
 
+export interface BulkDeleteUsersResponse {
+  message: string;
+  deleted_count: number;
+  deleted: Array<{ id: string; name: string }>;
+  failed: Array<{ id: string; error: string }>;
+  requested: number;
+}
+
+export async function bulkDeleteUsers(userIds: string[]): Promise<BulkDeleteUsersResponse> {
+  const response = await api.post('/user-management/users/bulk-delete', { user_ids: userIds });
+  return response.data;
+}
+
 // ============== OPCIONES DE DOCUMENTOS ==============
 
 export async function updateDocumentOptions(userId: string, options: {

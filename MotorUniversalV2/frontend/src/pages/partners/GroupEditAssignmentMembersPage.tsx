@@ -750,27 +750,63 @@ export default function GroupEditAssignmentMembersPage() {
         </div>
       </div>
 
-      {/* ===== MENSAJES DE ESTADO ===== */}
-      {(error || successMessage) && (
-        <div className="fluid-mb-4">
-          {error && (
-            <div className="fluid-p-3 bg-red-50 border border-red-200 rounded-fluid-lg flex items-center fluid-gap-2 text-red-700">
-              <XCircle className="fluid-icon flex-shrink-0" />
-              <p className="fluid-text-sm flex-1">{error}</p>
-              <button onClick={() => setError(null)}>
-                <X className="fluid-icon-sm" />
+      {/* ===== MENSAJES DE ESTADO (modales) ===== */}
+      {error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setError(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-red-50 border-b border-red-200 px-6 py-4 flex items-start gap-3">
+              <div className="bg-red-100 rounded-full p-2 flex-shrink-0">
+                <XCircle className="w-5 h-5 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-900 text-base">Ocurrió un error</h3>
+                <p className="text-xs text-red-700 mt-0.5">Revisa el detalle a continuación</p>
+              </div>
+              <button onClick={() => setError(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
               </button>
             </div>
-          )}
-          {successMessage && (
-            <div className="fluid-p-3 bg-green-50 border border-green-200 rounded-fluid-lg flex items-center fluid-gap-2 text-green-700">
-              <CheckCircle2 className="fluid-icon flex-shrink-0" />
-              <p className="fluid-text-sm flex-1">{successMessage}</p>
-              <button onClick={() => setSuccessMessage(null)}>
-                <X className="fluid-icon-sm" />
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-700 whitespace-pre-line break-words">{error}</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setError(null)}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors text-sm"
+              >
+                Cerrar
               </button>
             </div>
-          )}
+          </div>
+        </div>
+      )}
+      {successMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setSuccessMessage(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-green-50 border-b border-green-200 px-6 py-4 flex items-start gap-3">
+              <div className="bg-green-100 rounded-full p-2 flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-green-900 text-base">Operación exitosa</h3>
+                <p className="text-xs text-green-700 mt-0.5">La acción se completó correctamente</p>
+              </div>
+              <button onClick={() => setSuccessMessage(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-700 whitespace-pre-line break-words">{successMessage}</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setSuccessMessage(null)}
+                className="px-4 py-2 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors text-sm"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

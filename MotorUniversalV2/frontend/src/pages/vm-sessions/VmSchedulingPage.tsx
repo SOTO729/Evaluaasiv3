@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Clock, Calendar, X, AlertCircle, CheckCircle, Loader2, Monitor, Eye, Building2, User as UserIcon, Cpu, ExternalLink, Wifi } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuthStore } from '../../store/authStore';
@@ -321,9 +322,15 @@ export default function VmSchedulingPage() {
     );
   }
 
-  // Candidato en modo leader_only: no puede agendar
+  // Candidato en modo leader_only: las sesiones las gestiona el responsable,
+  // así que no se le muestra esta página al candidato. Se redirige al dashboard.
   const isLeaderOnly = access?.scheduling_mode === 'leader_only' && user?.role === 'candidato';
   if (isLeaderOnly) {
+    return <Navigate to="/" replace />;
+  }
+  // Bloque legado de la vista "Sesiones Gestionadas por tu Responsable" — desactivado.
+  // eslint-disable-next-line no-constant-condition
+  if (false) {
     return (
       <div className="fluid-p-6 max-w-[2800px] mx-auto animate-fade-in-up">
         {/* Toast */}

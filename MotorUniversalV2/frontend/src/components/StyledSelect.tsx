@@ -99,7 +99,9 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
   name,
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const colors = colorClasses[colorScheme];
 
   // Cerrar dropdown al hacer clic fuera
@@ -113,6 +115,21 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Decidir si abrir hacia arriba según espacio disponible (auto-flip)
+  useEffect(() => {
+    if (!isOpen || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    // Altura máx estimada del dropdown (header ~40 + lista 240 + padding)
+    const dropdownEstimate = 300;
+    if (spaceBelow < dropdownEstimate && spaceAbove > spaceBelow) {
+      setOpenUpward(true);
+    } else {
+      setOpenUpward(false);
+    }
+  }, [isOpen]);
 
   // Cerrar con Escape
   useEffect(() => {
@@ -141,6 +158,7 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
       
       {/* Trigger button - diseño igual al DatePickerInput */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
@@ -169,7 +187,11 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
       {isOpen && (
         <div 
           ref={dropdownRef}
-          className="absolute z-50 w-full mt-1 bg-white rounded-fluid-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+          className={`absolute z-50 w-full bg-white rounded-fluid-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in duration-200 ${
+            openUpward
+              ? 'bottom-full mb-1 slide-in-from-bottom-2'
+              : 'top-full mt-1 slide-in-from-top-2'
+          }`}
         >
           {/* Header con gradiente como el calendario */}
           <div className={`fluid-px-4 fluid-py-2 bg-gradient-to-r ${colors.header}`}>

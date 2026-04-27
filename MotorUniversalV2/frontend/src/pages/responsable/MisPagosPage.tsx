@@ -336,7 +336,9 @@ export default function MisPagosPage() {
           certificationCost={campus.certification_cost}
           onClose={() => setShowCheckout(false)}
           onPaymentComplete={() => {
-            setShowCheckout(false);
+            // No cerramos el modal aquí: el CheckoutForm muestra su pantalla
+            // de resultado (palomita + confeti o cruz de error). El usuario
+            // cierra manualmente y al cerrar refrescamos la lista.
             loadPayments();
           }}
         />

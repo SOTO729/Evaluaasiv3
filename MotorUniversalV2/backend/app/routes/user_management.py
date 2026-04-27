@@ -38,6 +38,86 @@ ROLE_CREATE_PERMISSIONS = {
 }
 
 
+_ROLE_LABELS_ES = {
+    'admin': 'Administrador',
+    'developer': 'Desarrollador',
+    'gerente': 'Gerente',
+    'financiero': 'Financiero',
+    'editor': 'Editor',
+    'editor_invitado': 'Editor invitado',
+    'soporte': 'Soporte',
+    'coordinator': 'Coordinador',
+    'responsable': 'Responsable',
+    'responsable_partner': 'Responsable de partner',
+    'responsable_estatal': 'Responsable estatal',
+    'auxiliar': 'Auxiliar',
+    'candidato': 'Candidato',
+}
+
+
+def _describe_user(user):
+    """Resumen humano-legible de un usuario para mensajes de error."""
+    if not user:
+        return ''
+    full_name = ' '.join(filter(None, [
+        getattr(user, 'name', None),
+        getattr(user, 'first_surname', None),
+        getattr(user, 'second_surname', None),
+    ])).strip() or '(sin nombre)'
+    role_label = _ROLE_LABELS_ES.get(getattr(user, 'role', '') or '', getattr(user, 'role', '') or 'usuario')
+    parts = [f'{full_name} ({role_label})']
+    if getattr(user, 'username', None):
+        parts.append(f'usuario: {user.username}')
+    if getattr(user, 'email', None):
+        parts.append(f'correo: {user.email}')
+    status = 'activo' if getattr(user, 'is_active', False) else 'inactivo'
+    parts.append(status)
+    return ' — '.join(parts)
+
+
+def _duplicate_email_response(email, existing_user):
+    """Mensaje detallado de email duplicado."""
+    return jsonify({
+        'error': (
+            f'El correo "{email}" ya está registrado para {_describe_user(existing_user)}. '
+            f'Si se trata de la misma persona, edita ese usuario en vez de crear uno nuevo. '
+            f'Si es otra persona, usa un correo distinto.'
+        ),
+        'duplicate_field': 'email',
+        'duplicate_value': email,
+        'existing_user': {
+            'id': existing_user.id,
+            'username': existing_user.username,
+            'email': existing_user.email,
+            'full_name': ' '.join(filter(None, [existing_user.name, existing_user.first_surname, existing_user.second_surname])).strip(),
+            'role': existing_user.role,
+            'is_active': existing_user.is_active,
+        },
+    }), 409
+
+
+def _duplicate_curp_response(curp, existing_user):
+    """Mensaje detallado de CURP duplicado."""
+    return jsonify({
+        'error': (
+            f'La CURP "{curp}" ya está registrada para {_describe_user(existing_user)}. '
+            f'Cada CURP es única por persona, así que no puede asignarse a un nuevo usuario. '
+            f'Si es la misma persona, edita ese usuario; si es un homónimo, verifica que la CURP capturada sea correcta.'
+        ),
+        'duplicate_field': 'curp',
+        'duplicate_value': curp,
+        'existing_user': {
+            'id': existing_user.id,
+            'username': existing_user.username,
+            'email': existing_user.email,
+            'full_name': ' '.join(filter(None, [existing_user.name, existing_user.first_surname, existing_user.second_surname])).strip(),
+            'role': existing_user.role,
+            'is_active': existing_user.is_active,
+            'curp': existing_user.curp,
+        },
+    }), 409
+
+
 def _is_coordinator_role(role):
     """True si el rol es coordinator o auxiliar (auxiliar hereda permisos de coordinador)"""
     return role in ('coordinator', 'auxiliar')
@@ -838,8 +918,10 @@ def create_user():
             
             # Verificar email único (solo si se proporciona)
             # Roles soporte, editor, editor_invitado y coordinator pueden compartir email con otros usuarios
-            if role not in ('soporte', 'editor', 'editor_invitado', 'coordinator') and User.query.filter_by(email=email).first():
-                return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
+            if role not in ('soporte', 'editor', 'editor_invitado', 'coordinator'):
+                existing_email_user = User.query.filter_by(email=email).first()
+                if existing_email_user:
+                    return _duplicate_email_response(email, existing_email_user)
         
         # Generar contraseña automática para TODOS los usuarios
         password = generate_secure_password(12)
@@ -858,8 +940,10 @@ def create_user():
         # Los CURPs genéricos de extranjero pueden repetirse
         if data.get('curp') and role not in ['editor', 'editor_invitado', 'gerente', 'financiero']:
             curp = data['curp'].upper().strip()
-            if not _is_generic_foreign_curp(curp) and User.query.filter_by(curp=curp).first():
-                return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+            if not _is_generic_foreign_curp(curp):
+                existing_curp_user = User.query.filter_by(curp=curp).first()
+                if existing_curp_user:
+                    return _duplicate_curp_response(curp, existing_curp_user)
         
         # Generar username automáticamente (10 caracteres alfanuméricos únicos EN MAYÚSCULAS)
         import random
@@ -1112,7 +1196,7 @@ def update_user(user_id):
             if curp and not _is_generic_foreign_curp(curp):
                 existing = User.query.filter(User.curp == curp, User.id != user_id).first()
                 if existing:
-                    return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+                    return _duplicate_curp_response(curp, existing)
                 
                 # ── Si CURP cambia, resetear verificación (se verifica en segundo plano) ──
                 curp_changed = curp != user.curp
@@ -1133,7 +1217,7 @@ def update_user(user_id):
             if user.role not in ('soporte', 'editor', 'editor_invitado', 'coordinator'):
                 existing = User.query.filter(User.email == email, User.id != user_id).first()
                 if existing:
-                    return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
+                    return _duplicate_email_response(email, existing)
             user.email = email
         
         # Campos de responsable (editables por admin, developer, soporte y coordinator)
@@ -1211,65 +1295,42 @@ def update_user(user_id):
         
         db.session.commit()
         
-        # ── Verificación CURP en segundo plano (solo si se envió CURP en la petición) ──
+        # ── Verificación CURP síncrona contra RENAPO (si se envió CURP y aún no está verificada) ──
+        # Se ejecuta inline para que la respuesta refleje el estado real de curp_verified.
         curp_msg = ''
         if 'curp' in data and user.curp and not user.curp_verified and not _is_generic_foreign_curp(user.curp):
-            import threading
-            app_obj = current_app._get_current_object()
-            verify_user_id = user.id
-            verify_curp = user.curp
-            
-            def _verify_curp_background(app_obj, uid, curp_val):
-                with app_obj.app_context():
-                    import logging
-                    logger = logging.getLogger(__name__)
-                    try:
-                        from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user, validate_curp_format
-                        
-                        # Primero validar formato
-                        fmt_valid, fmt_error = validate_curp_format(curp_val)
-                        if not fmt_valid:
-                            logger.warning(f'[CURP-BG] Formato inválido para CURP {curp_val} de usuario {uid}: {fmt_error}')
-                            u = User.query.get(uid)
-                            if u and u.curp == curp_val:
-                                u.curp = None
-                                u.curp_verified = False
-                                u.curp_verified_at = None
-                                u.curp_renapo_name = None
-                                u.curp_renapo_first_surname = None
-                                u.curp_renapo_second_surname = None
-                                db.session.commit()
-                            return
-                        
-                        logger.info(f'[CURP-BG] Verificando CURP {curp_val} para usuario {uid}')
-                        renapo_result = validate_curp_renapo(curp_val)
-                        u = User.query.get(uid)
-                        if not u or u.curp != curp_val:
-                            logger.info(f'[CURP-BG] Usuario {uid} ya no tiene CURP {curp_val}, omitiendo')
-                            return
-                        if renapo_result.valid:
-                            apply_renapo_to_user(u, renapo_result)
-                            db.session.commit()
-                            logger.info(f'[CURP-BG] CURP {curp_val} válida - datos RENAPO aplicados a usuario {uid}')
-                        else:
-                            u.curp = None
-                            u.curp_verified = False
-                            u.curp_verified_at = None
-                            u.curp_renapo_name = None
-                            u.curp_renapo_first_surname = None
-                            u.curp_renapo_second_surname = None
-                            db.session.commit()
-                            logger.warning(f'[CURP-BG] CURP {curp_val} rechazada para usuario {uid}: {renapo_result.error}')
-                    except Exception as e:
-                        logger.error(f'[CURP-BG] Error verificando CURP {curp_val}: {e}')
-            
-            thread = threading.Thread(
-                target=_verify_curp_background,
-                args=(app_obj, verify_user_id, verify_curp),
-                daemon=True
-            )
-            thread.start()
-            curp_msg = '. La CURP será verificada en RENAPO en segundo plano'
+            import logging
+            logger = logging.getLogger(__name__)
+            try:
+                from app.services.renapo_service import (
+                    validate_curp_renapo, apply_renapo_to_user, validate_curp_format,
+                )
+
+                fmt_valid, fmt_error = validate_curp_format(user.curp)
+                if not fmt_valid:
+                    logger.warning(f'[CURP] Formato inválido para CURP {user.curp} de usuario {user.id}: {fmt_error}')
+                    user.curp = None
+                    user.curp_verified = False
+                    user.curp_verified_at = None
+                    user.curp_renapo_name = None
+                    user.curp_renapo_first_surname = None
+                    user.curp_renapo_second_surname = None
+                    db.session.commit()
+                    curp_msg = '. CURP rechazada: formato inválido'
+                else:
+                    renapo_result = validate_curp_renapo(user.curp)
+                    if renapo_result.valid:
+                        apply_renapo_to_user(user, renapo_result)
+                        db.session.commit()
+                        curp_msg = '. CURP verificada contra RENAPO'
+                    else:
+                        # CURP rechazada por RENAPO: no removemos el dato pero queda como no verificado
+                        logger.warning(f'[CURP] CURP {user.curp} rechazada por RENAPO para usuario {user.id}: {renapo_result.error}')
+                        curp_msg = f'. CURP no pudo verificarse en RENAPO: {renapo_result.error}'
+            except Exception as e:
+                # Si RENAPO está caído, no fallar la actualización; quedará pendiente
+                logger.warning(f'[CURP] RENAPO no disponible al verificar CURP de usuario {user.id}: {e}')
+                curp_msg = '. La CURP quedará pendiente de verificación (RENAPO no disponible)'
         
         return jsonify({
             'message': f'Usuario actualizado exitosamente{curp_msg}',
@@ -1581,124 +1642,239 @@ def update_user_document_options(user_id):
 
 # ============== ELIMINAR USUARIO (SOLO ADMIN) ==============
 
+_USER_NULLABLE_REFS = [
+    ('answers', 'created_by'),
+    ('answers', 'updated_by'),
+    ('balance_requests', 'approved_by_id'),
+    ('balance_requests', 'financiero_id'),
+    ('balance_transactions', 'created_by_id'),
+    ('badge_templates', 'created_by_id'),
+    ('bulk_upload_batches', 'uploaded_by_id'),
+    ('bulk_upload_members', 'user_id'),
+    ('campuses', 'coordinator_id'),
+    ('candidate_groups', 'coordinator_id'),
+    ('categories', 'created_by'),
+    ('categories', 'updated_by'),
+    ('certificate_templates', 'updated_by'),
+    ('conocer_email_contacts', 'created_by_id'),
+    ('conocer_solicitud_logs', 'sent_by_id'),
+    ('conocer_upload_batches', 'uploaded_by'),
+    ('ecm_candidate_assignments', 'assigned_by_id'),
+    ('ecm_retakes', 'applied_by_id'),
+    ('ecm_swap_history', 'performed_by_id'),
+    ('exams', 'created_by'),
+    ('exams', 'updated_by'),
+    ('exercises', 'created_by'),
+    ('exercises', 'updated_by'),
+    ('group_exams', 'assigned_by_id'),
+    ('group_study_materials', 'assigned_by_id'),
+    ('partners', 'coordinator_id'),
+    ('questions', 'created_by'),
+    ('questions', 'updated_by'),
+    ('study_contents', 'created_by'),
+    ('study_contents', 'updated_by'),
+    ('study_interactive_exercises', 'created_by'),
+    ('study_interactive_exercises', 'updated_by'),
+    ('study_materials', 'created_by'),
+    ('study_materials', 'updated_by'),
+    ('support_conversations', 'assigned_support_user_id'),
+    ('support_conversations', 'created_by_user_id'),
+    ('support_conversation_satisfaction', 'submitted_by_user_id'),
+    ('support_messages', 'sender_user_id'),
+    ('topics', 'created_by'),
+    ('topics', 'updated_by'),
+    ('vm_sessions', 'cancelled_by_id'),
+    ('vm_sessions', 'created_by_id'),
+]
+
+_USER_DELETE_REFS = [
+    ('group_exam_members', 'user_id'),
+    ('group_members', 'user_id'),
+    ('group_study_material_members', 'user_id'),
+    ('activity_logs', 'user_id'),
+    ('balance_transactions', 'coordinator_id'),
+    ('chat_message_templates', 'owner_user_id'),
+    ('conocer_certificates', 'user_id'),
+    ('coordinator_balances', 'coordinator_id'),
+    ('ecm_candidate_assignments', 'user_id'),
+    ('ecm_retakes', 'user_id'),
+    ('ecm_swap_history', 'from_user_id'),
+    ('ecm_swap_history', 'to_user_id'),
+    ('issued_badges', 'user_id'),
+    ('payments', 'user_id'),
+    ('student_content_progress', 'user_id'),
+    ('student_topic_progress', 'user_id'),
+    ('study_scorm_attempts', 'user_id'),
+    ('user_partners', 'user_id'),
+    ('vm_sessions', 'user_id'),
+    ('vouchers', 'user_id'),
+    ('results', 'user_id'),
+]
+
+
+def _purge_user_from_db(user_id):
+    """Elimina un user_id limpiando todas las FK en una sola transacción.
+    Asume que el caller ya hizo commit/rollback de la sesión."""
+    for table, col in _USER_NULLABLE_REFS:
+        try:
+            db.session.execute(
+                text(f"UPDATE {table} SET {col} = NULL WHERE {col} = :uid"),
+                {'uid': user_id}
+            )
+        except Exception:
+            pass
+
+    db.session.execute(
+        text("UPDATE users SET coordinator_id = NULL WHERE coordinator_id = :uid"),
+        {'uid': user_id}
+    )
+
+    # Borrar cadena de support: messages -> participants -> conversations
+    try:
+        db.session.execute(
+            text("""
+                DELETE FROM support_messages
+                WHERE conversation_id IN (
+                    SELECT id FROM support_conversations WHERE candidate_user_id = :uid
+                )
+            """),
+            {'uid': user_id}
+        )
+        db.session.execute(
+            text("""
+                DELETE FROM support_conversation_participants
+                WHERE conversation_id IN (
+                    SELECT id FROM support_conversations WHERE candidate_user_id = :uid
+                )
+                   OR user_id = :uid
+            """),
+            {'uid': user_id}
+        )
+        db.session.execute(
+            text("DELETE FROM support_conversations WHERE candidate_user_id = :uid"),
+            {'uid': user_id}
+        )
+    except Exception:
+        pass
+
+    for table, col in _USER_DELETE_REFS:
+        try:
+            db.session.execute(
+                text(f"DELETE FROM {table} WHERE {col} = :uid"),
+                {'uid': user_id}
+            )
+        except Exception:
+            pass
+
+    db.session.execute(
+        text("DELETE FROM users WHERE id = :uid"),
+        {'uid': user_id}
+    )
+
+
 @bp.route('/users/<string:user_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
 def delete_user(user_id):
-    """Eliminar un usuario permanentemente (solo admin, no developer).
-    
-    Limpia todas las referencias FK antes de eliminar para evitar
-    errores de constraint en MSSQL.
-    """
+    """Eliminar un usuario permanentemente (solo admin, no developer)."""
     try:
         current_user = g.current_user
-        
-        # Solo admin puede eliminar usuarios, developer no
+
         if current_user.role != 'admin':
             return jsonify({'error': 'Solo el administrador puede eliminar usuarios'}), 403
-        
+
         user = User.query.get_or_404(user_id)
-        
-        # No se puede eliminar a uno mismo
+
         if user_id == current_user.id:
             return jsonify({'error': 'No puedes eliminarte a ti mismo'}), 400
-        
-        # Guardar info para el mensaje
+
         user_email = user.email
         user_name = user.full_name
-        
-        # Expulsar el objeto User de la sesión ORM para evitar que
-        # SQLAlchemy intente SET NULL en backrefs con NOT NULL constraints
+
         db.session.expunge(user)
-        
-        # ── Limpiar todas las referencias FK con NO_ACTION ──
-        # SET NULL en columnas que son nullable (created_by, updated_by, assigned_by, etc.)
-        # DELETE en tablas de relación directa (activity_logs, ecm_assignments, etc.)
-        
-        nullable_refs = [
-            ('answers', 'created_by'),
-            ('answers', 'updated_by'),
-            ('balance_requests', 'approved_by_id'),
-            ('balance_requests', 'financiero_id'),
-            ('balance_transactions', 'created_by_id'),
-            ('categories', 'created_by'),
-            ('categories', 'updated_by'),
-            ('conocer_upload_batches', 'uploaded_by'),
-            ('ecm_candidate_assignments', 'assigned_by_id'),
-            ('ecm_retakes', 'applied_by_id'),
-            ('exams', 'created_by'),
-            ('exams', 'updated_by'),
-            ('exercises', 'created_by'),
-            ('exercises', 'updated_by'),
-            ('questions', 'created_by'),
-            ('questions', 'updated_by'),
-            ('study_contents', 'created_by'),
-            ('study_contents', 'updated_by'),
-            ('study_interactive_exercises', 'created_by'),
-            ('study_interactive_exercises', 'updated_by'),
-            ('study_materials', 'created_by'),
-            ('study_materials', 'updated_by'),
-            ('topics', 'created_by'),
-            ('topics', 'updated_by'),
-            ('vm_sessions', 'cancelled_by_id'),
-            ('vm_sessions', 'created_by_id'),
-        ]
-        
-        for table, col in nullable_refs:
-            try:
-                db.session.execute(
-                    text(f"UPDATE {table} SET {col} = NULL WHERE {col} = :uid"),
-                    {'uid': user_id}
-                )
-            except Exception:
-                pass  # Tabla podría no existir en algunos entornos
-        
-        # SET NULL en users.coordinator_id (auto-referencia)
-        db.session.execute(
-            text("UPDATE users SET coordinator_id = NULL WHERE coordinator_id = :uid"),
-            {'uid': user_id}
-        )
-        
-        # DELETE en tablas de datos directos del usuario
-        # (tablas con user_id NOT NULL que no tienen CASCADE en la DB)
-        delete_refs = [
-            ('group_exam_members', 'user_id'),
-            ('activity_logs', 'user_id'),
-            ('balance_transactions', 'coordinator_id'),
-            ('ecm_candidate_assignments', 'user_id'),
-            ('ecm_retakes', 'user_id'),
-            ('student_content_progress', 'user_id'),
-            ('student_topic_progress', 'user_id'),
-            ('vm_sessions', 'user_id'),
-            ('vouchers', 'user_id'),
-            ('results', 'user_id'),
-        ]
-        
-        for table, col in delete_refs:
-            try:
-                db.session.execute(
-                    text(f"DELETE FROM {table} WHERE {col} = :uid"),
-                    {'uid': user_id}
-                )
-            except Exception:
-                pass
-        
-        # Eliminar usuario via SQL directo para evitar que el ORM
-        # intente SET NULL en backrefs con NOT NULL constraints
-        db.session.execute(
-            text("DELETE FROM users WHERE id = :uid"),
-            {'uid': user_id}
-        )
+        _purge_user_from_db(user_id)
         db.session.commit()
-        
+
         return jsonify({
             'message': f'Usuario {user_name} ({user_email}) eliminado permanentemente'
         })
-        
+
     except HTTPException:
-        
         raise
-        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/users/bulk-delete', methods=['POST'])
+@jwt_required()
+@admin_required
+def bulk_delete_users():
+    """Eliminar múltiples usuarios en una sola operación (solo admin).
+
+    Body: { "user_ids": ["id1", "id2", ...] }
+    """
+    try:
+        current_user = g.current_user
+
+        if current_user.role != 'admin':
+            return jsonify({'error': 'Solo el administrador puede eliminar usuarios'}), 403
+
+        data = request.get_json() or {}
+        user_ids = data.get('user_ids') or []
+
+        if not isinstance(user_ids, list) or not user_ids:
+            return jsonify({'error': 'Debes proporcionar una lista de user_ids'}), 400
+
+        # Limitar para evitar bloqueos largos
+        if len(user_ids) > 500:
+            return jsonify({'error': 'No puedes eliminar más de 500 usuarios a la vez'}), 400
+
+        # Excluir auto-eliminación
+        user_ids = [uid for uid in user_ids if uid and uid != current_user.id]
+        if not user_ids:
+            return jsonify({'error': 'No hay usuarios válidos para eliminar'}), 400
+
+        # Validar que existan y obtener info
+        users = User.query.filter(User.id.in_(user_ids)).all()
+        existing_ids = [u.id for u in users]
+
+        if not existing_ids:
+            return jsonify({'error': 'Ninguno de los usuarios existe'}), 404
+
+        # Bloquear eliminación de admins/developers para evitar lockout
+        protected = [u for u in users if u.role in ('admin', 'developer')]
+        if protected:
+            names = ', '.join(u.username or u.id for u in protected)
+            return jsonify({
+                'error': f'No se pueden eliminar usuarios admin/developer: {names}'
+            }), 400
+
+        deleted = []
+        failed = []
+
+        for user in users:
+            try:
+                uid = user.id
+                uname = user.full_name or user.username or user.email
+                db.session.expunge(user)
+                _purge_user_from_db(uid)
+                deleted.append({'id': uid, 'name': uname})
+            except Exception as e:
+                failed.append({'id': user.id, 'error': str(e)})
+
+        db.session.commit()
+
+        return jsonify({
+            'message': f'{len(deleted)} usuarios eliminados',
+            'deleted_count': len(deleted),
+            'deleted': deleted,
+            'failed': failed,
+            'requested': len(user_ids),
+        })
+
+    except HTTPException:
+        raise
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -2286,40 +2462,48 @@ def _classify_valid_rows(valid_rows, existing_by_email, existing_by_curp, target
         # Duplicado por email
         if email and email in existing_by_email:
             user = existing_by_email[email]
+            user_label = _describe_user(user)
             if target_group_id:
                 if user.id in group_member_ids:
-                    skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado y ya es miembro del grupo',
+                    skipped.append({'row': r['row'], 'email': email,
+                                    'reason': f'El correo {email} ya pertenece a un usuario existente ({user_label}) y ya es miembro del grupo destino, por lo que no se hace ningún cambio',
                                     'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
                 else:
-                    duplicates.append({'row': r['row'], 'email': email, 'name': user.full_name, 'username': user.username, 'user_id': user.id, 'curp': user.curp})
+                    duplicates.append({'row': r['row'], 'email': email, 'name': user.full_name, 'username': user.username, 'user_id': user.id, 'curp': user.curp,
+                                       'reason': f'El correo {email} ya está registrado como {user_label}; en vez de crear uno nuevo, este usuario se asignará al grupo'})
             else:
-                skipped.append({'row': r['row'], 'email': email, 'reason': 'Email ya registrado',
+                skipped.append({'row': r['row'], 'email': email,
+                                'reason': f'El correo {email} ya está registrado como {user_label}; no se crea otro usuario con el mismo correo',
                                 'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
             continue
 
         # Duplicado por CURP (excepto CURPs genéricos de extranjero que pueden repetirse)
         if curp and curp in existing_by_curp and not _is_generic_foreign_curp(curp):
             user = existing_by_curp[curp]
+            user_label = _describe_user(user)
             already_dup = any(d.get('user_id') == user.id for d in duplicates)
             if target_group_id:
                 if user.id in group_member_ids or already_dup:
                     if not already_dup:
-                        skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado y ya es miembro del grupo',
+                        skipped.append({'row': r['row'], 'email': email or '(sin email)',
+                                        'reason': f'La CURP {curp} ya pertenece a un usuario existente ({user_label}) y ya es miembro del grupo destino',
                                         'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
                 else:
-                    duplicates.append({'row': r['row'], 'email': user.email or email or '(sin email)', 'name': user.full_name, 'username': user.username, 'user_id': user.id, 'curp': user.curp})
+                    duplicates.append({'row': r['row'], 'email': user.email or email or '(sin email)', 'name': user.full_name, 'username': user.username, 'user_id': user.id, 'curp': user.curp,
+                                       'reason': f'La CURP {curp} ya está registrada como {user_label}; este usuario se asignará al grupo en vez de crear uno nuevo'})
             else:
-                skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'CURP {curp} ya registrado',
+                skipped.append({'row': r['row'], 'email': email or '(sin email)',
+                                'reason': f'La CURP {curp} ya está registrada como {user_label}; no se crea un usuario nuevo. Verifica que la CURP sea correcta',
                                 'user_id': user.id, 'name': user.full_name, 'username': user.username, 'curp': user.curp, 'is_existing_user': True})
             continue
 
         # Duplicado interno (mismo email/curp repetido en el mismo archivo)
         if email and email in seen_emails:
-            skipped.append({'row': r['row'], 'email': email, 'reason': 'Email duplicado en el mismo archivo'})
+            skipped.append({'row': r['row'], 'email': email, 'reason': f'El correo {email} aparece más de una vez en el mismo archivo; solo se procesa la primera fila'})
             continue
         # CURPs genéricos de extranjero pueden repetirse en el mismo archivo
         if curp and curp in seen_curps and not _is_generic_foreign_curp(curp):
-            skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': 'CURP duplicado en el mismo archivo'})
+            skipped.append({'row': r['row'], 'email': email or '(sin email)', 'reason': f'La CURP {curp} aparece más de una vez en el mismo archivo; solo se procesa la primera fila'})
             continue
 
         if email:
@@ -2626,7 +2810,7 @@ def preview_bulk_upload_candidates():
                 'nombre': d.get('name', ''),
                 'curp': d.get('curp'),
                 'existing_user': {'id': d['user_id'], 'name': d['name'], 'username': d['username'], 'curp': d.get('curp')},
-                'error': 'Usuario ya existe — se asignará al grupo' if target_group else 'Usuario ya existe',
+                'error': ('Usuario ya existente — se asignará al grupo destino' if target_group else 'Usuario ya existente — no se crea uno nuevo'),
             })
         for s in skipped:
             entry = {
