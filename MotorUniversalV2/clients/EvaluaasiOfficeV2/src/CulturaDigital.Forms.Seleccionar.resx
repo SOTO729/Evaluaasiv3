@@ -1,0 +1,211 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+<resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>1.3</value></resheader><resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader><data name="mensajeLabel.TextAlign" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAAB9TeXN0
+ZW0uRHJhd2luZy5Db250ZW50QWxpZ25tZW50AQAAAAd2YWx1ZV9fAAgCAAAAIAAAAAs=</value></data><data name="&gt;&gt;ExamenesComboBox.ZOrder" xml:space="preserve"><value>3</value></data>
+  <data name="aceptarButton.TabIndex" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"><value>5</value></data>
+  <data name="$this.Icon" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5JY29uAgAAAAhJY29uRGF0YQhJY29uU2l6ZQcEAhNTeXN0ZW0uRHJhd2luZy5T
+aXplAgAAAAIAAAAJAwAAAAX8////E1N5c3RlbS5EcmF3aW5nLlNpemUCAAAABXdpZHRoBmhlaWdo
+dAAACAgCAAAAAAAAAAAAAAAPAwAAADYVAAACAAABAAIAEBAAAAAAIABoBAAAJgAAACAgAAAAACAA
+qBAAAI4EAAAoAAAAEAAAACAAAAABACAAAAAAAEAEAAAAAAAAAAAAAAAAAAAAAAAA////Af///wH/
+//8B////ATYYABlJJAB5UyoAu1UsANlVKwDZUCkAt0IgAHMtEQAV////Af///wH///8B////Af//
+/wH///8BPx8AA1EpAHtfMQD3ZzcA/2g3AP9oNwD/aDcA/2g3AP9nNgD/WS4A80AfAG////8B////
+Af///wH///8BTBkAA1kuAKdnNgD/aDcA/3JEEf+fgF3/tp6E/7afhP+fgF3/cUMQ/2g3AP9kNQD/
+RyIAmf///wH///8B////AV4wAH9nNgD/aDcA/55/XP/39PH/9fLu/9jLvf/b0MP/+ff1//bz8P+f
+gF3/aDcA/2U1AP9DIABv////AWEyAB9mNgD5aDcA/5VzTP/+/f3/uaOK/209CP9oNwD/aDcA/3BC
+Dv+7pY3//v7+/5x8WP9oNwD/Wi8A8y0VABVoNwCDaDcA/2s7Bf/u6OL/x7Wh/2g3AP9oNwD/aDcA
+/2g3AP9oNwD/aDcA/76qkv/k29H/aDgB/2c2AP9GIgBzbDoAx2g3AP+Sb0f//////4BXKP9oNwD/
+aDcA/2g3AP9oNwD/aDcA/2g3AP9tPQj/bT4J/2g3AP9oNwD/VCsAt287AOloNwD/q5By//n39f95
+TR3/eU0d/3lNHf95TR3/eU0d/3lNHf95TR3/eU0d/3lNHf9vQAz/aDcA/1kuANlyPgDpaDcA/5+A
+Xf/k29H/5NvR/+Tb0f/k29H/5NvR/+Tb0f/k29H/5NvR/+Tb0f/k29H/l3VP/2g3AP9cLwDZd0EA
+y2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/
+XC8Au4RKAIloNwD/aDcA/8Gtlv+5o4n/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/uqOK/72okP9o
+NwD/aDcA/1ouAHmeXAAlcj4A+2g3AP+Vckv//v39/76pkf9vQAv/aDcA/2g3AP9yRRL/wa2W//38
++/+QbET/aDcA/2U1APdVLQAZ////AY5RAItpOAD/aDcA/51+Wv/39PH/9/Xy/9vQw//e08f/+vn3
+//Tw7P+XdlD/aDcA/2g3AP9kNAB7////Af///wGyZgAFik8AtWk4AP9oNwD/c0US/6OFY/+6o4r/
+uKKI/5+AXf9wQg7/aDcA/2g3AP9rOQCnXz8AA////wH///8B////AbJyAAWSVQCLdD8A+2g3AP9o
+NwD/aDcA/2g3AP9oNwD/aDcA/247APl0QAB/fzMAA////wH///8B////Af///wH///8B////Aaxm
+ACWPUgCJgEgAy3tEAOl6QwDpekQAx4BIAIOKTQAf////Af///wH///8B////AQAA//8AAP//AAD/
+/wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8AAP//AAD//wAA//8oAAAA
+IAAAAEAAAAABACAAAAAAAIAQAAAAAAAAAAAAAAAAAAAAAAAA////Af///wH///8B////Af///wH/
+//8B////Af///wH///8B////Af///wErEQAdMBUAXzcZAI88HACtPh0AvT0cALs5GwCrMhYAiSwU
+AFcwGAAV////Af///wH///8B////Af///wH///8B////Af///wH///8B////Af///wH///8B////
+Af///wH///8B////Af///wH///8B////ATMAAAU3GgBhRCEAyVIqAP9fMQD/ZTUA/2c3AP9oNwD/
+aDcA/2c2AP9kNQD/Wy8A/0olAP06GwC7LxIAUQAAAAP///8B////Af///wH///8B////Af///wH/
+//8B////Af///wH///8B////Af///wH///8B////Af///wE+HQBPTCYA3V8yAP9nNwD/aDcA/2g3
+AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2c2AP9XLQD/PRwAzysRADv///8B////
+Af///wH///8B////Af///wH///8B////Af///wH///8B////Af///wE/HwAJSSUAnV0wAP9oNwD/
+aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9m
+NgD/TicA/TEXAIUAAAAD////Af///wH///8B////Af///wH///8B////Af///wH///8BPx8AEVEp
+AMVkNQD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2o6BP9zRhP/dEYU/2o6BP9oNwD/aDcA
+/2g3AP9oNwD/aDcA/2g3AP9oNwD/Wy8A/zcYAK8kAAAH////Af///wH///8B////Af///wH///8B
+////AUwZAAtVKwDHZjYA/2g3AP9oNwD/aDcA/2g3AP9oOAH/kW1F/8Wynf/p4tr//fz8////////
+/////f38/+ni2v/EsZv/jmlA/2g3AP9oNwD/aDcA/2g3AP9oNwD/XjEA/zcYAK8AAAAD////Af//
+/wH///8B////Af///wH///8BWCwApWY2AP9oNwD/aDcA/2g3AP9oNwD/g1su/9/UyP//////////
+////////////////////////////////////////////29DD/4FZK/9oNwD/aDcA/2g3AP9oNwD/
+XC8A/zMXAIX///8B////Af///wH///8B////AVgtAFlkNQD/aDcA/2g3AP9oNwD/aDcA/5Z0Tv/6
++Pb////////////9/fz/2c3A/7ihiP+rj3H/rpR2/8KumP/o4dn/////////////////+fj2/5p5
+VP9oNwD/aDcA/2g3AP9oNwD/UCgA/S8VADv///8B////Af///wFcLgALYjQA52g3AP9oNwD/aDcA
+/2g3AP+MZz3/+/r4////////////z8Cu/3xSIv9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP+KZDn/
+2Mu9/////////////fz8/5d1T/9oNwD/aDcA/2g3AP9nNgD/Ph4AzwAAAAP///8B////AWIzAHNo
+NwD/aDcA/2g3AP9oNwD/ckUR/+/q5f///////////7GYe/9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3
+AP9oNwD/aDcA/2g3AP9oOAH/r5V4////////////9/Tx/3tRIf9oNwD/aDcA/2g3AP9ZLgD/LxYA
+Uf///wH///8BZzYA22g3AP9oNwD/aDcA/2g3AP+/q5P////////////ArJX/aDcA/2g3AP9oNwD/
+aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/tp+E////////////08W1/2g3AP9o
+NwD/aDcA/2c2AP8+HQC7////AWk3ADNqOQD/aDcA/2g3AP9oNwD/dkkX//v6+P//////8Ovl/24/
+C/9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9qOQP/3NHF
+//z7+v/Crpj/azsF/2g3AP9oNwD/aDcA/04nAP0wGAAVcT4Ad2o4AP9oNwD/aDcA/2g3AP+pjW7/
+//////////+wl3r/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9o
+NwD/aDcA/2g3AP99UiP/flQk/2g3AP9oNwD/aDcA/2g3AP9oNwD/XjEA/zIXAFd1QACpaDcA/2g3
+AP9oNwD/aDcA/9HCsf///////////4BXKf9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA
+/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9lNQD/
+PBwAiXdBAMtoNwD/aDcA/2g3AP9oNwD/6uPb///////49vT/aTgB/2g3AP9oNwD/aDcA/2g3AP9o
+NwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3
+AP9oNwD/aDcA/2c3AP9DIQCreUMA22g3AP9oNwD/aDcA/2g3AP/18u7///////Dr5f+KZDr/imQ6
+/4pkOv+KZDr/imQ6/4pkOv+KZDr/imQ6/4pkOv+KZDr/imQ6/4pkOv+KZDr/imQ6/4pkOv+KZDr/
+imQ6/4pkOv+EXDD/aDcA/2g3AP9oNwD/aDcA/0gjALt9RQDdaDcA/2g3AP9oNwD/aDcA//Pv6///
+////////////////////////////////////////////////////////////////////////////
+/////////////////////////////9/Vyf9oNwD/aDcA/2g3AP9oNwD/SyUAvYFJAM1oNwD/aDcA
+/2g3AP9oNwD/uqSL/8m4pP/JuKT/ybik/8m4pP/JuKT/ybik/8m4pP/JuKT/ybik/8m4pP/JuKT/
+ybik/8m4pP/JuKT/ybik/8m4pP/JuKT/ybik/8m4pP/JuKT/rZN1/2g3AP9oNwD/aDcA/2g3AP9M
+JgCtiU0Ar2k4AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3
+AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA
+/2g3AP9oNwD/ZzYA/0slAI+RVAB/bTsA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/
+aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9o
+NwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9kNAD/SSMAX5pbAD15QwD/aDcA/2g3AP9oNwD/aDgB/6SG
+Zf+ojGz/qIxs/3NGE/9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA
+/2g3AP93Shn/qIxs/6iMbP+ff1z/aDcA/2g3AP9oNwD/aDcA/14xAP9GIwAdqlUAA4tPAOVoNwD/
+aDcA/2g3AP9oNwD/uqSL////////////zLup/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9o
+NwD/aDcA/2g3AP9oNwD/aDcA/8q5pv///////////7GXe/9oNwD/aDcA/2g3AP9oNwD/WS0Ayf//
+/wH///8BnFwAgXA9AP9oNwD/aDcA/2g3AP9xQg//7+rk////////////uaKJ/2k4Af9oNwD/aDcA
+/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2o6A/+7pY3////////////p4tv/bT4J/2g3AP9oNwD/
+aDcA/2Y2AP9VLQBh////Af///wGuXQATjE8A8Wg3AP9oNwD/aDcA/2g3AP+MZjz/+/n4////////
+////18u8/4RcL/9oNwD/aDcA/2g3AP9oNwD/aDcA/2k4Af+Sb0f/4dfM////////////9/Tx/4Rc
+L/9oNwD/aDcA/2g3AP9oNwD/XzIA3WYzAAX///8B////Af///wGmYQBveEIA/2g3AP9oNwD/aDcA
+/2g3AP+Uckv/+ff0/////////////////+LZzv/ArJX/sZh7/7Oafv/HtKD/7efg////////////
+//////Pw6/+KZDn/aDcA/2g3AP9oNwD/aDcA/2c2AP9bMQBP////Af///wH///8B////Af9/AAOe
+XQC9bzwA/2g3AP9oNwD/aDcA/2g3AP+CWiz/39XJ////////////////////////////////////
+///////////////////TxbX/ek4e/2g3AP9oNwD/aDcA/2g3AP9pOAD/ZDUAnf///wH///8B////
+Af///wH///8B////AbJmABWZWgDbbToA/2g3AP9oNwD/aDcA/2g3AP9pOAH/lHFK/8u6p//x7Of/
+/////////////////v7+/+rk3P/Cr5j/iWM4/2g3AP9oNwD/aDcA/2g3AP9oNwD/aTgA/2o4AMVf
+PwAJ////Af///wH///8B////Af///wH///8B////AbJuAB+aWgDbbzwA/2g3AP9oNwD/aDcA/2g3
+AP9oNwD/aDcA/2g3AP9wQg7/ek8f/3lOHf9tPgn/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA
+/2s5AP9wPQDHbz8AEf///wH///8B////Af///wH///8B////Af///wH///8B////AbJyABWiYAC9
+ekQA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9o
+NwD/aDcA/2g3AP9wPQD/dkIApX8zAAv///8B////Af///wH///8B////Af///wH///8B////Af//
+/wH///8B////Af9/AAOwagBvk1UA8XI+AP9oNwD/aDcA/2g3AP9oNwD/aDcA/2g3AP9oNwD/aDcA
+/2g3AP9oNwD/aDcA/2g3AP9vPAD/fEQA54BHAFn///8B////Af///wH///8B////Af///wH///8B
+////Af///wH///8B////Af///wH///8B////Af///wG7awATq2YAgZdXAOWASAD/cDwA/2k4AP9o
+NwD/aDcA/2g3AP9oNwD/aTgA/288AP95QwD/hEoA24pOAHOLRQAL////Af///wH///8B////Af//
+/wH///8B////Af///wH///8B////Af///wH///8B////Af///wH///8B////Af///wH///8BqlUA
+A7NsAD2pZQB/n10Ar5ZXAM2SUwDdkFIA25FTAMuTVgCpmFcAd5taADP///8B////Af///wH///8B
+////Af///wH///8B////Af///wH///8B////AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACw==</value></data><data name="$this.Font" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5Gb250BAAAAAROYW1lBFNpemUFU3R5bGUEVW5pdAEABAQLGFN5c3RlbS5EcmF3
+aW5nLkZvbnRTdHlsZQIAAAAbU3lzdGVtLkRyYXdpbmcuR3JhcGhpY3NVbml0AgAAAAIAAAAGAwAA
+AAhTZWdvZSBVSQAAQEEF/P///xhTeXN0ZW0uRHJhd2luZy5Gb250U3R5bGUBAAAAB3ZhbHVlX18A
+CAIAAAAAAAAABfv///8bU3lzdGVtLkRyYXdpbmcuR3JhcGhpY3NVbml0AQAAAAd2YWx1ZV9fAAgC
+AAAAAwAAAAs=</value></data><data name="aceptarButton.ImeMode" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+ABxTeXN0ZW0uV2luZG93cy5Gb3Jtcy5JbWVNb2RlAQAAAAd2YWx1ZV9fAAgCAAAAAAAAAAs=</value></data><data name="mensajeLabel.TabIndex" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"><value>4</value></data>
+  <data name="mensaje2Label.TextAlign" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAAB9TeXN0
+ZW0uRHJhd2luZy5Db250ZW50QWxpZ25tZW50AQAAAAd2YWx1ZV9fAAgCAAAAIAAAAAs=</value></data><data name="&gt;&gt;ExamenesComboBox.Parent" xml:space="preserve"><value>$this</value></data>
+  <data name="aceptarButton.Text" xml:space="preserve"><value>Aceptar</value></data>
+  <data name="aceptarButton.Size" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5TaXplAgAAAAV3aWR0aAZoZWlnaHQAAAgIAgAAAHoAAAAtAAAACw==</value></data><data name="cancelarButton.FlatStyle" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+AB5TeXN0ZW0uV2luZG93cy5Gb3Jtcy5GbGF0U3R5bGUBAAAAB3ZhbHVlX18ACAIAAAAAAAAACw==</value></data><data name="$this.ClientSize" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5TaXplAgAAAAV3aWR0aAZoZWlnaHQAAAgIAgAAAKoBAAD+AAAACw==</value></data><data name="mensajeLabel.Text" xml:space="preserve"><value>msj1</value></data>
+  <data name="mensajeLabel.Size" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5TaXplAgAAAAV3aWR0aAZoZWlnaHQAAAgIAgAAAKsBAAAVAAAACw==</value></data><data name="&gt;&gt;mensajeLabel.Type" xml:space="preserve"><value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></data>
+  <data name="&gt;&gt;mensajeLabel.Name" xml:space="preserve"><value>mensajeLabel</value></data>
+  <data name="$this.Margin" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+ABxTeXN0ZW0uV2luZG93cy5Gb3Jtcy5QYWRkaW5nBQAAAARfYWxsBF90b3AFX2xlZnQGX3JpZ2h0
+B19ib3R0b20AAAAAAAEICAgIAgAAAAAFAAAABAAAAAQAAAAFAAAACw==</value></data><data name="mensaje2Label.TabIndex" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"><value>0</value></data>
+  <data name="cancelarButton.Location" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABRTeXN0
+ZW0uRHJhd2luZy5Qb2ludAIAAAABeAF5AAAICAIAAAAkAQAAxQAAAAs=</value></data><data name="&gt;&gt;cancelarButton.ZOrder" xml:space="preserve"><value>0</value></data>
+  <data name="cancelarButton.Size" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5TaXplAgAAAAV3aWR0aAZoZWlnaHQAAAgIAgAAAHoAAAAtAAAACw==</value></data><data name="cancelarButton.Text" xml:space="preserve"><value>Cancelar</value></data>
+  <data name="&gt;&gt;mensajeLabel.Parent" xml:space="preserve"><value>$this</value></data>
+  <data name="&gt;&gt;cancelarButton.Parent" xml:space="preserve"><value>$this</value></data>
+  <data name="&gt;&gt;cancelarButton.Name" xml:space="preserve"><value>cancelarButton</value></data>
+  <data name="&gt;&gt;cancelarButton.Type" xml:space="preserve"><value>System.Windows.Forms.Button, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></data>
+  <data name="mensajeLabel.ImeMode" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+ABxTeXN0ZW0uV2luZG93cy5Gb3Jtcy5JbWVNb2RlAQAAAAd2YWx1ZV9fAAgCAAAAAAAAAAs=</value></data><data name="mensajeLabel.Location" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABRTeXN0
+ZW0uRHJhd2luZy5Qb2ludAIAAAABeAF5AAAICAIAAAD/////MgAAAAs=</value></data><data name="mensaje2Label.Location" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABRTeXN0
+ZW0uRHJhd2luZy5Qb2ludAIAAAABeAF5AAAICAIAAAAAAAAASAAAAAs=</value></data><data name="&gt;&gt;mensajeLabel.ZOrder" xml:space="preserve"><value>2</value></data>
+  <data name="aceptarButton.FlatStyle" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+AB5TeXN0ZW0uV2luZG93cy5Gb3Jtcy5GbGF0U3R5bGUBAAAAB3ZhbHVlX18ACAIAAAAAAAAACw==</value></data><data name="&gt;&gt;ExamenesComboBox.Type" xml:space="preserve"><value>System.Windows.Forms.ComboBox, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></data>
+  <data name="&gt;&gt;ExamenesComboBox.Name" xml:space="preserve"><value>ExamenesComboBox</value></data>
+  <data name="ExamenesComboBox.Location" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABRTeXN0
+ZW0uRHJhd2luZy5Qb2ludAIAAAABeAF5AAAICAIAAAAMAAAAcgAAAAs=</value></data><data name="&gt;&gt;mensaje2Label.Name" xml:space="preserve"><value>mensaje2Label</value></data>
+  <data name="&gt;&gt;mensaje2Label.Type" xml:space="preserve"><value>System.Windows.Forms.Label, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></data>
+  <data name="&gt;&gt;mensaje2Label.Parent" xml:space="preserve"><value>$this</value></data>
+  <data name="ExamenesComboBox.Size" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5TaXplAgAAAAV3aWR0aAZoZWlnaHQAAAgIAgAAAJIBAAAdAAAACw==</value></data><data name="&gt;&gt;mensaje2Label.ZOrder" xml:space="preserve"><value>4</value></data>
+  <data name="&gt;&gt;$this.Name" xml:space="preserve"><value>Seleccionar</value></data>
+  <data name="&gt;&gt;$this.Type" xml:space="preserve"><value>System.Windows.Forms.Form, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></data>
+  <data name="cancelarButton.TabIndex" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"><value>6</value></data>
+  <data name="$this.StartPosition" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+ACZTeXN0ZW0uV2luZG93cy5Gb3Jtcy5Gb3JtU3RhcnRQb3NpdGlvbgEAAAAHdmFsdWVfXwAIAgAA
+AAEAAAAL</value></data><data name="mensaje2Label.Text" xml:space="preserve"><value>msj2</value></data>
+  <data name="mensaje2Label.Size" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABNTeXN0
+ZW0uRHJhd2luZy5TaXplAgAAAAV3aWR0aAZoZWlnaHQAAAgIAgAAAKsBAAAVAAAACw==</value></data><data name="&gt;&gt;aceptarButton.ZOrder" xml:space="preserve"><value>1</value></data>
+  <data name="ExamenesComboBox.TabIndex" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"><value>1</value></data>
+  <data name="$this.AutoScaleDimensions" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABRTeXN0
+ZW0uRHJhd2luZy5TaXplRgIAAAAFd2lkdGgGaGVpZ2h0AAALCwIAAAAAABBBAACoQQs=</value></data><data name="aceptarButton.Location" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFFTeXN0ZW0uRHJhd2luZywgVmVyc2lvbj00LjAuMC4wLCBD
+dWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWIwM2Y1ZjdmMTFkNTBhM2EFAQAAABRTeXN0
+ZW0uRHJhd2luZy5Qb2ludAIAAAABeAF5AAAICAIAAAAMAAAAxQAAAAs=</value></data><data name="&gt;&gt;aceptarButton.Name" xml:space="preserve"><value>aceptarButton</value></data>
+  <data name="&gt;&gt;aceptarButton.Type" xml:space="preserve"><value>System.Windows.Forms.Button, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></data>
+  <data name="mensaje2Label.Margin" mimetype="application/x-microsoft.net.object.binary.base64"><value>AAEAAAD/////AQAAAAAAAAAMAgAAAFdTeXN0ZW0uV2luZG93cy5Gb3JtcywgVmVyc2lvbj00LjAu
+MC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODkFAQAA
+ABxTeXN0ZW0uV2luZG93cy5Gb3Jtcy5QYWRkaW5nBQAAAARfYWxsBF90b3AFX2xlZnQGX3JpZ2h0
+B19ib3R0b20AAAAAAAEICAgIAgAAAAAAAAAABAAAAAQAAAAAAAAACw==</value></data><data name="&gt;&gt;aceptarButton.Parent" xml:space="preserve"><value>$this</value></data>
+  </root>

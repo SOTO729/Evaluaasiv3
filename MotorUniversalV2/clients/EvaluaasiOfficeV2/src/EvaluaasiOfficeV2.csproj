@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{C80C0532-93EB-48FA-8210-9F04ADE5A5D2}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>CulturaDigital</RootNamespace>
+    <AssemblyName>EvaluaasiOfficeV2</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+    <LangVersion>10.0</LangVersion>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="iTextSharp">
+      <HintPath>..\packages\iTextSharp.5.5.13.3\lib\itextsharp.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Gma.QrCodeNet.Encoding.Net35">
+      <HintPath>lib\Gma.QrCodeNet.Encoding.Net35.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="**\*.cs" Exclude="bin\**;obj\**;packages\**;lib\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="CulturaDigital.Forms.AvisoPrivacidad.resx">
+      <DependentUpon>CulturaDigital.Forms\AvisoPrivacidad.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Forms.CulturaDigital_Examen.resx">
+      <DependentUpon>CulturaDigital.Forms\CulturaDigital_Examen.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Forms.CulturaDigital_Finalizar.resx">
+      <DependentUpon>CulturaDigital.Forms\CulturaDigital_Finalizar.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Forms.CulturaDigital_Inicio.resx">
+      <DependentUpon>CulturaDigital.Forms\CulturaDigital_Inicio.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Forms.Help.resx">
+      <DependentUpon>CulturaDigital.Forms\Help.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Forms.Question.resx">
+      <DependentUpon>CulturaDigital.Forms\Question.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Forms.Seleccionar.resx">
+      <DependentUpon>CulturaDigital.Forms\Seleccionar.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="CulturaDigital.Properties.Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="app.ico" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
