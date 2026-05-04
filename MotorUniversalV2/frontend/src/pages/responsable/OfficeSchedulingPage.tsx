@@ -10,6 +10,7 @@ import {
   getVmSessions,
   createVmSession,
   cancelVmSession,
+  bulkCancelVmSessions,
   bulkCreateSessions,
   getGroupCandidates,
   type VmSession,
@@ -467,11 +468,10 @@ export default function OfficeSchedulingPage() {
     if (!cancelBatch || cancelBatch.length === 0) return;
     setCancelBatchLoading(true);
     try {
-      const results = await Promise.allSettled(
-        cancelBatch.map(s => cancelVmSession(s.id))
-      );
-      const failed = results.filter(r => r.status === 'rejected').length;
-      const ok = results.length - failed;
+      const ids = cancelBatch.map(s => s.id);
+      const result = await bulkCancelVmSessions(ids);
+      const ok = result.cancelled_ids?.length ?? 0;
+      const failed = ids.length - ok;
       setCancelBatch(null);
       setDetailFilter(null);
       if (failed === 0) {

@@ -2,7 +2,8 @@
  * StyledSelect - Componente de select estilizado con dropdown personalizado
  * Diseño consistente con DatePickerInput para uniformidad visual
  */
-import { forwardRef, useState, useRef, useEffect } from 'react';
+import { forwardRef, useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check, LucideIcon } from 'lucide-react';
 
 export interface SelectOption {
@@ -99,15 +100,20 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
   name,
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const [openUpward, setOpenUpward] = useState(false);
+  const [listMaxHeight, setListMaxHeight] = useState(240);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const colors = colorClasses[colorScheme];
 
-  // Cerrar dropdown al hacer clic fuera
+  // Cerrar dropdown al hacer clic fuera (considerando que el menú está en un portal)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inTrigger = triggerRef.current?.contains(target);
+      const inMenu = dropdownRef.current?.contains(target);
+      if (!inTrigger && !inMenu) {
         setIsOpen(false);
       }
     };
@@ -116,20 +122,63 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Decidir si abrir hacia arriba según espacio disponible (auto-flip)
-  useEffect(() => {
-    if (!isOpen || !triggerRef.current) return;
+  // Calcular posición y tamaño del menú a partir del trigger (fixed positioning)
+  const recomputeMenuPosition = () => {
+    if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    // Altura máx estimada del dropdown (header ~40 + lista 240 + padding)
-    const dropdownEstimate = 300;
-    if (spaceBelow < dropdownEstimate && spaceAbove > spaceBelow) {
-      setOpenUpward(true);
+    const viewportH = window.innerHeight;
+    const viewportW = window.innerWidth;
+    const margin = 8;
+    const headerEstimate = 40;
+    const optionHeight = 48;
+    const desiredListH = Math.min(
+      headerEstimate + Math.max(options.length + (required ? 0 : 1), 1) * optionHeight,
+      headerEstimate + 240,
+    );
+
+    const spaceBelow = viewportH - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const upward = spaceBelow < Math.min(desiredListH, 200) && spaceAbove > spaceBelow;
+    setOpenUpward(upward);
+
+    const available = upward ? spaceAbove : spaceBelow;
+    const listMax = Math.max(120, Math.min(available - headerEstimate, 320));
+    setListMaxHeight(listMax);
+
+    const width = Math.min(rect.width, viewportW - 16);
+    const left = Math.max(8, Math.min(rect.left, viewportW - width - 8));
+
+    if (upward) {
+      setMenuStyle({
+        position: 'fixed',
+        top: Math.max(8, rect.top - 4 - (headerEstimate + listMax)),
+        left,
+        width,
+        zIndex: 9999,
+      });
     } else {
-      setOpenUpward(false);
+      setMenuStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left,
+        width,
+        zIndex: 9999,
+      });
     }
-  }, [isOpen]);
+  };
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    recomputeMenuPosition();
+    const handler = () => recomputeMenuPosition();
+    window.addEventListener('scroll', handler, true);
+    window.addEventListener('resize', handler);
+    return () => {
+      window.removeEventListener('scroll', handler, true);
+      window.removeEventListener('resize', handler);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, options.length]);
 
   // Cerrar con Escape
   useEffect(() => {
@@ -183,14 +232,13 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
         />
       </button>
 
-      {/* Dropdown menu */}
-      {isOpen && (
-        <div 
+      {/* Dropdown menu (renderizado en portal para evitar recortes por overflow:hidden) */}
+      {isOpen && createPortal(
+        <div
           ref={dropdownRef}
-          className={`absolute z-50 w-full bg-white rounded-fluid-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in duration-200 ${
-            openUpward
-              ? 'bottom-full mb-1 slide-in-from-bottom-2'
-              : 'top-full mt-1 slide-in-from-top-2'
+          style={menuStyle}
+          className={`bg-white rounded-fluid-xl shadow-xl border border-gray-200 overflow-hidden animate-in fade-in duration-200 ${
+            openUpward ? 'slide-in-from-bottom-2' : 'slide-in-from-top-2'
           }`}
         >
           {/* Header con gradiente como el calendario */}
@@ -199,9 +247,9 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
               {placeholder}
             </span>
           </div>
-          
+
           {/* Options list */}
-          <div className="max-h-60 overflow-y-auto">
+          <div className="overflow-y-auto" style={{ maxHeight: listMaxHeight }}>
             {!required && (
               <button
                 type="button"
@@ -232,7 +280,8 @@ const StyledSelect = forwardRef<HTMLDivElement, StyledSelectProps>(({
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

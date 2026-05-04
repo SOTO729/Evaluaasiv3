@@ -47,6 +47,10 @@ const PendingExamsPage = lazy(() => import('./pages/exams/PendingExamsPage'))
 
 // Downloads
 const OfficeDownloadsPage = lazy(() => import('./pages/downloads/OfficeDownloadsPage'))
+const OfficeAppsAdminPage = lazy(() => import('./pages/admin/OfficeAppsAdminPage'))
+const OfficeResultsAuditPage = lazy(() => import('./pages/admin/OfficeResultsAuditPage'))
+const MisExamenesOfficePage = lazy(() => import('./pages/candidato/MisExamenesOfficePage'))
+const MiSesionOfficePage = lazy(() => import('./pages/candidato/MiSesionOfficePage'))
 
 // Study Contents
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
@@ -400,6 +404,10 @@ function App() {
 
               {/* Downloads - Accesible para candidatos, responsables y admin */}
               <Route path="/downloads" element={<OfficeDownloadsPage />} />
+              <Route path="/admin/office-apps" element={<OfficeAppsAdminPage />} />
+              <Route path="/admin/office-results" element={<OfficeResultsAuditPage />} />
+              <Route path="/mis-examenes-office" element={<MisExamenesOfficePage />} />
+              <Route path="/mi-sesion-office" element={<MiSesionOfficePage />} />
               
               {/* Badges (Insignias Digitales) - Permitido para admin, developer, coordinator, editor */}
               <Route path="/badges/templates" element={<RestrictedForGerenteFinOnly><BadgeTemplatesPage /></RestrictedForGerenteFinOnly>} />

@@ -490,6 +490,41 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
+                {['admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/admin/office-apps"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/admin/office-apps')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Office Apps
+                  </Link>
+                )}
+                {[
+                  'admin',
+                  'developer',
+                  'gerente',
+                  'financiero',
+                  'soporte',
+                  'coordinator',
+                  'auxiliar',
+                  'responsable',
+                  'responsable_partner',
+                  'responsable_estatal',
+                ].includes(user?.role ?? '') && (
+                  <Link
+                    to="/admin/office-results"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/admin/office-results')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Resultados Office
+                  </Link>
+                )}
                 {user?.role === 'candidato' && candidatoBrandingData?.enable_session_calendar && !hideCandidatoSessions && (
                   <Link 
                     to="/vm-sessions" 
@@ -512,6 +547,30 @@ const Layout = ({ children }: LayoutProps) => {
                     }`}
                   >
                     Descargas
+                  </Link>
+                )}
+                {user?.role === 'candidato' && (
+                  <Link
+                    to="/mi-sesion-office"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/mi-sesion-office')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Mi sesión Office
+                  </Link>
+                )}
+                {user?.role === 'candidato' && (
+                  <Link
+                    to="/mis-examenes-office"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/mis-examenes-office')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Mis exámenes Office
                   </Link>
                 )}
                 {user?.role !== 'candidato' && user?.role !== 'coordinator' && user?.role !== 'responsable' && user?.role !== 'responsable_partner' && user?.role !== 'responsable_estatal' && user?.role !== 'gerente' && user?.role !== 'financiero' && user?.role !== 'soporte' && (

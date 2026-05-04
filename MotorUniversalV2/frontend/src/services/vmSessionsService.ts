@@ -121,6 +121,18 @@ export async function cancelVmSession(sessionId: number, reason?: string): Promi
   return response.data;
 }
 
+/** Cancelar varias sesiones en una sola transacción */
+export async function bulkCancelVmSessions(
+  sessionIds: number[],
+  reason?: string,
+): Promise<{ message: string; cancelled_ids: number[]; skipped: { id: number; reason: string }[] }> {
+  const response = await api.post('/vm-sessions/sessions/bulk-cancel', {
+    session_ids: sessionIds,
+    reason,
+  });
+  return response.data;
+}
+
 /** Actualizar estado de una sesión (solo admin/coordinator) */
 export async function updateVmSessionStatus(
   sessionId: number,
@@ -416,5 +428,63 @@ export interface VdiConnectResult {
 /** Conectar a VDI vía Guacamole SSO (candidato/responsable/admin) */
 export async function connectToVdi(sessionId: number): Promise<VdiConnectResult> {
   const response = await api.post(`/vm-sessions/sessions/${sessionId}/connect`);
+  return response.data;
+}
+
+
+// --- Mi sesi�n Office -----------------------------------------------
+
+export interface MyOfficeSessionApp {
+  id: number;
+  app_name: string;
+  app_type: string;
+  min_version: string | null;
+  latest_version: string | null;
+  download_url: string | null;
+  is_active: boolean;
+}
+
+export interface MyOfficeSessionSession {
+  id: number;
+  session_date: string;
+  start_hour: number;
+  end_hour: number | null;
+  status: string;
+  session_type: string;
+  office_app: string | null;
+  office_version: string | null;
+  level: string | null;
+  parcial_units: string | null;
+  is_local: boolean;
+  workstation_id: number | null;
+  workstation_name: string | null;
+  workstation_color: string | null;
+  ad_username: string | null;
+  ad_password: string | null;
+  pin: string | null;
+  notes: string | null;
+  starts_in_seconds: number;
+}
+
+export interface MyOfficeSessionResponse {
+  has_session: boolean;
+  enabled: boolean;
+  message?: string;
+  config?: {
+    enable_office_exams: boolean;
+    enable_office_simulators: boolean;
+    enable_partial_evaluations: boolean;
+    office_version: string;
+  };
+  campus?: { id: number; name: string } | null;
+  group?: { id: number; name: string } | null;
+  session?: MyOfficeSessionSession | null;
+  recent_results?: any[];
+  apps_catalog?: MyOfficeSessionApp[];
+  server_time?: string;
+}
+
+export async function getMyOfficeSession(): Promise<MyOfficeSessionResponse> {
+  const response = await api.get('/vm-sessions/my-office-session');
   return response.data;
 }

@@ -10,7 +10,8 @@ ENV/
 build/
 develop-eggs/
 dist/
-downloads/
+backend/downloads/
+!frontend/src/pages/downloads/
 eggs/
 .eggs/
 lib/

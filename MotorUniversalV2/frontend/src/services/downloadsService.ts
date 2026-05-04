@@ -40,4 +40,22 @@ export const downloadsService = {
     const { data } = await api.delete(`/downloads/office-apps/${id}`)
     return data
   },
+
+  /** (Admin) Subir archivo binario (EXE/MSI/ZIP) a Azure Blob y obtener URL */
+  async uploadOfficeAppFile(
+    file: File,
+    onProgress?: (pct: number) => void
+  ): Promise<{ url: string; filename: string; size_bytes: number }> {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post('/downloads/office-apps/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (evt) => {
+        if (onProgress && evt.total) {
+          onProgress(Math.round((evt.loaded * 100) / evt.total))
+        }
+      },
+    })
+    return data
+  },
 }
