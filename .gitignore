@@ -2,3 +2,53 @@ MotorUniversalV2/backend-deploy.zip
 Certificados_Grupo_Emergencia_Educare.zip
 function_app.py
 ActiveDirectoryUsers/
+
+# Visual Studio / IDE
+.vs/
+*.suo
+*.user
+
+# Build artifacts cliente .NET
+MotorUniversalV2/clients/EvaluaasiOfficeV2/src/bin/
+MotorUniversalV2/clients/EvaluaasiOfficeV2/src/obj/
+MotorUniversalV2/clients/EvaluaasiOfficeV2/packages/
+
+# Carpetas de samples / referencia (binarios pesados)
+_office2016_sim/
+_exams_sims_office/
+_parciales_office/
+_rama_secundaria_avanzado/
+
+# Scripts ad-hoc en raiz (auditorias, fixes locales, demos)
+audit_*.py
+audit_*.txt
+audit_results.txt
+audit_utf8.txt
+db_audit*.py
+db_audit.sql
+analyze_future_items.py
+check_admin.py
+check_pwd.py
+cleanup_*.py
+debug_cols.py
+find_users.py
+fix_*.py
+migrate_scalability.py
+test_post_fixes.py
+test_soap.ps1
+test_soap_quick.ps1
+demo_hexedit.ps1
+search_url_in_exe.ps1
+exe_search_results.txt
+DEMO_hexedit_Excel2019.exe
+.last_tag.txt
+
+# Backend ad-hoc
+MotorUniversalV2/backend/audit_*.py
+MotorUniversalV2/backend/audit_*.json
+MotorUniversalV2/backend/cleanup_*.py
+MotorUniversalV2/backend/_inv.py
+
+# XAE artefacto local
+MotorUniversalV2/clients/EvaluaasiOfficeV2/test_*.xae
+MotorUniversalV2/clients/EvaluaasiOfficeV2/*.xae
