@@ -1836,6 +1836,30 @@ def check_and_create_office_tables():
             if 'already' not in str(e).lower() and 'duplicate' not in str(e).lower():
                 print(f"  ⚠ group_exam_id en office_exam_results: {e}")
 
+        # Columna xml_blob_url para almacenar URL del XML respaldado en Azure Blob (UpXML2016)
+        try:
+            cols_oer2 = [r[0].lower() for r in db.session.execute(text(
+                "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='office_exam_results'"
+                if db_type == 'mssql' else
+                "PRAGMA table_info(office_exam_results)"
+            )).fetchall()]
+            if db_type != 'mssql':
+                cols_oer2 = [r[1].lower() for r in db.session.execute(text("PRAGMA table_info(office_exam_results)")).fetchall()]
+            if 'xml_blob_url' not in cols_oer2:
+                col_type = 'NVARCHAR(500)' if db_type == 'mssql' else 'TEXT'
+                db.session.execute(text(f"ALTER TABLE office_exam_results ADD xml_blob_url {col_type} NULL"))
+                db.session.commit()
+                print("  ✓ Columna xml_blob_url agregada a office_exam_results")
+            if 'badge_uuid' not in cols_oer2:
+                col_type2 = 'NVARCHAR(36)' if db_type == 'mssql' else 'VARCHAR(36)'
+                db.session.execute(text(f"ALTER TABLE office_exam_results ADD badge_uuid {col_type2} NULL"))
+                db.session.commit()
+                print("  ✓ Columna badge_uuid agregada a office_exam_results")
+        except Exception as e:
+            db.session.rollback()
+            if 'already' not in str(e).lower() and 'duplicate' not in str(e).lower():
+                print(f"  ⚠ xml_blob_url/badge_uuid en office_exam_results: {e}")
+
         try:
             cols_vb6 = [r[0].lower() for r in db.session.execute(text(
                 "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='vb6_session_tokens'"
@@ -1952,6 +1976,63 @@ def check_and_add_vm_session_ad_password():
         else:
             print(f"  ❌ Error: {e}")
             db.session.rollback()
+
+
+def check_and_fix_vm_session_unique_slot():
+    """Reemplaza la unique constraint global por un índice único filtrado.
+
+    El constraint original (user_id, session_date, start_hour) bloquea reagendar
+    en el mismo slot incluso si la sesión previa fue cancelada. Lo sustituimos
+    por un índice único FILTRADO sobre status='scheduled' (MSSQL) o por el
+    UniqueConstraint normal en SQLite (con un cleanup periódico).
+    """
+    print("🔍 Verificando unicidad filtrada en vm_sessions...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'vm_sessions' not in tables:
+            print("  ⚠️  Tabla vm_sessions no existe, saltando...")
+            return
+
+        dialect = db.engine.dialect.name
+
+        if dialect in ('mssql', 'mssql+pymssql'):
+            # 1) Drop unique constraint si existe
+            db.session.execute(text("""
+                IF EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'uq_vm_session_user_slot'
+                      AND object_id = OBJECT_ID('vm_sessions')
+                )
+                BEGIN
+                    ALTER TABLE vm_sessions DROP CONSTRAINT uq_vm_session_user_slot
+                END
+            """))
+            db.session.commit()
+            print("  ✓ Constraint uq_vm_session_user_slot eliminada (si existía)")
+
+            # 2) Crear índice único filtrado (solo scheduled)
+            db.session.execute(text("""
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.indexes
+                    WHERE name = 'uq_vm_session_user_slot_active'
+                      AND object_id = OBJECT_ID('vm_sessions')
+                )
+                BEGIN
+                    CREATE UNIQUE INDEX uq_vm_session_user_slot_active
+                    ON vm_sessions(user_id, session_date, start_hour)
+                    WHERE status = 'scheduled'
+                END
+            """))
+            db.session.commit()
+            print("  ✓ Índice único filtrado uq_vm_session_user_slot_active listo")
+        else:
+            # SQLite: no soporta índices filtrados de la misma forma; dejamos
+            # la app validar duplicados (ya lo hace en create_session).
+            print(f"  ℹ️  Dialecto {dialect}: se omite cambio (validación a nivel app)")
+    except Exception as e:
+        print(f"  ❌ Error ajustando unicidad vm_sessions: {e}")
+        db.session.rollback()
 
 
 # ---------------------------------------------------------------------------

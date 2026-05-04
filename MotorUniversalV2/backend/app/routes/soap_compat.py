@@ -703,6 +703,20 @@ def _storage_upload(raw):
                 correct = sum(1 for a in answers if a.get('result') == '1')
                 result.total_questions = len(answers)
                 result.correct_answers = correct
+
+                # Respaldo del XML crudo en Azure Blob (auditable). No bloquear si falla.
+                try:
+                    from app.utils.azure_storage import azure_storage
+                    from datetime import datetime as _dt
+                    ts = _dt.utcnow().strftime('%Y%m%dT%H%M%SZ')
+                    blob_name = f"office-xml/{result.id}/{ts}.xml"
+                    xml_bytes = (raw or '').encode('utf-8') if isinstance(raw, str) else (raw or b'')
+                    blob_url = azure_storage.upload_bytes(xml_bytes, blob_name, content_type='application/xml')
+                    if blob_url and hasattr(result, 'xml_blob_url'):
+                        result.xml_blob_url = blob_url
+                except Exception as _blob_err:
+                    print(f"[UpXML2016] WARN no se pudo subir XML a blob: {_blob_err}")
+
                 db.session.commit()
                 success = True
 
@@ -1210,18 +1224,61 @@ def licencias_asmx():
 
 def _verificar_licencia(raw):
     """
-    VerificarLicencia — valida licencia del EXE.
-    En MotorV2 siempre retorna licencia válida (la licencia la controla la asignación).
-    VB6 parsea: <VerificarLicenciaResult>true|false</VerificarLicenciaResult>
+    VerificarLicencia — valida licencia del EXE contra catálogo OfficeAppVersion.
+
+    Reglas:
+      - Si NO hay app activa en catálogo (catálogo vacío) → permitir (compat legacy).
+      - Si el subsistema/AppId coincide con un OfficeAppVersion is_active=True → permitir.
+      - Si coincide pero is_active=False → bloquear.
+      - Si min_version definido y la versión enviada es menor → bloquear.
+      - Si no hay coincidencia y catálogo no vacío → permitir igual (no bloqueamos EXEs legacy desconocidos para mantener coexistencia).
     """
     NS = _get_ns()
-    subsistema = _extract_soap_value(raw, 'SubSistema') or _extract_soap_value(raw, 'subsistema')
+    subsistema = (_extract_soap_value(raw, 'SubSistema') or
+                  _extract_soap_value(raw, 'subsistema') or
+                  _extract_soap_value(raw, 'AppId') or
+                  _extract_soap_value(raw, 'appId') or '').strip()
+    version = (_extract_soap_value(raw, 'Version') or
+               _extract_soap_value(raw, 'version') or '').strip()
     nombre_pc = _extract_soap_value(raw, 'NombrePC') or _extract_soap_value(raw, 'nombrePC')
 
-    # Siempre válida en MotorV2 — la asignación controla el acceso
+    valid = True
+    reason = None
+    try:
+        from app.models.office_exam import OfficeAppVersion
+        catalog = OfficeAppVersion.query.all()
+        if catalog:
+            match = None
+            sub_lower = subsistema.lower()
+            for app in catalog:
+                if app.app_name and app.app_name.lower() == sub_lower:
+                    match = app
+                    break
+            if match:
+                if not match.is_active:
+                    valid = False
+                    reason = 'app_inactive'
+                elif match.min_version and version:
+                    # Comparación lexicográfica simple por componentes numéricos
+                    def _ver_tuple(v):
+                        try:
+                            return tuple(int(p) for p in v.split('.') if p.isdigit())
+                        except Exception:
+                            return ()
+                    if _ver_tuple(version) < _ver_tuple(match.min_version):
+                        valid = False
+                        reason = 'version_too_old'
+            # Si no match: dejamos valid=True por compatibilidad
+    except Exception as e:
+        # Ante error de BD, permitir para no bloquear operación crítica
+        print(f"[VerificarLicencia] WARN: {e}")
+        valid = True
+
+    print(f"[VerificarLicencia] subsistema={subsistema!r} version={version!r} pc={nombre_pc!r} → {valid} ({reason})")
+
     body = (
         f'<VerificarLicenciaResponse xmlns="{NS}">'
-        '<VerificarLicenciaResult>true</VerificarLicenciaResult>'
+        f'<VerificarLicenciaResult>{"true" if valid else "false"}</VerificarLicenciaResult>'
         '</VerificarLicenciaResponse>'
     )
     return _soap_response(body)

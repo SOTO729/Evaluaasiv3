@@ -2,6 +2,7 @@
 Modelos para gestión de Partners, Planteles y Grupos
 """
 from datetime import datetime
+from sqlalchemy import event
 from app import db
 
 
@@ -705,6 +706,65 @@ class CandidateGroup(db.Model):
             data['school_cycle'] = self.school_cycle.to_dict()
             
         return data
+
+
+def _group_has_office_option(group):
+    """Devuelve True si el grupo tiene activada cualquier opción de Office."""
+    return bool(
+        group.enable_office_exams_override is True
+        or group.enable_office_simulators_override is True
+        or (group.office_version_override is not None and group.office_version_override != '')
+        or (group.office_exam_level_override is not None and group.office_exam_level_override != '')
+    )
+
+
+def _propagate_office_flag_to_campus(group):
+    """Si el grupo tiene cualquier opción de Office, garantiza que el campus
+    padre tenga `enable_office_exams=True`. Llamado desde event listeners
+    after_insert / after_update de CandidateGroup. No-op si la condición no
+    se cumple (no desactiva el flag para no pisar configuración manual)."""
+    if not _group_has_office_option(group):
+        return
+    if not group.campus_id:
+        return
+    campus = Campus.query.get(group.campus_id)
+    if campus is None:
+        return
+    if campus.enable_office_exams is True:
+        return
+    campus.enable_office_exams = True
+    db.session.add(campus)
+
+
+@event.listens_for(CandidateGroup, 'after_insert')
+def _candidate_group_after_insert(mapper, connection, target):
+    # Usamos session.add desde event listener via after_insert con
+    # el mecanismo de eventos differidos no es trivial: hacemos UPDATE directo
+    # para evitar reentrar al ORM y romper la transacción en curso.
+    if not _group_has_office_option(target):
+        return
+    if not target.campus_id:
+        return
+    connection.execute(
+        Campus.__table__.update()
+        .where(Campus.id == target.campus_id)
+        .where((Campus.enable_office_exams.is_(None)) | (Campus.enable_office_exams == False))
+        .values(enable_office_exams=True)
+    )
+
+
+@event.listens_for(CandidateGroup, 'after_update')
+def _candidate_group_after_update(mapper, connection, target):
+    if not _group_has_office_option(target):
+        return
+    if not target.campus_id:
+        return
+    connection.execute(
+        Campus.__table__.update()
+        .where(Campus.id == target.campus_id)
+        .where((Campus.enable_office_exams.is_(None)) | (Campus.enable_office_exams == False))
+        .values(enable_office_exams=True)
+    )
 
 
 class GroupMember(db.Model):

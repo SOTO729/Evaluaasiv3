@@ -682,47 +682,52 @@ def cancel_session(session_id):
     
     try:
         db.session.commit()
-        
-        # Limpiar usuario AD si fue provisionado
-        try:
-            session_user = User.query.get(session.user_id)
-            if session_user:
-                from app.services.ad_management_service import delete_ad_user
-                delete_ad_user(session_user.username)
-                logger.info(f"AD user {session_user.username} eliminado por cancelación de sesión {session_id}")
-        except Exception as e:
-            logger.warning(f"No se pudo eliminar usuario AD en cancelación: {e}")
-        
-        # Sincronizar cancelación a EvaluaasiConfig
-        if session.config_session_id:
+
+        # Las sesiones locales (Office en PC del candidato) nunca fueron
+        # provisionadas en AD ni en EvaluaasiConfig: saltamos esos pasos
+        # costosos (cada uno suma varios segundos) para acelerar la cancelación
+        # masiva.
+        if not session.is_local:
+            # Limpiar usuario AD si fue provisionado
             try:
-                from app.services.evaluaasi_config_service import cancel_config_session
-                cancel_config_session(session.config_session_id)
-                logger.info(f"Sesión {session.config_session_id} cancelada en EvaluaasiConfig")
+                session_user = User.query.get(session.user_id)
+                if session_user:
+                    from app.services.ad_management_service import delete_ad_user
+                    delete_ad_user(session_user.username)
+                    logger.info(f"AD user {session_user.username} eliminado por cancelación de sesión {session_id}")
             except Exception as e:
-                logger.error(f"Error cancelando sesión en EvaluaasiConfig: {e}")
-        
-        # Notificar al equipo de operaciones
-        try:
-            from app.services.email_service import send_vdi_session_notification
-            session_user = User.query.get(session.user_id)
-            campus_obj_notify = Campus.query.get(session.campus_id) if session.campus_id else None
-            candidate_name = f"{session_user.name or ''} {session_user.first_surname or ''}".strip() if session_user else ''
-            send_vdi_session_notification(
-                action='cancelled',
-                candidate_name=candidate_name,
-                candidate_username=session_user.username if session_user else '',
-                session_date=session.session_date.strftime('%d/%m/%Y'),
-                start_hour=session.start_hour,
-                workstation_name=session.workstation_name or '',
-                campus_name=campus_obj_notify.name if campus_obj_notify else '',
-                session_type=session.session_type or 'simulador',
-                cancelled_by=f"{user.name or ''} {user.first_surname or ''}".strip() or user.username,
-                cancellation_reason=data.get('reason', ''),
-            )
-        except Exception as e:
-            logger.warning(f"No se pudo enviar notificación VDI de cancelación: {e}")
-        
+                logger.warning(f"No se pudo eliminar usuario AD en cancelación: {e}")
+
+            # Sincronizar cancelación a EvaluaasiConfig
+            if session.config_session_id:
+                try:
+                    from app.services.evaluaasi_config_service import cancel_config_session
+                    cancel_config_session(session.config_session_id)
+                    logger.info(f"Sesión {session.config_session_id} cancelada en EvaluaasiConfig")
+                except Exception as e:
+                    logger.error(f"Error cancelando sesión en EvaluaasiConfig: {e}")
+
+            # Notificar al equipo de operaciones (sólo VDI)
+            try:
+                from app.services.email_service import send_vdi_session_notification
+                session_user = User.query.get(session.user_id)
+                campus_obj_notify = Campus.query.get(session.campus_id) if session.campus_id else None
+                candidate_name = f"{session_user.name or ''} {session_user.first_surname or ''}".strip() if session_user else ''
+                send_vdi_session_notification(
+                    action='cancelled',
+                    candidate_name=candidate_name,
+                    candidate_username=session_user.username if session_user else '',
+                    session_date=session.session_date.strftime('%d/%m/%Y'),
+                    start_hour=session.start_hour,
+                    workstation_name=session.workstation_name or '',
+                    campus_name=campus_obj_notify.name if campus_obj_notify else '',
+                    session_type=session.session_type or 'simulador',
+                    cancelled_by=f"{user.name or ''} {user.first_surname or ''}".strip() or user.username,
+                    cancellation_reason=data.get('reason', ''),
+                )
+            except Exception as e:
+                logger.warning(f"No se pudo enviar notificación VDI de cancelación: {e}")
+
         return jsonify({
             'message': 'Sesión cancelada',
             'session': session.to_dict()
@@ -732,6 +737,86 @@ def cancel_session(session_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/sessions/bulk-cancel', methods=['POST'])
+@jwt_required()
+def bulk_cancel_sessions():
+    """Cancelar múltiples sesiones VM en una sola transacción.
+
+    Body: { "session_ids": [int, ...], "reason": str (opcional) }
+
+    Optimizado para uso desde el portal de Office Local: hace UN solo commit
+    y omite las llamadas a AD / EvaluaasiConfig / email para sesiones locales
+    (que nunca fueron provisionadas en esos sistemas). Para sesiones VDI hace
+    los mismos pasos secundarios después del commit.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    if user.role == 'coordinator':
+        return jsonify({'error': 'Coordinadores solo tienen acceso de lectura a sesiones VDI'}), 403
+
+    data = request.get_json() or {}
+    ids = data.get('session_ids') or []
+    reason = data.get('reason', '')
+    if not isinstance(ids, list) or not ids:
+        return jsonify({'error': 'session_ids es requerido'}), 400
+
+    sessions = VmSession.query.filter(VmSession.id.in_(ids)).all()
+    cancelled = []
+    skipped = []
+    now = datetime.utcnow()
+
+    for s in sessions:
+        if s.status != 'scheduled':
+            skipped.append({'id': s.id, 'reason': 'no_programada'})
+            continue
+        # Permisos por rol
+        if user.role == 'candidato' and s.user_id != str(user_id):
+            skipped.append({'id': s.id, 'reason': 'sin_permiso'})
+            continue
+        if user.role == 'responsable' and s.campus_id != user.campus_id:
+            skipped.append({'id': s.id, 'reason': 'sin_permiso'})
+            continue
+
+        s.status = 'cancelled'
+        s.cancelled_by_id = str(user_id)
+        s.cancellation_reason = reason
+        s.cancelled_at = now
+        cancelled.append(s)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    # Pasos secundarios SOLO para sesiones VDI (no locales)
+    for s in cancelled:
+        if s.is_local:
+            continue
+        try:
+            session_user = User.query.get(s.user_id)
+            if session_user:
+                from app.services.ad_management_service import delete_ad_user
+                delete_ad_user(session_user.username)
+        except Exception as e:
+            logger.warning(f"AD cleanup falló para sesión {s.id}: {e}")
+        if s.config_session_id:
+            try:
+                from app.services.evaluaasi_config_service import cancel_config_session
+                cancel_config_session(s.config_session_id)
+            except Exception as e:
+                logger.error(f"Cancel config falló para sesión {s.id}: {e}")
+
+    return jsonify({
+        'message': f'{len(cancelled)} sesiones canceladas',
+        'cancelled_ids': [s.id for s in cancelled],
+        'skipped': skipped,
+    })
 
 
 @bp.route('/sessions/<int:session_id>/status', methods=['PATCH'])
@@ -2090,3 +2175,145 @@ def guacamole_connectivity_check():
         results['guacamole_api'] = {'ok': False, 'error': str(e)}
 
     return jsonify({'guacamole_url': GUACAMOLE_URL, 'results': results}), 200
+
+
+# ═══════════════════════════════════════════════════════════════════
+# MI SESIÓN OFFICE — vista enriquecida para el candidato
+# ═══════════════════════════════════════════════════════════════════
+
+@bp.route('/my-office-session', methods=['GET'])
+@jwt_required()
+def my_office_session():
+    """Devuelve la sesión Office relevante (en curso o próxima) del candidato
+    junto con datos de configuración, credenciales VDI y catálogo de EXEs.
+
+    No expone NADA del legacy. Sólo lee modelos MotorV2.
+    Sólo el candidato dueño puede acceder; staff puede consultar pasando ?user_id=X.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    target_user_id = request.args.get('user_id') or str(user_id)
+    if target_user_id != str(user_id):
+        if user.role not in ('admin', 'developer', 'coordinator', 'auxiliar',
+                             'responsable', 'responsable_partner', 'responsable_estatal',
+                             'soporte', 'gerente'):
+            return jsonify({'error': 'Permiso denegado'}), 403
+
+    campus_id, group_id, enabled, scheduling_mode = get_candidate_vm_context(target_user_id)
+    if not campus_id:
+        return jsonify({
+            'has_session': False,
+            'enabled': bool(enabled),
+            'message': 'No estás asignado a un grupo activo.',
+        }), 200
+
+    campus = Campus.query.get(campus_id)
+    group = CandidateGroup.query.get(group_id) if group_id else None
+
+    def _eff(group_override, campus_val, default=None):
+        if group_override is not None:
+            return group_override
+        if campus_val is not None:
+            return campus_val
+        return default
+
+    enable_office_exams = _eff(
+        getattr(group, 'enable_office_exams_override', None) if group else None,
+        getattr(campus, 'enable_office_exams', None),
+        False,
+    )
+    enable_office_simulators = _eff(
+        getattr(group, 'enable_office_simulators_override', None) if group else None,
+        getattr(campus, 'enable_office_simulators', None),
+        False,
+    )
+    enable_partial_evaluations = _eff(
+        getattr(group, 'enable_partial_evaluations_override', None) if group else None,
+        getattr(campus, 'enable_partial_evaluations', None),
+        False,
+    )
+    office_version = _eff(
+        getattr(group, 'office_version_override', None) if group else None,
+        getattr(campus, 'office_version', None),
+        'office_365',
+    )
+
+    today = date.today()
+    base_q = VmSession.query.filter(
+        VmSession.user_id == str(target_user_id),
+        VmSession.session_date >= today,
+        VmSession.status.in_(['scheduled', 'in_progress']),
+    ).order_by(VmSession.session_date.asc(), VmSession.start_hour.asc())
+
+    in_progress = base_q.filter(VmSession.status == 'in_progress').first()
+    upcoming = in_progress or base_q.first()
+
+    from app.models.office_exam import OfficeExamResult, OfficeAppVersion
+    recent_results = OfficeExamResult.query.filter_by(
+        user_id=str(target_user_id),
+    ).order_by(OfficeExamResult.created_at.desc()).limit(5).all()
+
+    apps = OfficeAppVersion.query.filter_by(is_active=True).order_by(
+        OfficeAppVersion.app_type, OfficeAppVersion.app_name
+    ).all()
+
+    is_owner = target_user_id == str(user_id)
+
+    session_payload = None
+    countdown_seconds = None
+    if upcoming:
+        start_dt = datetime.combine(upcoming.session_date, datetime.min.time()).replace(
+            hour=upcoming.start_hour or 0
+        )
+        now = datetime.utcnow()
+        countdown_seconds = int((start_dt - now).total_seconds())
+
+        session_payload = {
+            'id': upcoming.id,
+            'session_date': upcoming.session_date.isoformat(),
+            'start_hour': upcoming.start_hour,
+            'end_hour': upcoming.end_hour,
+            'status': upcoming.status,
+            'session_type': upcoming.session_type,
+            'office_app': upcoming.office_app,
+            'office_version': upcoming.office_version,
+            'level': upcoming.level,
+            'parcial_units': upcoming.parcial_units,
+            'is_local': bool(upcoming.is_local),
+            'workstation_id': upcoming.workstation_id,
+            'workstation_name': upcoming.workstation_name,
+            'workstation_color': upcoming.workstation_color,
+            'ad_username': getattr(upcoming, 'ad_username', None) if is_owner else None,
+            'ad_password': upcoming.ad_password if is_owner else None,
+            'pin': getattr(upcoming, 'pin', None) if is_owner else None,
+            'notes': upcoming.notes,
+            'starts_in_seconds': countdown_seconds,
+        }
+
+    return jsonify({
+        'has_session': bool(upcoming),
+        'enabled': bool(enable_office_exams or enable_office_simulators or enable_partial_evaluations),
+        'config': {
+            'enable_office_exams': bool(enable_office_exams),
+            'enable_office_simulators': bool(enable_office_simulators),
+            'enable_partial_evaluations': bool(enable_partial_evaluations),
+            'office_version': office_version,
+        },
+        'campus': {
+            'id': campus.id,
+            'name': campus.name,
+        } if campus else None,
+        'group': {
+            'id': group.id,
+            'name': group.name,
+        } if group else None,
+        'session': session_payload,
+        'recent_results': [r.to_dict() for r in recent_results],
+        'apps_catalog': [a.to_dict() for a in apps],
+        'server_time': datetime.utcnow().isoformat() + 'Z',
+    }), 200
+
+

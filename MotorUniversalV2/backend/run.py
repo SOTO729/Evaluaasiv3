@@ -32,6 +32,7 @@ with app.app_context():
             check_and_add_partner_config_subsistema,
             check_and_recover_orphaned_curp_users,
             check_and_add_vm_session_ad_password,
+            check_and_fix_vm_session_unique_slot,
             check_and_create_scorm_tables,
         )
         check_and_add_columns()
@@ -55,6 +56,7 @@ with app.app_context():
         check_and_add_result_mode_column()
         check_and_add_partner_config_subsistema()
         check_and_add_vm_session_ad_password()
+        check_and_fix_vm_session_unique_slot()
         check_and_create_scorm_tables()
         check_and_recover_orphaned_curp_users()
     except Exception as e:

@@ -49,6 +49,8 @@ class OfficeExamResult(db.Model):
     
     # Datos detallados (JSON text)
     answers_data = db.Column(db.Text, nullable=True)
+    # URL en Azure Blob del XML crudo subido vía UpXML2016 (respaldo auditable)
+    xml_blob_url = db.Column(db.String(500), nullable=True)
     # Parciales: datos por sesión
     parcial_sessions_data = db.Column(db.Text, nullable=True)
     assigned_sessions = db.Column(db.String(200), nullable=True)  # "1,3,10,15"
@@ -70,7 +72,10 @@ class OfficeExamResult(db.Model):
     
     # Certificado generado
     certificate_code = db.Column(db.String(50), nullable=True)
-    
+
+    # Insignia emitida (IssuedBadge.badge_uuid). Permite trazar office_result → IssuedBadge sin FK directa.
+    badge_uuid = db.Column(db.String(36), nullable=True, index=True)
+
     # Relaciones
     user = db.relationship('User', backref=db.backref('office_exam_results', lazy='dynamic'))
     vm_session = db.relationship('VmSession', backref=db.backref('office_exam_results', lazy='dynamic'))
@@ -110,6 +115,8 @@ class OfficeExamResult(db.Model):
             'started_at': self.started_at.isoformat() if self.started_at else None,
             'finished_at': self.finished_at.isoformat() if self.finished_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+            'xml_blob_url': self.xml_blob_url,
+            'badge_uuid': self.badge_uuid,
         }
         
         if include_user and self.user:

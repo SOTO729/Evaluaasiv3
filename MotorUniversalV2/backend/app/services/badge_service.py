@@ -517,6 +517,139 @@ def issue_badge_for_result(result, user, exam, force=False):
         return None
 
 
+def _find_office_badge_template(office_result):
+    """Busca un BadgeTemplate adecuado para un OfficeExamResult.
+
+    Estrategia (primer match gana):
+      1. tags contiene `office:{app}:{level}:{session_type}` (e.g. office:excel:basico:examen)
+      2. tags contiene `office:{app}:{level}` (e.g. office:excel:basico)
+      3. tags contiene `office:{app}` (e.g. office:excel)
+      4. tags contiene `office:{session_type}` (e.g. office:examen)
+      5. tags contiene `office`
+    Sólo considera templates con is_active=True.
+    """
+    app = (office_result.office_app or '').lower()
+    level = (office_result.level or '').lower()
+    session_type = (office_result.session_type or '').lower()
+
+    candidates = [
+        f"office:{app}:{level}:{session_type}" if app and level and session_type else None,
+        f"office:{app}:{level}" if app and level else None,
+        f"office:{app}" if app else None,
+        f"office:{session_type}" if session_type else None,
+        "office",
+    ]
+
+    for tag in [c for c in candidates if c]:
+        templates = BadgeTemplate.query.filter(
+            BadgeTemplate.is_active == True,  # noqa: E712
+            BadgeTemplate.tags.isnot(None),
+            BadgeTemplate.tags.like(f'%{tag}%'),
+        ).all()
+        for tpl in templates:
+            tag_list = [t.strip().lower() for t in (tpl.tags or '').split(',') if t.strip()]
+            if tag in tag_list:
+                return tpl
+    return None
+
+
+def issue_office_badge(office_result, user):
+    """Emite una insignia para un OfficeExamResult aprobado.
+
+    A diferencia de `issue_badge_for_result`, este helper trabaja sobre la tabla
+    `office_exam_results` (independiente del modelo Result legacy). Usa `result_id=None`
+    en IssuedBadge porque la FK apunta a `results.id`. Guarda referencia al office_result
+    en el credential JSON.
+
+    Idempotente: si `office_result.badge_uuid` ya existe y la insignia está activa,
+    retorna la existente.
+
+    Returns: IssuedBadge or None
+    """
+    if not office_result or not user:
+        return None
+    if not getattr(office_result, 'passed', False):
+        return None
+
+    # Idempotencia
+    if getattr(office_result, 'badge_uuid', None):
+        existing = IssuedBadge.query.filter_by(badge_uuid=office_result.badge_uuid).first()
+        if existing and existing.status == 'active':
+            return existing
+
+    template = _find_office_badge_template(office_result)
+    if not template:
+        return None
+
+    try:
+        badge_uuid = str(uuid.uuid4())
+        badge_code = generate_badge_code()
+        now = datetime.utcnow()
+
+        expires_at = None
+        if template.expiry_months:
+            expires_at = now + relativedelta(months=template.expiry_months)
+
+        # Snapshot de imagen del template
+        source_image_url = (template.badge_image_url
+                            or template.issuer_image_url
+                            or (template.competency_standard.logo_url if template.competency_standard else None))
+        snapshot_image_url = source_image_url
+
+        issued = IssuedBadge(
+            badge_uuid=badge_uuid,
+            badge_template_id=template.id,
+            user_id=user.id,
+            result_id=None,  # FK apunta a results.id (legacy); office_result no tiene FK directa
+            badge_code=badge_code,
+            issued_at=now,
+            valid_from=now,
+            expires_at=expires_at,
+            status='active',
+            template_image_url=snapshot_image_url,
+        )
+        db.session.add(issued)
+        db.session.flush()
+
+        # Build credential — pasamos office_result como "result" stub
+        # build_ob3_credential lee result.score (lo tenemos, escala 0-1000)
+        # Adaptamos un objeto simple para que score_normalized se vea como porcentaje
+        class _OfficeResultStub:
+            def __init__(self, r):
+                self.score = round((r.score or 0) / 10, 1) if r.score else 0
+                self.office_exam_result_id = r.id
+                self.office_app = r.office_app
+                self.session_type = r.session_type
+
+        credential = build_ob3_credential(issued, template, user, _OfficeResultStub(office_result))
+        # Anotar origen office en el credential para trazabilidad
+        credential.setdefault('evidence', []).append({
+            'id': f"urn:office-result:{office_result.id}",
+            'type': ['Evidence'],
+            'name': 'Office Exam Result',
+            'description': f"office_app={office_result.office_app} session_type={office_result.session_type} certificate={office_result.certificate_code or '-'}",
+        })
+        credential = sign_credential(credential)
+        issued.credential_json = json.dumps(credential, ensure_ascii=False)
+
+        # No bake_badge_image aquí para mantener latencia baja en finish;
+        # se puede generar bajo demanda al consultar la insignia.
+
+        # Guardar uuid en el office_result
+        try:
+            if hasattr(office_result, 'badge_uuid'):
+                office_result.badge_uuid = badge_uuid
+        except Exception:
+            pass
+
+        db.session.commit()
+        return issued
+    except Exception as e:
+        db.session.rollback()
+        print(f"[BADGE-OFFICE] Error issuing badge for office_result={office_result.id}: {e}")
+        return None
+
+
 def issue_badges_batch(result_ids):
     """
     Emite badges para múltiples resultados (batch).

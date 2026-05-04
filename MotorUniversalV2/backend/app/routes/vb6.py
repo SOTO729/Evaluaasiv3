@@ -92,6 +92,44 @@ def _get_candidate_context(user_id):
     return campus, group, membership, config
 
 
+def _validate_office_access(config, session_type):
+    """Valida que el plantel/grupo tenga habilitada la función Office solicitada.
+
+    Retorna None si está permitido, o tupla (response, status) si rechaza.
+
+    Reglas:
+      - simulador → enable_office_simulators
+      - parcial   → enable_partial_evaluations
+      - examen / competencia → enable_office_exams
+      - Si config es None (sin grupo asignado, p.ej. admin/dev): permitir.
+    """
+    if config is None:
+        return None
+    st = (session_type or 'examen').lower()
+    if st == 'simulador':
+        if not config.get('enable_office_simulators'):
+            return jsonify({
+                'success': False,
+                'error': 'Los simuladores Office no están habilitados para tu plantel/grupo. Contacta a tu responsable.',
+                'code': 'SIMULATORS_DISABLED',
+            }), 403
+    elif st == 'parcial':
+        if not config.get('enable_partial_evaluations'):
+            return jsonify({
+                'success': False,
+                'error': 'Las evaluaciones parciales no están habilitadas para tu plantel/grupo.',
+                'code': 'PARCIALES_DISABLED',
+            }), 403
+    else:
+        if not config.get('enable_office_exams'):
+            return jsonify({
+                'success': False,
+                'error': 'Los exámenes Office no están habilitados para tu plantel/grupo. Contacta a tu responsable.',
+                'code': 'OFFICE_EXAMS_DISABLED',
+            }), 403
+    return None
+
+
 def _find_active_vm_session(user_id, session_type=None):
     """Buscar VmSession activa (scheduled/in_progress) para hoy."""
     today = date.today()
@@ -164,6 +202,11 @@ def vb6_login():
     
     mode = data.get('mode', 'examen')
     
+    # Validar feature-flag del plantel/grupo (legacy no llega aquí — solo EXEs nuevos)
+    blocked = _validate_office_access(config, mode)
+    if blocked is not None:
+        return blocked
+    
     # Buscar VmSession activa
     vm_session = _find_active_vm_session(user.id, session_type=mode if mode != 'competencia' else 'examen')
     
@@ -226,6 +269,10 @@ def vb6_parcial_login():
         return jsonify({'success': False, 'error': 'Usuario inactivo', 'code': 'USER_INACTIVE'}), 401
     
     campus, group, membership, config = _get_candidate_context(user.id)
+    
+    blocked = _validate_office_access(config, 'parcial')
+    if blocked is not None:
+        return blocked
     
     # Buscar VmSession activa de tipo parcial
     vm_session = _find_active_vm_session(user.id, session_type='parcial')
@@ -420,6 +467,10 @@ def vb6_start(vb6_user, vb6_token):
     
     campus, group, membership, config = _get_candidate_context(vb6_user.id)
     
+    blocked = _validate_office_access(config, session_type)
+    if blocked is not None:
+        return blocked
+    
     # Crear OfficeExamResult
     result = OfficeExamResult(
         user_id=str(vb6_user.id),
@@ -482,6 +533,10 @@ def vb6_parcial_start(vb6_user, vb6_token):
     office_app = data.get('office_app', 'excel')
     
     campus, group, membership, config = _get_candidate_context(vb6_user.id)
+    
+    blocked = _validate_office_access(config, 'parcial')
+    if blocked is not None:
+        return blocked
     
     result = OfficeExamResult(
         user_id=str(vb6_user.id),
@@ -630,7 +685,18 @@ def vb6_finish(vb6_user, vb6_token):
     # Invalidar token
     vb6_token.is_active = False
     db.session.commit()
-    
+
+    # Emitir insignia digital si está disponible (no bloquear si falla)
+    badge_uuid = None
+    if result.passed:
+        try:
+            from app.services.badge_service import issue_office_badge
+            issued = issue_office_badge(result, vb6_user)
+            if issued:
+                badge_uuid = issued.badge_uuid
+        except Exception as _badge_err:
+            print(f"[vb6_finish] WARN no se pudo emitir insignia: {_badge_err}")
+
     return jsonify({
         'success': True,
         'result_id': result.id,
@@ -639,6 +705,7 @@ def vb6_finish(vb6_user, vb6_token):
         'passing_score': result.passing_score,
         'finished_at': result.finished_at.isoformat(),
         'certificate_code': certificate_code,
+        'badge_uuid': badge_uuid,
         'message': 'Examen aprobado' if result.passed else 'Examen no aprobado',
     })
 
@@ -698,7 +765,22 @@ def vb6_parcial_finish(vb6_user, vb6_token):
     remaining = [s for s in assigned_list if s not in completed_numbers]
     
     overall_passed = cumulative >= 700 and len(remaining) == 0
-    
+
+    # Emitir insignia digital cuando se complete TODA la asignación con aprobación
+    badge_uuid = None
+    if overall_passed:
+        try:
+            from app.services.badge_service import issue_office_badge
+            # Usar el resultado de la sesión más reciente como ancla
+            anchor = max(all_completed, key=lambda r: r.finished_at or r.created_at) if all_completed else result
+            anchor.passed = True
+            db.session.commit()
+            issued = issue_office_badge(anchor, vb6_user)
+            if issued:
+                badge_uuid = issued.badge_uuid
+        except Exception as _badge_err:
+            print(f"[vb6_parcial_finish] WARN no se pudo emitir insignia: {_badge_err}")
+
     return jsonify({
         'success': True,
         'session_number': session_number,
@@ -708,6 +790,7 @@ def vb6_parcial_finish(vb6_user, vb6_token):
         'overall_passed': overall_passed,
         'sessions_remaining': remaining,
         'sessions_completed': completed_numbers,
+        'badge_uuid': badge_uuid,
         'message': f'Sesión {session_number} completada',
     })
 
