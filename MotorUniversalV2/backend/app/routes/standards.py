@@ -5,12 +5,99 @@ import os
 from datetime import datetime
 from flask import Blueprint, request, jsonify
 from werkzeug.exceptions import HTTPException
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 from app import db, cache
 from app.models import User, CompetencyStandard, DeletionRequest, Exam
+from app.models.office_exam import OfficeAppVersion
 from app.utils.cache_utils import make_cache_key, invalidate_standards_cache
 
 standards_bp = Blueprint('standards', __name__)
+
+# Blueprint adicional montado en /api/standards exclusivamente para clientes
+# Office .NET legacy (EvaluaasiOfficeV2). NO requiere JWT — sólo expone metadatos
+# de catálogo / asignación por username.
+office_standards_bp = Blueprint('office_standards', __name__)
+
+
+def _office_licenses_response(partner=False):
+    """Retorna catálogo de licencias Office para clientes .NET legacy.
+    Mapea OfficeAppVersion → shape esperado por MotorUniversalSoapClient.Licencias().
+    """
+    q = OfficeAppVersion.query.filter_by(is_active=True)
+    if partner:
+        q = q.filter(OfficeAppVersion.app_type.in_(['examen', 'partner']))
+    apps = q.order_by(OfficeAppVersion.app_name).all()
+    items = []
+    for a in apps:
+        name_l = (a.app_name or '').lower()
+        if 'excel' in name_l:
+            letter = 'E'
+        elif 'word' in name_l:
+            letter = 'W'
+        elif 'power' in name_l or 'ppt' in name_l:
+            letter = 'P'
+        else:
+            letter = ''
+        items.append({
+            'id': a.id,
+            'name': a.app_name,
+            'license_name': a.app_name,
+            'filename': f'{a.id}.xae',
+            'letter': letter,
+        })
+    return jsonify({'items': items, 'total': len(items)}), 200
+
+
+@office_standards_bp.route('', methods=['GET'], strict_slashes=False)
+@office_standards_bp.route('/', methods=['GET'])
+def office_get_standards_root():
+    """GET /api/standards?type=office_license&partner=true|false
+    Público — consumido por EvaluaasiOfficeV2.MotorUniversalSoapClient.Licencias()."""
+    type_ = (request.args.get('type') or '').lower()
+    if type_ == 'office_license':
+        partner = (request.args.get('partner') or '').lower() in ('true', '1', 'yes')
+        return _office_licenses_response(partner=partner)
+    return jsonify({'items': [], 'total': 0,
+                    'error': 'type=office_license requerido en este endpoint'}), 400
+
+
+@office_standards_bp.route('/available', methods=['GET'])
+def office_get_standards_available():
+    """GET /api/standards/available?username=<user>
+    Retorna exámenes disponibles para un usuario.
+    Consumido por EvaluaasiOfficeV2.MotorUniversalSoapClient.ExamenesDisponibles().
+    """
+    username = (request.args.get('username') or '').strip()
+    if not username:
+        return jsonify({'items': [], 'total': 0, 'error': 'username requerido'}), 400
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        user = User.query.filter_by(email=username).first()
+    if not user:
+        return jsonify({'items': [], 'total': 0, 'error': 'usuario no encontrado'}), 404
+
+    items = []
+    try:
+        exams = Exam.query.filter_by(is_active=True).order_by(Exam.name).limit(50).all()
+        for e in exams:
+            items.append({
+                'id': e.id,
+                'name': e.name,
+                'license_name': e.name,
+                'filename': f'{e.id}.xae',
+                'letter': '',
+                'version': e.version,
+            })
+    except Exception:
+        pass
+
+    return jsonify({'items': items, 'total': len(items), 'username': username}), 200
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Blueprint principal /api/competency-standards (requiere JWT excepto donde se indica)
+# ──────────────────────────────────────────────────────────────────────
 
 
 @standards_bp.route('/', methods=['GET'])
@@ -22,14 +109,11 @@ def get_standards():
     Query params:
         - active_only: Solo estándares activos (default: true)
         - include_stats: Incluir estadísticas (default: false)
-    
-    Nota: Se eliminó el caché y se agregan headers no-cache para garantizar datos actualizados
     """
     active_only = request.args.get('active_only', 'true').lower() == 'true'
     include_stats = request.args.get('include_stats', 'false').lower() == 'true'
     
     query = CompetencyStandard.query
-    
     if active_only:
         query = query.filter_by(is_active=True)
     
@@ -39,7 +123,6 @@ def get_standards():
         'standards': [s.to_dict(include_stats=include_stats) for s in standards],
         'total': len(standards)
     })
-    # Evitar cualquier caché en navegador o proxies
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'

@@ -75,7 +75,7 @@ def create_app(config_name='development'):
         raise
         
     try:
-        from app.routes.standards import standards_bp
+        from app.routes.standards import standards_bp, office_standards_bp
         print("[INIT] ✅ standards_bp importado")
     except Exception as e:
         print(f"[INIT] ❌ Error importando standards_bp: {e}")
@@ -157,6 +157,8 @@ def create_app(config_name='development'):
     print("[INIT] ✅ conocer registrado")
     app.register_blueprint(standards_bp, url_prefix='/api/competency-standards')
     print("[INIT] ✅ standards registrado")
+    app.register_blueprint(office_standards_bp, url_prefix='/api/standards')
+    print("[INIT] ✅ office_standards registrado en /api/standards (legacy compat)")
     app.register_blueprint(partners_bp, url_prefix='/api/partners')
     print("[INIT] ✅ partners registrado")
     app.register_blueprint(verify_bp, url_prefix='/api/verify')
@@ -258,7 +260,25 @@ def create_app(config_name='development'):
     except Exception as e:
         print(f"[INIT] ❌ Error importando soap_compat_bp: {e}")
         raise
-    
+
+    # Office Exam Results (consulta candidato/staff y verificación pública)
+    try:
+        from app.routes.office_results import bp as office_results_bp
+        app.register_blueprint(office_results_bp, url_prefix='/api/office-results')
+        print("[INIT] ✅ office_results registrado")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando office_results_bp: {e}")
+        raise
+
+    # Maintenance (cleanup tokens vb6 + timeout vm_sessions)
+    try:
+        from app.routes.maintenance import bp as maintenance_bp
+        app.register_blueprint(maintenance_bp)
+        print("[INIT] ✅ maintenance registrado (cleanup jobs)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando maintenance_bp: {e}")
+        raise
+
     print("[INIT] ✅ Todos los blueprints registrados correctamente")
     
     # Verificar y agregar columna label_style si no existe

@@ -89,3 +89,19 @@ def warmup_database():
             'error': str(e),
             'message': 'Database is waking up, please wait...'
         }), 503
+
+
+@bp.route('/health/server-time', methods=['GET'])
+def server_time():
+    """
+    Server time como OLE Automation date (días desde 1899-12-30).
+    Reemplaza Usuario.asmx/Fecha (anti-tamper de reloj cliente VB6/.NET).
+    """
+    now = datetime.utcnow()
+    epoch = datetime(1899, 12, 30)
+    ole_date = (now - epoch).total_seconds() / 86400.0
+    return jsonify({
+        'ole_date': ole_date,
+        'utc': now.isoformat() + 'Z',
+        'timestamp': int((now - datetime(1970, 1, 1)).total_seconds()),
+    }), 200

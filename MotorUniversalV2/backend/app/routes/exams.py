@@ -4052,3 +4052,98 @@ def options_pdf_async(result_id):
     response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response
+
+# -------------------------------------------------------------
+# Endpoint para clientes Office (.NET) � XAE download proxy
+# -------------------------------------------------------------
+
+
+@bp.route('/<int:exam_id>/download-xae', methods=['GET'])
+def download_xae_legacy(exam_id):
+    """Devuelve el contenido XAE de un examen para clientes Office (.NET 4.5).
+    
+    Estrategia: por compatibilidad con el binario legacy, se hace proxy del XAE
+    almacenado en Azure Blob Storage:
+        https://acemsstorage.blob.core.windows.net/conocer/MotorUniversal/Examen/<id>.xae
+    
+    El cliente .NET (UsuarioSoapClient.DescargarExamen) escribe el contenido a 
+    "<id>.xae" antes de cargarlo. Si el blob no existe, retorna xae_content vacío
+    y el cliente fallará gracefully (mostrará error de examen no disponible).
+    
+    Público — el XAE en Blob es ya públicamente accesible vía URL directa; este
+    endpoint sólo lo proxa para que clientes nuevos no necesiten conocer la URL.
+    """
+    import urllib.request
+    import urllib.error
+    from app.models.exam import Exam
+
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'success': False, 'error': 'Exam not found', 'xae_content': ''}), 404
+
+    # 1) Primero intentar storage V2 propio (container 'evaluaasi-files',
+    #    blob 'office-xae/<id>.xae'). Permite publicar XAEs nuevos sin tocar
+    #    el storage legacy 'acemsstorage'.
+    try:
+        from app.utils.azure_storage import azure_storage
+        if getattr(azure_storage, 'blob_service_client', None):
+            v2_blob_name = f'office-xae/{exam_id}.xae'
+            v2_blob = azure_storage.blob_service_client.get_blob_client(
+                container=azure_storage.container_name,
+                blob=v2_blob_name,
+            )
+            if v2_blob.exists():
+                content_bytes = v2_blob.download_blob().readall()
+                try:
+                    content = content_bytes.decode('utf-8')
+                except UnicodeDecodeError:
+                    content = content_bytes.decode('latin-1', errors='replace')
+                return jsonify({
+                    'success': True,
+                    'xae_content': content,
+                    'xae_url': f'v2://{azure_storage.container_name}/{v2_blob_name}',
+                    'app_id': exam_id,
+                    'version': exam.version,
+                    'source': 'v2',
+                }), 200
+    except Exception as _v2_err:
+        # Si falla el storage V2, continuar al legacy
+        pass
+
+    # 2) Fallback: blob legacy públicamente accesible
+    blob_url = f'https://acemsstorage.blob.core.windows.net/conocer/MotorUniversal/Examen/{exam_id}.xae'
+    try:
+        req = urllib.request.Request(blob_url, headers={'User-Agent': 'MotorV2-API/2.0'})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content_bytes = resp.read()
+        # XAE es texto (UTF-8). El cliente legacy hace File.WriteAllText.
+        try:
+            content = content_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            content = content_bytes.decode('latin-1', errors='replace')
+        return jsonify({
+            'success': True,
+            'xae_content': content,
+            'xae_url': blob_url,
+            'app_id': exam_id,
+            'version': exam.version,
+        }), 200
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return jsonify({
+                'success': False,
+                'error': f'XAE not published for exam {exam_id}',
+                'xae_content': '',
+                'xae_url': blob_url,
+            }), 404
+        return jsonify({
+            'success': False,
+            'error': f'Blob fetch failed: HTTP {e.code}',
+            'xae_content': '',
+        }), 502
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Blob fetch error: {str(e)}',
+            'xae_content': '',
+        }), 502
