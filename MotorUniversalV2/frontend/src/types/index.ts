@@ -14,6 +14,8 @@ export interface User {
   role: 'admin' | 'developer' | 'editor' | 'editor_invitado' | 'soporte' | 'candidato' | 'auxiliar' | 'coordinator' | 'responsable' | 'responsable_partner' | 'responsable_estatal' | 'financiero' | 'gerente'
   is_active: boolean
   is_verified: boolean
+  curp_verified?: boolean
+  requires_curp_validation?: boolean
   created_at: string
   last_login?: string
   curp?: string

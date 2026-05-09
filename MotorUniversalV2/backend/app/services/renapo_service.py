@@ -446,11 +446,19 @@ def _clean_name(value: Optional[str]) -> Optional[str]:
     return cleaned if cleaned else None
 
 
-def validate_curp_renapo(curp: str) -> RenapoValidationResult:
+def validate_curp_renapo(curp: str, use_cache: bool = True, cache_only: bool = False) -> RenapoValidationResult:
     """Valida una CURP contra RENAPO (síncrono).
     Incluye hasta 7 reintentos con backoff exponencial + jitter,
     circuit breaker para proteger contra caídas de RENAPO,
     y reinicio automático del browser tras fallos consecutivos.
+
+    Si `use_cache=True` (default) se sirve desde `curp_renapo_cache`
+    cuando hay entrada fresca. Las respuestas positivas se cachean 30 días,
+    las negativas 1h (por intermitencia de RENAPO).
+
+    Si `cache_only=True` y no hay entrada en cache, retorna un resultado
+    `valid=False` con `error='cache_miss'` SIN llamar a RENAPO. Útil para
+    flujos síncronos que no deben bloquearse esperando a RENAPO.
     """
     curp = (curp or '').upper().strip()
 
@@ -467,18 +475,38 @@ def validate_curp_renapo(curp: str) -> RenapoValidationResult:
         return RenapoValidationResult(curp=curp, valid=False,
                                        error='Formato de CURP inválido')
 
+    # ── Cache lookup ──
+    if use_cache:
+        try:
+            cached = _read_curp_cache(curp)
+            if cached is not None:
+                return cached
+        except Exception as cache_err:
+            logger.warning(f"[RENAPO-CACHE] error leyendo cache para {curp}: {cache_err}")
+
+    # cache_only: no llamar a RENAPO si no hay cache.
+    if cache_only:
+        return RenapoValidationResult(curp=curp, valid=False, error='cache_miss')
+
     # Circuit breaker: si RENAPO lleva muchos fallos seguidos, esperar cooldown
     if _check_circuit_breaker():
         logger.warning(f"[RENAPO-CB] Circuito abierto, rechazando CURP {curp} temporalmente")
+        # NO se cachea — el resultado es por ca\u00edda del servicio externo,
+        # no por una decisi\u00f3n real de RENAPO sobre la CURP.
         return RenapoValidationResult(
             curp=curp, valid=False,
-            error='Servicio RENAPO temporalmente no disponible (demasiados fallos), reintente en unos minutos'
+            error='Servicio RENAPO temporalmente no disponible (circuit breaker)'
         )
 
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         result = loop.run_until_complete(_consultar_renapo_async(curp))
+        # Persistir en cache (positivos 30d, negativos 1h)
+        try:
+            _write_curp_cache(result)
+        except Exception as wcache_err:
+            logger.warning(f"[RENAPO-CACHE] error escribiendo cache para {curp}: {wcache_err}")
         return result
     except Exception as e:
         _record_renapo_failure()
@@ -488,6 +516,101 @@ def validate_curp_renapo(curp: str) -> RenapoValidationResult:
     finally:
         try:
             loop.close()
+        except Exception:
+            pass
+
+
+def is_renapo_circuit_open() -> bool:
+    """Wrapper público del circuit breaker (útil para el worker de cola
+    para distinguir entre 'CURP rechazada por RENAPO' vs 'RENAPO caído')."""
+    return _check_circuit_breaker()
+
+
+def _read_curp_cache(curp: str):
+    """Lee del cache `curp_renapo_cache`. Retorna RenapoValidationResult
+    si hay entrada fresca, o None."""
+    try:
+        from app.models.curp_verification import CurpRenapoCache
+        from app import db
+        import json as _json
+        from datetime import datetime as _dt
+        entry = CurpRenapoCache.query.filter_by(curp=curp).first()
+        if not entry:
+            return None
+        if not entry.is_fresh():
+            return None
+        # Hit: incrementar contador
+        try:
+            entry.hits = (entry.hits or 0) + 1
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        if entry.valid:
+            payload = {}
+            try:
+                payload = _json.loads(entry.payload_json) if entry.payload_json else {}
+            except Exception:
+                payload = {}
+            return RenapoValidationResult(
+                curp=curp,
+                valid=True,
+                name=payload.get('name'),
+                first_surname=payload.get('first_surname'),
+                second_surname=payload.get('second_surname'),
+                gender=payload.get('gender'),
+                error=None,
+            )
+        else:
+            return RenapoValidationResult(
+                curp=curp,
+                valid=False,
+                error=entry.error_message or 'no encontrada (cache)',
+            )
+    except Exception as e:
+        logger.warning(f"[RENAPO-CACHE] _read_curp_cache error: {e}")
+        return None
+
+
+def _write_curp_cache(result: 'RenapoValidationResult'):
+    """Persiste un resultado RENAPO en el cache."""
+    try:
+        from app.models.curp_verification import CurpRenapoCache
+        from app import db
+        import json as _json
+        if not result or not result.curp:
+            return
+        if is_generic_foreign_curp(result.curp):
+            return  # no se cachean genéricas
+        payload = None
+        if result.valid:
+            payload = _json.dumps({
+                'name': result.name,
+                'first_surname': result.first_surname,
+                'second_surname': result.second_surname,
+                'gender': result.gender,
+            })
+        entry = CurpRenapoCache.query.filter_by(curp=result.curp).first()
+        if entry:
+            entry.valid = bool(result.valid)
+            entry.payload_json = payload
+            entry.error_message = (result.error or '')[:500] if not result.valid else None
+            entry.cached_at = datetime.utcnow()
+            entry.expires_at = CurpRenapoCache.calc_expiry(bool(result.valid))
+        else:
+            entry = CurpRenapoCache(
+                curp=result.curp,
+                valid=bool(result.valid),
+                payload_json=payload,
+                error_message=(result.error or '')[:500] if not result.valid else None,
+                expires_at=CurpRenapoCache.calc_expiry(bool(result.valid)),
+            )
+            db.session.add(entry)
+        db.session.commit()
+    except Exception as e:
+        logger.warning(f"[RENAPO-CACHE] _write_curp_cache error: {e}")
+        try:
+            from app import db as _db
+            _db.session.rollback()
         except Exception:
             pass
 

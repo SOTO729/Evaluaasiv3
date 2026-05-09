@@ -67,6 +67,10 @@ export interface CreateUserData {
   partner_id?: number;
   // Campo adicional para responsable_estatal
   assigned_state?: string;
+  // Asignación opcional a un grupo (solo para candidatos).
+  // Si el email/CURP ya existe, en lugar de fallar con 409 el backend
+  // asigna al usuario existente al grupo (mismo flujo que carga masiva).
+  group_id?: number;
 }
 
 export interface UpdateUserData {
@@ -231,6 +235,12 @@ export async function checkNameSimilarity(data: {
 export async function createUser(data: CreateUserData): Promise<{
   message: string;
   user: ManagedUser;
+  temporary_password?: string;
+  group_id?: number;
+  group_name?: string;
+  assigned_to_group?: boolean;
+  existing_user_assigned?: boolean;
+  duplicate_field?: 'email' | 'curp';
 }> {
   const response = await api.post('/user-management/users', data);
   return response.data;

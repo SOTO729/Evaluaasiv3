@@ -138,6 +138,11 @@ export interface Campus {
   logo_url?: string | null;
   primary_color?: string | null;
   secondary_color?: string | null;
+  // SSO API key (info pública)
+  has_api_key?: boolean;
+  api_key_prefix?: string | null;
+  api_key_created_at?: string | null;
+  share_api_key_with_responsable?: boolean;
 }
 
 export interface CandidateGroup {
@@ -2280,6 +2285,10 @@ export interface RetakePreviewResponse {
   retake_cost: number;
   coordinator_balance: number;
   balance_after: number;
+  /** True cuando el usuario actual es responsable y debe solicitar al coordinador. */
+  must_request_to_coordinator?: boolean;
+  /** Mensaje sugerido para responsables que no pueden consumir saldo directamente. */
+  request_hint?: string | null;
 }
 
 export async function previewEcmRetake(

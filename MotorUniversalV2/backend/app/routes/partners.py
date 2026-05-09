@@ -291,6 +291,60 @@ def _verify_group_access(group_id, user):
     return group, None
 
 
+def _resolve_billing_coordinator_id(group, current_user):
+    """Resuelve el coordinator_id que debe ser cobrado por una operación de saldo.
+
+    Retorna una tupla (coord_id, blocked_response):
+    - (None, None): bypass cobro (admin/developer).
+    - (id, None): cobrar al coordinator con ese id.
+    - (None, (jsonify, status)): operación bloqueada — el caller debe retornar
+      esa respuesta tal cual (ej. responsable que debe pasar por el flujo
+      de solicitud de certificados).
+
+    Política:
+    - admin/developer: bypass.
+    - coordinator: cobra a su propio balance.
+    - auxiliar: comparte el balance del coordinator dueño del campus.
+    - responsable: BLOQUEADO. Debe solicitar certificados al coordinador
+      vía /api/balance/certificate-requests. No accede al saldo total.
+    - soporte / responsable_partner / responsable_estatal: BLOQUEADO.
+    """
+    from app.models.partner import Campus, Partner
+    role = getattr(current_user, 'role', '') or ''
+    if role in ('admin', 'developer'):
+        return None, None  # bypass
+    if role == 'coordinator':
+        return current_user.id, None
+    if role == 'auxiliar':
+        # Comparte saldo con el coordinator dueño del campus
+        if not group or not group.campus_id:
+            return None, (jsonify({
+                'error': 'El plantel no tiene coordinador asignado para procesar el cobro',
+                'error_type': 'no_coordinator'
+            }), 400)
+        campus = Campus.query.get(group.campus_id)
+        if campus and campus.coordinator_id:
+            return campus.coordinator_id, None
+        if campus and campus.partner_id:
+            partner = Partner.query.get(campus.partner_id)
+            if partner and partner.coordinator_id:
+                return partner.coordinator_id, None
+        return None, (jsonify({
+            'error': 'El plantel no tiene coordinador asignado para procesar el cobro',
+            'error_type': 'no_coordinator'
+        }), 400)
+    if role == 'responsable':
+        return None, (jsonify({
+            'error': 'Como responsable de plantel no puedes consumir el saldo directamente. Debes solicitar los certificados al coordinador desde "Solicitar certificados".',
+            'error_type': 'responsable_must_request'
+        }), 403)
+    # soporte / responsable_partner / responsable_estatal y cualquier otro
+    return None, (jsonify({
+        'error': 'Tu rol no tiene permisos para consumir saldo del plantel.',
+        'error_type': 'role_not_allowed_for_billing'
+    }), 403)
+
+
 # ============== PARTNERS ==============
 
 @bp.route('', methods=['GET'])
@@ -3078,13 +3132,24 @@ def get_group_members_count(group_id):
         if error:
             return error
         
-        status_filter = request.args.get('status', 'active')
-        
-        result = db.session.execute(text("""
-            SELECT gm.user_id
-            FROM group_members gm
-            WHERE gm.group_id = :group_id AND gm.status = :status
-        """), {'group_id': group_id, 'status': status_filter})
+        # Por defecto: contar TODOS los miembros (consistente con
+        # `/groups/<id>/members` y con `group.members.count()` que usa la
+        # asignación de exámenes "all"). Si el cliente quiere filtrar por
+        # status puede pasar `?status=active`.
+        status_filter = request.args.get('status')
+
+        if status_filter:
+            result = db.session.execute(text("""
+                SELECT gm.user_id
+                FROM group_members gm
+                WHERE gm.group_id = :group_id AND gm.status = :status
+            """), {'group_id': group_id, 'status': status_filter})
+        else:
+            result = db.session.execute(text("""
+                SELECT gm.user_id
+                FROM group_members gm
+                WHERE gm.group_id = :group_id
+            """), {'group_id': group_id})
         
         member_ids = [str(row[0]) for row in result]
         
@@ -3513,9 +3578,10 @@ def get_group_members(group_id):
 
         if status_filter:
             query = query.filter(GroupMember.status == status_filter)
-        else:
-            # Excluir miembros con CURP pendiente de verificación por defecto
-            query = query.filter(GroupMember.status.notin_(['curp_pending', 'curp_verifying']))
+        # Sin filtro por defecto: mostrar TODOS los miembros (incluyendo
+        # curp_pending/curp_verifying/curp_required) para que coordinadores y
+        # responsables vean la totalidad del grupo. El frontend muestra el
+        # estado de cada uno mediante un badge.
 
         # ── Búsqueda textual ──
         if search:
@@ -3895,11 +3961,19 @@ def add_group_member(group_id):
         existing = GroupMember.query.filter_by(group_id=group_id, user_id=user_id).first()
         if existing:
             return jsonify({'error': 'El usuario ya es miembro de este grupo'}), 400
-        
+
+        # W4: validar status contra whitelist (no aceptar valores arbitrarios)
+        from app.models.partner import VALID_GROUP_MEMBER_STATUSES
+        member_status = data.get('status', 'active')
+        if member_status not in VALID_GROUP_MEMBER_STATUSES:
+            return jsonify({
+                'error': f"Estado no válido. Use uno de: {sorted(VALID_GROUP_MEMBER_STATUSES)}"
+            }), 400
+
         member = GroupMember(
             group_id=group_id,
             user_id=user_id,
-            status=data.get('status', 'active'),
+            status=member_status,
             notes=data.get('notes')
         )
         
@@ -4196,12 +4270,19 @@ def bulk_assign_by_criteria(group_id):
 def update_group_member(group_id, member_id):
     """Actualizar estado de un miembro"""
     try:
+        # W5: validar acceso al grupo (multi-tenant) antes de tocar el miembro
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
         data = request.get_json()
-        
+
         if 'status' in data:
-            if data['status'] not in ['active', 'suspended']:
-                return jsonify({'error': 'Estado no válido. Use: active, suspended'}), 400
+            from app.models.partner import VALID_GROUP_MEMBER_STATUSES
+            if data['status'] not in VALID_GROUP_MEMBER_STATUSES:
+                return jsonify({
+                    'error': f"Estado no válido. Use uno de: {sorted(VALID_GROUP_MEMBER_STATUSES)}"
+                }), 400
             member.status = data['status']
             
         if 'notes' in data:
@@ -5720,6 +5801,15 @@ def assign_exam_to_group(group_id):
         group, error = _verify_group_access(group_id, g.current_user)
         if error:
             return error
+
+        # Guard de billing: el responsable debe ir vía solicitud al coordinador,
+        # nunca asignar/reactivar exámenes directamente (independiente del costo).
+        _user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+        if _user_role not in ('admin', 'developer', 'coordinator', 'auxiliar'):
+            _, _blocked = _resolve_billing_coordinator_id(group, g.current_user)
+            if _blocked:
+                return _blocked
+
         data = request.get_json()
         
         exam_id = data.get('exam_id')
@@ -5861,17 +5951,26 @@ def assign_exam_to_group(group_id):
                 r_total_cost = r_unit_cost * r_billable_count
                 
                 if r_total_cost > 0 and not is_admin_or_dev:
-                    coordinator_id = g.current_user.id
+                    coordinator_id, blocked = _resolve_billing_coordinator_id(group, g.current_user)
+                    if blocked:
+                        db.session.rollback()
+                        return blocked
+                    if not coordinator_id:
+                        db.session.rollback()
+                        return jsonify({
+                            'error': 'El plantel no tiene coordinador asignado para procesar el cobro',
+                            'error_type': 'no_coordinator'
+                        }), 400
                     balance = CoordinatorBalance.query.filter_by(
                         coordinator_id=coordinator_id,
                         campus_id=group.campus_id
-                    ).first()
+                    ).with_for_update().first()
                     current_bal = float(balance.current_balance) if balance else 0.0
                     
                     if current_bal < r_total_cost:
                         db.session.rollback()
                         return jsonify({
-                            'error': f'Saldo insuficiente para este plantel. Necesitas ${r_total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                            'error': f'Saldo insuficiente para este plantel. Necesitas ${r_total_cost:,.2f} pero el saldo del coordinador es ${current_bal:,.2f}',
                             'error_type': 'insufficient_balance',
                             'required': r_total_cost,
                             'available': current_bal,
@@ -5894,7 +5993,7 @@ def assign_exam_to_group(group_id):
                         reference_type='group_exam',
                         reference_id=existing.id,
                         notes=notes,
-                        created_by_id=coordinator_id
+                        created_by_id=g.current_user.id
                     )
                 
                 # Crear EcmCandidateAssignment para los nuevos
@@ -6065,39 +6164,32 @@ def assign_exam_to_group(group_id):
         
         # Solo verificar y deducir si hay costo > 0 y el usuario es coordinador/responsable (no admin/dev)
         if total_cost > 0 and not is_admin_or_dev:
-            # Responsable: sumar TODOS los coordinadores del campus (consistente con my-campus-balance)
-            # y deducir del coordinador principal
-            if user_role == 'responsable':
-                all_balances = CoordinatorBalance.query.filter_by(campus_id=group.campus_id).all()
-                current_balance = sum(float(b.current_balance or 0) for b in all_balances)
-                # Para la deducción, usar el coordinador con más saldo
-                if all_balances:
-                    primary_balance = max(all_balances, key=lambda b: float(b.current_balance or 0))
-                    coordinator_id = primary_balance.coordinator_id
-                else:
-                    coordinator_id = None
-            else:
-                coordinator_id = g.current_user.id
-            
+            # Resolver coordinador a cobrar según rol:
+            # - coordinator: su id
+            # - auxiliar: coordinator dueño del campus (saldo compartido)
+            # - responsable: BLOQUEADO (debe usar /certificate-requests)
+            # - otros roles: BLOQUEADO
+            coordinator_id, blocked = _resolve_billing_coordinator_id(group, g.current_user)
+            if blocked:
+                db.session.rollback()
+                return blocked
             if not coordinator_id:
                 db.session.rollback()
                 return jsonify({
                     'error': 'No se encontró un coordinador con saldo asignado para este plantel',
                     'error_type': 'no_coordinator'
                 }), 400
-            
-            if user_role != 'responsable':
-                # Para coordinador, obtener su propio balance
-                balance = CoordinatorBalance.query.filter_by(
-                    coordinator_id=coordinator_id,
-                    campus_id=group.campus_id
-                ).first()
-                current_balance = float(balance.current_balance) if balance else 0.0
-            
+
+            balance = CoordinatorBalance.query.filter_by(
+                coordinator_id=coordinator_id,
+                campus_id=group.campus_id
+            ).with_for_update().first()
+            current_balance = float(balance.current_balance) if balance else 0.0
+
             if current_balance < total_cost:
                 db.session.rollback()
                 return jsonify({
-                    'error': f'Saldo insuficiente para este plantel. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error': f'Saldo insuficiente para este plantel. Necesitas ${total_cost:,.2f} pero el saldo del coordinador es ${current_balance:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': total_cost,
                     'available': current_balance,
@@ -6105,12 +6197,12 @@ def assign_exam_to_group(group_id):
                     'already_assigned_count': len(already_assigned),
                     'billable_count': billable_count
                 }), 400
-            
+
             # Deducir saldo y crear transacción
             exam_name = exam.name if exam else f'Examen #{exam_id}'
             skipped_note = f' ({len(already_assigned)} omitido(s) por ya tener ECM)' if already_assigned else ''
             notes = f'Asignación de "{exam_name}" a grupo "{group.name}" - {billable_count} unidad(es) x ${unit_cost:,.2f}{skipped_note}'
-            
+
             create_balance_transaction(
                 coordinator_id=coordinator_id,
                 campus_id=group.campus_id,
@@ -6436,6 +6528,15 @@ def add_assignments_to_exam(group_id, exam_id):
         group, error = _verify_group_access(group_id, g.current_user)
         if error:
             return error
+
+        # Guard de billing: el responsable debe ir vía solicitud al coordinador,
+        # nunca agregar asignaciones directamente (independiente del costo).
+        _user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
+        if _user_role not in ('admin', 'developer', 'coordinator', 'auxiliar'):
+            _, _blocked = _resolve_billing_coordinator_id(group, g.current_user)
+            if _blocked:
+                return _blocked
+
         group_exam = GroupExam.query.filter_by(
             group_id=group_id,
             exam_id=exam_id,
@@ -6525,16 +6626,23 @@ def add_assignments_to_exam(group_id, exam_id):
         is_admin_or_dev = user_role in ('admin', 'developer')
 
         if total_cost > 0 and not is_admin_or_dev:
-            coordinator_id = g.current_user.id
+            coordinator_id, blocked = _resolve_billing_coordinator_id(group, g.current_user)
+            if blocked:
+                return blocked
+            if not coordinator_id:
+                return jsonify({
+                    'error': 'El plantel no tiene coordinador asignado para procesar el cobro',
+                    'error_type': 'no_coordinator'
+                }), 400
             balance = CoordinatorBalance.query.filter_by(
                 coordinator_id=coordinator_id,
                 campus_id=group.campus_id
-            ).first()
+            ).with_for_update().first()
             current_bal = float(balance.current_balance) if balance else 0.0
 
             if current_bal < total_cost:
                 return jsonify({
-                    'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                    'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero el saldo del coordinador es ${current_bal:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': total_cost,
                     'available': current_bal,
@@ -6558,37 +6666,40 @@ def add_assignments_to_exam(group_id, exam_id):
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
-                created_by_id=coordinator_id
+                created_by_id=g.current_user.id
             )
+
+        # Set de user_ids ya presentes como GroupExamMember (BD + sesión)
+        # para evitar duplicate-key en uq_gem_group_exam_user_v3 cuando se mezcla
+        # la migración 'all'→'selected' con nuevas asignaciones.
+        existing_gem_user_ids = {
+            m.user_id for m in GroupExamMember.query.filter_by(
+                group_exam_id=group_exam.id
+            ).all()
+        }
 
         # Si era 'all', migrar a 'selected' antes de agregar
         if group_exam.assignment_type == 'all':
             existing_group_members = GroupMember.query.filter_by(group_id=group_id).all()
             for gm in existing_group_members:
-                exists = GroupExamMember.query.filter_by(
-                    group_exam_id=group_exam.id,
-                    user_id=gm.user_id
-                ).first()
-                if not exists:
+                if gm.user_id not in existing_gem_user_ids:
                     db.session.add(GroupExamMember(
                         group_exam_id=group_exam.id,
                         user_id=gm.user_id
                     ))
+                    existing_gem_user_ids.add(gm.user_id)
             group_exam.assignment_type = 'selected'
 
         # Crear GroupExamMember + EcmCandidateAssignment para nuevos
         new_assignments = []
         for uid in new_user_ids:
-            # GroupExamMember
-            existing_mem = GroupExamMember.query.filter_by(
-                group_exam_id=group_exam.id,
-                user_id=uid
-            ).first()
-            if not existing_mem:
+            # GroupExamMember (verificando set en memoria, no la BD)
+            if uid not in existing_gem_user_ids:
                 db.session.add(GroupExamMember(
                     group_exam_id=group_exam.id,
                     user_id=uid
                 ))
+                existing_gem_user_ids.add(uid)
 
             # EcmCandidateAssignment
             if ecm_id:
@@ -6612,10 +6723,12 @@ def add_assignments_to_exam(group_id, exam_id):
 
         # También agregar como GroupExamMember a los que ya tenían ECM pero no eran miembros del examen
         for uid in already_exam_member:
-            db.session.add(GroupExamMember(
-                group_exam_id=group_exam.id,
-                user_id=uid
-            ))
+            if uid not in existing_gem_user_ids:
+                db.session.add(GroupExamMember(
+                    group_exam_id=group_exam.id,
+                    user_id=uid
+                ))
+                existing_gem_user_ids.add(uid)
 
         db.session.commit()
 
@@ -7822,7 +7935,7 @@ def apply_ecm_retake(group_id, exam_id, user_id):
     """
     try:
         from app.models import GroupExam
-        from app.models.partner import EcmCandidateAssignment, EcmRetake
+        from app.models.partner import EcmCandidateAssignment, EcmRetake, GroupMember
         from app.models.result import Result
         from app.models.balance import CoordinatorBalance, create_balance_transaction
 
@@ -7830,6 +7943,20 @@ def apply_ecm_retake(group_id, exam_id, user_id):
         if error:
             return error
         campus = Campus.query.get(group.campus_id)
+
+        # W-RACE-MOVE: bloquear el GroupMember al inicio para evitar que un
+        # `move_members_to_group` concurrente reasigne al candidato a otro
+        # grupo mientras cobramos la retoma. Si el miembro ya no está en
+        # este grupo, abortar con 409.
+        member_lock = GroupMember.query.filter_by(
+            group_id=group_id,
+            user_id=user_id
+        ).with_for_update().first()
+        if not member_lock:
+            return jsonify({
+                'error': 'El candidato ya no es miembro de este grupo (puede haber sido movido). Recarga la página y reintenta.',
+                'error_type': 'member_no_longer_in_group'
+            }), 409
 
         group_exam = GroupExam.query.filter_by(
             group_id=group_id,
@@ -7909,21 +8036,34 @@ def apply_ecm_retake(group_id, exam_id, user_id):
 
         # Verificar saldo del coordinador para este plantel
         # Admins y developers no requieren verificación de saldo
+        # W-RETAKE: el cobro va al coordinador dueño del campus, no al usuario
+        # actual (que puede ser responsable/auxiliar y no tener CoordinatorBalance).
         user_role = g.current_user.role if hasattr(g.current_user, 'role') else ''
         is_admin_or_dev = user_role in ('admin', 'developer')
-        
+
         transaction_id = None
         if retake_cost > 0 and not is_admin_or_dev:
-            coordinator_id = g.current_user.id
+            coordinator_id, blocked = _resolve_billing_coordinator_id(group, g.current_user)
+            if blocked:
+                return blocked
+            if not coordinator_id:
+                return jsonify({
+                    'error': 'No se puede determinar el coordinador a cobrar. El plantel no tiene un coordinador asignado.',
+                    'error_type': 'no_coordinator'
+                }), 400
+
+            # W-RETAKE-RACE: bloquear la fila del balance para evitar race
+            # condition entre verificación de saldo y débito.
             balance = CoordinatorBalance.query.filter_by(
                 coordinator_id=coordinator_id,
                 campus_id=group.campus_id
-            ).first()
+            ).with_for_update().first()
             current_balance = float(balance.current_balance) if balance else 0.0
-            
+
             if current_balance < retake_cost:
+                db.session.rollback()  # liberar el lock
                 return jsonify({
-                    'error': f'Saldo insuficiente para este plantel. La retoma cuesta ${retake_cost:,.2f} pero tu saldo es ${current_balance:,.2f}',
+                    'error': f'Saldo insuficiente para este plantel. La retoma cuesta ${retake_cost:,.2f} pero el saldo del coordinador es ${current_balance:,.2f}',
                     'error_type': 'insufficient_balance',
                     'required': retake_cost,
                     'available': current_balance,
@@ -7935,8 +8075,9 @@ def apply_ecm_retake(group_id, exam_id, user_id):
             user_name = user_obj.full_name if user_obj else user_id
             exam_name = exam.name if exam else f'Examen #{exam_id}'
             notes = f'Retoma #{active_retakes + 1} de "{exam_name}" para {user_name} (Asignación {ecm_assignment.assignment_number}) en grupo "{group.name}"'
-            
-            transaction = create_balance_transaction(
+
+            # create_balance_transaction retorna tuple (transaction, balance)
+            tx_result = create_balance_transaction(
                 coordinator_id=coordinator_id,
                 campus_id=group.campus_id,
                 transaction_type='debit',
@@ -7946,9 +8087,11 @@ def apply_ecm_retake(group_id, exam_id, user_id):
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
-                created_by_id=coordinator_id
+                created_by_id=g.current_user.id
             )
-            if transaction:
+            transaction = tx_result[0] if isinstance(tx_result, tuple) else tx_result
+            db.session.flush()  # obtener transaction.id sin commitear todavía
+            if transaction is not None:
                 transaction_id = transaction.id
 
         # Crear la retoma
@@ -8039,10 +8182,24 @@ def preview_ecm_retake(group_id, exam_id):
         max_retakes = group.max_retakes_override if group.max_retakes_override is not None else (campus.max_retakes if campus and campus.max_retakes is not None else 0)
         retake_cost = float(group.retake_cost_override) if group.retake_cost_override is not None else (float(campus.retake_cost) if campus and campus.retake_cost else 0)
 
-        # Saldo del plantel
+        # Saldo del plantel — resolver coordinador dueño del cobro (informativo).
+        # Si el rol no puede facturar (responsable, soporte), igual mostramos el
+        # saldo del coordinador del campus como referencia visual; el bloqueo de
+        # facturación lo aplica el endpoint POST de retoma.
         from app.models.balance import CoordinatorBalance
+        from app.models.partner import Campus as _Campus
+        billing_coord_id = None
+        role = getattr(g.current_user, 'role', '') or ''
+        if role == 'coordinator':
+            billing_coord_id = g.current_user.id
+        else:
+            _campus = _Campus.query.get(group.campus_id) if group.campus_id else None
+            if _campus and _campus.coordinator_id:
+                billing_coord_id = _campus.coordinator_id
+        if not billing_coord_id:
+            billing_coord_id = g.current_user.id
         balance = CoordinatorBalance.query.filter_by(
-            coordinator_id=g.current_user.id,
+            coordinator_id=billing_coord_id,
             campus_id=group.campus_id
         ).first()
         current_balance = float(balance.current_balance) if balance else 0.0
@@ -8062,6 +8219,14 @@ def preview_ecm_retake(group_id, exam_id):
         )
 
         user_obj = User.query.get(user_id)
+
+        # Hint para responsable: NO puede consumir saldo directamente.
+        # Debe solicitar la retoma vía CertificateRequest.
+        must_request_to_coordinator = role == 'responsable'
+        if must_request_to_coordinator:
+            # Forzar can_apply=False para responsables (UI debe ocultar botón "Aplicar")
+            can_apply = False
+
         return jsonify({
             'can_apply': can_apply,
             'user_name': user_obj.full_name if user_obj else user_id,
@@ -8078,9 +8243,15 @@ def preview_ecm_retake(group_id, exam_id):
             'has_approved': approved,
             'has_ecm': ecm_id is not None,
             'has_assignment': ecm_assignment is not None,
+            'must_request_to_coordinator': must_request_to_coordinator,
+            'request_hint': (
+                'Como responsable de plantel no puedes consumir el saldo. Solicita la retoma al coordinador desde "Solicitar certificados".'
+                if must_request_to_coordinator else None
+            ),
             'reasons': _get_retake_block_reasons(
                 ecm_id, ecm_assignment, results_count, total_allowed,
-                active_retakes, max_retakes, approved, current_balance, retake_cost
+                active_retakes, max_retakes, approved, current_balance, retake_cost,
+                must_request_to_coordinator=must_request_to_coordinator
             )
         })
 
@@ -8093,9 +8264,12 @@ def preview_ecm_retake(group_id, exam_id):
 
 
 def _get_retake_block_reasons(ecm_id, ecm_assignment, results_count, total_allowed,
-                               active_retakes, max_retakes, approved, current_balance, retake_cost):
+                               active_retakes, max_retakes, approved, current_balance, retake_cost,
+                               must_request_to_coordinator=False):
     """Devuelve lista de razones por las que NO se puede aplicar retoma."""
     reasons = []
+    if must_request_to_coordinator:
+        reasons.append('Como responsable de plantel debes solicitar la retoma al coordinador (no puedes consumir el saldo directamente).')
     if not ecm_id:
         reasons.append('El examen no tiene un ECM asignado')
     if not ecm_assignment:
@@ -9270,65 +9444,76 @@ def reset_group_exam_materials(group_exam_id):
 @jwt_required()
 @coordinator_required
 def move_members_to_group(source_group_id):
-    """Mover candidatos de un grupo a otro - optimizado para miles de candidatos"""
+    """Mover candidatos de un grupo a otro - optimizado para miles de candidatos.
+
+    W-MOVE-NEW: preserva status original (no hardcodea 'active') y concatena notas
+    en vez de sobrescribir. Acepta cualquier status válido del miembro origen
+    (active, suspended, curp_required) en vez de filtrar solo 'active'.
+    W-MOVE-FLUSH: commit por chunk para evitar perder todo el progreso si el
+    request muere a mitad.
+    """
     try:
         data = request.get_json()
-        
+
         target_group_id = data.get('target_group_id')
         user_ids = data.get('user_ids', [])
-        
+
         if not target_group_id:
             return jsonify({'error': 'El grupo destino es requerido'}), 400
-        
+
         if not user_ids or not isinstance(user_ids, list):
             return jsonify({'error': 'Debe especificar al menos un candidato para mover'}), 400
-        
+
         if source_group_id == target_group_id:
             return jsonify({'error': 'El grupo origen y destino no pueden ser el mismo'}), 400
-        
-        # Verificar grupos existen
-        source_group = CandidateGroup.query.get_or_404(source_group_id)
-        target_group = CandidateGroup.query.get_or_404(target_group_id)
-        
+
+        # Verificar acceso a AMBOS grupos (G16 multi-tenant)
+        source_group, error = _verify_group_access(source_group_id, g.current_user)
+        if error:
+            return error
+        target_group, error = _verify_group_access(target_group_id, g.current_user)
+        if error:
+            return error
+
         moved = []
         errors = []
-        
+
         # Procesar en chunks
         CHUNK_SIZE = 500
-        
+
         for i in range(0, len(user_ids), CHUNK_SIZE):
             chunk_ids = user_ids[i:i + CHUNK_SIZE]
-            
-            # Batch: obtener miembros activos del grupo origen
+
+            # Batch: obtener miembros del grupo origen (cualquier status, no solo 'active')
             source_members = GroupMember.query.filter(
                 GroupMember.group_id == source_group_id,
-                GroupMember.user_id.in_(chunk_ids),
-                GroupMember.status == 'active'
+                GroupMember.user_id.in_(chunk_ids)
             ).all()
             source_member_map = {m.user_id: m for m in source_members}
-            
+
             # Batch: verificar existencia en grupo destino
             existing_targets = GroupMember.query.filter(
                 GroupMember.group_id == target_group_id,
                 GroupMember.user_id.in_(chunk_ids)
             ).all()
             existing_target_ids = {m.user_id for m in existing_targets}
-            
+
             # Batch: obtener datos de usuarios para respuesta
             users = User.query.filter(User.id.in_(chunk_ids)).all()
             user_map = {u.id: u for u in users}
-            
+
+            chunk_moved = []
             for user_id in chunk_ids:
                 user = user_map.get(user_id)
-                
+
                 if user_id not in source_member_map:
                     errors.append({
                         'user_id': user_id,
                         'name': user.name if user else 'Desconocido',
-                        'error': 'No es miembro activo del grupo origen'
+                        'error': 'No es miembro del grupo origen'
                     })
                     continue
-                
+
                 if user_id in existing_target_ids:
                     errors.append({
                         'user_id': user_id,
@@ -9336,28 +9521,36 @@ def move_members_to_group(source_group_id):
                         'error': 'Ya existe en el grupo destino'
                     })
                     continue
-                
-                # Mover: eliminar del origen y crear en destino
-                db.session.delete(source_member_map[user_id])
-                
-                new_member = GroupMember(
-                    group_id=target_group_id,
-                    user_id=user_id,
-                    status='active',
-                    notes=f'Movido desde {source_group.name}'
-                )
-                db.session.add(new_member)
-                
-                moved.append({
+
+                # Mover: actualizar group_id en lugar de delete+insert
+                # para preservar id, created_at e historial.
+                src_member = source_member_map[user_id]
+                old_notes = (src_member.notes or '').strip()
+                move_note = f'Movido desde {source_group.name}'
+                src_member.group_id = target_group_id
+                src_member.notes = (old_notes + '\n' + move_note).strip() if old_notes else move_note
+                # status: NO se modifica — se preserva el original.
+
+                chunk_moved.append({
                     'user_id': user_id,
                     'name': f"{user.name} {user.first_surname}" if user else 'Desconocido',
-                    'email': user.email if user else ''
+                    'email': user.email if user else '',
+                    'preserved_status': src_member.status
                 })
-            
-            db.session.flush()
-        
-        db.session.commit()
-        
+
+            # W-MOVE-FLUSH: commit por chunk para no perder todo si falla más adelante
+            try:
+                db.session.commit()
+                moved.extend(chunk_moved)
+            except Exception as chunk_err:
+                db.session.rollback()
+                for m in chunk_moved:
+                    errors.append({
+                        'user_id': m['user_id'],
+                        'name': m['name'],
+                        'error': f'Error al guardar chunk: {str(chunk_err)[:200]}'
+                    })
+
         return jsonify({
             'message': f'{len(moved)} candidato(s) movido(s) exitosamente',
             'moved': moved,
@@ -13132,17 +13325,26 @@ def bulk_assign_exams_by_ecm(group_id):
                 is_admin_or_dev = user_role in ('admin', 'developer')
 
                 if total_cost > 0 and not is_admin_or_dev:
-                    coordinator_id = g.current_user.id
+                    coordinator_id, blocked = _resolve_billing_coordinator_id(group, g.current_user)
+                    if blocked:
+                        db.session.rollback()
+                        return blocked
+                    if not coordinator_id:
+                        db.session.rollback()
+                        return jsonify({
+                            'error': 'El plantel no tiene coordinador asignado para procesar el cobro',
+                            'error_type': 'no_coordinator'
+                        }), 400
                     balance = CoordinatorBalance.query.filter_by(
                         coordinator_id=coordinator_id,
                         campus_id=group.campus_id
-                    ).first()
+                    ).with_for_update().first()
                     current_bal = float(balance.current_balance) if balance else 0.0
 
                     if current_bal < total_cost:
                         db.session.rollback()
                         return jsonify({
-                            'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero tu saldo es ${current_bal:,.2f}',
+                            'error': f'Saldo insuficiente. Necesitas ${total_cost:,.2f} pero el saldo del coordinador es ${current_bal:,.2f}',
                             'error_type': 'insufficient_balance',
                             'required': total_cost,
                             'available': current_bal,
@@ -13164,7 +13366,7 @@ def bulk_assign_exams_by_ecm(group_id):
                         reference_type='group_exam',
                         reference_id=group_exam.id,
                         notes=notes,
-                        created_by_id=coordinator_id
+                        created_by_id=g.current_user.id
                     )
 
             db.session.commit()
@@ -18475,7 +18677,6 @@ def _build_reports_query(user, params):
             GroupMember.status, GroupMember.joined_at
         ).filter(
             GroupMember.group_id.in_(group_ids),
-            GroupMember.status.notin_(['curp_pending', 'curp_verifying']),
         ).all()
 
         user_ids = list({m[0] for m in member_rows})

@@ -64,7 +64,7 @@ class Partner(db.Model):
     
     # Mapeo a EvaluaasiConfig (SubsistemaId)
     config_subsistema_id = db.Column(db.Integer, nullable=True)
-    
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -275,7 +275,27 @@ class Campus(db.Model):
     primary_color = db.Column(db.String(7))  # Color primario HEX (#3b82f6)
     secondary_color = db.Column(db.String(7))  # Color secundario HEX (opcional)
     # ========== FIN BRANDING ==========
-    
+
+    # ========== SSO TOKENIZACIÓN A NIVEL PLANTEL (mayo 2026) ==========
+    # API key para que terceros (LMS / SIS de la institución) registren y
+    # loguen alumnos vía POST /api/sso/generar_token. Vive en el plantel,
+    # no en el partner: cada plantel tiene su propia llave.
+    #
+    # Almacenamos:
+    #   - api_key_hash: argon2(raw)  → verificación rápida en /generar_token
+    #   - api_key_encrypted: Fernet(raw) → permite revelar la llave bajo demanda
+    #   - api_key_prefix: primeros 12 chars (no secretos) para lookup por índice
+    api_key_hash = db.Column(db.String(255), nullable=True)
+    api_key_encrypted = db.Column(db.Text, nullable=True)
+    api_key_prefix = db.Column(db.String(16), nullable=True, index=True)
+    api_key_active = db.Column(db.Boolean, default=True, nullable=False)
+    api_key_created_at = db.Column(db.DateTime, nullable=True)
+    api_key_created_by = db.Column(db.String(36), nullable=True)
+    # Si está en True, el responsable del plantel también puede revelar la
+    # llave (no rotarla ni revocarla). Default False.
+    share_api_key_with_responsable = db.Column(db.Boolean, default=False, nullable=False)
+    # ========== FIN SSO TOKENIZACIÓN ==========
+
     # ========== FIN CONFIGURACIÓN ==========
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -353,6 +373,11 @@ class Campus(db.Model):
             'logo_url': self.logo_url,
             'primary_color': self.primary_color,
             'secondary_color': self.secondary_color,
+            # SSO API key (info pública: nunca devolvemos el secreto aquí)
+            'has_api_key': bool(self.api_key_hash and self.api_key_active),
+            'api_key_prefix': self.api_key_prefix if self.api_key_active else None,
+            'api_key_created_at': self.api_key_created_at.isoformat() if self.api_key_created_at else None,
+            'share_api_key_with_responsable': bool(self.share_api_key_with_responsable),
         }
         
         # Incluir configuración del plantel
@@ -452,6 +477,55 @@ class Campus(db.Model):
                     'assigned_at': cs.created_at.isoformat() if cs.created_at else None
                 })
         return result
+
+    # ────────────────────────── SSO API key (mayo 2026) ──────────────────────
+
+    def generate_api_key(self, created_by_user_id: str | None = None) -> str:
+        """Genera (o rota) la API key del plantel y devuelve el secreto en
+        claro UNA sola vez. Persiste hash argon2 + cifrado Fernet + prefix.
+        """
+        import secrets
+        from argon2 import PasswordHasher
+        from app.utils.sso_crypto import encrypt_api_key
+        ph = PasswordHasher()
+        # Formato: evk_<urlsafe random>
+        random_part = secrets.token_urlsafe(36)
+        raw_key = f"evk_{random_part}"
+        self.api_key_hash = ph.hash(raw_key)
+        self.api_key_encrypted = encrypt_api_key(raw_key)
+        self.api_key_prefix = raw_key[:12]
+        self.api_key_active = True
+        self.api_key_created_at = datetime.utcnow()
+        if created_by_user_id:
+            self.api_key_created_by = created_by_user_id
+        return raw_key
+
+    def verify_api_key(self, raw_key: str) -> bool:
+        """Verifica una API key en claro contra el hash argon2 almacenado."""
+        if not raw_key or not self.api_key_hash or not self.api_key_active:
+            return False
+        try:
+            from argon2 import PasswordHasher
+            from argon2.exceptions import VerifyMismatchError, InvalidHash
+            ph = PasswordHasher()
+            ph.verify(self.api_key_hash, raw_key)
+            return True
+        except (VerifyMismatchError, InvalidHash, Exception):
+            return False
+
+    def reveal_api_key(self) -> str | None:
+        """Devuelve la API key en claro descifrando el blob Fernet."""
+        if not self.api_key_encrypted or not self.api_key_active:
+            return None
+        from app.utils.sso_crypto import decrypt_api_key
+        return decrypt_api_key(self.api_key_encrypted)
+
+    def revoke_api_key(self) -> None:
+        """Desactiva y borra la API key actual."""
+        self.api_key_hash = None
+        self.api_key_encrypted = None
+        self.api_key_prefix = None
+        self.api_key_active = False
 
 
 class CampusCompetencyStandard(db.Model):
@@ -767,6 +841,14 @@ def _candidate_group_after_update(mapper, connection, target):
     )
 
 
+# Whitelist centralizada de status válidos para GroupMember.
+# Usada por POST/PUT /groups/<id>/members[/<m_id>] para validar input del cliente.
+# - 'active': miembro listo, puede ser cobrado y asignado a exámenes.
+# - 'suspended': miembro pausado manualmente por el coordinador.
+# - 'curp_required': escrito por curp_queue_worker cuando RENAPO rechaza el CURP.
+VALID_GROUP_MEMBER_STATUSES = {'active', 'suspended', 'curp_required'}
+
+
 class GroupMember(db.Model):
     """Miembro (candidato) de un grupo"""
     
@@ -776,8 +858,8 @@ class GroupMember(db.Model):
     group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
 
-    # Estado en el grupo
-    status = db.Column(db.String(20), default='active', nullable=False)  # active, inactive, completed)  # active, inactive, completed, withdrawn
+    # Estado en el grupo (ver VALID_GROUP_MEMBER_STATUSES)
+    status = db.Column(db.String(20), default='active', nullable=False)
     
     # Notas sobre el candidato en este grupo
     notes = db.Column(db.Text)
@@ -1565,6 +1647,7 @@ class BulkUploadBatch(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    validation_email_sent_at = db.Column(db.DateTime, nullable=True)  # Marca cuando se envió email de fin de validación CURPs
 
     # Relaciones
     uploaded_by = db.relationship('User', foreign_keys=[uploaded_by_id], backref=db.backref('bulk_uploads', lazy='dynamic'))

@@ -361,6 +361,118 @@ def vb6_verify():
 # 3. SCHEDULE CHECK (para VB6: ¿qué tiene habilitado el candidato?)
 # ═══════════════════════════════════════════════════════════════════
 
+@bp.route('/my-exams', methods=['GET'])
+@vb6_token_required
+def vb6_my_exams(vb6_user, vb6_token):
+    """Lista de exámenes Office disponibles para el candidato.
+
+    Fuente: VmSessions agendadas (hoy y futuras dentro de 30 días) + opciones libres
+    permitidas por la configuración del campus/grupo (parciales sin agendar).
+
+    Auth: X-VB6-Token. NO toca legacy. El cliente .NET usa esto en Examenes(int,int).
+
+    Returns:
+      {
+        success: True,
+        items: [
+          {
+            id: <int o str>,
+            name: 'Examen Excel 2016 básico',
+            office_app: 'excel',
+            office_version: '2016',
+            level: 'basico',
+            session_type: 'examen',
+            vm_session_id: 91 | None,
+            scheduled: True | False,
+            available_now: True | False,
+            start_hour: 18, end_hour: 22, session_date: '2026-05-04'
+          }, ...
+        ]
+      }
+    """
+    campus, group, membership, config = _get_candidate_context(vb6_user.id)
+
+    today = date.today()
+    now_hour = datetime.utcnow().hour
+    horizon = today + timedelta(days=30)
+
+    sessions = VmSession.query.filter(
+        VmSession.user_id == str(vb6_user.id),
+        VmSession.session_date >= today,
+        VmSession.session_date <= horizon,
+        VmSession.status.in_(['scheduled', 'in_progress']),
+    ).order_by(VmSession.session_date.asc(), VmSession.start_hour.asc()).all()
+
+    items = []
+    seen_keys = set()
+    for s in sessions:
+        end_h = s.end_hour if s.end_hour is not None else (s.start_hour or 0) + 1
+        is_today = s.session_date == today
+        available_now = bool(is_today and s.start_hour is not None
+                             and s.start_hour <= now_hour < end_h)
+        app = (s.office_app or '').lower() or None
+        level = (s.level or '').lower() or None
+        version = s.office_version or (config.get('office_version') if config else None)
+        st = s.session_type or 'examen'
+        name_parts = [st.capitalize()]
+        if app:
+            name_parts.append(app.capitalize())
+        if version:
+            name_parts.append(str(version))
+        if level:
+            name_parts.append(level)
+        items.append({
+            'id': s.id,
+            'name': ' '.join(name_parts),
+            'office_app': app,
+            'office_version': version,
+            'level': level,
+            'session_type': st,
+            'vm_session_id': s.id,
+            'scheduled': True,
+            'available_now': available_now,
+            'session_date': s.session_date.isoformat() if s.session_date else None,
+            'start_hour': s.start_hour,
+            'end_hour': end_h,
+            'parcial_units': s.parcial_units,
+        })
+        seen_keys.add((app, version, level, st))
+
+    # Parciales sin agendar (si el campus/grupo lo permite)
+    if config and config.get('enable_partial_evaluations') and config.get('enable_unscheduled_partials'):
+        app = (config.get('office_app') or '').lower() or None
+        version = config.get('office_version')
+        level = (config.get('office_exam_level') or '').lower() or None
+        key = (app, version, level, 'parcial')
+        if key not in seen_keys:
+            name_parts = ['Parcial libre']
+            if app:
+                name_parts.append(app.capitalize())
+            if version:
+                name_parts.append(str(version))
+            items.append({
+                'id': 'parcial-libre',
+                'name': ' '.join(name_parts),
+                'office_app': app,
+                'office_version': version,
+                'level': level,
+                'session_type': 'parcial',
+                'vm_session_id': None,
+                'scheduled': False,
+                'available_now': True,
+                'session_date': None,
+                'start_hour': None,
+                'end_hour': None,
+                'parcial_units': None,
+            })
+
+    return jsonify({
+        'success': True,
+        'items': items,
+        'total': len(items),
+    })
+
+
 @bp.route('/schedule-check', methods=['GET'])
 @vb6_token_required
 def vb6_schedule_check(vb6_user, vb6_token):
@@ -444,6 +556,19 @@ def vb6_start(vb6_user, vb6_token):
     
     if office_app not in ('excel', 'word', 'powerpoint'):
         return jsonify({'success': False, 'error': 'office_app inválido'}), 400
+
+    # Bloquear inicio de examen si la CURP del candidato no está validada.
+    # El candidato debe ingresar al portal web y validar su CURP en /mi-curp.
+    _GENERIC_FOREIGN = {'XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8'}
+    _user_curp = (vb6_user.curp or '').upper().strip()
+    if (vb6_user.role == 'candidato'
+            and not vb6_user.curp_verified
+            and _user_curp not in _GENERIC_FOREIGN):
+        return jsonify({
+            'success': False,
+            'error': 'Tu CURP no ha sido validada. Ingresa al portal web (https://dev.evaluaasi.com) y valida tu CURP antes de iniciar un examen.',
+            'curp_required': True,
+        }), 403
     
     # Verificar que no hay otra evaluación in_progress
     existing = OfficeExamResult.query.filter_by(

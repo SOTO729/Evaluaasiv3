@@ -317,6 +317,11 @@ export default function FinancieroDashboard() {
                       <p className="font-medium text-gray-900 fluid-text-sm">
                         {req.coordinator?.full_name || 'Coordinador'}
                       </p>
+                      {req.requested_by && req.requested_by.id !== req.coordinator?.id && (
+                        <p className="fluid-text-xs text-amber-700">
+                          Solicitado por {req.requested_by.full_name}{req.requested_by.role ? ` (${req.requested_by.role})` : ''}
+                        </p>
+                      )}
                       <div className="flex items-center fluid-gap-2 fluid-mt-0.5">
                         <Building2 className="fluid-icon-xs text-gray-400" />
                         <p className="fluid-text-xs text-gray-500">

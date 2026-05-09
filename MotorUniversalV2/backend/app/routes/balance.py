@@ -178,15 +178,21 @@ def get_my_requests():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in ['coordinator', 'admin', 'developer']:
-            return jsonify({'error': 'Solo coordinadores pueden solicitar saldo'}), 400
+        if user.role not in ['coordinator', 'admin', 'developer', 'auxiliar']:
+            return jsonify({'error': 'Solo coordinadores o auxiliares pueden solicitar saldo'}), 400
         
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
         status = request.args.get('status')  # Filtro opcional
         request_type = request.args.get('request_type')  # Filtro por tipo (saldo/beca)
         
-        query = BalanceRequest.query.filter_by(coordinator_id=user_id)
+        # Si es auxiliar, mostrar las solicitudes del coordinador al que pertenece
+        # (para que vea tanto las que él hizo como las del coord); si es coordinator,
+        # mostrar las suyas.
+        if user.role == 'auxiliar' and user.coordinator_id:
+            query = BalanceRequest.query.filter_by(coordinator_id=user.coordinator_id)
+        else:
+            query = BalanceRequest.query.filter_by(coordinator_id=user_id)
         
         if status:
             query = query.filter_by(status=status)
@@ -222,10 +228,19 @@ def create_request():
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
-        
-        if user.role not in ['coordinator', 'admin', 'developer']:
-            return jsonify({'error': 'Solo coordinadores pueden solicitar saldo'}), 400
-        
+
+        if user.role not in ['coordinator', 'admin', 'developer', 'auxiliar']:
+            return jsonify({'error': 'Solo coordinadores o auxiliares pueden solicitar saldo'}), 400
+
+        # Resolver coordinador efectivo (auxiliar solicita en nombre del coordinador)
+        effective_coordinator_id = user_id
+        is_proxy_request = False
+        if user.role == 'auxiliar':
+            if not user.coordinator_id:
+                return jsonify({'error': 'El auxiliar no tiene coordinador asignado'}), 400
+            effective_coordinator_id = user.coordinator_id
+            is_proxy_request = True
+
         data = request.get_json()
         
         # Validaciones
@@ -259,7 +274,8 @@ def create_request():
         
         # Crear solicitud
         balance_request = BalanceRequest(
-            coordinator_id=user_id,
+            coordinator_id=effective_coordinator_id,
+            requested_by_id=user_id if is_proxy_request else None,
             campus_id=campus.id,
             group_id=group.id if group else None,
             request_type=data.get('request_type', 'saldo'),
@@ -297,10 +313,19 @@ def create_request():
             if not has_delegation:
                 from app.services.email_service import send_balance_approval_email
                 gerentes = User.query.filter_by(role='gerente', is_active=True).all()
-                coordinator_name = user.full_name or user.name or 'Coordinador'
+                # Resolver coordinador real (puede ser distinto de quien opera)
+                effective_coord_user = User.query.get(effective_coordinator_id)
+                coordinator_name = (effective_coord_user.full_name if effective_coord_user else None) or user.full_name or user.name or 'Coordinador'
+                if is_proxy_request:
+                    operator_name = user.full_name or user.name or 'Auxiliar'
+                    coordinator_name = f"{coordinator_name} (solicitado por auxiliar: {operator_name})"
                 campus_name = campus.name if campus else 'N/A'
                 group_name = group.name if group else 'Plantel general'
-                cc_emails = [user.email] if user.email else []
+                cc_emails = []
+                if effective_coord_user and effective_coord_user.email:
+                    cc_emails.append(effective_coord_user.email)
+                if is_proxy_request and user.email and user.email not in cc_emails:
+                    cc_emails.append(user.email)
 
                 for gerente in gerentes:
                     if gerente.email:
@@ -346,8 +371,17 @@ def create_request_batch():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
 
-        if user.role not in ['coordinator', 'admin', 'developer']:
-            return jsonify({'error': 'Solo coordinadores pueden solicitar saldo'}), 400
+        if user.role not in ['coordinator', 'admin', 'developer', 'auxiliar']:
+            return jsonify({'error': 'Solo coordinadores o auxiliares pueden solicitar saldo'}), 400
+
+        # Resolver coordinador efectivo (auxiliar solicita en nombre del coordinador)
+        effective_coordinator_id = user_id
+        is_proxy_request = False
+        if user.role == 'auxiliar':
+            if not user.coordinator_id:
+                return jsonify({'error': 'El auxiliar no tiene coordinador asignado'}), 400
+            effective_coordinator_id = user.coordinator_id
+            is_proxy_request = True
 
         data = request.get_json()
         items = data.get('items', [])
@@ -382,7 +416,8 @@ def create_request_batch():
                 continue
 
             balance_request = BalanceRequest(
-                coordinator_id=user_id,
+                coordinator_id=effective_coordinator_id,
+                requested_by_id=user_id if is_proxy_request else None,
                 campus_id=campus.id,
                 group_id=group.id if group else None,
                 request_type=request_type,
@@ -432,8 +467,16 @@ def create_request_batch():
             if not has_delegation:
                 from app.services.email_service import send_balance_batch_approval_email
                 gerentes = User.query.filter_by(role='gerente', is_active=True).all()
-                coordinator_name = user.full_name or user.name or 'Coordinador'
-                cc_emails = [user.email] if user.email else []
+                effective_coord_user = User.query.get(effective_coordinator_id)
+                coordinator_name = (effective_coord_user.full_name if effective_coord_user else None) or user.full_name or user.name or 'Coordinador'
+                if is_proxy_request:
+                    operator_name = user.full_name or user.name or 'Auxiliar'
+                    coordinator_name = f"{coordinator_name} (solicitado por auxiliar: {operator_name})"
+                cc_emails = []
+                if effective_coord_user and effective_coord_user.email:
+                    cc_emails.append(effective_coord_user.email)
+                if is_proxy_request and user.email and user.email not in cc_emails:
+                    cc_emails.append(user.email)
 
                 for gerente in gerentes:
                     if gerente.email:
@@ -2764,10 +2807,14 @@ def review_certificate_request(request_id):
             if notes:
                 combined_justification += f"\n\nNotas del coordinador: {notes}"
             
-            # Crear BalanceRequest (solicitud formal al flujo financiero/gerente)
+            # Crear BalanceRequest (solicitud formal al flujo financiero/gerente).
+            # coordinator_id = el coord asignado al cert_req (dueño del saldo).
+            # requested_by_id = quien aprobó (puede ser admin/dev distinto del coord).
+            target_coordinator_id = cert_req.coordinator_id or user_id
             import json as _json
             balance_request = BalanceRequest(
-                coordinator_id=user_id,
+                coordinator_id=target_coordinator_id,
+                requested_by_id=user_id if user_id != target_coordinator_id else None,
                 campus_id=cert_req.campus_id,
                 group_id=group_id if group_id else None,
                 request_type='saldo',

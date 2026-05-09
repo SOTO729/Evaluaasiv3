@@ -279,6 +279,15 @@ def create_app(config_name='development'):
         print(f"[INIT] ❌ Error importando maintenance_bp: {e}")
         raise
 
+    # SSO Tokenización API (mayo 2026)
+    try:
+        from app.routes.sso import bp as sso_bp
+        app.register_blueprint(sso_bp, url_prefix='/api/sso')
+        print("[INIT] ✅ sso registrado en /api/sso")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando sso_bp: {e}")
+        raise
+
     print("[INIT] ✅ Todos los blueprints registrados correctamente")
     
     # Verificar y agregar columna label_style si no existe
@@ -340,7 +349,28 @@ def create_app(config_name='development'):
             check_and_recover_orphaned_curp_users()
         except Exception as e:
             print(f"[CURP-RECOVERY] Error checking for orphaned users: {e}")
-    
+
+        # Tablas curp_renapo_cache y curp_verification_queue (mayo 2026)
+        try:
+            from app.auto_migrate import check_and_create_curp_verification_tables
+            check_and_create_curp_verification_tables()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error creando tablas CURP verification: {e}")
+
+        # SSO Tokenización (api_key partners + external_id users + sso_tokens)
+        try:
+            from app.auto_migrate import check_and_create_sso_tokenization
+            check_and_create_sso_tokenization()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando SSO Tokenización: {e}")
+
+    # Arrancar worker de cola de verificación CURP (background thread)
+    try:
+        from app.services.curp_queue_worker import start_curp_worker
+        start_curp_worker(app)
+    except Exception as e:
+        print(f"[CURP-WORKER] Error arrancando worker: {e}")
+
     # Manejadores de errores
     register_error_handlers(app)
     

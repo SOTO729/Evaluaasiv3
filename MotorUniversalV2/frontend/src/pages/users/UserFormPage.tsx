@@ -60,6 +60,7 @@ import { useAuthStore } from '../../store/authStore';
 import CurpVerificationBadge from '../../components/users/CurpVerificationBadge';
 import CurpValidationSpinner from '../../components/users/CurpValidationSpinner';
 import CurpValidationResultDisplay from '../../components/users/CurpValidationResult';
+import GroupCascadeSelector from '../../components/users/GroupCascadeSelector';
 
 // ─── Configuración visual de roles ─────────────────────────────────────────
 interface RoleCardConfig {
@@ -236,6 +237,9 @@ export default function UserFormPage() {
     partner_id: 0,
     assigned_state: '',
   });
+
+  // Asignación opcional a grupo (solo aplica al alta de candidatos).
+  const [selectedGroupId, setSelectedGroupId] = useState<number | ''>('');
 
   useEffect(() => {
     loadRoles();
@@ -551,6 +555,11 @@ export default function UserFormPage() {
           gender: formData.gender || undefined,
         };
 
+        // Asignación opcional a grupo (solo aplica al alta de candidatos)
+        if (formData.role === 'candidato' && selectedGroupId) {
+          createData.group_id = Number(selectedGroupId);
+        }
+
         // Campos adicionales para responsables
         if (formData.role === 'responsable') {
           createData.date_of_birth = formData.date_of_birth;
@@ -583,6 +592,12 @@ export default function UserFormPage() {
             password: (result as any).temporary_password
           });
           setSuccess('Usuario creado exitosamente. Guarda las credenciales de acceso.');
+        } else if ((result as any).existing_user_assigned) {
+          // Usuario ya existía y se asignó al grupo destino
+          setSuccess(
+            (result as any).message ||
+              'El correo o CURP ya existía. El usuario existente se asignó al grupo seleccionado.'
+          );
         } else {
           setSuccess('Usuario creado correctamente');
         }
@@ -1251,6 +1266,19 @@ export default function UserFormPage() {
                 )}
               </div>
             </div>
+
+            {/* ── Asignación opcional a grupo (solo candidatos, alta) ── */}
+            {!isEditing && formData.role === 'candidato' && (
+              <div className="border-t border-emerald-200 bg-emerald-50/40 fluid-p-6">
+                <GroupCascadeSelector
+                  currentRole={currentUser?.role || ''}
+                  currentUserCampusId={currentUser?.campus_id}
+                  groupId={selectedGroupId}
+                  onChange={setSelectedGroupId}
+                  collapsible
+                />
+              </div>
+            )}
 
             {/* ── Configuración del responsable ── */}
             {formData.role === 'responsable' && (

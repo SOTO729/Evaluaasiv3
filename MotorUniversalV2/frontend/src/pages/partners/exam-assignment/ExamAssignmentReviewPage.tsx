@@ -43,6 +43,7 @@ export default function ExamAssignmentReviewPage() {
   const [group, setGroup] = useState<CandidateGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [responsableMustRequest, setResponsableMustRequest] = useState<string | null>(null);
   const [costPreview, setCostPreview] = useState<CostPreviewData | null>(null);
   const [saving, setSaving] = useState(false);
   // Modal state
@@ -141,7 +142,13 @@ export default function ExamAssignmentReviewPage() {
       setSaving(false);
     } catch (err: any) {
       const errorType = err.response?.data?.error_type;
-      if (errorType === 'insufficient_balance') {
+      if (errorType === 'responsable_must_request') {
+        setResponsableMustRequest(
+          err.response?.data?.error
+          || 'Como responsable de plantel no puedes consumir el saldo directamente. Solicita los certificados al coordinador.'
+        );
+        setError(null);
+      } else if (errorType === 'insufficient_balance') {
         if (isResponsable && costPreview && costPreview.unit_cost > 0) {
           const needed = Math.ceil((err.response?.data?.required || 0) / costPreview.unit_cost);
           const available = Math.floor((err.response?.data?.current_balance || 0) / costPreview.unit_cost);
@@ -204,6 +211,22 @@ export default function ExamAssignmentReviewPage() {
           ))}
         </div>
       </div>
+
+      {responsableMustRequest && (
+        <div className="fluid-mb-6 bg-amber-50 border border-amber-300 rounded-fluid-xl fluid-p-5 flex items-start fluid-gap-3">
+          <AlertCircle className="fluid-icon-base text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-amber-900 fluid-text-base font-medium">{responsableMustRequest}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/solicitar-certificados')}
+              className="mt-3 inline-flex items-center fluid-gap-2 bg-amber-600 hover:bg-amber-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-semibold transition-colors"
+            >
+              Ir a Solicitar Certificados
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-start fluid-gap-3">

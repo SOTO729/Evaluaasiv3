@@ -1144,6 +1144,40 @@ def check_and_add_balance_attachments_column():
         db.session.rollback()
 
 
+def check_and_add_balance_requested_by_column():
+    """Verificar y agregar columna requested_by_id a balance_requests (auxiliar puede solicitar en nombre del coordinador)"""
+    print("🔍 Verificando columna requested_by_id en balance_requests...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'balance_requests' not in tables:
+            print("  ⚠️  Tabla balance_requests no existe, saltando...")
+            return
+        columns = [col['name'] for col in inspector.get_columns('balance_requests')]
+        if 'requested_by_id' in columns:
+            print("  ✓ Columna requested_by_id ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql_col = "ALTER TABLE balance_requests ADD requested_by_id NVARCHAR(36) NULL"
+            sql_idx = "CREATE INDEX ix_balance_requests_requested_by_id ON balance_requests (requested_by_id)"
+        else:
+            sql_col = "ALTER TABLE balance_requests ADD COLUMN requested_by_id VARCHAR(36) NULL"
+            sql_idx = "CREATE INDEX ix_balance_requests_requested_by_id ON balance_requests (requested_by_id)"
+        db.session.execute(text(sql_col))
+        db.session.commit()
+        try:
+            db.session.execute(text(sql_idx))
+            db.session.commit()
+        except Exception as e_idx:
+            print(f"  ⚠️  Índice ya existe o falló: {e_idx}")
+            db.session.rollback()
+        print("  ✓ Columna requested_by_id agregada")
+    except Exception as e:
+        print(f"❌ Error agregando requested_by_id: {e}")
+        db.session.rollback()
+
+
 def check_and_add_exam_default_config_columns():
     """Verificar y agregar columnas de configuración de asignación por defecto en exams"""
     print("🔍 Verificando columnas de config de asignación en exams...")
@@ -1913,12 +1947,13 @@ def check_and_recover_orphaned_curp_users():
             db.session.query(User)
             .join(GroupMember, GroupMember.user_id == User.id)
             .filter(
-                User.is_active == False,
                 User.curp_verified == False,
                 User.curp.isnot(None),
                 User.curp != '',
                 User.curp.notin_(['XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8']),
                 User.role == 'candidato',
+                # Solo reanudar a los que quedaron a mitad de verificación.
+                # Los 'curp_required' son responsabilidad del candidato — no se reanudan.
                 GroupMember.status.in_(['curp_pending', 'curp_verifying']),
             )
             .distinct()
@@ -2090,6 +2125,421 @@ def check_and_create_scorm_tables():
                 print("  ✓ Columna allow_scorm ya existe en study_topics")
     except Exception as e:
         print(f"❌ Error en migración SCORM: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+# placeholder-sso
+
+# ---------------------------------------------------------------------------
+# Verificación CURP — cache + cola persistente (mayo 2026)
+# ---------------------------------------------------------------------------
+
+def check_and_create_curp_verification_tables():
+    """Crea tablas curp_renapo_cache y curp_verification_queue.
+
+    - curp_renapo_cache: respuestas RENAPO cacheadas (positivas 30d, negativas 1h)
+    - curp_verification_queue: cola persistente para validación asíncrona con
+      reintentos. Reemplaza los threads volátiles del flujo bulk-upload.
+    """
+    print("🔍 Verificando tablas de verificación CURP...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        db_type = get_db_type()
+
+        # ── curp_renapo_cache ──
+        if 'curp_renapo_cache' not in tables:
+            print("  📝 Creando tabla curp_renapo_cache...")
+            if db_type == 'mssql':
+                sql = """
+                    CREATE TABLE curp_renapo_cache (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        curp VARCHAR(18) NOT NULL UNIQUE,
+                        valid BIT NOT NULL DEFAULT 0,
+                        payload_json NVARCHAR(MAX) NULL,
+                        error_message NVARCHAR(500) NULL,
+                        cached_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        expires_at DATETIME2 NOT NULL,
+                        hits INT NOT NULL DEFAULT 0
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE curp_renapo_cache (
+                        id SERIAL PRIMARY KEY,
+                        curp VARCHAR(18) NOT NULL UNIQUE,
+                        valid BOOLEAN NOT NULL DEFAULT FALSE,
+                        payload_json TEXT NULL,
+                        error_message VARCHAR(500) NULL,
+                        cached_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        expires_at TIMESTAMP NOT NULL,
+                        hits INT NOT NULL DEFAULT 0
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            try:
+                db.session.execute(text("CREATE INDEX ix_curp_cache_expires ON curp_renapo_cache (expires_at)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            print("  ✅ Tabla curp_renapo_cache creada")
+        else:
+            print("  ✓ Tabla curp_renapo_cache ya existe")
+
+        # ── curp_verification_queue ──
+        if 'curp_verification_queue' not in tables:
+            print("  📝 Creando tabla curp_verification_queue...")
+            if db_type == 'mssql':
+                sql = """
+                    CREATE TABLE curp_verification_queue (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL,
+                        curp VARCHAR(18) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        attempts INT NOT NULL DEFAULT 0,
+                        circuit_open_retries INT NOT NULL DEFAULT 0,
+                        last_error NVARCHAR(500) NULL,
+                        batch_id INT NULL,
+                        source VARCHAR(20) NOT NULL DEFAULT 'bulk',
+                        created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        next_retry_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                        finished_at DATETIME2 NULL,
+                        locked_at DATETIME2 NULL,
+                        locked_by VARCHAR(80) NULL,
+                        CONSTRAINT fk_curpq_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_curpq_batch FOREIGN KEY (batch_id) REFERENCES bulk_upload_batches(id) ON DELETE SET NULL
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE curp_verification_queue (
+                        id SERIAL PRIMARY KEY,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        curp VARCHAR(18) NOT NULL,
+                        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                        attempts INT NOT NULL DEFAULT 0,
+                        circuit_open_retries INT NOT NULL DEFAULT 0,
+                        last_error VARCHAR(500) NULL,
+                        batch_id INT NULL REFERENCES bulk_upload_batches(id) ON DELETE SET NULL,
+                        source VARCHAR(20) NOT NULL DEFAULT 'bulk',
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        next_retry_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        finished_at TIMESTAMP NULL,
+                        locked_at TIMESTAMP NULL,
+                        locked_by VARCHAR(80) NULL
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            for idx_sql in [
+                "CREATE INDEX ix_curpq_user ON curp_verification_queue (user_id)",
+                "CREATE INDEX ix_curpq_status ON curp_verification_queue (status)",
+                "CREATE INDEX ix_curpq_next_retry ON curp_verification_queue (next_retry_at)",
+                "CREATE INDEX ix_curpq_batch ON curp_verification_queue (batch_id)",
+            ]:
+                try:
+                    db.session.execute(text(idx_sql))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+            print("  ✅ Tabla curp_verification_queue creada")
+        else:
+            print("  ✓ Tabla curp_verification_queue ya existe")
+
+        # ── columna validation_email_sent_at en bulk_upload_batches ──
+        try:
+            cols = [c['name'] for c in inspector.get_columns('bulk_upload_batches')] if 'bulk_upload_batches' in tables else []
+            if 'bulk_upload_batches' in tables and 'validation_email_sent_at' not in cols:
+                if db_type == 'mssql':
+                    db.session.execute(text(
+                        "ALTER TABLE bulk_upload_batches ADD validation_email_sent_at DATETIME2 NULL"
+                    ))
+                else:
+                    db.session.execute(text(
+                        "ALTER TABLE bulk_upload_batches ADD COLUMN validation_email_sent_at TIMESTAMP NULL"
+                    ))
+                db.session.commit()
+                print("  ✅ Columna validation_email_sent_at agregada a bulk_upload_batches")
+        except Exception as col_err:
+            print(f"  ⚠️ No se pudo agregar validation_email_sent_at: {col_err}")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+    except Exception as e:
+        print(f"❌ Error en auto-migración curp_verification: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# SSO Tokenización (mayo 2026)
+# ---------------------------------------------------------------------------
+
+def check_and_create_sso_tokenization():
+    """Migración para SSO Tokenización API a NIVEL PLANTEL (mayo 2026, rev2):
+       - campuses: api_key_hash, api_key_encrypted, api_key_prefix, api_key_active,
+                   api_key_created_at, api_key_created_by, share_api_key_with_responsable
+       - users:    external_id, external_partner_id, external_campus_id, external_program
+       - sso_tokens: agregar columna campus_id (partner_id queda nullable por compat)
+       - partners: DROP de columnas api_key_* (la API key vive ahora en el plantel)
+    """
+    print("🔍 Verificando esquema SSO Tokenización (nivel plantel)...")
+    try:
+        db_type = get_db_type()
+        inspector = inspect(db.engine)
+        tables = set(inspector.get_table_names())
+
+        # ── campuses ──────────────────────────────────────────────────────
+        if 'campuses' in tables:
+            cols = {c['name'] for c in inspector.get_columns('campuses')}
+            campus_cols = [
+                ('api_key_hash',                    'NVARCHAR(255) NULL',     'VARCHAR(255) NULL'),
+                ('api_key_encrypted',               'NVARCHAR(MAX) NULL',     'TEXT NULL'),
+                ('api_key_prefix',                  'NVARCHAR(16) NULL',      'VARCHAR(16) NULL'),
+                ('api_key_active',                  'BIT NOT NULL DEFAULT 1', 'BOOLEAN NOT NULL DEFAULT TRUE'),
+                ('api_key_created_at',              'DATETIME2 NULL',         'TIMESTAMP NULL'),
+                ('api_key_created_by',              'NVARCHAR(36) NULL',      'VARCHAR(36) NULL'),
+                ('share_api_key_with_responsable',  'BIT NOT NULL DEFAULT 0', 'BOOLEAN NOT NULL DEFAULT FALSE'),
+            ]
+            for name, mssql_def, generic_def in campus_cols:
+                if name in cols:
+                    continue
+                col_def = mssql_def if db_type == 'mssql' else generic_def
+                try:
+                    db.session.execute(text(f"ALTER TABLE campuses ADD {name} {col_def}"))
+                    db.session.commit()
+                    print(f"  ✅ campuses.{name} agregada")
+                except Exception as e:
+                    db.session.rollback()
+                    if 'already' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print(f"  ⚠️  campuses.{name} ya existe")
+                    else:
+                        print(f"  ❌ Error agregando campuses.{name}: {e}")
+            # Índice por prefix
+            try:
+                if db_type == 'mssql':
+                    db.session.execute(text(
+                        "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_campuses_api_key_prefix') "
+                        "CREATE INDEX ix_campuses_api_key_prefix ON campuses(api_key_prefix)"
+                    ))
+                else:
+                    db.session.execute(text(
+                        "CREATE INDEX IF NOT EXISTS ix_campuses_api_key_prefix ON campuses(api_key_prefix)"
+                    ))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if 'already' not in str(e).lower():
+                    print(f"  ⚠️ índice prefix campuses: {e}")
+
+        # ── partners: DROP columnas api_key_* (ahora viven en campus) ────
+        if 'partners' in tables and db_type == 'mssql':
+            try:
+                # 1) drop índice si existe
+                db.session.execute(text(
+                    "IF EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_partners_api_key_prefix') "
+                    "DROP INDEX ix_partners_api_key_prefix ON partners"
+                ))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"  ⚠️ drop index partners: {e}")
+            for col in ('api_key_hash', 'api_key_prefix', 'api_key_active',
+                        'api_key_created_at', 'api_key_created_by'):
+                try:
+                    # MSSQL no soporta IF EXISTS en ALTER ... DROP COLUMN, usar dinámico
+                    db.session.execute(text(
+                        f"IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('partners') AND name='{col}') "
+                        f"BEGIN "
+                        f"  DECLARE @df_{col} sysname; "
+                        f"  SELECT @df_{col} = dc.name FROM sys.default_constraints dc "
+                        f"    JOIN sys.columns c ON c.default_object_id = dc.object_id "
+                        f"    WHERE c.object_id = OBJECT_ID('partners') AND c.name='{col}'; "
+                        f"  IF @df_{col} IS NOT NULL EXEC('ALTER TABLE partners DROP CONSTRAINT ' + @df_{col}); "
+                        f"  ALTER TABLE partners DROP COLUMN {col}; "
+                        f"END"
+                    ))
+                    db.session.commit()
+                    print(f"  ✅ partners.{col} eliminada")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"  ⚠️ no se pudo eliminar partners.{col}: {e}")
+
+        # ── users ─────────────────────────────────────────────────────────
+        inspector = inspect(db.engine)
+        if 'users' in tables:
+            cols = {c['name'] for c in inspector.get_columns('users')}
+            user_cols = [
+                ('external_id',         'NVARCHAR(80) NULL',  'VARCHAR(80) NULL'),
+                ('external_partner_id', 'INT NULL',           'INTEGER NULL'),
+                ('external_campus_id',  'INT NULL',           'INTEGER NULL'),
+                ('external_program',    'NVARCHAR(200) NULL', 'VARCHAR(200) NULL'),
+            ]
+            for name, mssql_def, generic_def in user_cols:
+                if name in cols:
+                    continue
+                col_def = mssql_def if db_type == 'mssql' else generic_def
+                try:
+                    db.session.execute(text(f"ALTER TABLE users ADD {name} {col_def}"))
+                    db.session.commit()
+                    print(f"  ✅ users.{name} agregada")
+                except Exception as e:
+                    db.session.rollback()
+                    if 'already' in str(e).lower() or 'duplicate' in str(e).lower():
+                        print(f"  ⚠️  users.{name} ya existe")
+                    else:
+                        print(f"  ❌ Error agregando users.{name}: {e}")
+
+            # FKs externos
+            try:
+                if db_type == 'mssql':
+                    db.session.execute(text(
+                        "IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='fk_users_external_partner') "
+                        "ALTER TABLE users ADD CONSTRAINT fk_users_external_partner "
+                        "FOREIGN KEY (external_partner_id) REFERENCES partners(id) ON DELETE SET NULL"
+                    ))
+                    db.session.execute(text(
+                        "IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='fk_users_external_campus') "
+                        "ALTER TABLE users ADD CONSTRAINT fk_users_external_campus "
+                        "FOREIGN KEY (external_campus_id) REFERENCES campuses(id) ON DELETE SET NULL"
+                    ))
+                    db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if 'already' not in str(e).lower():
+                    print(f"  ⚠️ FK external_*: {e}")
+
+            # Índice único parcial (external_campus_id, external_id)
+            try:
+                if db_type == 'mssql':
+                    db.session.execute(text(
+                        "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ux_users_external_campus') "
+                        "CREATE UNIQUE INDEX ux_users_external_campus ON users(external_campus_id, external_id) "
+                        "WHERE external_id IS NOT NULL"
+                    ))
+                else:
+                    db.session.execute(text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS ux_users_external_campus "
+                        "ON users(external_campus_id, external_id) WHERE external_id IS NOT NULL"
+                    ))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if 'already' not in str(e).lower():
+                    print(f"  ⚠️ índice ux_users_external_campus: {e}")
+
+        # ── tabla sso_tokens ──────────────────────────────────────────────
+        inspector = inspect(db.engine)
+        tables = set(inspector.get_table_names())
+        if 'sso_tokens' not in tables:
+            print("  📝 Creando tabla sso_tokens...")
+            if db_type == 'mssql':
+                users_id_type = 'VARCHAR(36)'
+                try:
+                    row = db.session.execute(text(
+                        "SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS "
+                        "WHERE TABLE_NAME='users' AND COLUMN_NAME='id'"
+                    )).fetchone()
+                    if row:
+                        dt = str(row[0]).upper()
+                        ln = int(row[1]) if row[1] else 36
+                        users_id_type = f"{dt}({ln})"
+                except Exception:
+                    pass
+                sql = f"""
+                    CREATE TABLE sso_tokens (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        token_hash CHAR(64) NOT NULL UNIQUE,
+                        user_id {users_id_type} NOT NULL,
+                        partner_id INT NULL,
+                        campus_id INT NULL,
+                        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                        expires_at DATETIME2 NOT NULL,
+                        consumed_at DATETIME2 NULL,
+                        issuer_ip NVARCHAR(45) NULL,
+                        CONSTRAINT fk_sso_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_sso_tokens_partner FOREIGN KEY (partner_id) REFERENCES partners(id),
+                        CONSTRAINT fk_sso_tokens_campus FOREIGN KEY (campus_id) REFERENCES campuses(id)
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE sso_tokens (
+                        id SERIAL PRIMARY KEY,
+                        token_hash CHAR(64) NOT NULL UNIQUE,
+                        user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        partner_id INT NULL REFERENCES partners(id),
+                        campus_id INT NULL REFERENCES campuses(id),
+                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                        expires_at TIMESTAMP NOT NULL,
+                        consumed_at TIMESTAMP NULL,
+                        issuer_ip VARCHAR(45) NULL
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✅ Tabla sso_tokens creada")
+            try:
+                db.session.execute(text("CREATE INDEX ix_sso_tokens_partner ON sso_tokens(partner_id)"))
+                db.session.execute(text("CREATE INDEX ix_sso_tokens_campus ON sso_tokens(campus_id)"))
+                db.session.execute(text("CREATE INDEX ix_sso_tokens_user ON sso_tokens(user_id)"))
+                db.session.execute(text("CREATE INDEX ix_sso_tokens_expires ON sso_tokens(expires_at)"))
+                db.session.commit()
+            except Exception as idx_err:
+                db.session.rollback()
+                print(f"  ⚠️ índices sso_tokens: {idx_err}")
+        else:
+            # tabla ya existe → asegurar columna campus_id y aflojar partner_id
+            cols = {c['name'] for c in inspector.get_columns('sso_tokens')}
+            if 'campus_id' not in cols:
+                try:
+                    if db_type == 'mssql':
+                        db.session.execute(text("ALTER TABLE sso_tokens ADD campus_id INT NULL"))
+                    else:
+                        db.session.execute(text("ALTER TABLE sso_tokens ADD COLUMN campus_id INTEGER NULL"))
+                    db.session.commit()
+                    print("  ✅ sso_tokens.campus_id agregada")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"  ⚠️ sso_tokens.campus_id: {e}")
+            # FK + índice
+            try:
+                if db_type == 'mssql':
+                    db.session.execute(text(
+                        "IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='fk_sso_tokens_campus') "
+                        "ALTER TABLE sso_tokens ADD CONSTRAINT fk_sso_tokens_campus "
+                        "FOREIGN KEY (campus_id) REFERENCES campuses(id)"
+                    ))
+                    db.session.execute(text(
+                        "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='ix_sso_tokens_campus') "
+                        "CREATE INDEX ix_sso_tokens_campus ON sso_tokens(campus_id)"
+                    ))
+                    db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                if 'already' not in str(e).lower():
+                    print(f"  ⚠️ FK/IX sso_tokens.campus_id: {e}")
+            # Aflojar partner_id a NULLABLE (puede fallar si tiene NOT NULL,
+            # pero está bien continuar — los inserts nuevos siempre llenan partner_id)
+            try:
+                if db_type == 'mssql':
+                    db.session.execute(text("ALTER TABLE sso_tokens ALTER COLUMN partner_id INT NULL"))
+                    db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                # No es crítico
+                pass
+
+    except Exception as e:
+        print(f"❌ Error en migración SSO Tokenización: {e}")
         try:
             db.session.rollback()
         except Exception:

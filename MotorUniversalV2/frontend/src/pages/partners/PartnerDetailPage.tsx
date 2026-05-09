@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
+import PartnerSsoApiKeyCard from '../../components/partners/PartnerSsoApiKeyCard';
+import { useAuthStore } from '../../store/authStore';
 import {
   getPartner,
   getCampuses,
@@ -40,6 +42,7 @@ import {
 export default function PartnerDetailPage() {
   const { partnerId } = useParams();
   const location = useLocation();
+  const currentUser = useAuthStore((s) => s.user);
   
   const [partner, setPartner] = useState<Partner | null>(null);
   const [campuses, setCampuses] = useState<Campus[]>([]);
@@ -378,6 +381,21 @@ export default function PartnerDetailPage() {
               <p className="fluid-text-base text-gray-600 whitespace-pre-wrap bg-amber-50/50 rounded-fluid-xl fluid-p-4 border border-amber-100">{partner.notes}</p>
             </div>
           )}
+
+          {/* API key SSO (admin / coordinador dueño del partner) */}
+          {(() => {
+            const role = String(currentUser?.role || '').toLowerCase();
+            const isAdmin = role === 'admin' || role === 'developer';
+            const isOwnerCoordinator =
+              role === 'coordinator' && (partner as any).coordinator_id === currentUser?.id;
+            if (!isAdmin && !isOwnerCoordinator) return null;
+            return (
+              <PartnerSsoApiKeyCard
+                partnerId={partner.id}
+                canManage={isAdmin || isOwnerCoordinator}
+              />
+            );
+          })()}
         </div>
 
         {/* Columna Derecha - Planteles */}

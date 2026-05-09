@@ -56,4 +56,14 @@ export const authService = {
     const response = await api.post<{ message: string }>('/auth/resend-verification', { email })
     return response.data
   },
+
+  /**
+   * Intercambia un token SSO opaco (emitido por /api/sso/generar_token a la
+   * institución) por un par access/refresh JWT. Single-use: el token se marca
+   * como consumido en backend tras el primer intercambio exitoso.
+   */
+  ssoExchange: async (token: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/sso/exchange', { token })
+    return response.data
+  },
 }

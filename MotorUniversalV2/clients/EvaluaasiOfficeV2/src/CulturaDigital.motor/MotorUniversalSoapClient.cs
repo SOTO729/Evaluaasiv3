@@ -52,19 +52,42 @@ namespace CulturaDigital.motor
 
         public Examen[] Examenes(int subsistema, int plantel)
         {
-            // Estrategia: el endpoint /api/exams (motor V2) requiere JWT Bearer; el cliente
-            // Office obtiene un token VB6 (UUID, no JWT) en /vb6/login. Usamos en su lugar
-            // /api/standards/available?username=... que es el endpoint público equivalente
-            // para catálogo de exámenes asignados al usuario autenticado.
-            var user = ApiClient.CurrentUsername ?? "";
-            IDictionary<string, object> resp = null;
-            if (!string.IsNullOrEmpty(user))
-            {
-                resp = ApiClient.Get("/standards/available?username=" + Uri.EscapeDataString(user));
-            }
+            // Estrategia v2: usar /api/vb6/my-exams (auth X-VB6-Token) que retorna las
+            // VmSessions agendadas y las opciones libres para el candidato autenticado.
+            // Fallback: /api/standards/available?username=... si no hay token o vacío.
             var list = new List<Examen>();
-            if (resp == null) return list.ToArray();
+            IDictionary<string, object> resp = null;
+
+            if (!string.IsNullOrEmpty(ApiClient.Token))
+            {
+                try { resp = ApiClient.Get("/vb6/my-exams"); }
+                catch { resp = null; }
+            }
+
             object src = null;
+            if (resp != null) resp.TryGetValue("items", out src);
+            if (src is System.Collections.IEnumerable myItems)
+            {
+                foreach (var item in myItems)
+                {
+                    if (item is IDictionary<string, object> d)
+                    {
+                        list.Add(new Examen
+                        {
+                            Id = ApiClient.GetValue<int>(d, "id"),
+                            Nombre = ApiClient.GetValue<string>(d, "name", "") ?? "",
+                        });
+                    }
+                }
+            }
+
+            if (list.Count > 0) return list.ToArray();
+
+            var user = ApiClient.CurrentUsername ?? "";
+            if (string.IsNullOrEmpty(user)) return list.ToArray();
+            resp = ApiClient.Get("/standards/available?username=" + Uri.EscapeDataString(user));
+            if (resp == null) return list.ToArray();
+            src = null;
             if (!resp.TryGetValue("items", out src))
             {
                 if (!resp.TryGetValue("exams", out src))

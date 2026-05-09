@@ -224,6 +224,14 @@ export default function GerenteApprovalDetailPage() {
                   <p className="fluid-text-xs text-gray-500 font-medium uppercase tracking-wider">Email</p>
                   <p className="fluid-text-sm font-semibold text-gray-800 fluid-mt-1">{request.coordinator?.email || 'N/A'}</p>
                 </div>
+                {request.requested_by && request.requested_by.id !== request.coordinator?.id && (
+                  <div className="fluid-p-3 bg-amber-50/80 border border-amber-200 rounded-fluid-xl md:col-span-2">
+                    <p className="fluid-text-xs text-amber-700 font-medium uppercase tracking-wider">Solicitado por</p>
+                    <p className="fluid-text-sm font-semibold text-amber-900 fluid-mt-1">
+                      {request.requested_by.full_name}{request.requested_by.role ? ` (${request.requested_by.role})` : ''}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

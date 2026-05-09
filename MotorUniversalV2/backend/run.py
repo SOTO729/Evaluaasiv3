@@ -23,6 +23,7 @@ with app.app_context():
             check_and_add_competency_standard_logo_column,
             check_and_make_email_nullable,
             check_and_add_balance_attachments_column,
+            check_and_add_balance_requested_by_column,
             check_and_add_exam_default_config_columns,
             check_and_create_certificate_code_history_table,
             check_and_create_bulk_upload_tables,
@@ -48,6 +49,7 @@ with app.app_context():
         check_and_add_competency_standard_logo_column()
         check_and_make_email_nullable()
         check_and_add_balance_attachments_column()
+        check_and_add_balance_requested_by_column()
         check_and_add_exam_default_config_columns()
         check_and_create_certificate_code_history_table()
         check_and_create_bulk_upload_tables()

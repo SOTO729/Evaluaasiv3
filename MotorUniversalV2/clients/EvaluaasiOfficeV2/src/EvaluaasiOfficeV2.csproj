@@ -86,6 +86,7 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
+      <LogicalName>CulturaDigital.Properties.Resources.resources</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

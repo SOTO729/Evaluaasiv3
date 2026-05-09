@@ -11,7 +11,12 @@ import {
   Clock,
   Shield,
   AlertCircle,
-  Loader2
+  Loader2,
+  X,
+  FolderOpen,
+  ShieldAlert,
+  PlayCircle,
+  Archive
 } from 'lucide-react'
 import { downloadsService, OfficeApp } from '../../services/downloadsService'
 
@@ -73,6 +78,7 @@ export default function OfficeDownloadsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [instructionsApp, setInstructionsApp] = useState<OfficeApp | null>(null)
 
   useEffect(() => {
     loadApps()
@@ -94,9 +100,15 @@ export default function OfficeDownloadsPage() {
 
   const handleDownload = (app: OfficeApp) => {
     if (!app.download_url) return
+    // Mostrar modal con instrucciones antes de iniciar la descarga.
+    setInstructionsApp(app)
+  }
+
+  const startDownload = (app: OfficeApp) => {
+    if (!app.download_url) return
     setDownloadingId(app.id)
-    // Open download URL in new tab
     window.open(app.download_url, '_blank', 'noopener,noreferrer')
+    setInstructionsApp(null)
     setTimeout(() => setDownloadingId(null), 2000)
   }
 
@@ -258,6 +270,206 @@ export default function OfficeDownloadsPage() {
           })}
         </div>
       )}
+
+      {instructionsApp && (
+        <DownloadInstructionsModal
+          app={instructionsApp}
+          onClose={() => setInstructionsApp(null)}
+          onConfirm={() => startDownload(instructionsApp)}
+        />
+      )}
+    </div>
+  )
+}
+
+// =================== Modal de instrucciones ===================
+
+function DownloadInstructionsModal({
+  app,
+  onClose,
+  onConfirm,
+}: {
+  app: OfficeApp
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  const fileName = app.download_url
+    ? decodeURIComponent(app.download_url.split('/').pop()?.split('?')[0] || 'aplicacion.zip')
+    : 'aplicacion.zip'
+  const isZip = fileName.toLowerCase().endsWith('.zip')
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 p-5 border-b">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+              <Download className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 text-lg leading-tight">
+                Antes de descargar
+              </h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Sigue estas instrucciones para que la aplicación funcione correctamente.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4 text-sm text-gray-700">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex gap-2">
+            <ShieldAlert className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900">Importante</p>
+              <p className="text-amber-800 mt-0.5">
+                NO ejecutes el archivo <code className="bg-amber-100 px-1 rounded text-xs">.exe</code>{' '}
+                directamente desde la carpeta comprimida. Si lo haces, la aplicación se abrirá en
+                blanco o se cerrará sin mostrar nada.
+              </p>
+            </div>
+          </div>
+
+          <ol className="space-y-3">
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm flex items-center justify-center">
+                1
+              </span>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Archive className="h-4 w-4 text-gray-500" /> Descarga el archivo
+                </p>
+                <p className="text-gray-600 mt-0.5">
+                  Se descargará{' '}
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{fileName}</code>
+                  {isZip
+                    ? ' que es un archivo comprimido con la aplicación, su configuración y librerías necesarias.'
+                    : ' con la aplicación y sus archivos de soporte.'}
+                </p>
+              </div>
+            </li>
+
+            {isZip && (
+              <li className="flex gap-3">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm flex items-center justify-center">
+                  2
+                </span>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900 flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4 text-gray-500" /> Descomprime la carpeta
+                  </p>
+                  <p className="text-gray-600 mt-0.5">
+                    Haz clic derecho sobre el ZIP descargado y selecciona{' '}
+                    <strong>“Extraer todo…”</strong>. Te recomendamos extraerlo en{' '}
+                    <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                      C:\EvaluaasiOffice
+                    </code>{' '}
+                    o en tu Escritorio. <strong>NO</strong> ejecutes el .exe desde dentro del ZIP.
+                  </p>
+                </div>
+              </li>
+            )}
+
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm flex items-center justify-center">
+                {isZip ? 3 : 2}
+              </span>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-gray-500" /> Aprueba el aviso de Windows
+                </p>
+                <p className="text-gray-600 mt-0.5">
+                  Windows SmartScreen puede mostrar el mensaje{' '}
+                  <em>“Windows protegió su PC”</em>. Haz clic en{' '}
+                  <strong>“Más información”</strong> y luego en{' '}
+                  <strong>“Ejecutar de todas formas”</strong>. La aplicación está firmada por
+                  Evaluaasi.
+                </p>
+              </div>
+            </li>
+
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm flex items-center justify-center">
+                {isZip ? 4 : 3}
+              </span>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 flex items-center gap-2">
+                  <PlayCircle className="h-4 w-4 text-gray-500" /> Ejecuta la aplicación
+                </p>
+                <p className="text-gray-600 mt-0.5">
+                  Dentro de la carpeta extraída haz doble clic en{' '}
+                  <code className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">
+                    EvaluaasiOfficeV2.exe
+                  </code>{' '}
+                  (o el .exe correspondiente). Mantén juntos todos los archivos: el{' '}
+                  <code className="bg-gray-100 px-1 rounded text-xs">.exe</code>, su{' '}
+                  <code className="bg-gray-100 px-1 rounded text-xs">.exe.config</code> y todas las{' '}
+                  <code className="bg-gray-100 px-1 rounded text-xs">.dll</code> deben estar en la
+                  misma carpeta.
+                </p>
+              </div>
+            </li>
+
+            <li className="flex gap-3">
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-semibold text-sm flex items-center justify-center">
+                {isZip ? 5 : 4}
+              </span>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-900 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-gray-500" /> Inicia sesión
+                </p>
+                <p className="text-gray-600 mt-0.5">
+                  Cuando se abra la aplicación, ingresa con tus credenciales de Evaluaasi (las
+                  mismas que usas en la web).
+                </p>
+              </div>
+            </li>
+          </ol>
+
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
+            <p>
+              <strong>¿Tienes problemas?</strong> Verifica que tengas instalado{' '}
+              <strong>.NET Framework 4.8</strong> y{' '}
+              <strong>Microsoft Office</strong> (Excel/Word/PowerPoint) en tu PC. Si la app abre y
+              se cierra sola, contacta a soporte indicando el modelo de tu equipo.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 p-4 border-t bg-gray-50 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg shadow-sm"
+          >
+            <Download className="h-4 w-4" />
+            Entendido, descargar
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -176,7 +176,7 @@ def list_my_office_results():
     }), 200
 
 
-@bp.route('/<int:result_id>', methods=['GET'])
+@bp.route('/<string:result_id>', methods=['GET'])
 @jwt_required()
 def get_office_result_detail(result_id):
     """Detalle de un resultado Office. Solo el dueño o staff (admin/coordinator/responsable)."""
@@ -197,6 +197,105 @@ def get_office_result_detail(result_id):
         return jsonify({'error': 'Permiso denegado'}), 403
 
     return jsonify({'result': result.to_dict(include_user=is_staff)}), 200
+
+
+@bp.route('/<string:result_id>/pdf', methods=['GET'])
+@jwt_required()
+def download_office_result_pdf(result_id):
+    """Generar y descargar PDF del resultado Office.
+
+    Acceso: dueño o staff (admin/coordinator/responsable/etc.).
+    Renderizado con reportlab. Solo resultados completados.
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    result = OfficeExamResult.query.get(result_id)
+    if not result:
+        return jsonify({'error': 'Resultado no encontrado'}), 404
+
+    is_owner = result.user_id == str(user_id)
+    is_staff = user.role in ('admin', 'developer', 'coordinator', 'responsable',
+                             'responsable_partner', 'responsable_estatal', 'soporte', 'gerente')
+    if not (is_owner or is_staff):
+        return jsonify({'error': 'Permiso denegado'}), 403
+
+    if result.status != 'completed':
+        return jsonify({'error': 'El resultado no está completado'}), 400
+
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    except ImportError:
+        logger.exception('reportlab no instalado')
+        return jsonify({'error': 'Generación PDF no disponible'}), 500
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleX', parent=styles['Title'], fontSize=18,
+                                 textColor=colors.HexColor('#1a365d'))
+    h2 = ParagraphStyle('H2X', parent=styles['Heading2'], fontSize=12,
+                        textColor=colors.HexColor('#2c5282'))
+    elems = []
+    elems.append(Paragraph('Resultado de Evaluación Office', title_style))
+    elems.append(Spacer(1, 0.4*cm))
+    elems.append(Paragraph(f"<b>Candidato:</b> {result.user.full_name if result.user else result.user_id}", styles['Normal']))
+    if result.user:
+        elems.append(Paragraph(f"<b>Usuario:</b> {result.user.username}", styles['Normal']))
+    elems.append(Spacer(1, 0.4*cm))
+
+    elems.append(Paragraph('Detalle de la evaluación', h2))
+    score_norm = round((result.score or 0) / 10, 1)
+    pass_norm = round((result.passing_score or 400) / 10, 1)
+    data = [
+        ['Aplicación', (result.office_app or '').capitalize()],
+        ['Versión', result.office_version or '-'],
+        ['Nivel', (result.level or '-').capitalize()],
+        ['Tipo', (result.session_type or '-').capitalize()],
+        ['Calificación', f"{score_norm} / 100"],
+        ['Mínimo aprobatorio', f"{pass_norm} / 100"],
+        ['Resultado', 'APROBADO' if result.passed else 'NO APROBADO'],
+        ['Aciertos', f"{result.correct_answers or 0} / {result.total_questions or 0}"],
+        ['Duración', f"{(result.duration_seconds or 0)//60} min"],
+        ['Fecha inicio', result.started_at.strftime('%Y-%m-%d %H:%M') if result.started_at else '-'],
+        ['Fecha fin', result.finished_at.strftime('%Y-%m-%d %H:%M') if result.finished_at else '-'],
+        ['Folio', result.certificate_code or result.id],
+    ]
+    t = Table(data, colWidths=[5*cm, 11*cm])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#edf2f7')),
+        ('TEXTCOLOR', (0,0), (0,-1), colors.HexColor('#2d3748')),
+        ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('GRID', (0,0), (-1,-1), 0.25, colors.HexColor('#cbd5e0')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    elems.append(t)
+    elems.append(Spacer(1, 0.6*cm))
+    elems.append(Paragraph(
+        '<i>Este documento es una constancia de resultado generada automáticamente por la plataforma EvaluaAsi v2.</i>',
+        styles['Italic']))
+
+    doc.build(elems)
+    buf.seek(0)
+    filename = f"resultado_office_{result.id}.pdf"
+    return Response(
+        buf.getvalue(),
+        mimetype='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
 
 
 @bp.route('/verify/<string:certificate_code>', methods=['GET'])

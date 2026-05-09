@@ -115,6 +115,12 @@ export interface BalanceRequest {
     id: string;
     full_name: string;
   };
+  /** Usuario que originó la solicitud (puede ser distinto del coordinador, p. ej. auxiliar). */
+  requested_by?: {
+    id: string;
+    full_name: string;
+    role?: string;
+  };
 }
 
 export type TransactionType = 'credit' | 'debit' | 'adjustment';

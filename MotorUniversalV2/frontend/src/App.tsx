@@ -20,6 +20,7 @@ const PrivacyPolicyFullPage = lazy(() => import('./pages/landing/PrivacyPolicyFu
 const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage'))
 const VerifyPage = lazy(() => import('./pages/verify/VerifyPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
+const SsoLandingPage = lazy(() => import('./pages/auth/SsoLandingPage'))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
@@ -51,6 +52,7 @@ const OfficeAppsAdminPage = lazy(() => import('./pages/admin/OfficeAppsAdminPage
 const OfficeResultsAuditPage = lazy(() => import('./pages/admin/OfficeResultsAuditPage'))
 const MisExamenesOfficePage = lazy(() => import('./pages/candidato/MisExamenesOfficePage'))
 const MiSesionOfficePage = lazy(() => import('./pages/candidato/MiSesionOfficePage'))
+const MiCurpPage = lazy(() => import('./pages/candidato/MiCurpPage'))
 
 // Study Contents
 const StudyContentsListPage = lazy(() => import('./pages/study-contents/StudyContentsListPage'))
@@ -92,11 +94,15 @@ const RestrictedForCoordinator = ({ children }: { children: React.ReactNode }) =
   return <>{children}</>
 }
 
-// Componente que redirige a gerente/financiero si intenta acceder a rutas restringidas
+// Componente que redirige a gerente/financiero si intenta acceder a rutas restringidas.
+// Además bloquea a candidatos cuya CURP no ha sido validada (los manda a /mi-curp).
 const RestrictedForGerenteFin = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuthStore()
   if (user?.role === 'coordinator' || user?.role === 'gerente' || user?.role === 'financiero') {
     return <Navigate to="/dashboard" replace />
+  }
+  if (user?.role === 'candidato' && user?.requires_curp_validation) {
+    return <Navigate to="/mi-curp" replace />
   }
   return <>{children}</>
 }
@@ -115,6 +121,17 @@ const RestrictedForGerenteFinOnly = ({ children }: { children: React.ReactNode }
   const { user } = useAuthStore()
   if (user?.role === 'gerente' || user?.role === 'financiero') {
     return <Navigate to="/dashboard" replace />
+  }
+  return <>{children}</>
+}
+
+// Bloquea a candidatos cuya CURP no ha sido validada contra RENAPO.
+// Los redirige a /mi-curp (donde la corrigen). Aplica a rutas sensibles
+// (exámenes, materiales de estudio, certificación, etc.).
+const RequireCurpVerified = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuthStore()
+  if (user?.role === 'candidato' && user?.requires_curp_validation) {
+    return <Navigate to="/mi-curp" replace />
   }
   return <>{children}</>
 }
@@ -295,7 +312,10 @@ function App() {
           
           {/* Certificate Verification - Public */}
           <Route path="/verify/:code" element={<VerifyPage />} />
-          
+
+          {/* SSO landing - intercambia token opaco por JWT */}
+          <Route path="/sso" element={<SsoLandingPage />} />
+
           {/* Public routes */}
           <Route path="/login" element={
             isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />
@@ -346,6 +366,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardRouter />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/chat-soporte" element={<CandidateSupportChatPage />} />
+              <Route path="/mi-curp" element={<MiCurpPage />} />
               
               {/* Study Contents Preview - con navbar */}
               <Route path="/study-contents/:id/preview" element={<RestrictedForGerenteFin><StudyContentPreviewPage /></RestrictedForGerenteFin>} />
@@ -406,8 +427,8 @@ function App() {
               <Route path="/downloads" element={<OfficeDownloadsPage />} />
               <Route path="/admin/office-apps" element={<OfficeAppsAdminPage />} />
               <Route path="/admin/office-results" element={<OfficeResultsAuditPage />} />
-              <Route path="/mis-examenes-office" element={<MisExamenesOfficePage />} />
-              <Route path="/mi-sesion-office" element={<MiSesionOfficePage />} />
+              <Route path="/mis-examenes-office" element={<RequireCurpVerified><MisExamenesOfficePage /></RequireCurpVerified>} />
+              <Route path="/mi-sesion-office" element={<RequireCurpVerified><MiSesionOfficePage /></RequireCurpVerified>} />
               
               {/* Badges (Insignias Digitales) - Permitido para admin, developer, coordinator, editor */}
               <Route path="/badges/templates" element={<RestrictedForGerenteFinOnly><BadgeTemplatesPage /></RestrictedForGerenteFinOnly>} />

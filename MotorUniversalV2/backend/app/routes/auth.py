@@ -364,6 +364,51 @@ def refresh():
     }), 200
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# SSO Tokenización: intercambiar token opaco por par de JWT (mayo 2026)
+# ════════════════════════════════════════════════════════════════════════════
+
+@bp.route('/sso/exchange', methods=['POST'])
+@rate_limit_login(limit=10, window=60)  # 10 intercambios/min por IP
+def sso_exchange():
+    """Recibe { token } emitido por /api/sso/generar_token y, si es válido y
+    no consumido, lo marca y devuelve un par access/refresh JWT como en /login.
+    """
+    payload = request.get_json(silent=True) or {}
+    raw_token = (payload.get('token') or '').strip()
+    if not raw_token:
+        return jsonify({'error': 'Token requerido'}), 400
+
+    from app.services.sso_service import consume_sso_token
+    user = consume_sso_token(raw_token)
+    if user is None:
+        return jsonify({
+            'error': 'Token SSO inválido, expirado o ya usado',
+            'code': 'sso_invalid_token',
+        }), 401
+
+    if not user.is_active:
+        return jsonify({'error': 'Usuario inactivo'}), 403
+
+    # Actualizar last_login
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    access_token = create_access_token(
+        identity=user.id,
+        fresh=True,
+        additional_claims={'role': user.role, 'username': user.username},
+    )
+    refresh_token = create_refresh_token(identity=user.id)
+
+    return jsonify({
+        'message': 'SSO exitoso',
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'user': user.to_dict(include_private=True),
+    }), 200
+
+
 @bp.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():

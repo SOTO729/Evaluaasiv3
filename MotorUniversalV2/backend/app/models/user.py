@@ -121,6 +121,15 @@ class User(db.Model):
     
     # LinkedIn API OAuth2 token
     linkedin_token = db.Column(db.String(2000), nullable=True)
+
+    # SSO Tokenización: identificador externo único provisto por la institución
+    # cuando el alumno se da de alta vía /api/sso/generar_token. La unicidad real
+    # se aplica con un índice único parcial (external_campus_id, external_id)
+    # creado por auto_migrate.
+    external_id = db.Column(db.String(80), nullable=True, index=True)
+    external_partner_id = db.Column(db.Integer, db.ForeignKey('partners.id', ondelete='SET NULL'), nullable=True, index=True)
+    external_campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='SET NULL'), nullable=True, index=True)
+    external_program = db.Column(db.String(200), nullable=True)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -193,6 +202,14 @@ class User(db.Model):
     
     def to_dict(self, include_private=False, include_partners=False):
         """Convertir a diccionario"""
+        # Flag derivado: True si el candidato necesita validar su CURP antes de
+        # poder presentar exámenes / descargar materiales.
+        _GENERIC_FOREIGN = {'XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8'}
+        requires_curp_validation = bool(
+            self.role == 'candidato'
+            and not self.curp_verified
+            and (self.curp or '').upper().strip() not in _GENERIC_FOREIGN
+        )
         data = {
             'id': self.id,
             'email': self.email,
@@ -205,6 +222,8 @@ class User(db.Model):
             'role': self.role,
             'is_active': self.is_active,
             'is_verified': self.is_verified,
+            'curp_verified': self.curp_verified,
+            'requires_curp_validation': requires_curp_validation,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             # Opciones de documentos habilitados

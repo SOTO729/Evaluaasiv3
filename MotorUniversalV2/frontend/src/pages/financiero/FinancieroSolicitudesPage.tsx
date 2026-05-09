@@ -336,6 +336,11 @@ export default function FinancieroSolicitudesPage() {
                       <p className="fluid-text-xs text-gray-500 truncate">
                         {req.coordinator?.email}
                       </p>
+                      {req.requested_by && req.requested_by.id !== req.coordinator?.id && (
+                        <p className="fluid-text-xs text-amber-700 truncate" title={`Solicitado por ${req.requested_by.full_name}`}>
+                          Solicitado por {req.requested_by.full_name}{req.requested_by.role ? ` (${req.requested_by.role})` : ''}
+                        </p>
+                      )}
                     </div>
                   </div>
 

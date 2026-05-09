@@ -118,6 +118,53 @@ def _duplicate_curp_response(curp, existing_user):
     }), 409
 
 
+def _assign_existing_to_group_response(existing_user, target_group, dup_field):
+    """Cuando se intenta crear un candidato cuyo email/CURP ya existe y el alta
+    incluye un grupo destino, en lugar de fallar con 409 asignamos al usuario
+    existente al grupo (mismo comportamiento que la carga masiva).
+    Retorna (Response, status_code).
+    """
+    from app.models.partner import GroupMember
+    try:
+        # Verificar membresía existente
+        already_member = GroupMember.query.filter_by(
+            group_id=target_group.id, user_id=existing_user.id
+        ).first()
+        if already_member:
+            return jsonify({
+                'message': (
+                    f'El usuario ya existe y ya pertenece al grupo "{target_group.name}". '
+                    f'No se realizó ningún cambio.'
+                ),
+                'user': existing_user.to_dict(include_private=False),
+                'group_id': target_group.id,
+                'group_name': target_group.name,
+                'existing_user_assigned': False,
+                'duplicate_field': dup_field,
+            }), 200
+
+        db.session.add(GroupMember(
+            group_id=target_group.id,
+            user_id=existing_user.id,
+            status='existing_assigned',
+        ))
+        db.session.commit()
+        return jsonify({
+            'message': (
+                f'El usuario ya existía como {_describe_user(existing_user)}. '
+                f'Se asignó al grupo "{target_group.name}".'
+            ),
+            'user': existing_user.to_dict(include_private=False),
+            'group_id': target_group.id,
+            'group_name': target_group.name,
+            'existing_user_assigned': True,
+            'duplicate_field': dup_field,
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al asignar usuario existente al grupo: {str(e)}'}), 500
+
+
 def _is_coordinator_role(role):
     """True si el rol es coordinator o auxiliar (auxiliar hereda permisos de coordinador)"""
     return role in ('coordinator', 'auxiliar')
@@ -136,11 +183,19 @@ def _get_effective_coordinator_id(user):
 
 def _verify_coordinator_user_access(current_user, target_user):
     """Verifica que un coordinador/auxiliar tiene acceso al usuario objetivo.
-    Retorna None si OK, o (response, status_code) si no tiene acceso."""
+    Retorna None si OK, o (response, status_code) si no tiene acceso.
+
+    Reglas:
+    - Candidatos son compartidos entre coordinadores: acceso permitido a cualquier candidato.
+    - Responsables/auxiliares solo si pertenecen al coordinador efectivo.
+    """
     if not _is_coordinator_role(current_user.role):
         return None
     if target_user.role not in ['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']:
         return jsonify({'error': 'No tienes permiso para acceder a este usuario'}), 403
+    # Candidatos son compartidos: cualquier coordinador puede acceder
+    if target_user.role == 'candidato':
+        return None
     coord_id = _get_effective_coordinator_id(current_user)
     if target_user.coordinator_id != coord_id:
         return jsonify({'error': 'No tienes acceso a este usuario'}), 403
@@ -496,9 +551,20 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     
     query = User.query
     if _is_coordinator_role(user_role):
-        query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']))
+        # Coincidir con la query principal de list_users:
+        # candidatos (compartidos) + responsables/auxiliares del coordinador efectivo
         if coordinator_id:
-            query = query.filter(User.coordinator_id == coordinator_id)
+            query = query.filter(
+                or_(
+                    User.role == 'candidato',
+                    and_(
+                        User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
+                        User.coordinator_id == coordinator_id
+                    )
+                )
+            )
+        else:
+            query = query.filter(User.role.in_(['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']))
     if user_role == 'soporte':
         query = query.filter(User.role.in_(SOPORTE_VISIBLE_ROLES))
     if user_role == 'responsable' and campus_id:
@@ -565,8 +631,6 @@ def get_user_detail(user_id):
             'user': user.to_dict(include_private=True, include_partners=True)
         })
         
-    except HTTPException:
-        raise
     except HTTPException:
         raise
     except Exception as e:
@@ -849,6 +913,22 @@ def create_user():
                 return jsonify({'error': f'El campo {field} es requerido'}), 400
         
         role = data['role']
+
+        # ── Asignación opcional a grupo (solo aplica para candidato) ──
+        # Si se manda group_id y el rol es candidato:
+        #   - Si email/CURP ya existe → asignar usuario existente al grupo (no 409)
+        #   - Si no existe → crear y asignar en una sola operación
+        # El acceso al grupo se valida con la misma regla que el bulk upload.
+        target_group = None
+        target_group_id = data.get('group_id')
+        if target_group_id and role == 'candidato':
+            try:
+                target_group_id = int(target_group_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'group_id inválido'}), 400
+            target_group, group_err = _validate_target_group(target_group_id, current_user)
+            if group_err:
+                return group_err
         
         # Email es requerido para todos EXCEPTO candidatos (opcional para candidatos)
         if role != 'candidato' and not data.get('email'):
@@ -921,6 +1001,11 @@ def create_user():
             if role not in ('soporte', 'editor', 'editor_invitado', 'coordinator'):
                 existing_email_user = User.query.filter_by(email=email).first()
                 if existing_email_user:
+                    # Si el rol es candidato y se especificó un grupo destino,
+                    # en lugar de bloquear con 409 reasignamos al usuario existente al grupo
+                    # (paridad con el flujo bulk: usuarios pueden pertenecer a múltiples grupos).
+                    if role == 'candidato' and target_group:
+                        return _assign_existing_to_group_response(existing_email_user, target_group, 'email')
                     return _duplicate_email_response(email, existing_email_user)
         
         # Generar contraseña automática para TODOS los usuarios
@@ -943,6 +1028,9 @@ def create_user():
             if not _is_generic_foreign_curp(curp):
                 existing_curp_user = User.query.filter_by(curp=curp).first()
                 if existing_curp_user:
+                    # Si el rol es candidato y hay grupo destino, asignar al existente
+                    if role == 'candidato' and target_group:
+                        return _assign_existing_to_group_response(existing_curp_user, target_group, 'curp')
                     return _duplicate_curp_response(curp, existing_curp_user)
         
         # Generar username automáticamente (10 caracteres alfanuméricos únicos EN MAYÚSCULAS)
@@ -988,12 +1076,17 @@ def create_user():
         
         # Crear usuario
         # Determinar coordinator_id para multi-tenancy
+        # Auxiliar hereda el coordinator_id de su creador (mismo tenant que el coordinador)
+        effective_coord_id = _get_effective_coordinator_id(current_user)
         user_coordinator_id = None
         if role == 'responsable':
             # ── Regla de negocio: responsable DEBE tener coordinator_id ──
             if current_user.role == 'coordinator':
                 # El coordinador que crea → se liga automáticamente
                 user_coordinator_id = current_user.id
+            elif current_user.role == 'auxiliar' and effective_coord_id:
+                # Auxiliar hereda el coordinator_id de su coordinador
+                user_coordinator_id = effective_coord_id
             elif data.get('coordinator_id'):
                 # Admin/developer/soporte eligen coordinador del dropdown
                 coord_check = User.query.get(data['coordinator_id'])
@@ -1002,8 +1095,16 @@ def create_user():
                 user_coordinator_id = data['coordinator_id']
             else:
                 return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
-        elif current_user.role == 'coordinator' and role in ['candidato', 'responsable_partner', 'responsable_estatal']:
-            user_coordinator_id = current_user.id
+        elif _is_coordinator_role(current_user.role) and role in ['candidato', 'responsable_partner', 'responsable_estatal', 'auxiliar']:
+            # Coordinador o auxiliar: ambos quedan ligados al coordinador efectivo
+            # Incluye creación de auxiliar por parte del coordinador
+            user_coordinator_id = effective_coord_id
+        elif current_user.role in ['admin', 'developer', 'soporte'] and role == 'auxiliar' and data.get('coordinator_id'):
+            # Admin/developer/soporte creando auxiliar: validar y persistir coordinator_id del body
+            coord_check_aux = User.query.get(data['coordinator_id'])
+            if not coord_check_aux or coord_check_aux.role != 'coordinator' or not coord_check_aux.is_active:
+                return jsonify({'error': 'El coordinador seleccionado para el auxiliar no es válido o no está activo'}), 400
+            user_coordinator_id = data['coordinator_id']
         elif current_user.role in ['admin', 'developer', 'soporte'] and role == 'candidato' and user_campus_id:
             # Admin/developer creando responsable/candidato: buscar el coordinador del campus
             from app.models.partner import Campus as CampusLookup, Partner as PartnerLookup, user_partners as up_table
@@ -1033,23 +1134,44 @@ def create_user():
                 user_coordinator_id = coord_row2[0]
         
         # ── Validación CURP contra RENAPO ──
+        # Si RENAPO rechaza, NO se bloquea la creación: el usuario queda con
+        # curp_verified=False y deberá validar su CURP al iniciar sesión.
+        # IMPORTANTE: NO hacemos llamada síncrona a RENAPO en este endpoint
+        # (W2 — el coordinador no debe esperar 60s+ por RENAPO). Sólo
+        # consultamos cache. Si hay hit positivo, aplicamos los datos. Si no,
+        # encolamos en `curp_verification_queue` y devolvemos al usuario como
+        # pending. La cola en background hará la validación real.
         renapo_result = None
+        renapo_rejected = False
+        renapo_error_msg = None
+        renapo_unavailable = False  # True si debemos encolar para retry async
         skip_renapo = data.get('skip_renapo_validation', False)
         if user_curp and not _is_generic_foreign_curp(user_curp) and not skip_renapo:
             try:
-                from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user
-                renapo_result = validate_curp_renapo(user_curp)
-                if not renapo_result.valid:
-                    return jsonify({
-                        'error': f'CURP rechazada: {renapo_result.error}',
-                        'renapo_error': True,
-                        'curp': user_curp
-                    }), 400
+                from app.services.renapo_service import (
+                    validate_curp_renapo, apply_renapo_to_user,
+                )
+                # cache_only=True: nunca llama a RENAPO; sólo lee cache.
+                cached = validate_curp_renapo(user_curp, use_cache=True, cache_only=True)
+                if cached.valid:
+                    # Hit positivo en cache — aplicar de inmediato.
+                    renapo_result = cached
+                else:
+                    # Cache miss o negativo: encolar para validación async.
+                    renapo_unavailable = True
+                    if cached.error and cached.error != 'cache_miss':
+                        renapo_error_msg = cached.error
             except Exception as renapo_err:
                 import logging
                 logging.getLogger(__name__).warning(f'RENAPO no disponible: {renapo_err}')
-                # Si RENAPO no está disponible, permitir crear sin validación
                 renapo_result = None
+                renapo_unavailable = True
+
+        # Si el alta es de candidato con grupo destino, derivar campus_id y coordinator_id
+        # del grupo (paridad con bulk upload B+C — consistencia y filtros multi-tenant).
+        if role == 'candidato' and target_group:
+            user_campus_id = target_group.campus_id
+            user_coordinator_id = target_group.coordinator_id
 
         new_user = User(
             id=str(uuid.uuid4()),
@@ -1100,8 +1222,33 @@ def create_user():
                 # Avanzar estado de activación si está pendiente
                 if campus_obj.activation_status == 'pending':
                     campus_obj.activation_status = 'configuring'
-        
+
+        # Asignar al grupo destino si aplica (solo candidatos)
+        if role == 'candidato' and target_group:
+            from app.models.partner import GroupMember
+            db.session.add(GroupMember(
+                group_id=target_group.id,
+                user_id=new_user.id,
+                status='active',
+            ))
+
         db.session.commit()
+        
+        # Encolar verificación CURP si RENAPO no respondió o rechazó.
+        # Cubre W1 (alta individual sin retries) + W2 (circuit abierto).
+        if renapo_unavailable and user_curp and not _is_generic_foreign_curp(user_curp):
+            try:
+                from app.services.curp_queue_worker import enqueue_curp_verification
+                enqueue_curp_verification(new_user.id, user_curp, source='individual')
+                import logging
+                logging.getLogger(__name__).info(
+                    f'[USERS-CURP] Encolado user={new_user.id} curp={user_curp} para verificación'
+                )
+            except Exception as enq_err:
+                import logging
+                logging.getLogger(__name__).error(
+                    f'[USERS-CURP] Error encolando verificación: {enq_err}'
+                )
         
         # Enviar email de bienvenida si tiene email
         if new_user.email:
@@ -1118,11 +1265,29 @@ def create_user():
             'user': new_user.to_dict(include_private=True),
             'temporary_password': password
         }
+
+        # Incluir info de asignación a grupo si aplica
+        if target_group and role == 'candidato':
+            response_data['group_id'] = target_group.id
+            response_data['group_name'] = target_group.name
+            response_data['assigned_to_group'] = True
         
         # Incluir info RENAPO si se validó
         if renapo_result and renapo_result.valid:
             response_data['renapo_validated'] = True
             response_data['renapo_data'] = renapo_result.to_dict()
+        elif renapo_rejected:
+            response_data['curp_pending_validation'] = True
+            response_data['renapo_warning'] = (
+                f'La CURP no pudo validarse contra RENAPO ({renapo_error_msg}). '
+                f'El usuario fue creado pero deberá validarla al iniciar sesión.'
+            )
+        elif renapo_unavailable:
+            response_data['curp_pending_validation'] = True
+            response_data['renapo_warning'] = (
+                'El servicio RENAPO no está disponible en este momento. '
+                'El usuario fue creado y la CURP se validará automáticamente en segundo plano.'
+            )
         
         return jsonify(response_data), 201
         
@@ -1220,8 +1385,8 @@ def update_user(user_id):
                     return _duplicate_email_response(email, existing)
             user.email = email
         
-        # Campos de responsable (editables por admin, developer, soporte y coordinator)
-        if user.role == 'responsable' and current_user.role in ['admin', 'developer', 'soporte', 'coordinator']:
+        # Campos de responsable (editables por admin, developer, soporte, coordinator y auxiliar)
+        if user.role == 'responsable' and current_user.role in ['admin', 'developer', 'soporte', 'coordinator', 'auxiliar']:
             if 'date_of_birth' in data:
                 if data['date_of_birth']:
                     user.date_of_birth = datetime.strptime(data['date_of_birth'], '%Y-%m-%d').date()
@@ -1254,8 +1419,8 @@ def update_user(user_id):
             else:
                 return jsonify({'error': 'No tienes permisos para cambiar el coordinador asignado'}), 403
         
-        # Campos de responsable_partner/responsable_estatal (editables por admin, developer y coordinator)
-        if user.role in ('responsable_partner', 'responsable_estatal') and current_user.role in ['admin', 'developer', 'coordinator']:
+        # Campos de responsable_partner/responsable_estatal (editables por admin, developer, coordinator y auxiliar)
+        if user.role in ('responsable_partner', 'responsable_estatal') and current_user.role in ['admin', 'developer', 'coordinator', 'auxiliar']:
             if 'partner_id' in data and data['partner_id']:
                 from app.models.partner import Partner, user_partners
                 partner = Partner.query.get(data['partner_id'])
@@ -1940,7 +2105,13 @@ def get_user_stats():
             ).filter(
                 CandidateGroup.campus_id == current_user.campus_id
             ).distinct().subquery()
-            stats_query = stats_query.filter(User.role == 'candidato', User.id.in_(campus_user_ids))
+            stats_query = stats_query.filter(
+                User.role == 'candidato',
+                or_(
+                    User.id.in_(campus_user_ids),
+                    User.campus_id == current_user.campus_id
+                )
+            )
         
         stats_query = stats_query.group_by(User.role)
         role_stats = stats_query.all()
@@ -2525,9 +2696,10 @@ def _validate_target_group(group_id, current_user):
         return None, (jsonify({'error': f'Grupo con ID {group_id} no encontrado'}), 404)
     if not group.is_active:
         return None, (jsonify({'error': 'El grupo seleccionado no está activo'}), 400)
-    if current_user.role == 'coordinator':
-        # Verificar acceso: grupo debe pertenecer al coordinador (aislado)
-        if group.coordinator_id != current_user.id:
+    # Coordinador o auxiliar: el grupo debe pertenecer al coordinador efectivo
+    if _is_coordinator_role(current_user.role):
+        coord_id = _get_effective_coordinator_id(current_user)
+        if not coord_id or group.coordinator_id != coord_id:
             return None, (jsonify({'error': 'No tienes acceso a este grupo'}), 403)
     if current_user.role == 'responsable':
         # Verificar que el grupo pertenece al plantel del responsable
@@ -2628,6 +2800,325 @@ def validate_curp_batch_endpoint():
         raise
     except Exception as e:
         return jsonify({'error': f'Error validando CURPs: {str(e)}'}), 500
+
+
+# ============== AUTO-VALIDACIÓN DE CURP POR EL CANDIDATO ==============
+
+def _run_candidate_curp_verification(app_obj, user_id, curp, max_rounds: int = 6):
+    """Ejecuta verificación RENAPO en segundo plano para un solo candidato.
+
+    Aplica las mismas reglas que la verificación masiva (`/candidates/bulk-create`):
+      - Hasta 6 rondas iterativas (RENAPO es inconsistente).
+      - Cada ronda llama a `validate_curp_renapo` (que internamente reintenta 7 veces).
+      - Pausa de 5s entre rondas.
+      - Si en alguna ronda la CURP es válida: aplica datos al usuario y mueve
+        GroupMembers a 'active'.
+      - Si fallan las 6 rondas: deja GroupMembers en 'curp_required' para que
+        el candidato pueda corregir su CURP.
+    """
+    import time
+    import logging
+    _logger = logging.getLogger(__name__)
+    _logger.info(f'[ME-CURP] Iniciando verificación RENAPO en segundo plano para user={user_id} curp={curp} (hasta {max_rounds} rondas)')
+
+    with app_obj.app_context():
+        from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user
+        from app.models.partner import GroupMember
+
+        last_error = None
+        for round_num in range(1, max_rounds + 1):
+            try:
+                result = validate_curp_renapo(curp)
+            except Exception as e:
+                last_error = str(e)[:300]
+                _logger.error(f'[ME-CURP] R{round_num} excepción validando {curp}: {e}')
+                if round_num < max_rounds:
+                    time.sleep(5)
+                continue
+
+            if result.valid:
+                try:
+                    user = User.query.get(user_id)
+                    if not user:
+                        _logger.warning(f'[ME-CURP] Usuario {user_id} ya no existe, abortando')
+                        return
+                    # Confirmar que no cambió la CURP mientras tanto
+                    if (user.curp or '').strip().upper() != curp.strip().upper():
+                        _logger.info(f'[ME-CURP] CURP del usuario {user_id} cambió mientras se verificaba; abortando este job')
+                        return
+                    apply_renapo_to_user(user, result)
+                    pending_gms = GroupMember.query.filter_by(user_id=user.id).filter(
+                        GroupMember.status.in_(['curp_pending', 'curp_verifying', 'curp_required'])
+                    ).all()
+                    for gm in pending_gms:
+                        gm.status = 'active'
+                    db.session.commit()
+                    _logger.info(f'[ME-CURP] R{round_num} CURP {curp} válida — usuario {user_id} verificado')
+                    return
+                except Exception as commit_err:
+                    _logger.error(f'[ME-CURP] R{round_num} error aplicando datos RENAPO a {user_id}: {commit_err}')
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    last_error = str(commit_err)[:300]
+            else:
+                last_error = result.error or 'no encontrada'
+                _logger.info(f'[ME-CURP] R{round_num} CURP {curp} rechazada para user={user_id} ({last_error}); reintentará')
+
+            if round_num < max_rounds:
+                time.sleep(5)
+
+        # ── Tras 6 rondas sin éxito: dejar al usuario en curp_required ──
+        try:
+            user = User.query.get(user_id)
+            if not user:
+                return
+            if (user.curp or '').strip().upper() != curp.strip().upper():
+                return  # cambió la CURP, otro job tomará el relevo
+            for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                if gm.status in ('curp_pending', 'curp_verifying'):
+                    gm.status = 'curp_required'
+            db.session.commit()
+            _logger.warning(f'[ME-CURP] CURP {curp} no validada tras {max_rounds} rondas para user={user_id} (último error: {last_error})')
+        except Exception as final_err:
+            _logger.error(f'[ME-CURP] error marcando curp_required final para {user_id}: {final_err}')
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
+
+@bp.route('/me/validate-curp', methods=['POST'])
+@jwt_required()
+def candidate_validate_own_curp():
+    """Permite al candidato validar/corregir su propia CURP contra RENAPO.
+
+    Flujo:
+      1. Candidato envía nueva CURP.
+      2. Se valida formato + unicidad (síncrono, rápido).
+      3. Se persiste la nueva CURP y se ponen los GroupMembers en
+         estado 'curp_verifying'.
+      4. Se lanza un thread en segundo plano que aplica las MISMAS reglas
+         que la verificación masiva: hasta 6 rondas iterativas contra RENAPO,
+         con 7 reintentos internos por consulta, y pausa de 5s entre rondas.
+      5. Mientras tanto el endpoint regresa 202 con {verifying: true} para que
+         el frontend haga polling a `/me/curp-status`.
+      6. Si todas las rondas fallan, los GroupMembers vuelven a 'curp_required'
+         para que el candidato pueda corregir su CURP.
+
+    CURPs genéricas de extranjero se aceptan inmediatamente sin RENAPO.
+    Solo para candidatos cuya CURP aún no está verificada.
+    """
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        if user.role != 'candidato':
+            return jsonify({'error': 'Solo los candidatos pueden usar este endpoint'}), 403
+
+        if user.curp_verified:
+            return jsonify({
+                'error': 'Tu CURP ya fue validada anteriormente. Si necesitas cambiarla, contacta a tu coordinador.',
+                'already_verified': True
+            }), 400
+
+        data = request.get_json() or {}
+        new_curp = (data.get('curp') or '').upper().strip()
+
+        if not new_curp:
+            return jsonify({'error': 'El campo CURP es requerido'}), 400
+
+        # CURP genérica de extranjero — aceptar sin RENAPO
+        if _is_generic_foreign_curp(new_curp):
+            user.curp = new_curp
+            # No se marca curp_verified porque es genérica; el flag
+            # requires_curp_validation usa _GENERIC_FOREIGN para no bloquear.
+            from app.models.partner import GroupMember
+            for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                if gm.status in ('curp_required', 'curp_pending', 'curp_verifying'):
+                    gm.status = 'active'
+            db.session.commit()
+            return jsonify({
+                'valid': True,
+                'curp': new_curp,
+                'generic_foreign': True,
+                'message': 'CURP genérica de extranjero aceptada'
+            }), 200
+
+        # Validar formato local
+        from app.services.renapo_service import validate_curp_format
+        fmt_valid, fmt_error = validate_curp_format(new_curp)
+        if not fmt_valid:
+            return jsonify({
+                'valid': False,
+                'curp': new_curp,
+                'error': fmt_error,
+                'reason': 'format'
+            }), 400
+
+        # Verificar unicidad (excepto el propio usuario)
+        existing = User.query.filter(
+            User.curp == new_curp,
+            User.id != user.id
+        ).first()
+        if existing:
+            return jsonify({
+                'valid': False,
+                'curp': new_curp,
+                'error': 'Esta CURP ya está registrada por otro usuario',
+                'reason': 'duplicate'
+            }), 409
+
+        # ===== Validación SÍNCRONA contra RENAPO =====
+        # En el flujo self-service el usuario está esperando frente a la pantalla.
+        # No tiene sentido encolar y hacerlo polling 12h. Llamamos directo al
+        # servicio (con cache + circuit-breaker) y respondemos en el mismo
+        # request con el veredicto. Si RENAPO está caído devolvemos
+        # service_unavailable para que el usuario reintente más tarde.
+        from app.services.renapo_service import (
+            validate_curp_renapo,
+            apply_renapo_to_user,
+            is_renapo_circuit_open,
+        )
+        from app.models.partner import GroupMember
+
+        # Si circuit breaker está abierto, no consultamos RENAPO; respondemos
+        # service_unavailable inmediatamente.
+        if is_renapo_circuit_open():
+            return jsonify({
+                'valid': False,
+                'curp': new_curp,
+                'error': 'El servicio RENAPO no está disponible en este momento. Intenta de nuevo en unos minutos.',
+                'reason': 'service_unavailable',
+            }), 503
+
+        try:
+            result = validate_curp_renapo(new_curp, use_cache=True)
+        except Exception as renapo_err:
+            import logging
+            logging.getLogger(__name__).error(f'[ME-CURP] error consultando RENAPO: {renapo_err}')
+            return jsonify({
+                'valid': False,
+                'curp': new_curp,
+                'error': 'No fue posible contactar al servicio de validación. Intenta de nuevo en unos minutos.',
+                'reason': 'service_unavailable',
+            }), 503
+
+        # Circuit-open detectado por el servicio durante la consulta
+        if (result.error or '').lower().startswith('servicio renapo temporalmente no disponible'):
+            return jsonify({
+                'valid': False,
+                'curp': new_curp,
+                'error': 'El servicio RENAPO no está disponible en este momento. Intenta de nuevo en unos minutos.',
+                'reason': 'service_unavailable',
+            }), 503
+
+        if result.valid:
+            try:
+                user.curp = new_curp
+                apply_renapo_to_user(user, result)
+                user.is_active = True
+                for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                    if gm.status in ('curp_required', 'curp_pending', 'curp_verifying'):
+                        gm.status = 'active'
+                # Cancelar cualquier fila pending/processing en la cola para este usuario
+                try:
+                    from app.models.curp_verification import (
+                        CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING, QUEUE_DONE
+                    )
+                    CurpVerificationQueue.query.filter(
+                        CurpVerificationQueue.user_id == user.id,
+                        CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING]),
+                    ).update({
+                        'status': QUEUE_DONE,
+                        'finished_at': datetime.utcnow(),
+                    }, synchronize_session=False)
+                except Exception:
+                    pass
+                db.session.commit()
+            except Exception as apply_err:
+                db.session.rollback()
+                import logging
+                logging.getLogger(__name__).error(f'[ME-CURP] error aplicando RENAPO: {apply_err}')
+                return jsonify({
+                    'valid': False,
+                    'curp': new_curp,
+                    'error': 'No fue posible guardar tu validación. Intenta de nuevo.',
+                    'reason': 'persist',
+                }), 500
+            return jsonify({
+                'valid': True,
+                'curp': new_curp,
+                'message': 'CURP validada exitosamente contra RENAPO.',
+                'data': {
+                    'name': result.name,
+                    'first_surname': result.first_surname,
+                    'second_surname': result.second_surname,
+                    'gender': result.gender,
+                },
+                'user': user.to_dict() if hasattr(user, 'to_dict') else None,
+            }), 200
+
+        # RENAPO respondió que la CURP NO existe
+        # Persistimos la CURP intentada para que el usuario la vea, pero no la
+        # marcamos verificada. Los GroupMembers vuelven a 'curp_required'.
+        try:
+            user.curp = new_curp
+            for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                if gm.status in ('curp_pending', 'curp_verifying', 'active'):
+                    gm.status = 'curp_required'
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return jsonify({
+            'valid': False,
+            'curp': new_curp,
+            'error': result.error or 'CURP no encontrada en RENAPO. Verifica que esté escrita correctamente.',
+            'reason': 'not_found',
+        }), 404
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error validando CURP: {str(e)}'}), 500
+
+
+@bp.route('/me/curp-status', methods=['GET'])
+@jwt_required()
+def candidate_curp_status():
+    """Retorna el estado actual de validación CURP del candidato logueado."""
+    try:
+        current_user_id = get_jwt_identity()
+        user = User.query.get(current_user_id)
+        if not user:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        from app.models.partner import GroupMember
+        gm_statuses = [
+            gm.status for gm in GroupMember.query.filter_by(user_id=user.id).all()
+        ]
+        verifying = any(s == 'curp_verifying' for s in gm_statuses)
+        return jsonify({
+            'user_id': user.id,
+            'curp': user.curp,
+            'curp_verified': user.curp_verified,
+            'curp_verified_at': user.curp_verified_at.isoformat() if user.curp_verified_at else None,
+            'verifying': verifying,
+            'requires_validation': bool(
+                user.role == 'candidato'
+                and not user.curp_verified
+                and (user.curp or '').upper().strip() not in GENERIC_FOREIGN_CURPS
+            ),
+            'group_member_statuses': gm_statuses,
+        }), 200
+    except HTTPException:
+        raise
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ============== PREVIEW CARGA MASIVA ==============
@@ -3008,70 +3499,173 @@ def bulk_upload_candidates():
             secrets.SystemRandom().shuffle(pwd)
             return ''.join(pwd)
 
-        # Crear usuarios en lotes
+        # Crear usuarios en lotes con tolerancia a fallos.
+        # Estrategia (enfoque B):
+        #   1) Fast path: agregar BATCH_COMMIT_SIZE usuarios y hacer commit.
+        #   2) Si el commit falla por una fila duplicada/FK (que envenena la
+        #      transacción en MSSQL), rollback y reintentar cada usuario del
+        #      lote uno por uno con SAVEPOINT (begin_nested) para identificar
+        #      exactamente cuál(es) fallaron sin perder los válidos.
         created = []
         create_errors = []
-        batch_count = 0
         curp_pending_user_ids = set()  # IDs de usuarios que necesitan verificación CURP
+
+        def _build_user_payload(r):
+            """Construye el dict de kwargs + password para un User sin agregarlo
+            todavía a la sesión. Devuelve (payload, password, username)."""
+            username = username_map[r['row']]
+            password = _gen_pwd()
+            _campus_id = None
+            _coord_id = None
+            if target_group:
+                _campus_id = target_group.campus_id
+                _coord_id = target_group.coordinator_id
+            else:
+                if _is_coordinator_role(current_user.role):
+                    _coord_id = _get_effective_coordinator_id(current_user)
+                if current_user.role == 'responsable' and current_user.campus_id:
+                    _campus_id = current_user.campus_id
+            payload = dict(
+                id=str(uuid.uuid4()),
+                email=r['email'] if r['email'] else None,
+                username=username,
+                name=r['nombre'].upper() if r['nombre'] else r['nombre'],
+                first_surname=r['primer_apellido'].upper() if r['primer_apellido'] else r['primer_apellido'],
+                second_surname=r['segundo_apellido'].upper() if r['segundo_apellido'] else None,
+                gender=r['genero'],
+                curp=r['curp'] or None,
+                role='candidato',
+                coordinator_id=_coord_id,
+                campus_id=_campus_id,
+                is_active=True,
+                is_verified=False,
+            )
+            return payload, password, username
+
+        def _instantiate_and_add(payload, password):
+            """Crea User, setea passwords y lo agrega a la sesión actual."""
+            u = User(**payload)
+            u.set_password(password)
+            u.encrypted_password = encrypt_password(password)
+            db.session.add(u)
+            return u
+
+        def _record_created(r, payload, password, username, uid):
+            _parts = [r['nombre'], r['primer_apellido']]
+            if r.get('segundo_apellido'):
+                _parts.append(r['segundo_apellido'])
+            created.append({
+                'row': r['row'],
+                'email': r['email'],
+                'name': f"{r['nombre']} {r['primer_apellido']}",
+                'full_name': ' '.join(_parts),
+                'username': username,
+                'password': password,
+                'curp': r.get('curp'),
+                'gender': r.get('genero'),
+                'user_id': uid,
+            })
+            needs_curp_verify = bool(
+                target_group and r.get('curp') and r['curp'] not in GENERIC_FOREIGN_CURPS
+            )
+            if needs_curp_verify:
+                curp_pending_user_ids.add(uid)
+
+        def _commit_batch(batch_rows):
+            """Intenta commit del lote (fast path). Si falla, rollback y
+            reintenta cada fila con SAVEPOINT (slow path).
+            batch_rows: lista [(r, payload, password, username), ...].
+            Modifica `created` y `create_errors` in-place.
+            """
+            if not batch_rows:
+                return
+            try:
+                db.session.commit()
+                # Fast path OK: todos los usuarios persistieron.
+                for r, payload, password, username in batch_rows:
+                    _record_created(r, payload, password, username, payload['id'])
+                return
+            except HTTPException:
+                raise
+            except Exception as batch_err:
+                import logging as _lg_b
+                _lg_b.getLogger(__name__).warning(
+                    f'[BULK-UPLOAD] Commit de lote falló ({len(batch_rows)} filas): '
+                    f'{str(batch_err)[:200]}. Reintentando individualmente con SAVEPOINT.'
+                )
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+
+                # Slow path: cada fila aislada con SAVEPOINT. Las válidas
+                # persisten; las inválidas van a errors con mensaje específico.
+                for r, payload, password, username in batch_rows:
+                    try:
+                        sp = db.session.begin_nested()
+                        try:
+                            u = _instantiate_and_add(payload, password)
+                            sp.commit()
+                            _record_created(r, payload, password, username, u.id)
+                        except Exception as ex_inner:
+                            try:
+                                sp.rollback()
+                            except Exception:
+                                pass
+                            create_errors.append({
+                                'row': r['row'],
+                                'email': r['email'] or '(vacío)',
+                                'error': str(ex_inner)[:300],
+                            })
+                    except Exception as ex_outer:
+                        create_errors.append({
+                            'row': r['row'],
+                            'email': r['email'] or '(vacío)',
+                            'error': f'savepoint failed: {str(ex_outer)[:200]}',
+                        })
+
+                try:
+                    db.session.commit()
+                except Exception as commit_after_sp:
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    _lg_b.getLogger(__name__).error(
+                        f'[BULK-UPLOAD] Commit post-savepoints falló: {commit_after_sp}'
+                    )
+
+        # ── Bucle principal ──
+        batch_rows = []  # [(r, payload, password, username), ...]
         for r in to_create:
             try:
-                username = username_map[r['row']]
-                password = _gen_pwd()
-                needs_curp_verify = bool(
-                    target_group and r.get('curp') and r['curp'] not in GENERIC_FOREIGN_CURPS
-                )
-                new_user = User(
-                    id=str(uuid.uuid4()),
-                    email=r['email'] if r['email'] else None,
-                    username=username,
-                    name=r['nombre'].upper() if r['nombre'] else r['nombre'],
-                    first_surname=r['primer_apellido'].upper() if r['primer_apellido'] else r['primer_apellido'],
-                    second_surname=r['segundo_apellido'].upper() if r['segundo_apellido'] else None,
-                    gender=r['genero'],
-                    curp=r['curp'] or None,
-                    role='candidato',
-                    coordinator_id=current_user.id if current_user.role == 'coordinator' else None,
-                    campus_id=current_user.campus_id if current_user.role == 'responsable' and current_user.campus_id else None,
-                    is_active=not needs_curp_verify,
-                    is_verified=False,
-                )
-                new_user.set_password(password)
-                new_user.encrypted_password = encrypt_password(password)
-                db.session.add(new_user)
-                if needs_curp_verify:
-                    curp_pending_user_ids.add(new_user.id)
-                _parts = [r['nombre'], r['primer_apellido']]
-                if r.get('segundo_apellido'):
-                    _parts.append(r['segundo_apellido'])
-                created.append({
-                    'row': r['row'],
-                    'email': r['email'],
-                    'name': f"{r['nombre']} {r['primer_apellido']}",
-                    'full_name': ' '.join(_parts),
-                    'username': username,
-                    'password': password,
-                    'curp': r.get('curp'),
-                    'gender': r.get('genero'),
-                })
-                batch_count += 1
-                # Commit en lotes
-                if batch_count >= BATCH_COMMIT_SIZE:
-                    db.session.commit()
-                    batch_count = 0
+                payload, password, username = _build_user_payload(r)
+                _instantiate_and_add(payload, password)
+                batch_rows.append((r, payload, password, username))
+                if len(batch_rows) >= BATCH_COMMIT_SIZE:
+                    _commit_batch(batch_rows)
+                    batch_rows = []
             except HTTPException:
                 raise
             except Exception as e:
-                # Expunge solo el usuario fallido para no perder los anteriores pendientes.
-                # db.session.rollback() no se usa aquí porque cancelaría todos los usuarios
-                # no committeados del lote actual (potencialmente cientos de alumnos).
-                try:
-                    db.session.expunge(new_user)
-                except Exception:
-                    pass
-                create_errors.append({'row': r['row'], 'email': r['email'] or '(vacío)', 'error': str(e)})
+                # Error al construir/agregar a la sesión (antes del commit).
+                # Procesamos lo acumulado para no perderlo y registramos esta fila.
+                if batch_rows:
+                    _commit_batch(batch_rows)
+                    batch_rows = []
+                create_errors.append({
+                    'row': r.get('row'),
+                    'email': r.get('email') or '(vacío)',
+                    'error': str(e)[:300],
+                })
 
         # Commit remanente
-        if batch_count > 0:
+        if batch_rows:
+            _commit_batch(batch_rows)
+            batch_rows = []
+
+        batch_count = 0  # vestigial; evita romper código posterior
+        if False:  # bloque legado deshabilitado
             try:
                 db.session.commit()
             except HTTPException:
@@ -3080,6 +3674,46 @@ def bulk_upload_candidates():
                 db.session.rollback()
                 import logging
                 logging.getLogger(__name__).error(f'Error en commit final bulk: {e}')
+
+        # ======= RECONCILIACIÓN: filtrar created[] contra DB real =======
+        # Si un commit (intermedio o final) fue rolleado por error de unique/FK,
+        # los usuarios quedan en `created[]` aunque NO persistieron en DB. Esto
+        # provocaba que el historial reportara N creados pero el grupo solo
+        # tuviera M < N (issue reportado). Reconciliamos pidiendo a la DB qué
+        # usernames sí existen y movemos los faltantes a create_errors.
+        if created:
+            try:
+                _all_usernames = [c['username'] for c in created]
+                _persisted = set()
+                for _i in range(0, len(_all_usernames), CHUNK):
+                    _chunk = _all_usernames[_i:_i + CHUNK]
+                    _rows = User.query.filter(
+                        User.username.in_(_chunk)
+                    ).with_entities(User.username).all()
+                    _persisted.update(r.username for r in _rows)
+                if len(_persisted) != len(created):
+                    _orphans = [c for c in created if c['username'] not in _persisted]
+                    _kept = [c for c in created if c['username'] in _persisted]
+                    for _o in _orphans:
+                        create_errors.append({
+                            'row': _o.get('row'),
+                            'email': _o.get('email') or '(vacío)',
+                            'error': 'No se persistió por error de DB (commit rolleado)',
+                        })
+                    import logging as _lg_recon
+                    _lg_recon.getLogger(__name__).warning(
+                        f'[BULK-UPLOAD] Reconciliación: {len(_orphans)} usuarios reportados '
+                        f'como creados pero NO persistieron en DB (de {len(created)} esperados)'
+                    )
+                    created = _kept
+                    # También limpiar curp_pending_user_ids — los IDs ya no existen
+                    # (Las IDs eran UUID generados; al rollback no entraron a DB,
+                    # así que tampoco hay GroupMembers que asignar para ellos)
+            except Exception as _recon_err:
+                import logging as _lg_recon2
+                _lg_recon2.getLogger(__name__).error(
+                    f'[BULK-UPLOAD] Error en reconciliación: {_recon_err}'
+                )
 
         # Asignar a grupo si aplica
         group_assignment = None
@@ -3114,15 +3748,33 @@ def bulk_upload_candidates():
             for uid, uname in all_assign_ids:
                 if uid not in existing_members:
                     try:
-                        gm_status = 'curp_pending' if uid in curp_pending_user_ids else 'active'
-                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status=gm_status))
+                        # Política: el candidato siempre se ve en el grupo desde el
+                        # inicio. Si su CURP no se valida, el usuario será redirigido
+                        # a /mi-curp en su login. La cola de verificación corre en
+                        # background y solo cambia el status si RENAPO RECHAZA
+                        # definitivamente la CURP (curp_required) tras MAX intentos.
+                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status='active'))
                         if uid in {ea['user_id'] for ea in existing_assigned}:
                             assigned_existing += 1
                         else:
                             assigned_new += 1
                         batch_count += 1
                         if batch_count >= BATCH_COMMIT_SIZE:
-                            db.session.commit()
+                            try:
+                                db.session.commit()
+                            except Exception as _gm_commit_err:
+                                import logging as _lg_gm
+                                _lg_gm.getLogger(__name__).error(
+                                    f'[BULK-UPLOAD] Error en commit intermedio GroupMember: {_gm_commit_err}'
+                                )
+                                try:
+                                    db.session.rollback()
+                                except Exception:
+                                    pass
+                                assignment_errors.append({
+                                    'username': '(batch)',
+                                    'error': f'Commit intermedio falló: {str(_gm_commit_err)[:200]}',
+                                })
                             batch_count = 0
                     except HTTPException:
                         raise
@@ -3130,7 +3782,53 @@ def bulk_upload_candidates():
                         assignment_errors.append({'username': uname, 'error': str(e)})
 
             if batch_count > 0:
-                db.session.commit()
+                try:
+                    db.session.commit()
+                except Exception as _gm_final_err:
+                    import logging as _lg_gm2
+                    _lg_gm2.getLogger(__name__).error(
+                        f'[BULK-UPLOAD] Error en commit final GroupMember: {_gm_final_err}'
+                    )
+                    try:
+                        db.session.rollback()
+                    except Exception:
+                        pass
+                    assignment_errors.append({
+                        'username': '(commit final)',
+                        'error': f'Commit final falló: {str(_gm_final_err)[:200]}',
+                    })
+
+            # Reconciliar: contar GroupMembers reales en DB vs los que esperábamos crear
+            try:
+                _real_count = GroupMember.query.filter(
+                    GroupMember.group_id == target_group.id,
+                    GroupMember.user_id.in_([x[0] for x in all_assign_ids])
+                ).count()
+                _expected = len(all_assign_ids)
+                if _real_count != _expected:
+                    import logging as _lg_recon_gm
+                    _lg_recon_gm.getLogger(__name__).warning(
+                        f'[BULK-UPLOAD] Reconciliación GroupMember: esperados {_expected}, '
+                        f'reales en DB {_real_count} (grupo {target_group.id})'
+                    )
+                    # Ajustar contadores reportados al usuario
+                    _diff = _expected - _real_count
+                    if _diff > 0:
+                        # Restar prioritariamente de assigned_new (los recién creados)
+                        _restar_new = min(_diff, assigned_new)
+                        assigned_new -= _restar_new
+                        assigned_existing -= (_diff - _restar_new)
+                        if assigned_existing < 0:
+                            assigned_existing = 0
+                        assignment_errors.append({
+                            'username': '(reconciliación)',
+                            'error': f'{_diff} GroupMember(s) no persistieron en DB',
+                        })
+            except Exception as _recon_gm_err:
+                import logging as _lg_recon_gm2
+                _lg_recon_gm2.getLogger(__name__).error(
+                    f'[BULK-UPLOAD] Error reconciliando GroupMember: {_recon_gm_err}'
+                )
 
             group_assignment = {
                 'group_id': target_group.id,
@@ -3353,186 +4051,30 @@ def bulk_upload_candidates():
         if batch_record_id:
             response_data['batch_id'] = batch_record_id
 
-        # ======= VERIFICACIÓN CURP EN SEGUNDO PLANO =======
-        # Lanzar thread para verificar CURPs de usuarios creados contra RENAPO
+        # ======= ENCOLAR VERIFICACIÓN CURP =======
+        # En vez de threads volátiles, encolar en curp_verification_queue.
+        # Un worker en background (services/curp_queue_worker.py) procesa
+        # con cache + circuit-breaker + reintentos persistentes.
         curp_users_to_verify = [
             c for c in created
             if c.get('curp') and c['curp'] not in GENERIC_FOREIGN_CURPS
         ]
         if curp_users_to_verify and batch_record_id:
-            import threading
-            from flask import current_app
-            app = current_app._get_current_object()
-
-            def _verify_curps_background(app_obj, users_data, batch_id):
-                """Verifica CURPs contra RENAPO en segundo plano con 6 rondas iterativas.
-                RENAPO es inconsistente — una CURP válida puede fallar en una consulta
-                pero ser encontrada en otra. Por eso se hacen múltiples rondas:
-                  Ronda 1: verifica todos
-                  Ronda 2-6: re-verifica solo los rechazados de la ronda anterior
-                Solo después de 6 rondas fallidas se elimina al usuario."""
-                import time
-                import logging
-                MAX_ROUNDS = 6
-                _logger = logging.getLogger(__name__)
-                _logger.info(f'[BULK-CURP] Iniciando verificación RENAPO para {len(users_data)} usuarios (batch {batch_id}) — hasta {MAX_ROUNDS} rondas')
-
-                with app_obj.app_context():
-                    from app.services.renapo_service import validate_curp_renapo, apply_renapo_to_user, is_generic_foreign_curp, validate_curp_format
-                    from app.models.partner import BulkUploadMember, GroupMember
-
-                    verified = 0
-                    format_invalid = 0
-                    pending_users = list(users_data)  # users still to verify
-
-                    # ── Pre-pass: mark all as curp_verifying & filter format-invalid ──
-                    valid_format_users = []
-                    for u_data in pending_users:
-                        curp = u_data['curp']
-                        username = u_data['username']
-                        try:
-                            _mark_user = User.query.filter_by(username=username).first()
-                            if _mark_user:
-                                for _gm in GroupMember.query.filter_by(
-                                    user_id=_mark_user.id, status='curp_pending'
-                                ).all():
-                                    _gm.status = 'curp_verifying'
-                                db.session.commit()
-
-                            fmt_valid, fmt_error = validate_curp_format(curp)
-                            if not fmt_valid:
-                                _logger.warning(f'[BULK-CURP] Formato inválido para CURP {curp} de {username}: {fmt_error}')
-                                user = User.query.filter_by(username=username).first()
-                                if user:
-                                    GroupMember.query.filter_by(user_id=user.id).delete()
-                                    member_rec = BulkUploadMember.query.filter_by(
-                                        batch_id=batch_id, username=username
-                                    ).first()
-                                    if member_rec:
-                                        member_rec.status = 'curp_invalid'
-                                        member_rec.error_message = f'Formato de CURP inválido: {fmt_error}'
-                                    db.session.delete(user)
-                                    db.session.commit()
-                                format_invalid += 1
-                                continue
-                            valid_format_users.append(u_data)
-                        except Exception as e:
-                            _logger.error(f'[BULK-CURP] Error pre-procesando {username}: {e}')
-                            try:
-                                db.session.rollback()
-                            except Exception:
-                                pass
-                            valid_format_users.append(u_data)  # give it a chance in RENAPO rounds
-
-                    # ── Iterative RENAPO rounds ──
-                    pending_users = valid_format_users
-                    for round_num in range(1, MAX_ROUNDS + 1):
-                        if not pending_users:
-                            break
-
-                        _logger.info(f'[BULK-CURP] Ronda {round_num}/{MAX_ROUNDS}: verificando {len(pending_users)} CURPs (batch {batch_id})')
-                        still_failing = []
-
-                        for i, u_data in enumerate(pending_users):
-                            curp = u_data['curp']
-                            username = u_data['username']
-                            try:
-                                result = validate_curp_renapo(curp)
-                                user = User.query.filter_by(username=username).first()
-                                if not user:
-                                    _logger.warning(f'[BULK-CURP] Usuario {username} ya no existe, saltando')
-                                    continue
-
-                                if result.valid:
-                                    apply_renapo_to_user(user, result)
-                                    user.is_active = True
-                                    pending_gms = GroupMember.query.filter_by(
-                                        user_id=user.id,
-                                    ).filter(
-                                        GroupMember.status.in_(['curp_pending', 'curp_verifying'])
-                                    ).all()
-                                    for gm in pending_gms:
-                                        gm.status = 'active'
-                                    member_rec = BulkUploadMember.query.filter_by(
-                                        batch_id=batch_id, username=username
-                                    ).first()
-                                    if member_rec:
-                                        member_rec.status = 'curp_verified'
-                                    db.session.commit()
-                                    verified += 1
-                                    _logger.info(f'[BULK-CURP] R{round_num} ({i+1}/{len(pending_users)}) CURP {curp} válida - {username}')
-                                else:
-                                    # Not valid yet — queue for next round
-                                    u_data['_last_error'] = result.error or 'no encontrada'
-                                    still_failing.append(u_data)
-                                    _logger.info(f'[BULK-CURP] R{round_num} ({i+1}/{len(pending_users)}) CURP {curp} rechazada - {username} (reintentará)')
-
-                            except Exception as e:
-                                _logger.error(f'[BULK-CURP] R{round_num} Error verificando {curp} de {username}: {e}')
-                                try:
-                                    db.session.rollback()
-                                except Exception:
-                                    pass
-                                u_data['_last_error'] = str(e)[:300]
-                                still_failing.append(u_data)
-
-                            # Rate limiting
-                            if i < len(pending_users) - 1:
-                                time.sleep(2)
-
-                        pending_users = still_failing
-                        if pending_users and round_num < MAX_ROUNDS:
-                            _logger.info(f'[BULK-CURP] Ronda {round_num} terminada: {len(pending_users)} CURPs pendientes, esperando 5s antes de ronda {round_num+1}')
-                            time.sleep(5)  # pause between rounds
-
-                    # ── After all rounds: delete users that failed every round ──
-                    final_rejected = 0
-                    for u_data in pending_users:
-                        username = u_data['username']
-                        curp = u_data['curp']
-                        last_error = u_data.get('_last_error', 'no encontrada')
-                        try:
-                            user = User.query.filter_by(username=username).first()
-                            if user:
-                                _logger.warning(f'[BULK-CURP] CURP {curp} inválida tras {MAX_ROUNDS} rondas — eliminando {username}')
-                                GroupMember.query.filter_by(user_id=user.id).delete()
-                                member_rec = BulkUploadMember.query.filter_by(
-                                    batch_id=batch_id, username=username
-                                ).first()
-                                if member_rec:
-                                    member_rec.status = 'curp_invalid'
-                                    member_rec.error_message = f'CURP rechazada tras {MAX_ROUNDS} rondas RENAPO: {last_error[:300]}'
-                                db.session.delete(user)
-                                db.session.commit()
-                                final_rejected += 1
-                        except Exception as del_err:
-                            _logger.error(f'[BULK-CURP] Error eliminando {username} tras rondas: {del_err}')
-                            try:
-                                db.session.rollback()
-                            except Exception:
-                                pass
-                            final_rejected += 1
-
-                    total_rejected = final_rejected + format_invalid
-                    _logger.info(f'[BULK-CURP] Finalizado batch {batch_id}: {verified} verificados, {format_invalid} formato inválido, {final_rejected} rechazados tras {MAX_ROUNDS} rondas')
-
-                    # Actualizar contadores del batch
-                    try:
-                        from app.models.partner import BulkUploadBatch
-                        batch = BulkUploadBatch.query.get(batch_id)
-                        if batch:
-                            batch.total_created = max(0, batch.total_created - total_rejected)
-                            batch.total_errors = batch.total_errors + total_rejected
-                            db.session.commit()
-                    except Exception as e:
-                        _logger.error(f'[BULK-CURP] Error actualizando contadores batch: {e}')
-
-            thread = threading.Thread(
-                target=_verify_curps_background,
-                args=(app, curp_users_to_verify, batch_record_id),
-                daemon=True,
-            )
-            thread.start()
+            try:
+                from app.services.curp_queue_worker import enqueue_curp_verification
+                import logging as _lg_curp
+                _logger_curp = _lg_curp.getLogger(__name__)
+                enqueued = 0
+                for c in curp_users_to_verify:
+                    uid = c.get('user_id') or c.get('id')
+                    curp_val = c.get('curp')
+                    if uid and curp_val:
+                        if enqueue_curp_verification(uid, curp_val, source='bulk', batch_id=batch_record_id):
+                            enqueued += 1
+                _logger_curp.info(f'[BULK-CURP] {enqueued} CURPs encoladas para validación (batch {batch_record_id})')
+            except Exception as enq_err:
+                import logging as _lg_curp_err
+                _lg_curp_err.getLogger(__name__).error(f'[BULK-CURP] Error encolando verificaciones: {enq_err}')
 
         return jsonify(response_data), 200
 
@@ -3719,7 +4261,7 @@ def export_user_credentials():
                     or_(
                         User.role == 'candidato',
                         and_(
-                            User.role.in_(['responsable', 'responsable_partner', 'auxiliar']),
+                            User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
                             User.coordinator_id == coord_id
                         )
                     )
@@ -4167,7 +4709,7 @@ def _recover_orphaned_curp_users(app_obj, users_data):
             )
             from app.models.partner import BulkUploadMember, GroupMember
 
-            # ── Pre-pass: filter format-invalid ──
+            # ── Pre-pass: filter format-invalid — NO se eliminan, quedan curp_required ──
             valid_format_users = []
             for u_data in users_data:
                 curp = u_data['curp']
@@ -4175,15 +4717,17 @@ def _recover_orphaned_curp_users(app_obj, users_data):
                 try:
                     fmt_valid, fmt_error = validate_curp_format(curp)
                     if not fmt_valid:
-                        _logger.warning('[CURP-RECOVERY] Invalid format %s (%s): %s', curp, username, fmt_error)
+                        _logger.warning('[CURP-RECOVERY] Invalid format %s (%s): %s — marcando curp_required', curp, username, fmt_error)
                         user = User.query.filter_by(username=username).first()
                         if user:
-                            GroupMember.query.filter_by(user_id=user.id).delete()
+                            user.is_active = True
+                            for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                                if gm.status in ('curp_pending', 'curp_verifying', 'active'):
+                                    gm.status = 'curp_required'
                             rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
                             if rec:
-                                rec.status = 'curp_invalid'
-                                rec.error_message = f'Formato CURP invalido (recovery): {fmt_error}'
-                            db.session.delete(user)
+                                rec.status = 'curp_required'
+                                rec.error_message = f'Formato CURP invalido (recovery): {fmt_error}. El candidato deberá corregirla al iniciar sesión.'
                             db.session.commit()
                         format_invalid += 1
                         continue
@@ -4250,7 +4794,8 @@ def _recover_orphaned_curp_users(app_obj, users_data):
                     _logger.info('[CURP-RECOVERY] Round %d done: %d CURPs pending, waiting 5s before round %d', round_num, len(pending_users), round_num + 1)
                     time.sleep(5)
 
-            # ── After all rounds: delete users that failed every round ──
+            # ── After all rounds: dejar a los que fallaron en estado 'curp_required'
+            # para que el candidato resuelva al iniciar sesión. NO se eliminan.
             final_rejected = 0
             for u_data in pending_users:
                 username = u_data['username']
@@ -4259,17 +4804,19 @@ def _recover_orphaned_curp_users(app_obj, users_data):
                 try:
                     user = User.query.filter_by(username=username).first()
                     if user:
-                        _logger.warning('[CURP-RECOVERY] CURP %s invalid after %d rounds — deleting %s', curp, MAX_ROUNDS, username)
-                        GroupMember.query.filter_by(user_id=user.id).delete()
+                        _logger.warning('[CURP-RECOVERY] CURP %s no validada tras %d rondas — %s queda en curp_required', curp, MAX_ROUNDS, username)
+                        user.is_active = True
+                        for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                            if gm.status in ('curp_pending', 'curp_verifying', 'active'):
+                                gm.status = 'curp_required'
                         rec = BulkUploadMember.query.filter_by(user_id=user.id).first()
                         if rec:
-                            rec.status = 'curp_invalid'
-                            rec.error_message = f'CURP rechazada tras {MAX_ROUNDS} rondas RENAPO (recovery): {last_error[:300]}'
-                        db.session.delete(user)
+                            rec.status = 'curp_required'
+                            rec.error_message = f'CURP rechazada tras {MAX_ROUNDS} rondas RENAPO (recovery): {last_error[:300]}. El candidato deberá validarla al iniciar sesión.'
                         db.session.commit()
                         final_rejected += 1
                 except Exception as del_err:
-                    _logger.error('[CURP-RECOVERY] Failed to delete %s after rounds: %s', username, del_err)
+                    _logger.error('[CURP-RECOVERY] Failed to mark curp_required %s: %s', username, del_err)
                     try:
                         db.session.rollback()
                     except Exception:

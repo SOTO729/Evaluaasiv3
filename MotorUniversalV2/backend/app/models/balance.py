@@ -129,6 +129,10 @@ class BalanceRequest(db.Model):
     # Solicitante
     coordinator_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
 
+    # Quién OPERÓ el envío (puede ser el mismo coordinador o un auxiliar actuando en su nombre)
+    # Si es NULL, asumir que coincide con coordinator_id (back-compat).
+    requested_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+
     # Destino (plantel obligatorio, grupo opcional para precio especial)
     campus_id = db.Column(db.Integer, db.ForeignKey('campuses.id', ondelete='NO ACTION'), nullable=False, index=True)  # Para qué plantel
     group_id = db.Column(db.Integer, db.ForeignKey('candidate_groups.id', ondelete='SET NULL'), nullable=True, index=True)  # Grupo con precio especial (opcional)
@@ -170,6 +174,7 @@ class BalanceRequest(db.Model):
     
     # Relaciones
     coordinator = db.relationship('User', foreign_keys=[coordinator_id], backref=db.backref('balance_requests', lazy='dynamic'))
+    requested_by = db.relationship('User', foreign_keys=[requested_by_id])
     financiero = db.relationship('User', foreign_keys=[financiero_id])
     approved_by = db.relationship('User', foreign_keys=[approved_by_id])
     campus = db.relationship('Campus', backref=db.backref('balance_requests', lazy='dynamic'))
@@ -179,6 +184,8 @@ class BalanceRequest(db.Model):
         data = {
             'id': self.id,
             'coordinator_id': self.coordinator_id,
+            'requested_by_id': self.requested_by_id,
+            'requested_by_self': (self.requested_by_id is None) or (self.requested_by_id == self.coordinator_id),
             'campus_id': self.campus_id,
             'group_id': self.group_id,
             'request_type': self.request_type,
@@ -207,6 +214,15 @@ class BalanceRequest(db.Model):
                 'first_surname': self.coordinator.first_surname,
                 'full_name': self.coordinator.full_name,
                 'email': self.coordinator.email,
+            }
+
+        # Siempre incluir info de requested_by si difiere del coordinator
+        if self.requested_by and self.requested_by_id and self.requested_by_id != self.coordinator_id:
+            data['requested_by'] = {
+                'id': self.requested_by.id,
+                'full_name': self.requested_by.full_name,
+                'role': self.requested_by.role,
+                'email': self.requested_by.email,
             }
         
         if include_campus and self.campus:

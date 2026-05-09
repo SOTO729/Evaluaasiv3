@@ -41,6 +41,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
+import CampusApiKeyPanel from '../../components/partners/CampusApiKeyPanel';
 import {
   getCampus,
   getSchoolCycles,
@@ -964,6 +965,17 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
           )}
         </div>
       </div>
+
+      {/* SECCIÓN INTERMEDIA: API Key SSO del plantel */}
+      {(!isResponsable || campus.share_api_key_with_responsable) && (
+        <div className="fluid-mb-6">
+          <CampusApiKeyPanel
+            campusId={campus.id}
+            campusName={campus.name}
+            responsableMode={!!isResponsable}
+          />
+        </div>
+      )}
 
       {/* SECCIÓN INFERIOR: ECM y Ciclos Escolares lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 fluid-gap-6">

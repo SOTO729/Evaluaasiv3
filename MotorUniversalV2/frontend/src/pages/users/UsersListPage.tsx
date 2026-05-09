@@ -190,15 +190,18 @@ export default function UsersListPage() {
       }
       
       const data = await getUsers(params);
-      // Filtrado defensivo en frontend: un coordinador NUNCA debe ver usuarios
-      // que pertenezcan a otro coordinador (aunque el backend los devuelva).
-      // Reglas: ve a sí mismo + cualquier usuario cuyo coordinator_id === su id.
+      // Filtrado defensivo en frontend para coordinadores:
+      // - Candidatos son COMPARTIDOS entre coordinadores → siempre visibles.
+      // - Responsables/auxiliares solo si pertenecen al coordinador actual.
+      // - El coordinador siempre se ve a sí mismo.
       let visibleUsers = data.users;
       let visibleTotal = data.total;
       if (isCoordinator && currentUser?.id) {
         const myId = currentUser.id;
         visibleUsers = data.users.filter(u =>
-          u.id === myId || (u.coordinator_id && u.coordinator_id === myId)
+          u.id === myId ||
+          u.role === 'candidato' ||
+          (u.coordinator_id && u.coordinator_id === myId)
         );
         const removed = data.users.length - visibleUsers.length;
         visibleTotal = Math.max(0, data.total - removed);

@@ -251,6 +251,11 @@ export default function GerenteApprovalsPage() {
                         </div>
                         <span className="font-medium text-gray-800 fluid-text-sm truncate">{req.coordinator?.full_name || 'N/A'}</span>
                       </div>
+                      {req.requested_by && req.requested_by.id !== req.coordinator?.id && (
+                        <p className="fluid-text-xs text-amber-700 mt-1 ml-10 truncate" title={`Solicitado por ${req.requested_by.full_name}`}>
+                          Solicitado por {req.requested_by.full_name}{req.requested_by.role ? ` (${req.requested_by.role})` : ''}
+                        </p>
+                      )}
                     </td>
                     <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600">
                       <div className="flex items-center fluid-gap-1">

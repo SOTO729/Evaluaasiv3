@@ -1,7 +1,7 @@
 import { api } from './api'
 
 export interface OfficeExamResultDto {
-  id: number
+  id: string
   user_id: string
   vm_session_id: number | null
   group_exam_id: number | null
@@ -91,9 +91,16 @@ export const officeResultsService = {
     return data
   },
 
-  async getDetail(id: number): Promise<{ result: OfficeExamResultDto }> {
+  async getDetail(id: string): Promise<{ result: OfficeExamResultDto }> {
     const { data } = await api.get(`/office-results/${id}`)
     return data
+  },
+
+  async downloadPdf(id: string): Promise<Blob> {
+    const response = await api.get(`/office-results/${id}/pdf`, {
+      responseType: 'blob',
+    })
+    return response.data as Blob
   },
 
   async verifyCertificate(code: string): Promise<OfficeCertificateVerifyResponse> {

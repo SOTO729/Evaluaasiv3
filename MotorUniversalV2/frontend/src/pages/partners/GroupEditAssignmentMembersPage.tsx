@@ -78,6 +78,25 @@ export default function GroupEditAssignmentMembersPage() {
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [responsableMustRequest, setResponsableMustRequest] = useState<string | null>(null);
+
+  /** Maneja errores comunes del backend de billing/race conditions de manera consistente. */
+  const handleBillingError = (err: any, fallback: string) => {
+    const errorType = err.response?.data?.error_type;
+    const status = err.response?.status;
+    if (errorType === 'responsable_must_request') {
+      setResponsableMustRequest(
+        err.response?.data?.error
+        || 'Como responsable de plantel no puedes consumir el saldo directamente. Solicita los certificados al coordinador.'
+      );
+      return;
+    }
+    if (status === 409) {
+      setError(err.response?.data?.error || 'Conflicto: el miembro fue modificado por otra operación. Vuelve a intentarlo.');
+      return;
+    }
+    setError(err.response?.data?.error || fallback);
+  };
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Búsqueda y filtros
@@ -374,7 +393,7 @@ export default function GroupEditAssignmentMembersPage() {
       setRetakePreview(null);
       await handleSearch(currentPage, pageSize);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al aplicar retoma');
+      handleBillingError(err, 'Error al aplicar retoma');
     } finally {
       setApplyingRetake(false);
     }
@@ -569,7 +588,7 @@ export default function GroupEditAssignmentMembersPage() {
         setSuccessMessage(result.message);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al crear las asignaciones');
+      handleBillingError(err, 'Error al crear las asignaciones');
     } finally {
       setAssigning(false);
     }
@@ -610,7 +629,7 @@ export default function GroupEditAssignmentMembersPage() {
       setBulkUploadPreview(preview);
       setBulkUploadStep(2);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al previsualizar el archivo');
+      handleBillingError(err, 'Error al previsualizar el archivo');
     } finally {
       setBulkUploading(false);
     }
@@ -634,7 +653,7 @@ export default function GroupEditAssignmentMembersPage() {
         setSuccessMessage(result.message);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al procesar la carga masiva');
+      handleBillingError(err, 'Error al procesar la carga masiva');
     } finally {
       setBulkUploading(false);
     }
@@ -751,6 +770,41 @@ export default function GroupEditAssignmentMembersPage() {
       </div>
 
       {/* ===== MENSAJES DE ESTADO (modales) ===== */}
+      {responsableMustRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setResponsableMustRequest(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-start gap-3">
+              <div className="bg-amber-100 rounded-full p-2 flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-amber-900 text-base">Solicita los certificados al coordinador</h3>
+                <p className="text-xs text-amber-700 mt-0.5">No puedes consumir saldo directamente desde tu rol</p>
+              </div>
+              <button onClick={() => setResponsableMustRequest(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-700 whitespace-pre-line break-words">{responsableMustRequest}</p>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-2">
+              <button
+                onClick={() => setResponsableMustRequest(null)}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors text-sm"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => { setResponsableMustRequest(null); navigate('/solicitar-certificados'); }}
+                className="px-4 py-2 bg-amber-600 text-white rounded-xl font-medium hover:bg-amber-700 transition-colors text-sm"
+              >
+                Ir a Solicitar Certificados
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {error && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setError(null)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -1589,7 +1643,24 @@ export default function GroupEditAssignmentMembersPage() {
                     </div>
                   </div>
 
-                  {/* Razones de bloqueo */}
+                  {/* Hint para responsables: deben solicitar al coordinador */}
+                  {retakePreview.must_request_to_coordinator && (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm text-amber-900">{retakePreview.request_hint || 'Como responsable, debes solicitar la retoma al coordinador.'}</p>
+                        <button
+                          type="button"
+                          onClick={() => navigate('/solicitar-certificados')}
+                          className="mt-2 inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                        >
+                          Ir a Solicitar Certificados
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Razónes de bloqueo */}
                   {!retakePreview.can_apply && retakePreview.reasons.length > 0 && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-xl">
                       <p className="text-sm font-medium text-red-700 mb-1">No se puede aplicar la retoma:</p>
@@ -1615,7 +1686,7 @@ export default function GroupEditAssignmentMembersPage() {
               </button>
               <button
                 onClick={handleConfirmRetake}
-                disabled={applyingRetake || retakeLoading || !retakePreview?.can_apply}
+                disabled={applyingRetake || retakeLoading || !retakePreview?.can_apply || !!retakePreview?.must_request_to_coordinator}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
               >
                 {applyingRetake ? (

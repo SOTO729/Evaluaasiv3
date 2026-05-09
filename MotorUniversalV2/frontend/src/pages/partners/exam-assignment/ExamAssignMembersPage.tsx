@@ -43,6 +43,7 @@ export default function ExamAssignMembersPage() {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [responsableMustRequest, setResponsableMustRequest] = useState<string | null>(null);
 
   // Assignment type
   const [assignmentType, setAssignmentType] = useState<'all' | 'selected' | 'bulk'>('all');
@@ -285,7 +286,14 @@ export default function ExamAssignMembersPage() {
       }, true); // dry_run = true
       setBulkPreview(result);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al procesar el archivo');
+      if (err.response?.data?.error_type === 'responsable_must_request') {
+        setResponsableMustRequest(
+          err.response?.data?.error
+          || 'Como responsable de plantel no puedes consumir el saldo directamente. Solicita los certificados al coordinador.'
+        );
+      } else {
+        setError(err.response?.data?.error || 'Error al procesar el archivo');
+      }
     } finally {
       setBulkUploading(false);
     }
@@ -403,6 +411,23 @@ export default function ExamAssignMembersPage() {
           ))}
         </div>
       </div>
+
+      {responsableMustRequest && (
+        <div className="fluid-mb-6 bg-amber-50 border border-amber-300 rounded-fluid-xl fluid-p-5 flex items-start fluid-gap-3">
+          <AlertCircle className="fluid-icon-base text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-amber-900 fluid-text-base font-medium">{responsableMustRequest}</p>
+            <button
+              type="button"
+              onClick={() => navigate('/solicitar-certificados')}
+              className="mt-3 inline-flex items-center fluid-gap-2 bg-amber-600 hover:bg-amber-700 text-white fluid-px-4 fluid-py-2 rounded-fluid-lg fluid-text-sm font-semibold transition-colors"
+            >
+              Ir a Solicitar Certificados
+            </button>
+          </div>
+          <button onClick={() => setResponsableMustRequest(null)} className="text-amber-500 hover:text-amber-700"><X className="fluid-icon-base" /></button>
+        </div>
+      )}
 
       {error && (
         <div className="fluid-mb-6 bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-5 flex items-start fluid-gap-3">

@@ -85,6 +85,16 @@ from app.models.support_chat import (
 )
 from app.models.payment import Payment, PAYMENT_STATUS
 from app.models.office_exam import OfficeExamResult, Vb6SessionToken, OfficeAppVersion
+from app.models.sso_token import SsoToken
+from app.models.curp_verification import (
+    CurpRenapoCache,
+    CurpVerificationQueue,
+    QUEUE_PENDING,
+    QUEUE_PROCESSING,
+    QUEUE_DONE,
+    QUEUE_REJECTED,
+    QUEUE_FAILED,
+)
 
 __all__ = [
     'User',

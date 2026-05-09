@@ -11,6 +11,7 @@ import {
   Copy,
   FileText,
   Filter,
+  Download,
 } from 'lucide-react'
 import { officeResultsService, OfficeExamResultDto } from '../../services/officeResultsService'
 
@@ -59,6 +60,27 @@ export default function MisExamenesOfficePage() {
     { status: '', office_app: '', session_type: '' },
   )
   const [copyMsg, setCopyMsg] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+
+  const handleDownloadPdf = async (r: OfficeExamResultDto) => {
+    try {
+      setDownloadingId(r.id)
+      const blob = await officeResultsService.downloadPdf(r.id)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `resultado_office_${r.id}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (e: any) {
+      setCopyMsg(e?.response?.data?.error || 'Error al descargar PDF')
+      setTimeout(() => setCopyMsg(null), 2500)
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   const loadResults = async () => {
     try {
@@ -298,6 +320,22 @@ export default function MisExamenesOfficePage() {
                           >
                             <Copy className="h-3 w-3" />
                             Copiar
+                          </button>
+                        </div>
+                      )}
+                      {r.status === 'completed' && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+                          <button
+                            onClick={() => handleDownloadPdf(r)}
+                            disabled={downloadingId === r.id}
+                            className="inline-flex items-center gap-2 text-sm text-primary-600 border border-primary-200 hover:bg-primary-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            {downloadingId === r.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                            Descargar PDF
                           </button>
                         </div>
                       )}
