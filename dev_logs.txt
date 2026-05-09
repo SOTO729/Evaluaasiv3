@@ -1,0 +1,302 @@
+﻿{"TimeStamp": "2026-05-05T03:32:55.18771", "Log": "Connecting to the container 'evaluaasi-motorv2-api-dev'..."}
+{"TimeStamp": "2026-05-05T03:32:55.2179", "Log": "Successfully Connected to container: 'evaluaasi-motorv2-api-dev' [Revision: 'evaluaasi-motorv2-api-dev--0000303', Replica: 'evaluaasi-motorv2-api-dev--0000303-6df794976b-jx9qc']"}
+{"TimeStamp": "2026-05-05T03:31:13.8806838+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8806858+00:00", "Log": "F   File \"src/pymssql/_pymssql.pyx\", line 653, in pymssql._pymssql.connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8806879+00:00", "Log": "F pymssql._pymssql.OperationalError: (40613, b'DB-Lib error message 20018, severity 20:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\n')"}
+{"TimeStamp": "2026-05-05T03:31:13.880691+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-05T03:31:13.8807359+00:00", "Log": "F The above exception was the direct cause of the following exception:"}
+{"TimeStamp": "2026-05-05T03:31:13.88074+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-05T03:31:13.8807429+00:00", "Log": "F Traceback (most recent call last):"}
+{"TimeStamp": "2026-05-05T03:31:13.8807474+00:00", "Log": "F   File \"/app/app/auto_migrate.py\", line 1415, in check_and_create_support_chat_tables"}
+{"TimeStamp": "2026-05-05T03:31:13.8807495+00:00", "Log": "F     inspector = inspect(db.engine)"}
+{"TimeStamp": "2026-05-05T03:31:13.8807515+00:00", "Log": "F                 ^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8807535+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/inspection.py\", line 140, in inspect"}
+{"TimeStamp": "2026-05-05T03:31:13.8807556+00:00", "Log": "F     ret = reg(subject)"}
+{"TimeStamp": "2026-05-05T03:31:13.8807576+00:00", "Log": "F           ^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8807597+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/reflection.py\", line 313, in _engine_insp"}
+{"TimeStamp": "2026-05-05T03:31:13.8807619+00:00", "Log": "F     return Inspector._construct(Inspector._init_engine, bind)"}
+{"TimeStamp": "2026-05-05T03:31:13.880764+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.880766+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/reflection.py\", line 246, in _construct"}
+{"TimeStamp": "2026-05-05T03:31:13.880768+00:00", "Log": "F     init(self, bind)"}
+{"TimeStamp": "2026-05-05T03:31:13.8807711+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/reflection.py\", line 257, in _init_engine"}
+{"TimeStamp": "2026-05-05T03:31:13.8807733+00:00", "Log": "F     engine.connect().close()"}
+{"TimeStamp": "2026-05-05T03:31:13.8807753+00:00", "Log": "F     ^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8807773+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 3293, in connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8807897+00:00", "Log": "F     return self._connection_cls(self)"}
+{"TimeStamp": "2026-05-05T03:31:13.8807924+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8807948+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 145, in __init__"}
+{"TimeStamp": "2026-05-05T03:31:13.8807969+00:00", "Log": "F     Connection._handle_dbapi_exception_noconnection("}
+{"TimeStamp": "2026-05-05T03:31:13.8807991+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 2448, in _handle_dbapi_exception_noconnection"}
+{"TimeStamp": "2026-05-05T03:31:13.8808011+00:00", "Log": "F     raise sqlalchemy_exception.with_traceback(exc_info[2]) from e"}
+{"TimeStamp": "2026-05-05T03:31:13.8810757+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 143, in __init__"}
+{"TimeStamp": "2026-05-05T03:31:13.8810921+00:00", "Log": "F     self._dbapi_connection = engine.raw_connection()"}
+{"TimeStamp": "2026-05-05T03:31:13.8810936+00:00", "Log": "F                              ^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8810969+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/base.py\", line 3317, in raw_connection"}
+{"TimeStamp": "2026-05-05T03:31:13.8810984+00:00", "Log": "F     return self.pool.connect()"}
+{"TimeStamp": "2026-05-05T03:31:13.8810996+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8811008+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 448, in connect"}
+{"TimeStamp": "2026-05-05T03:31:13.881102+00:00", "Log": "F     return _ConnectionFairy._checkout(self)"}
+{"TimeStamp": "2026-05-05T03:31:13.8811032+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8811454+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 1272, in _checkout"}
+{"TimeStamp": "2026-05-05T03:31:13.8811515+00:00", "Log": "F     fairy = _ConnectionRecord.checkout(pool)"}
+{"TimeStamp": "2026-05-05T03:31:13.8811553+00:00", "Log": "F             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8811574+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 712, in checkout"}
+{"TimeStamp": "2026-05-05T03:31:13.8811595+00:00", "Log": "F     rec = pool._do_get()"}
+{"TimeStamp": "2026-05-05T03:31:13.8811632+00:00", "Log": "F           ^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8811653+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/impl.py\", line 177, in _do_get"}
+{"TimeStamp": "2026-05-05T03:31:13.8811673+00:00", "Log": "F     with util.safe_reraise():"}
+{"TimeStamp": "2026-05-05T03:31:13.8811694+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py\", line 121, in __exit__"}
+{"TimeStamp": "2026-05-05T03:31:13.8811715+00:00", "Log": "F     raise exc_value.with_traceback(exc_tb)"}
+{"TimeStamp": "2026-05-05T03:31:13.8811735+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/impl.py\", line 175, in _do_get"}
+{"TimeStamp": "2026-05-05T03:31:13.8811755+00:00", "Log": "F     return self._create_connection()"}
+{"TimeStamp": "2026-05-05T03:31:13.8811776+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8811796+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 389, in _create_connection"}
+{"TimeStamp": "2026-05-05T03:31:13.8811817+00:00", "Log": "F     return _ConnectionRecord(self)"}
+{"TimeStamp": "2026-05-05T03:31:13.8811838+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8811868+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 674, in __init__"}
+{"TimeStamp": "2026-05-05T03:31:13.881189+00:00", "Log": "F     self.__connect()"}
+{"TimeStamp": "2026-05-05T03:31:13.8812173+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 900, in __connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8812248+00:00", "Log": "F     with util.safe_reraise():"}
+{"TimeStamp": "2026-05-05T03:31:13.8812293+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/util/langhelpers.py\", line 121, in __exit__"}
+{"TimeStamp": "2026-05-05T03:31:13.8812316+00:00", "Log": "F     raise exc_value.with_traceback(exc_tb)"}
+{"TimeStamp": "2026-05-05T03:31:13.8812337+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/pool/base.py\", line 896, in __connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8812358+00:00", "Log": "F     self.dbapi_connection = connection = pool._invoke_creator(self)"}
+{"TimeStamp": "2026-05-05T03:31:13.8812393+00:00", "Log": "F                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8812416+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/create.py\", line 667, in connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8812437+00:00", "Log": "F     return dialect.connect(*cargs_tup, **cparams)"}
+{"TimeStamp": "2026-05-05T03:31:13.8812457+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8812478+00:00", "Log": "F   File \"/usr/local/lib/python3.11/site-packages/sqlalchemy/engine/default.py\", line 630, in connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8812498+00:00", "Log": "F     return self.loaded_dbapi.connect(*cargs, **cparams)  # type: ignore[no-any-return]  # NOQA: E501"}
+{"TimeStamp": "2026-05-05T03:31:13.8812518+00:00", "Log": "F            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"}
+{"TimeStamp": "2026-05-05T03:31:13.8812875+00:00", "Log": "F   File \"src/pymssql/_pymssql.pyx\", line 653, in pymssql._pymssql.connect"}
+{"TimeStamp": "2026-05-05T03:31:13.8813143+00:00", "Log": "F sqlalchemy.exc.OperationalError: (pymssql._pymssql.OperationalError) (40613, b'DB-Lib error message 20018, severity 20:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\n')"}
+{"TimeStamp": "2026-05-05T03:31:13.8813198+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+{"TimeStamp": "2026-05-05T03:31:15.4218393+00:00", "Log": "F [INIT] Importando blueprints..."}
+{"TimeStamp": "2026-05-05T03:31:15.4219777+00:00", "Log": "F [INIT] \u2705 Blueprints principales importados"}
+{"TimeStamp": "2026-05-05T03:31:15.4219919+00:00", "Log": "F [INIT] \u2705 study_contents_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4219943+00:00", "Log": "F [INIT] \u2705 conocer_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4219957+00:00", "Log": "F [INIT] \u2705 standards_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.421997+00:00", "Log": "F [INIT] \u2705 partners_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4219984+00:00", "Log": "F [INIT] \u2705 verify_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4219996+00:00", "Log": "F [INIT] \u2705 balance_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220007+00:00", "Log": "F [INIT] \u2705 activity_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220019+00:00", "Log": "F [INIT] \u2705 badges_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220031+00:00", "Log": "F [INIT] \u2705 support_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220043+00:00", "Log": "F [INIT] \u2705 support_chat_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220055+00:00", "Log": "F [INIT] Registrando blueprints..."}
+{"TimeStamp": "2026-05-05T03:31:15.4220067+00:00", "Log": "F [INIT] \u2705 auth registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.422008+00:00", "Log": "F [INIT] \u2705 exams registrado en /api/exams"}
+{"TimeStamp": "2026-05-05T03:31:15.4220111+00:00", "Log": "F [INIT] \u2705 users registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220123+00:00", "Log": "F [INIT] \u2705 health registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220135+00:00", "Log": "F [INIT] \ud83d\udd12 init/reset/debug DESHABILITADOS (producci\u00f3n)"}
+{"TimeStamp": "2026-05-05T03:31:15.4220148+00:00", "Log": "F [INIT] \u2705 study-contents registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.422016+00:00", "Log": "F [INIT] \u2705 conocer registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220172+00:00", "Log": "F [INIT] \u2705 standards registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220184+00:00", "Log": "F [INIT] \u2705 office_standards registrado en /api/standards (legacy compat)"}
+{"TimeStamp": "2026-05-05T03:31:15.4220197+00:00", "Log": "F [INIT] \u2705 partners registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4220209+00:00", "Log": "F [INIT] \u2705 verify registrado (rutas p\u00fablicas)"}
+{"TimeStamp": "2026-05-05T03:31:15.4220222+00:00", "Log": "F [INIT] \u2705 balance registrado (saldos y solicitudes)"}
+{"TimeStamp": "2026-05-05T03:31:15.4220234+00:00", "Log": "F [INIT] \u2705 activity registrado (logs de actividad)"}
+{"TimeStamp": "2026-05-05T03:31:15.422099+00:00", "Log": "F [INIT] \u2705 badges registrado (insignias digitales)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221076+00:00", "Log": "F [INIT] \u2705 scorm registrado (SCORM 1.2 packages + attempts)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221106+00:00", "Log": "F [INIT] \u2705 short-share registrado (URL corta /s/<code>)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221129+00:00", "Log": "F [INIT] \u2705 vm_sessions_bp importado"}
+{"TimeStamp": "2026-05-05T03:31:15.422115+00:00", "Log": "F [INIT] \u2705 vm-sessions registrado (m\u00e1quinas virtuales)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221171+00:00", "Log": "F [INIT] \u2705 support registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221193+00:00", "Log": "F [INIT] \u2705 support-chat registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221213+00:00", "Log": "F [INIT] \u2705 user-management registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221235+00:00", "Log": "F [INIT] \u2705 admin-config-mapping registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221255+00:00", "Log": "F [INIT] \u2705 admin-ad-check registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221276+00:00", "Log": "F [INIT] \u2705 admin-email-check registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221297+00:00", "Log": "F [INIT] \u2705 payments registrado (Mercado Pago)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221317+00:00", "Log": "F [INIT] \u2705 downloads registrado (descargas Office)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221338+00:00", "Log": "F [INIT] \u2705 vb6 registrado (integraci\u00f3n Office VB6)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221373+00:00", "Log": "F [INIT] \u2705 soap_compat registrado (capa SOAP para VB6)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221395+00:00", "Log": "F [INIT] \u2705 office_results registrado"}
+{"TimeStamp": "2026-05-05T03:31:15.4221535+00:00", "Log": "F [INIT] \u2705 maintenance registrado (cleanup jobs)"}
+{"TimeStamp": "2026-05-05T03:31:15.4221558+00:00", "Log": "F [INIT] \u2705 sso registrado en /api/sso"}
+{"TimeStamp": "2026-05-05T03:31:15.4221577+00:00", "Log": "F [INIT] \u2705 Todos los blueprints registrados correctamente"}
+{"TimeStamp": "2026-05-05T03:31:15.422176+00:00", "Log": "F [AUTO-MIGRATE] Error verificando/agregando label_style: (pymssql._pymssql.OperationalError) (40613, b\"Database 'evaluaasi_dev' on server 'evaluaasi-motorv2-sql.database.windows.net' is not currently available.  Please retry the connection later.  If the problem persists, contact customer support, and provide them the session tracing ID of '{CC252EBC-C248-403E-AF5F-B88FC75964FA}'.DB-Lib error message 20018, severity 20:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\n\")"}
+{"TimeStamp": "2026-05-05T03:31:15.4221818+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+{"TimeStamp": "2026-05-05T03:31:15.422275+00:00", "Log": "F [AUTO-MIGRATE] Error verificando/agregando pdf_status: (pymssql._pymssql.OperationalError) (40613, b'DB-Lib error message 20018, severity 20:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\n')"}
+{"TimeStamp": "2026-05-05T03:31:15.4222811+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+{"TimeStamp": "2026-05-05T03:31:15.4222848+00:00", "Log": "F \ud83d\udd0d Verificando tablas support chat..."}
+{"TimeStamp": "2026-05-05T03:31:15.4222873+00:00", "Log": "F \u274c Error creando tablas support chat: (pymssql._pymssql.OperationalError) (40613, b'DB-Lib error message 20018, severity 20:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\nDB-Lib error message 20002, severity 9:\\nAdaptive Server connection failed (evaluaasi-motorv2-sql.database.windows.net)\\n')"}
+{"TimeStamp": "2026-05-05T03:31:15.4222912+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+{"TimeStamp": "2026-05-05T03:31:15.4222935+00:00", "Log": "F \ud83d\udd0d Verificando tablas de historial de altas masivas..."}
+{"TimeStamp": "2026-05-05T03:31:15.4222957+00:00", "Log": "F   \u2713 Tabla bulk_upload_batches ya existe"}
+{"TimeStamp": "2026-05-05T03:31:15.4222979+00:00", "Log": "F   \u2713 Tabla bulk_upload_members ya existe"}
+{"TimeStamp": "2026-05-05T03:31:15.4223+00:00", "Log": "F \ud83d\udd0d Verificando tablas y columnas Office local..."}
+{"TimeStamp": "2026-05-05T03:31:15.4223021+00:00", "Log": "F \u2705 Verificaci\u00f3n Office local completada"}
+{"TimeStamp": "2026-05-05T03:31:15.4223295+00:00", "Log": "F [CURP-RECOVERY] Error during orphan detection: (pymssql._pymssql.ProgrammingError) (207, b\"Invalid column name 'external_id'.DB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\n\")"}
+{"TimeStamp": "2026-05-05T03:31:15.4223512+00:00", "Log": "F [SQL: SELECT DISTINCT users.id AS users_id, users.email AS users_email, users.username AS users_username, users.password_hash AS users_password_hash, users.encrypted_password AS users_encrypted_password, users.name AS users_name, users.first_surname AS users_first_surname, users.second_surname AS users_second_surname, users.gender AS users_gender, users.curp AS users_curp, users.curp_verified AS users_curp_verified, users.curp_verified_at AS users_curp_verified_at, users.curp_renapo_name AS users_curp_renapo_name, users.curp_renapo_first_surname AS users_curp_renapo_first_surname, users.curp_renapo_second_surname AS users_curp_renapo_second_surname, users.phone AS users_phone, users.campus_id AS users_campus_id, users.subsystem_id AS users_subsystem_id, users.date_of_birth AS users_date_of_birth, users.role AS users_role, users.is_active AS users_is_active, users.is_verified AS users_is_verified, users.coordinator_id AS users_coordinator_id, users.assigned_state AS users_assigned_state, users.can_bulk_create_candidates AS users_can_bulk_create_candidates, users.can_manage_groups AS users_can_manage_groups, users.can_view_reports AS users_can_view_reports, users.can_approve_balance AS users_can_approve_balance, users.enable_evaluation_report AS users_enable_evaluation_report, users.enable_certificate AS users_enable_certificate, users.enable_conocer_certificate AS users_enable_conocer_certificate, users.enable_digital_badge AS users_enable_digital_badge, users.linkedin_token AS users_linkedin_token, users.external_id AS users_external_id, users.external_partner_id AS users_external_partner_id, users.external_program AS users_external_program, users.created_at AS users_created_at, users.updated_at AS users_updated_at, users.last_login AS users_last_login, users.last_seen AS users_last_seen"}
+{"TimeStamp": "2026-05-05T03:31:15.4223561+00:00", "Log": "F FROM users JOIN group_members ON group_members.user_id = users.id"}
+{"TimeStamp": "2026-05-05T03:31:15.4223877+00:00", "Log": "F WHERE users.curp_verified = 0 AND users.curp IS NOT NULL AND users.curp != %(curp_1)s AND (users.curp NOT IN (%(curp_2_1)s, %(curp_2_2)s)) AND users.role = %(role_1)s AND group_members.status IN (%(status_1_1)s, %(status_1_2)s)]"}
+{"TimeStamp": "2026-05-05T03:31:15.4223921+00:00", "Log": "F [parameters: {'curp_1': '', 'role_1': 'candidato', 'curp_2_1': 'XEXX010101HNEXXXA4', 'curp_2_2': 'XEXX010101MNEXXXA8', 'status_1_1': 'curp_pending', 'status_1_2': 'curp_verifying'}]"}
+{"TimeStamp": "2026-05-05T03:31:15.4223946+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/f405)"}
+{"TimeStamp": "2026-05-05T03:31:15.4223967+00:00", "Log": "F \ud83d\udd0d Verificando esquema SSO Tokenizaci\u00f3n..."}
+{"TimeStamp": "2026-05-05T03:31:15.4223989+00:00", "Log": "F   \u2705 partners.api_key_hash agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224023+00:00", "Log": "F   \u2705 partners.api_key_prefix agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224045+00:00", "Log": "F   \u2705 partners.api_key_active agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224066+00:00", "Log": "F   \u2705 partners.api_key_created_at agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224087+00:00", "Log": "F   \u2705 partners.api_key_created_by agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224107+00:00", "Log": "F   \u2705 users.external_id agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224127+00:00", "Log": "F   \u2705 users.external_partner_id agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224148+00:00", "Log": "F   \u2705 users.external_program agregada"}
+{"TimeStamp": "2026-05-05T03:31:15.4224257+00:00", "Log": "F   \u26a0\ufe0f FK external_partner_id: (pymssql._pymssql.OperationalError) (1785, b\"Introducing FOREIGN KEY constraint 'fk_users_external_partner' on table 'users' may cause cycles or multiple cascade paths. Specify ON DELETE NO ACTION or ON UPDATE NO ACTION, or modify other FOREIGN KEY constraints.DB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\n\")"}
+{"TimeStamp": "2026-05-05T03:31:15.4224305+00:00", "Log": "F [SQL: IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name='fk_users_external_partner') ALTER TABLE users ADD CONSTRAINT fk_users_external_partner FOREIGN KEY (external_partner_id) REFERENCES partners(id) ON DELETE SET NULL]"}
+{"TimeStamp": "2026-05-05T03:31:15.4224339+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+{"TimeStamp": "2026-05-05T03:31:15.422436+00:00", "Log": "F   \ud83d\udcdd Creando tabla sso_tokens..."}
+{"TimeStamp": "2026-05-05T03:31:15.4224456+00:00", "Log": "F \u274c Error en migraci\u00f3n SSO Tokenizaci\u00f3n: (pymssql._pymssql.OperationalError) (1778, b\"Column 'users.id' is not the same data type as referencing column 'sso_tokens.user_id' in foreign key 'fk_sso_tokens_user'.DB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\nDB-Lib error message 20018, severity 16:\\nGeneral SQL Server error: Check messages from the SQL Server\\n\")"}
+{"TimeStamp": "2026-05-05T03:31:15.4224496+00:00", "Log": "F [SQL:"}
+{"TimeStamp": "2026-05-05T03:31:15.4224525+00:00", "Log": "F                     CREATE TABLE sso_tokens ("}
+{"TimeStamp": "2026-05-05T03:31:15.4224562+00:00", "Log": "F                         id INT IDENTITY(1,1) PRIMARY KEY,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224583+00:00", "Log": "F                         token_hash CHAR(64) NOT NULL UNIQUE,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224604+00:00", "Log": "F                         user_id NVARCHAR(36) NOT NULL,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224624+00:00", "Log": "F                         partner_id INT NOT NULL,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224786+00:00", "Log": "F                         created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),"}
+{"TimeStamp": "2026-05-05T03:31:15.422481+00:00", "Log": "F                         expires_at DATETIME2 NOT NULL,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224831+00:00", "Log": "F                         consumed_at DATETIME2 NULL,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224851+00:00", "Log": "F                         issuer_ip NVARCHAR(45) NULL,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224872+00:00", "Log": "F                         CONSTRAINT fk_sso_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,"}
+{"TimeStamp": "2026-05-05T03:31:15.4224893+00:00", "Log": "F                         CONSTRAINT fk_sso_tokens_partner FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE"}
+{"TimeStamp": "2026-05-05T03:31:15.4225248+00:00", "Log": "F                     )"}
+{"TimeStamp": "2026-05-05T03:31:15.4225283+00:00", "Log": "F                 ]"}
+{"TimeStamp": "2026-05-05T03:31:16.7356424+00:00", "Log": "F [2026-05-05 03:31:16 +0000] [1] [INFO] Starting gunicorn 21.2.0"}
+{"TimeStamp": "2026-05-05T03:31:16.7362237+00:00", "Log": "F [2026-05-05 03:31:16 +0000] [1] [INFO] Listening at: http://0.0.0.0:8000 (1)"}
+{"TimeStamp": "2026-05-05T03:31:16.7362489+00:00", "Log": "F [2026-05-05 03:31:16 +0000] [1] [INFO] Using worker: sync"}
+{"TimeStamp": "2026-05-05T03:31:16.7404221+00:00", "Log": "F [2026-05-05 03:31:16 +0000] [8] [INFO] Booting worker with pid: 8"}
+{"TimeStamp": "2026-05-05T03:31:20.880852+00:00", "Log": "F (Background on this error at: https://sqlalche.me/e/20/e3q8)"}
+{"TimeStamp": "2026-05-05T03:31:20.8808958+00:00", "Log": "F \ud83d\udd0d Verificando esquema de exercise_actions..."}
+{"TimeStamp": "2026-05-05T03:31:20.8809092+00:00", "Log": "F \u2705 Esquema actualizado: todas las columnas ya existen (7/6)"}
+{"TimeStamp": "2026-05-05T03:31:20.880912+00:00", "Log": "F \ud83d\udd0d Verificando esquema de study_interactive_exercise_actions..."}
+{"TimeStamp": "2026-05-05T03:31:20.8809143+00:00", "Log": "F   \u2713 Columna label_style ya existe en study_interactive_exercise_actions"}
+{"TimeStamp": "2026-05-05T03:31:20.8809165+00:00", "Log": "F \u2705 Esquema study_interactive actualizado: todas las columnas ya existen (1/1)"}
+{"TimeStamp": "2026-05-05T03:31:20.8809187+00:00", "Log": "F \ud83d\udd0d Verificando esquema de answers..."}
+{"TimeStamp": "2026-05-05T03:31:20.8809209+00:00", "Log": "F   \u2713 Columna correct_answer ya existe en answers"}
+{"TimeStamp": "2026-05-05T03:31:20.880923+00:00", "Log": "F \u2705 Esquema answers actualizado: todas las columnas ya existen (1/1)"}
+{"TimeStamp": "2026-05-05T03:31:20.8809252+00:00", "Log": "F \ud83d\udd0d Verificando tipos de pregunta..."}
+{"TimeStamp": "2026-05-05T03:31:20.8809273+00:00", "Log": "F \u2705 Tipos de pregunta actualizados: todos ya existen"}
+{"TimeStamp": "2026-05-05T03:31:20.8809294+00:00", "Log": "F \ud83d\udd0d Verificando columnas de porcentaje..."}
+{"TimeStamp": "2026-05-05T03:31:20.8809315+00:00", "Log": "F   \u2713 Columna 'percentage' ya existe en 'questions'"}
+{"TimeStamp": "2026-05-05T03:31:20.880935+00:00", "Log": "F   \u2713 Columna 'percentage' ya existe en 'exercises'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809371+00:00", "Log": "F   \u2713 Columna 'percentage' ya existe en 'topics'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809392+00:00", "Log": "F \u2705 Verificaci\u00f3n de columnas de porcentaje completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8809413+00:00", "Log": "F \ud83d\udd0d Verificando esquema de group_exams..."}
+{"TimeStamp": "2026-05-05T03:31:20.880943+00:00", "Log": "F   \ud83d\udcca Tipo de base de datos detectado: mssql"}
+{"TimeStamp": "2026-05-05T03:31:20.8809448+00:00", "Log": "F   \u2713 Columna 'assignment_type' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809771+00:00", "Log": "F   \u2713 Columna 'time_limit_minutes' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809822+00:00", "Log": "F   \u2713 Columna 'passing_score' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809849+00:00", "Log": "F   \u2713 Columna 'max_attempts' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.880987+00:00", "Log": "F   \u2713 Columna 'max_disconnections' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809891+00:00", "Log": "F   \u2713 Columna 'exam_content_type' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809922+00:00", "Log": "F   \u2713 Columna 'exam_questions_count' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809943+00:00", "Log": "F   \u2713 Columna 'exam_exercises_count' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809964+00:00", "Log": "F   \u2713 Columna 'simulator_questions_count' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8809985+00:00", "Log": "F   \u2713 Columna 'simulator_exercises_count' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8810005+00:00", "Log": "F   \u2713 Columna 'security_pin' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8810024+00:00", "Log": "F   \u2713 Columna 'require_security_pin' ya existe en 'group_exams'"}
+{"TimeStamp": "2026-05-05T03:31:20.8810045+00:00", "Log": "F   \u2713 Tabla 'group_exam_members' ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8810066+00:00", "Log": "F   \u2713 Tabla 'group_study_materials' ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8810086+00:00", "Log": "F   \u2713 Tabla 'group_study_material_members' ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8810107+00:00", "Log": "F \u2705 Verificaci\u00f3n de esquema group_exams completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8810129+00:00", "Log": "F \ud83d\udd0d Verificando esquema de usuarios y planteles (activaci\u00f3n)..."}
+{"TimeStamp": "2026-05-05T03:31:20.881015+00:00", "Log": "F   \u2713 Columna date_of_birth ya existe en users"}
+{"TimeStamp": "2026-05-05T03:31:20.8810185+00:00", "Log": "F   \u2713 Columna can_bulk_create_candidates ya existe en users"}
+{"TimeStamp": "2026-05-05T03:31:20.881031+00:00", "Log": "F   \u2713 Columna can_manage_groups ya existe en users"}
+{"TimeStamp": "2026-05-05T03:31:20.8810382+00:00", "Log": "F   \u2713 Columna can_view_reports ya existe en users"}
+{"TimeStamp": "2026-05-05T03:31:20.8810423+00:00", "Log": "F   \u2713 Columna last_seen ya existe en users"}
+{"TimeStamp": "2026-05-05T03:31:20.8810448+00:00", "Log": "F   \u2713 Columna responsable_id ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8810471+00:00", "Log": "F   \u2713 Columna activation_status ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8810508+00:00", "Log": "F   \u2713 Columna activated_at ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8810531+00:00", "Log": "F   \u2713 Columna coordinator_id ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8810553+00:00", "Log": "F   \u2713 Columna office_version ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811134+00:00", "Log": "F   \u2713 Columna office_exam_level ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811169+00:00", "Log": "F   \u2713 Columna enable_tier_basic ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.881119+00:00", "Log": "F   \u2713 Columna enable_tier_standard ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811212+00:00", "Log": "F   \u2713 Columna enable_tier_advanced ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811232+00:00", "Log": "F   \u2713 Columna enable_digital_badge ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811253+00:00", "Log": "F   \u2713 Columna enable_partial_evaluations ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811274+00:00", "Log": "F   \u2713 Columna enable_unscheduled_partials ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811295+00:00", "Log": "F   \u2713 Columna enable_virtual_machines ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811316+00:00", "Log": "F   \u2713 Columna enable_online_payments ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811352+00:00", "Log": "F   \u2713 Columna require_exam_pin ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811375+00:00", "Log": "F   \u2713 Columna daily_exam_pin ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811485+00:00", "Log": "F   \u2713 Columna daily_exam_pin_date ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811538+00:00", "Log": "F   \u2713 Columna license_start_date ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811571+00:00", "Log": "F   \u2713 Columna license_end_date ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811594+00:00", "Log": "F   \u2713 Columna assignment_validity_months ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811615+00:00", "Log": "F   \u2713 Columna certification_cost ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811635+00:00", "Log": "F   \u2713 Columna retake_cost ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811657+00:00", "Log": "F   \u2713 Columna max_retakes ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811677+00:00", "Log": "F   \u2713 Columna configuration_completed ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811698+00:00", "Log": "F   \u2713 Columna configuration_completed_at ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811719+00:00", "Log": "F   \u2713 Columna enable_candidate_certificates ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811754+00:00", "Log": "F   \u2713 Columna enable_session_calendar ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811775+00:00", "Log": "F   \u2713 Columna session_scheduling_mode ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811796+00:00", "Log": "F   \u2713 Columna config_subsistema_id ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811816+00:00", "Log": "F   \u2713 Columna config_plantel_id ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811837+00:00", "Log": "F   \u2713 Columna config_certificacion_id ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811858+00:00", "Log": "F   \u2713 Columna config_etapa_id ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811879+00:00", "Log": "F   \u2713 Columna is_active ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811899+00:00", "Log": "F   \u2713 Columna logo_url ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8811994+00:00", "Log": "F   \u2713 Columna primary_color ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8812026+00:00", "Log": "F   \u2713 Columna secondary_color ya existe en campuses"}
+{"TimeStamp": "2026-05-05T03:31:20.8812053+00:00", "Log": "F \u2705 Verificaci\u00f3n de esquema activaci\u00f3n de planteles completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8812076+00:00", "Log": "F   \ud83d\udcdd [campuses] Backfill coordinator_id para 103 campuses sin coordinador..."}
+{"TimeStamp": "2026-05-05T03:31:20.8812099+00:00", "Log": "F      \u2713 Backfill completado"}
+{"TimeStamp": "2026-05-05T03:31:20.881212+00:00", "Log": "F   \u2713 Columna require_exam_pin_override ya existe en candidate_groups"}
+{"TimeStamp": "2026-05-05T03:31:20.8812142+00:00", "Log": "F \ud83d\udd0d Verificando columna eduit_certificate_code en results..."}
+{"TimeStamp": "2026-05-05T03:31:20.8812164+00:00", "Log": "F   \u2713 Columna eduit_certificate_code ya existe en results"}
+{"TimeStamp": "2026-05-05T03:31:20.8812185+00:00", "Log": "F \u2705 Verificaci\u00f3n de eduit_certificate_code completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8812218+00:00", "Log": "F \ud83d\udd0d Verificando tabla campus_competency_standards..."}
+{"TimeStamp": "2026-05-05T03:31:20.881224+00:00", "Log": "F   \u2713 Tabla campus_competency_standards ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8812262+00:00", "Log": "F \u2705 Verificaci\u00f3n de campus_competency_standards completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8812283+00:00", "Log": "F \ud83d\udd0d Verificando tabla brands y columna brand_id en competency_standards..."}
+{"TimeStamp": "2026-05-05T03:31:20.8812429+00:00", "Log": "F   \u2713 Tabla brands ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8812458+00:00", "Log": "F   \u2713 Columna brand_id ya existe en competency_standards"}
+{"TimeStamp": "2026-05-05T03:31:20.8812656+00:00", "Log": "F \u2705 Verificaci\u00f3n de brands completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8812688+00:00", "Log": "F \ud83d\udd0d Verificando columna logo_url en competency_standards..."}
+{"TimeStamp": "2026-05-05T03:31:20.881271+00:00", "Log": "F   \u2713 Columna logo_url ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8812743+00:00", "Log": "F \u2705 Verificaci\u00f3n de logo_url en competency_standards completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8812843+00:00", "Log": "F \ud83d\udd0d Verificando constraint de email en users..."}
+{"TimeStamp": "2026-05-05T03:31:20.8812874+00:00", "Log": "F   \u2713 Email ya est\u00e1 configurado correctamente"}
+{"TimeStamp": "2026-05-05T03:31:20.8812902+00:00", "Log": "F \u2705 Verificaci\u00f3n de email en users completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8812923+00:00", "Log": "F \ud83d\udd0d Verificando columna attachments en balance_requests..."}
+{"TimeStamp": "2026-05-05T03:31:20.8812944+00:00", "Log": "F   \u2713 Columna attachments ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8812965+00:00", "Log": "F \ud83d\udd0d Verificando columnas de config de asignaci\u00f3n en exams..."}
+{"TimeStamp": "2026-05-05T03:31:20.8812986+00:00", "Log": "F   \u2713 Columna 'default_max_attempts' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813021+00:00", "Log": "F   \u2713 Columna 'default_max_disconnections' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813042+00:00", "Log": "F   \u2713 Columna 'default_exam_content_type' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813062+00:00", "Log": "F   \u2713 Columna 'default_exam_questions_count' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813083+00:00", "Log": "F   \u2713 Columna 'default_exam_exercises_count' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813104+00:00", "Log": "F   \u2713 Columna 'default_simulator_questions_count' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813125+00:00", "Log": "F   \u2713 Columna 'default_simulator_exercises_count' ya existe en exams"}
+{"TimeStamp": "2026-05-05T03:31:20.8813146+00:00", "Log": "F \u2705 Verificaci\u00f3n de config de asignaci\u00f3n en exams completada"}
+{"TimeStamp": "2026-05-05T03:31:20.8813167+00:00", "Log": "F \ud83d\udd0d Verificando tabla certificate_code_history..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813188+00:00", "Log": "F   \u2713 Tabla certificate_code_history ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8813209+00:00", "Log": "F \ud83d\udd0d Verificando tablas de historial de altas masivas..."}
+{"TimeStamp": "2026-05-05T03:31:20.881323+00:00", "Log": "F   \u2713 Tabla bulk_upload_batches ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8813335+00:00", "Log": "F   \u2713 Tabla bulk_upload_members ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8813365+00:00", "Log": "F \ud83d\udd0d Verificando tablas support chat..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813394+00:00", "Log": "F   \u2713 Tablas support chat ya existen"}
+{"TimeStamp": "2026-05-05T03:31:20.8813415+00:00", "Log": "F \ud83d\udd0d Verificando columna assigned_state en users..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813437+00:00", "Log": "F   \u2713 Columna assigned_state ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8813457+00:00", "Log": "F \ud83d\udd0d Verificando columna mode en results..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813478+00:00", "Log": "F   \u2713 Columna mode ya existe en results"}
+{"TimeStamp": "2026-05-05T03:31:20.8813499+00:00", "Log": "F \ud83d\udd0d Verificando columna config_subsistema_id en partners..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813521+00:00", "Log": "F   \u2713 Columna config_subsistema_id ya existe en partners"}
+{"TimeStamp": "2026-05-05T03:31:20.8813542+00:00", "Log": "F \ud83d\udd0d Verificando columna ad_password en vm_sessions..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813563+00:00", "Log": "F   \u2713 Columna ad_password ya existe en vm_sessions"}
+{"TimeStamp": "2026-05-05T03:31:20.8813596+00:00", "Log": "F \ud83d\udd0d Verificando unicidad filtrada en vm_sessions..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813618+00:00", "Log": "F   \u2713 Constraint uq_vm_session_user_slot eliminada (si exist\u00eda)"}
+{"TimeStamp": "2026-05-05T03:31:20.8813639+00:00", "Log": "F   \u2713 \u00cdndice \u00fanico filtrado uq_vm_session_user_slot_active listo"}
+{"TimeStamp": "2026-05-05T03:31:20.8813661+00:00", "Log": "F \ud83d\udd0d Verificando tablas SCORM..."}
+{"TimeStamp": "2026-05-05T03:31:20.8813682+00:00", "Log": "F   \u2713 Tabla study_scorm_packages ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8813703+00:00", "Log": "F   \u2713 Tabla study_scorm_attempts ya existe"}
+{"TimeStamp": "2026-05-05T03:31:20.8813723+00:00", "Log": "F   \u2713 Columna allow_scorm ya existe en study_topics"}
+{"TimeStamp": "2026-05-05T03:31:20.8813745+00:00", "Log": "F 127.0.0.1 - - [05/May/2026:03:31:20 +0000] \"GET /api/ping HTTP/1.1\" 200 19 \"-\" \"curl/8.8.0\""}
+{"TimeStamp": "2026-05-05T03:32:20.9095567+00:00", "Log": "F 127.0.0.1 - - [05/May/2026:03:32:20 +0000] \"GET /api/ping HTTP/1.1\" 200 19 \"-\" \"curl/8.8.0\""}
+{"TimeStamp": "2026-05-05T03:32:35.5136523+00:00", "Log": "F 100.100.0.160 - - [05/May/2026:03:32:35 +0000] \"GET / HTTP/1.1\" 404 53 \"-\" \"python-requests/2.32.4\""}
+{"TimeStamp": "2026-05-05T03:32:44.6062699+00:00", "Log": "F 100.100.0.111 - - [05/May/2026:03:32:44 +0000] \"GET / HTTP/1.1\" 404 53 \"-\" \"python-requests/2.32.4\""}
+{"TimeStamp": "2026-05-05T03:32:52.2755289+00:00", "Log": "F 100.100.0.160 - - [05/May/2026:03:32:52 +0000] \"GET / HTTP/1.1\" 404 53 \"-\" \"python-requests/2.32.4\""}

@@ -1,0 +1,10 @@
+import pymssql
+conn = pymssql.connect(server='evaluaasi-motorv2-sql.database.windows.net', user='evaluaasi_admin', password='EvalAasi2024_newpwd!', database='evaluaasi_dev')
+cur = conn.cursor(as_dict=True)
+cur.execute("SELECT id, name, certification_cost, assignment_validity_months FROM campuses WHERE id=161")
+print('CAMPUS 161:', cur.fetchall())
+cur.execute("SELECT id, name, campus_id FROM candidate_groups WHERE id IN (187,188)")
+print('GROUPS:', cur.fetchall())
+cur.execute("SELECT id, coordinator_id, campus_id FROM coordinator_balances WHERE campus_id=161")
+print('BALANCES (campus 161):', cur.fetchall())
+conn.close()

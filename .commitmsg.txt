@@ -1,0 +1,29 @@
+feat(office-frontend): paginas y servicios para flujo Office completo
+
+Servicios:
+- officeResultsService.ts (NUEVO): mis resultados, detalle, audit, verify publico.
+- downloadsService.ts: tipos OfficeApp + CRUD admin + upload binario.
+- vmSessionsService.ts: bulk-create, bulk-cancel, agenda Office.
+
+Paginas:
+- responsable/OfficeSchedulingPage.tsx: agendar VmSession (calendario + bulk +
+  cancel) con flags por grupo, validacion solapamiento.
+- candidato/MiSesionOfficePage.tsx (NUEVO): sesion agendada con countdown,
+  PIN, instrucciones y link a descarga.
+- candidato/MisExamenesOfficePage.tsx (NUEVO): historico resultados Office
+  con filtros (status, app, tipo).
+- admin/OfficeAppsAdminPage.tsx (NUEVO): gestionar catalogo OfficeAppVersion
+  (CRUD + upload archivo).
+- admin/OfficeResultsAuditPage.tsx (NUEVO): auditoria con filtros, tenancy
+  por rol y export CSV.
+- downloads/OfficeDownloadsPage.tsx (NUEVO): catalogo descargable para
+  candidatos/responsables, agrupado por tipo, con instrucciones de uso.
+
+App.tsx: rutas /downloads, /admin/office-apps, /admin/office-results,
+/mis-examenes-office, /mi-sesion-office (lazy-loaded).
+
+UI helpers:
+- components/ui/Confetti.tsx (NUEVO): animacion celebratoria al aprobar.
+- components/StyledSelect.tsx, layout/Layout.tsx: ajustes para nav Office.
+
+.gitignore: ajustar regla downloads/ para no ignorar pages/downloads/.
