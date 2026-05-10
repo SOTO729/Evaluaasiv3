@@ -291,6 +291,46 @@ def _verify_group_access(group_id, user):
     return group, None
 
 
+def _verify_group_exam_access(group_exam_id, user):
+    """Verifica acceso a un GroupExam vía su grupo padre (multi-tenant H1).
+    Retorna (group_exam, None) o (None, error_response)."""
+    from app.models import GroupExam
+    group_exam = GroupExam.query.get_or_404(group_exam_id)
+    _, error = _verify_group_access(group_exam.group_id, user)
+    if error:
+        return None, error
+    return group_exam, None
+
+
+def _cascade_member_orphan_assignments(group_id, user_id):
+    """Limpia asignaciones derivadas (GroupExamMember/GroupStudyMaterialMember)
+    cuando se saca a un usuario de un grupo. Evita orphans que mantienen
+    acceso fantasma a exámenes/materiales después de salir del grupo.
+
+    NOTA: NO toca EcmCandidateAssignment porque es histórico permanente
+    del candidato (el ECM ya quedó asignado a su persona)."""
+    from app.models.partner import GroupExamMember
+    ge_ids = [ge.id for ge in GroupExam.query.filter_by(group_id=group_id).all()]
+    if ge_ids:
+        GroupExamMember.query.filter(
+            GroupExamMember.group_exam_id.in_(ge_ids),
+            GroupExamMember.user_id == user_id
+        ).delete(synchronize_session=False)
+    try:
+        from app.models.partner import GroupStudyMaterial, GroupStudyMaterialMember
+        gsm_ids = [gsm.id for gsm in GroupStudyMaterial.query.filter_by(group_id=group_id).all()]
+        if gsm_ids:
+            GroupStudyMaterialMember.query.filter(
+                GroupStudyMaterialMember.group_study_material_id.in_(gsm_ids),
+                GroupStudyMaterialMember.user_id == user_id
+            ).delete(synchronize_session=False)
+    except ImportError:
+        pass
+
+
+_VALID_ASSIGNMENT_TYPES = ('all', 'selected')
+
+
 def _resolve_billing_coordinator_id(group, current_user):
     """Resuelve el coordinator_id que debe ser cobrado por una operación de saldo.
 
@@ -4351,19 +4391,32 @@ def update_group_member(group_id, member_id):
 @jwt_required()
 @coordinator_required
 def remove_group_member(group_id, member_id):
-    """Eliminar un miembro del grupo (las asignaciones existentes se conservan)"""
+    """Eliminar un miembro del grupo y sus asignaciones derivadas (selected).
+
+    H2: Antes esto borraba sólo GroupMember dejando GroupExamMember y
+    GroupStudyMaterialMember huérfanos, lo que mantenía acceso fantasma
+    a los exámenes/materiales 'selected'. Ahora se cascada explícitamente.
+    EcmCandidateAssignment NO se toca (es histórico permanente)."""
     try:
+        # H1: validar acceso al grupo (multi-tenant) antes de tocar el miembro
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
-        
+        user_id = member.user_id
+
+        # Cascada de orphans (GroupExamMember / GroupStudyMaterialMember)
+        _cascade_member_orphan_assignments(group_id, user_id)
+
         db.session.delete(member)
         db.session.commit()
-        
+
         return jsonify({'message': 'Miembro eliminado del grupo'})
-        
+
     except HTTPException:
-        
+
         raise
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -4375,6 +4428,10 @@ def remove_group_member(group_id, member_id):
 def check_member_assignments(group_id, member_id):
     """Verificar si un miembro tiene asignaciones activas en este grupo (exámenes o materiales)"""
     try:
+        # H1: validar acceso al grupo (multi-tenant)
+        group, error = _verify_group_access(group_id, g.current_user)
+        if error:
+            return error
         member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
         user_id = member.user_id
         
@@ -5869,10 +5926,26 @@ def assign_exam_to_group(group_id):
         
         assignment_type = data.get('assignment_type', 'all')
         member_ids = data.get('member_ids', [])
-        
+
+        # H7: validar whitelist de assignment_type
+        if assignment_type not in _VALID_ASSIGNMENT_TYPES:
+            return jsonify({
+                'error': f"assignment_type inv\u00e1lido. Use uno de: {list(_VALID_ASSIGNMENT_TYPES)}"
+            }), 400
+
         if assignment_type == 'selected' and not member_ids:
             return jsonify({'error': 'Debes seleccionar al menos un candidato'}), 400
-        
+
+        # H6: validar FK de material_ids antes de cualquier insert
+        _mat_ids_check = data.get('material_ids')
+        if _mat_ids_check:
+            from app.models.study_content import StudyMaterial as _SMCheck
+            _norm_ids = [int(m) for m in _mat_ids_check if m is not None]
+            if _norm_ids:
+                _exist = _SMCheck.query.filter(_SMCheck.id.in_(_norm_ids)).count()
+                if _exist != len(set(_norm_ids)):
+                    return jsonify({'error': 'Uno o m\u00e1s study_material_id no existen'}), 400
+
         # Verificar que el examen existe
         exam = Exam.query.get(exam_id)
         if not exam:
@@ -5978,8 +6051,20 @@ def assign_exam_to_group(group_id):
                         else:
                             r_new_ecm_user_ids.append(uid)
                 else:
-                    # Sin ECM, todos son "nuevos" para el cobro
-                    if assignment_type == 'selected':
+                    # H4: Sin ECM, evitar doble-cobro en reactivaci\u00f3n.
+                    # Si ya hubo un debit previo asociado a este group_exam
+                    # (activaci\u00f3n anterior), no recargar al coordinador.
+                    # Trade-off conocido: nuevos miembros agregados durante el
+                    # per\u00edodo de inactividad no se recobran aqu\u00ed; el alta de
+                    # nuevos miembros debe cobrarse v\u00eda flujo de add-member.
+                    _prior_debit = BalanceTransaction.query.filter_by(
+                        reference_type='group_exam',
+                        reference_id=existing.id,
+                        transaction_type='debit'
+                    ).first()
+                    if _prior_debit:
+                        r_new_ecm_user_ids = []
+                    elif assignment_type == 'selected':
                         r_new_ecm_user_ids = member_ids
                     else:
                         r_new_ecm_user_ids = [m.user_id for m in group.members.all()]
@@ -9347,7 +9432,10 @@ def get_group_exam_materials(group_exam_id):
         from app.models.study_content import StudyMaterial
         from sqlalchemy import text
         
-        group_exam = GroupExam.query.get_or_404(group_exam_id)
+        # H1: tenant isolation vía grupo padre
+        group_exam, _err = _verify_group_exam_access(group_exam_id, g.current_user)
+        if _err:
+            return _err
         
         # Obtener materiales vinculados al examen (desde study_material_exams)
         linked_material_ids = []
@@ -9422,12 +9510,23 @@ def update_group_exam_materials(group_exam_id):
     """Actualizar materiales seleccionados para un grupo-examen"""
     try:
         from app.models import GroupExam, GroupExamMaterial
+        from app.models.study_content import StudyMaterial
         
-        group_exam = GroupExam.query.get_or_404(group_exam_id)
+        # H1: tenant isolation vía grupo padre
+        group_exam, _err = _verify_group_exam_access(group_exam_id, g.current_user)
+        if _err:
+            return _err
         data = request.get_json()
         
         # data.materials = [{id: number, is_included: boolean}, ...]
         materials_config = data.get('materials', [])
+
+        # H6: validar FK study_material_id antes de insertar
+        requested_ids = [int(m['id']) for m in materials_config if m.get('id') is not None]
+        if requested_ids:
+            existing_count = StudyMaterial.query.filter(StudyMaterial.id.in_(requested_ids)).count()
+            if existing_count != len(set(requested_ids)):
+                return jsonify({'error': 'Uno o más study_material_id no existen'}), 400
         
         # Eliminar configuraciones anteriores
         GroupExamMaterial.query.filter_by(group_exam_id=group_exam_id).delete()
@@ -9469,7 +9568,10 @@ def reset_group_exam_materials(group_exam_id):
     try:
         from app.models import GroupExam, GroupExamMaterial
         
-        group_exam = GroupExam.query.get_or_404(group_exam_id)
+        # H1: tenant isolation vía grupo padre
+        group_exam, _err = _verify_group_exam_access(group_exam_id, g.current_user)
+        if _err:
+            return _err
         
         # Eliminar todas las personalizaciones
         GroupExamMaterial.query.filter_by(group_exam_id=group_exam_id).delete()
@@ -12113,7 +12215,10 @@ def add_mi_plantel_group_members_bulk(group_id):
 @jwt_required()
 @responsable_required
 def remove_mi_plantel_group_member(group_id, member_id):
-    """Eliminar miembro de grupo (requiere can_manage_groups)"""
+    """Eliminar miembro de grupo (requiere can_manage_groups).
+
+    H2: cascada GroupExamMember/GroupStudyMaterialMember para evitar
+    accesos fantasma después de salir del grupo."""
     try:
         user = g.current_user
         if not user.can_manage_groups:
@@ -12124,6 +12229,8 @@ def remove_mi_plantel_group_member(group_id, member_id):
             return err
         
         member = GroupMember.query.filter_by(id=member_id, group_id=group_id).first_or_404()
+        # Cascada de orphans antes de borrar GroupMember
+        _cascade_member_orphan_assignments(group_id, member.user_id)
         db.session.delete(member)
         db.session.commit()
         return jsonify({'message': 'Miembro eliminado del grupo'})
