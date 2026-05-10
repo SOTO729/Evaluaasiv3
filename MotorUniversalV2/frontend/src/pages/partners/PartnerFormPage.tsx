@@ -27,6 +27,7 @@ import {
   getCountries,
   PartnerStatePresence,
 } from '../../services/partnersService';
+import { getDetailedErrorMessage } from '../../utils/errorHandlers';
 
 export default function PartnerFormPage() {
   const { partnerId } = useParams();
@@ -85,7 +86,7 @@ export default function PartnerFormPage() {
       });
       setPartnerStates(partner.states || []);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar el partner');
+      setError(getDetailedErrorMessage(err, 'Error al cargar el partner'));
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ export default function PartnerFormPage() {
         return;
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar el partner');
+      setError(getDetailedErrorMessage(err, 'Error al guardar el partner'));
     } finally {
       setSaving(false);
     }

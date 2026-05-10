@@ -19,6 +19,9 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { getPartners, Partner } from '../../services/partnersService';
+import { getDetailedErrorMessage } from '../../utils/errorHandlers';
+
+const MAX_SEARCH_LENGTH = 100;
 
 export default function PartnersListPage() {
   const navigate = useNavigate();
@@ -44,7 +47,7 @@ export default function PartnersListPage() {
       setPartners(response.partners);
       setTotalPartners(response.total);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar los partners');
+      setError(getDetailedErrorMessage(err, 'Error al cargar los partners'));
     } finally {
       setLoading(false);
     }
@@ -146,10 +149,16 @@ export default function PartnersListPage() {
               type="text"
               placeholder="Buscar por nombre, razón social o RFC..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value.slice(0, MAX_SEARCH_LENGTH))}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              maxLength={MAX_SEARCH_LENGTH}
               className="w-full fluid-pl-12 fluid-pr-4 fluid-py-3 border border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 fluid-text-base transition-all"
             />
+            {searchTerm.length >= MAX_SEARCH_LENGTH && (
+              <p className="fluid-text-xs text-amber-600 fluid-mt-1">
+                Búsqueda limitada a {MAX_SEARCH_LENGTH} caracteres.
+              </p>
+            )}
           </div>
           
           <label className="inline-flex items-center cursor-pointer bg-gray-50 hover:bg-gray-100 fluid-px-4 fluid-py-2 rounded-fluid-xl border border-gray-200 transition-colors">

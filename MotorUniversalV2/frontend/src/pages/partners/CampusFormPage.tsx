@@ -71,6 +71,7 @@ import {
   removeCampusResponsable,
   type CampusResponsableItem,
 } from '../../services/partnersService';
+import { getDetailedErrorMessage } from '../../utils/errorHandlers';
 import {
   getConfigSubsistemas,
   getConfigEstandares,
@@ -291,7 +292,7 @@ export default function CampusFormPage() {
         setFormData(prev => ({ ...prev, country: partner.country || 'México' }));
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar datos');
+      setError(getDetailedErrorMessage(err, 'Error al cargar datos'));
     } finally {
       setLoading(false);
     }
@@ -504,7 +505,7 @@ export default function CampusFormPage() {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar el plantel');
+      setError(getDetailedErrorMessage(err, 'Error al guardar el plantel'));
     } finally {
       setSaving(false);
     }
@@ -546,7 +547,7 @@ export default function CampusFormPage() {
       navigate(`/partners/campuses/${campusId}?saved=true`);
       return;
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar configuración');
+      setError(getDetailedErrorMessage(err, 'Error al guardar configuración'));
     } finally {
       setSavingConfig(false);
     }

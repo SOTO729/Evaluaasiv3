@@ -42,6 +42,7 @@ import {
   SchoolCycle,
   GroupConfigResponse,
 } from '../../services/partnersService';
+import { getDetailedErrorMessage } from '../../utils/errorHandlers';
 
 export default function GroupFormPage() {
   const { campusId, groupId } = useParams();
@@ -162,7 +163,7 @@ export default function GroupFormPage() {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar datos');
+      setError(getDetailedErrorMessage(err, 'Error al cargar datos'));
     } finally {
       setLoading(false);
     }
@@ -231,7 +232,7 @@ export default function GroupFormPage() {
         navigate(`/partners/groups/${newGroup.id}?created=true`);
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar el grupo');
+      setError(getDetailedErrorMessage(err, 'Error al guardar el grupo'));
     } finally {
       setSaving(false);
     }
@@ -254,7 +255,7 @@ export default function GroupFormPage() {
       
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al guardar configuración');
+      setError(getDetailedErrorMessage(err, 'Error al guardar configuración'));
     } finally {
       setSavingConfig(false);
     }
@@ -277,7 +278,7 @@ export default function GroupFormPage() {
       
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al restablecer configuración');
+      setError(getDetailedErrorMessage(err, 'Error al restablecer configuración'));
     } finally {
       setSavingConfig(false);
     }
