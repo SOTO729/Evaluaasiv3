@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify, g, send_file
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import HTTPException
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -335,6 +336,24 @@ _VALID_ASSIGNMENT_TYPES = ('all', 'selected')
 MAX_SEARCH_LENGTH = 500
 
 
+def _db_error_response(exc: Exception):
+    """M8: handler genérico para excepciones DB en endpoints del módulo.
+
+    - IntegrityError (unique/FK violations) → 409 Conflict con mensaje sanitizado.
+    - Cualquier otra excepción → 500 con str(exc) (comportamiento histórico).
+    """
+    if isinstance(exc, IntegrityError):
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify({
+            'error': 'Operación rechazada por restricción de integridad (duplicado o referencia inválida)',
+            'error_type': 'integrity_violation',
+        }), 409
+    return jsonify({'error': str(exc)}), 500
+
+
 def _resolve_billing_coordinator_id(group, current_user):
     """Resuelve el coordinator_id que debe ser cobrado por una operación de saldo.
 
@@ -438,7 +457,7 @@ def get_partners():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>', methods=['GET'])
@@ -456,7 +475,7 @@ def get_partner(partner_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('', methods=['POST'])
@@ -504,7 +523,7 @@ def create_partner():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>', methods=['PUT'])
@@ -542,7 +561,7 @@ def update_partner(partner_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>', methods=['DELETE'])
@@ -565,7 +584,7 @@ def delete_partner(partner_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== PRESENCIA EN ESTADOS ==============
@@ -592,7 +611,7 @@ def get_partner_states(partner_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>/states', methods=['POST'])
@@ -643,7 +662,7 @@ def add_partner_state(partner_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>/states/<int:presence_id>', methods=['DELETE'])
@@ -672,7 +691,7 @@ def remove_partner_state(partner_id, presence_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== PLANTELES (CAMPUSES) ==============
@@ -705,10 +724,31 @@ def get_campuses(partner_id):
         
         campuses = query.order_by(Campus.state_name, Campus.name).all()
 
+        # M3: pre-fetch grupos y conteos de TODOS los campuses en 1 query
+        # (en lugar de N queries de groups + N queries de count).
+        campus_ids = [c.id for c in campuses]
+        groups_by_campus: dict = {cid: [] for cid in campus_ids}
+        count_by_campus: dict = {cid: 0 for cid in campus_ids}
+        if campus_ids:
+            gq = CandidateGroup.query.filter(CandidateGroup.campus_id.in_(campus_ids))
+            if coord_id:
+                gq = gq.filter(CandidateGroup.coordinator_id == coord_id)
+            for grp in gq.all():
+                groups_by_campus.setdefault(grp.campus_id, []).append(grp)
+                count_by_campus[grp.campus_id] = count_by_campus.get(grp.campus_id, 0) + 1
+
         return jsonify({
             'partner_id': partner_id,
             'partner_name': partner.name,
-            'campuses': [c.to_dict(include_groups=True, coordinator_id=coord_id) for c in campuses],
+            'campuses': [
+                c.to_dict(
+                    include_groups=True,
+                    coordinator_id=coord_id,
+                    _preloaded_groups=groups_by_campus.get(c.id, []),
+                    _preloaded_group_count=count_by_campus.get(c.id, 0),
+                )
+                for c in campuses
+            ],
             'total': len(campuses)
         })
         
@@ -717,7 +757,7 @@ def get_campuses(partner_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>/campuses', methods=['POST'])
@@ -941,7 +981,7 @@ def create_campus(partner_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>', methods=['GET'])
@@ -960,7 +1000,7 @@ def get_campus(campus_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>', methods=['PUT'])
@@ -1045,7 +1085,7 @@ def update_campus(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>', methods=['DELETE'])
@@ -1068,7 +1108,7 @@ def delete_campus(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/permanent-delete', methods=['DELETE'])
@@ -1454,7 +1494,7 @@ def create_campus_responsable(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/responsable', methods=['GET'])
@@ -1504,7 +1544,7 @@ def get_campus_responsable(campus_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/responsable', methods=['PUT'])
@@ -1566,7 +1606,7 @@ def update_campus_responsable(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/available-responsables', methods=['GET'])
@@ -1641,7 +1681,7 @@ def get_available_responsables(campus_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/assign-responsable', methods=['POST'])
@@ -1751,7 +1791,7 @@ def assign_existing_responsable(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== MULTI-RESPONSABLES ==============
@@ -1801,7 +1841,7 @@ def list_campus_responsables(campus_id):
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/responsables', methods=['POST'])
@@ -1999,7 +2039,7 @@ def add_campus_responsable(campus_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/responsables/<string:user_id>', methods=['PUT'])
@@ -2050,7 +2090,7 @@ def update_responsable_permissions(campus_id, user_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/responsables/<string:user_id>', methods=['DELETE'])
@@ -2104,7 +2144,7 @@ def remove_campus_responsable(campus_id, user_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/activate', methods=['POST'])
@@ -2168,7 +2208,7 @@ def activate_campus(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/configure', methods=['POST'])
@@ -2338,7 +2378,7 @@ def configure_campus(campus_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/config', methods=['GET'])
@@ -2387,7 +2427,7 @@ def get_campus_config(campus_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/deactivate', methods=['POST'])
@@ -2417,7 +2457,7 @@ def deactivate_campus(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== ECM DEL PLANTEL (Estándares de Competencia) ==============
@@ -2476,7 +2516,7 @@ def get_campus_competency_standards(campus_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/competency-standards', methods=['PUT'])
@@ -2551,7 +2591,7 @@ def update_campus_competency_standards(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/competency-standards/available', methods=['GET'])
@@ -2592,7 +2632,7 @@ def get_available_competency_standards():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== CICLOS ESCOLARES ==============
@@ -2626,7 +2666,7 @@ def get_school_cycles(campus_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/cycles', methods=['POST'])
@@ -2691,7 +2731,7 @@ def create_school_cycle(campus_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/cycles/<int:cycle_id>', methods=['GET'])
@@ -2708,7 +2748,7 @@ def get_school_cycle(cycle_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/cycles/<int:cycle_id>', methods=['PUT'])
@@ -2757,7 +2797,7 @@ def update_school_cycle(cycle_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/cycles/<int:cycle_id>', methods=['DELETE'])
@@ -2856,7 +2896,7 @@ def permanent_delete_cycle(cycle_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== GRUPOS ==============
@@ -2908,7 +2948,7 @@ def get_groups(campus_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/campuses/<int:campus_id>/groups', methods=['POST'])
@@ -2958,7 +2998,7 @@ def create_group(campus_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ======================================================================
@@ -3022,7 +3062,7 @@ def list_all_groups():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/search', methods=['GET'])
@@ -3216,7 +3256,7 @@ def search_groups_paginated():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/count', methods=['GET'])
@@ -3262,7 +3302,7 @@ def get_group_members_count(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>', methods=['GET'])
@@ -3280,7 +3320,7 @@ def get_group(group_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>', methods=['PUT'])
@@ -3321,7 +3361,7 @@ def update_group(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>', methods=['DELETE'])
@@ -3344,7 +3384,7 @@ def delete_group(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== CONFIGURACIÓN DE GRUPO ==============
@@ -3495,7 +3535,7 @@ def get_group_config(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/config', methods=['PUT'])
@@ -3583,7 +3623,7 @@ def update_group_config(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/config/reset', methods=['POST'])
@@ -3639,7 +3679,7 @@ def reset_group_config(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== MIEMBROS DE GRUPO ==============
@@ -4024,7 +4064,7 @@ def get_group_campus_responsables(group_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members', methods=['POST'])
@@ -4089,7 +4129,7 @@ def add_group_member(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/bulk', methods=['POST'])
@@ -4210,7 +4250,7 @@ def add_group_members_bulk(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/bulk-assign-by-criteria', methods=['POST'])
@@ -4359,7 +4399,7 @@ def bulk_assign_by_criteria(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/<int:member_id>', methods=['PUT'])
@@ -4399,7 +4439,7 @@ def update_group_member(group_id, member_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/<int:member_id>', methods=['DELETE'])
@@ -4434,7 +4474,7 @@ def remove_group_member(group_id, member_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/<int:member_id>/check-assignments', methods=['GET'])
@@ -4507,7 +4547,7 @@ def check_member_assignments(group_id, member_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== BÚSQUEDA DE CANDIDATOS ==============
@@ -4630,7 +4670,7 @@ def search_candidates():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== PLANTILLA Y CARGA MASIVA DE ASIGNACIÓN ==============
@@ -4869,7 +4909,7 @@ def download_group_members_template():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/upload', methods=['POST'])
@@ -5087,7 +5127,7 @@ def upload_group_members(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== DASHBOARD / ESTADÍSTICAS ==============
@@ -5165,7 +5205,7 @@ def get_dashboard():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== ASOCIACIÓN USUARIO-PARTNER ==============
@@ -5212,7 +5252,7 @@ def get_partner_users(partner_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>/users/<string:user_id>', methods=['POST'])
@@ -5244,7 +5284,7 @@ def add_user_to_partner(partner_id, user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/<int:partner_id>/users/<string:user_id>', methods=['DELETE'])
@@ -5275,7 +5315,7 @@ def remove_user_from_partner(partner_id, user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/users/<string:user_id>/partners', methods=['GET'])
@@ -5325,7 +5365,7 @@ def get_user_partners(user_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/users/<string:user_id>/partners', methods=['POST'])
@@ -5361,7 +5401,7 @@ def set_user_partners(user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== ENDPOINTS PARA CANDIDATOS (SUS PROPIOS PARTNERS) ==============
@@ -5420,7 +5460,7 @@ def get_my_partners():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/available', methods=['GET'])
@@ -5457,7 +5497,7 @@ def get_available_partners():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/my-partners/<int:partner_id>', methods=['POST'])
@@ -5496,7 +5536,7 @@ def link_to_partner(partner_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/my-partners/<int:partner_id>', methods=['DELETE'])
@@ -5547,7 +5587,7 @@ def unlink_from_partner(partner_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== EXÁMENES ASIGNADOS A GRUPOS ==============
@@ -5584,7 +5624,7 @@ def get_group_exams(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/detail', methods=['GET'])
@@ -5797,7 +5837,7 @@ def get_group_exam_detail(group_id, exam_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/assignment-cost-preview', methods=['POST'])
@@ -5901,7 +5941,7 @@ def assignment_cost_preview(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams', methods=['POST'])
@@ -6448,7 +6488,7 @@ def assign_exam_to_group(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>', methods=['DELETE'])
@@ -6477,7 +6517,7 @@ def unassign_exam_from_group(group_id, exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members', methods=['GET'])
@@ -6518,7 +6558,7 @@ def get_group_exam_members(group_id, exam_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members', methods=['PUT'])
@@ -6581,7 +6621,7 @@ def update_group_exam_members(group_id, exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/add', methods=['POST'])
@@ -6653,7 +6693,7 @@ def add_members_to_exam(group_id, exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/assignments/add', methods=['POST'])
@@ -6909,7 +6949,7 @@ def add_assignments_to_exam(group_id, exam_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members-detail', methods=['GET'])
@@ -7259,7 +7299,7 @@ def get_group_exam_members_detail(group_id, exam_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/swap', methods=['POST'])
@@ -7588,7 +7628,7 @@ def swap_exam_member(group_id, exam_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/bulk-swap', methods=['POST'])
@@ -7923,7 +7963,7 @@ def bulk_swap_exam_members(group_id, exam_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== HISTORIAL DE REASIGNACIONES ==============
@@ -7998,7 +8038,7 @@ def get_swap_history(group_id, exam_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/swap-history/timeline', methods=['GET'])
@@ -8067,7 +8107,7 @@ def get_swap_timeline(group_id, exam_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== RETOMAS ECM ==============
@@ -8276,7 +8316,7 @@ def apply_ecm_retake(group_id, exam_id, user_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/retake-preview', methods=['POST'])
@@ -8411,7 +8451,7 @@ def preview_ecm_retake(group_id, exam_id):
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 def _get_retake_block_reasons(ecm_id, ecm_assignment, results_count, total_allowed,
@@ -8470,7 +8510,7 @@ def get_group_study_materials(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/study-materials', methods=['POST'])
@@ -8597,7 +8637,7 @@ def assign_study_materials_to_group(group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/study-materials/<int:material_id>', methods=['DELETE'])
@@ -8626,7 +8666,7 @@ def unassign_study_material_from_group(group_id, material_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/study-materials/<int:material_id>/members', methods=['GET'])
@@ -8671,7 +8711,7 @@ def get_study_material_members(group_id, material_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/study-materials/<int:material_id>/members', methods=['PUT'])
@@ -8748,7 +8788,7 @@ def update_study_material_members(group_id, material_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/study-materials/<int:material_id>/members/add', methods=['POST'])
@@ -8824,7 +8864,7 @@ def add_members_to_study_material(group_id, material_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/study-materials/available', methods=['GET'])
@@ -8939,7 +8979,7 @@ def get_available_study_materials():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/ecms/available', methods=['GET'])
@@ -9044,7 +9084,7 @@ def get_available_ecms():
     except Exception as e:
         import traceback
         print(f"[DEBUG] Error en get_available_ecms: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/exams/available', methods=['GET'])
@@ -9305,7 +9345,7 @@ def get_available_exams():
     except Exception as e:
         import traceback
         print(f"[DEBUG] Error en get_available_exams: {traceback.format_exc()}")
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/exams/<int:exam_id>/materials', methods=['GET'])
@@ -9432,7 +9472,7 @@ def get_exam_materials_for_assignment(exam_id):
         import traceback
         print(f"Error in get_exam_materials_for_assignment: {e}")
         print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== MATERIALES PERSONALIZADOS POR GRUPO-EXAMEN ==============
@@ -9515,7 +9555,7 @@ def get_group_exam_materials(group_exam_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/group-exams/<int:group_exam_id>/materials', methods=['PUT'])
@@ -9572,7 +9612,7 @@ def update_group_exam_materials(group_exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/group-exams/<int:group_exam_id>/materials/reset', methods=['POST'])
@@ -9603,7 +9643,7 @@ def reset_group_exam_materials(group_exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== MOVER CANDIDATOS ENTRE GRUPOS ==============
@@ -9733,7 +9773,7 @@ def move_members_to_group(source_group_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/members/upload/preview', methods=['POST'])
@@ -9883,7 +9923,7 @@ def preview_group_members_upload(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/candidates/search/advanced', methods=['GET'])
@@ -10135,7 +10175,7 @@ def search_candidates_advanced():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/export-members', methods=['GET'])
@@ -10284,7 +10324,7 @@ def export_group_members(group_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/export-certifications', methods=['GET'])
@@ -10412,7 +10452,7 @@ def export_group_certifications(group_id):
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ---------- Helpers para generar filas de reporte ----------
@@ -10595,7 +10635,7 @@ def export_campus_report(campus_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/partners/<int:partner_id>/export-report', methods=['GET'])
@@ -10662,7 +10702,7 @@ def export_partner_report(partner_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== ENDPOINTS PARA RESPONSABLE DE PLANTEL ==============
@@ -10709,7 +10749,7 @@ def get_mi_plantel():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/candidato-branding', methods=['GET'])
@@ -10765,7 +10805,7 @@ def get_candidato_branding():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/branding', methods=['PUT'])
@@ -10808,7 +10848,7 @@ def update_mi_plantel_branding():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/logo', methods=['POST'])
@@ -10862,7 +10902,7 @@ def upload_mi_plantel_logo():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/logo', methods=['DELETE'])
@@ -10888,7 +10928,7 @@ def delete_mi_plantel_logo():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/stats', methods=['GET'])
@@ -11016,7 +11056,7 @@ def get_mi_plantel_stats():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/evaluations', methods=['GET'])
@@ -11207,7 +11247,7 @@ def get_mi_plantel_evaluations():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/evaluations/export', methods=['GET'])
@@ -11429,7 +11469,7 @@ def export_mi_plantel_evaluations():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== MI-PLANTEL: CICLOS ESCOLARES ==============
@@ -11460,7 +11500,7 @@ def get_mi_plantel_cycles():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/cycles/<int:cycle_id>', methods=['GET'])
@@ -11484,7 +11524,7 @@ def get_mi_plantel_cycle_detail(cycle_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/cycles', methods=['POST'])
@@ -11543,7 +11583,7 @@ def create_mi_plantel_cycle():
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups', methods=['GET'])
@@ -11569,7 +11609,7 @@ def get_mi_plantel_groups():
         })
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/exams', methods=['GET'])
@@ -11614,7 +11654,7 @@ def get_mi_plantel_exams():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # =====================================================
@@ -11826,7 +11866,7 @@ def get_mi_plantel_dashboard_advanced():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/certificates-by-group', methods=['GET'])
@@ -11913,7 +11953,7 @@ def get_mi_plantel_certificates_by_group():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/campus', methods=['PUT'])
@@ -11957,7 +11997,7 @@ def update_mi_plantel_campus():
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups', methods=['POST'])
@@ -12005,7 +12045,7 @@ def create_mi_plantel_group():
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>', methods=['GET'])
@@ -12024,7 +12064,7 @@ def get_mi_plantel_group_detail(group_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>', methods=['PUT'])
@@ -12063,7 +12103,7 @@ def update_mi_plantel_group(group_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>', methods=['DELETE'])
@@ -12087,7 +12127,7 @@ def delete_mi_plantel_group(group_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>/members', methods=['GET'])
@@ -12127,7 +12167,7 @@ def get_mi_plantel_group_members(group_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>/members', methods=['POST'])
@@ -12174,7 +12214,7 @@ def add_mi_plantel_group_member(group_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>/members/bulk', methods=['POST'])
@@ -12223,7 +12263,7 @@ def add_mi_plantel_group_members_bulk(group_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>/members/<int:member_id>', methods=['DELETE'])
@@ -12253,7 +12293,7 @@ def remove_mi_plantel_group_member(group_id, member_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/groups/<int:group_id>/exams', methods=['GET'])
@@ -12276,7 +12316,7 @@ def get_mi_plantel_group_exams(group_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-plantel/candidates/search', methods=['GET'])
@@ -12339,7 +12379,7 @@ def search_mi_plantel_candidates():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # =====================================================
@@ -12553,7 +12593,7 @@ def get_mis_examenes():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/purchase-details/<int:group_exam_id>', methods=['GET'])
@@ -12665,7 +12705,7 @@ def get_purchase_details(group_exam_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mis-materiales', methods=['GET'])
@@ -12873,7 +12913,7 @@ def get_mis_materiales():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== ELIMINACIÓN COMPLETA DE GRUPOS (SOLO ADMIN) ==============
@@ -12965,7 +13005,7 @@ def hard_delete_group(group_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/admin/cleanup-orphan-memberships', methods=['POST'])
@@ -13009,7 +13049,7 @@ def cleanup_orphan_memberships():
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== ASIGNACIÓN MASIVA DE EXÁMENES POR ECM ==============
@@ -13136,7 +13176,7 @@ def download_bulk_exam_assign_template(group_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/exams/bulk-assign', methods=['POST'])
@@ -13565,7 +13605,7 @@ def bulk_assign_exams_by_ecm(group_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== CERTIFICADOS DEL GRUPO ==============
@@ -13847,7 +13887,7 @@ def get_group_certificates_stats(group_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/certificates/download', methods=['POST'])
@@ -14435,7 +14475,7 @@ def download_group_certificates_zip(group_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/certificates/generate', methods=['POST'])
@@ -14541,7 +14581,7 @@ def generate_group_certificates(group_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/certificates/clear', methods=['POST'])
@@ -14615,7 +14655,7 @@ def clear_group_certificates_urls(group_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/analytics', methods=['GET'])
@@ -14989,7 +15029,7 @@ def get_group_analytics(group_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/candidates/<string:user_id>/certification-detail', methods=['GET'])
@@ -15119,7 +15159,7 @@ def get_candidate_certification_detail(group_id, user_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== VIGENCIA DE ASIGNACIONES ==============
@@ -15200,7 +15240,7 @@ def extend_assignment_validity(assignment_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/ecm-assignments/<int:ecm_assignment_id>/extend-validity', methods=['POST'])
@@ -15270,7 +15310,7 @@ def extend_ecm_assignment_validity(ecm_assignment_id):
         db.session.rollback()
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ============== MÓDULO DE ASIGNACIONES POR ECM ==============
@@ -15418,7 +15458,7 @@ def get_ecm_assignments():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/ecm-assignments/<int:ecm_id>', methods=['GET'])
@@ -16021,7 +16061,7 @@ def get_ecm_assignment_detail(ecm_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/ecm-assignments/<int:ecm_id>/export', methods=['GET'])
@@ -16418,7 +16458,7 @@ def export_ecm_assignments_excel(ecm_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -16712,7 +16752,7 @@ def get_candidate_assignment_detail(eca_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # =====================================================
@@ -16805,7 +16845,7 @@ def get_mi_partner():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-partner/dashboard', methods=['GET'])
@@ -17048,7 +17088,7 @@ def get_mi_partner_dashboard():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-partner/certificates', methods=['GET'])
@@ -17350,7 +17390,7 @@ def get_mi_partner_certificates():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 def _get_partner_cert_filters(partner_id, forced_state=None):
@@ -17572,7 +17612,7 @@ def export_mi_partner_certificates_excel():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/mi-partner/certificates/download-zip', methods=['GET'])
@@ -17763,7 +17803,7 @@ def download_mi_partner_certificates_zip():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -18019,7 +18059,7 @@ def get_conocer_tramites():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/conocer-tramites/export', methods=['GET'])
@@ -18245,7 +18285,7 @@ def export_conocer_tramites_excel():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 # ============== CONOCER EMAIL CONTACTS ==============
 
@@ -18523,7 +18563,7 @@ def send_conocer_solicitud():
         import traceback
         traceback.print_exc()
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/conocer-solicitud-logs', methods=['GET'])
@@ -18773,7 +18813,7 @@ def get_report_filters():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 def _build_reports_query(user, params):
@@ -19275,7 +19315,7 @@ def get_reports():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/reports/export', methods=['GET'])
@@ -19420,7 +19460,7 @@ def export_reports():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -19674,7 +19714,7 @@ def get_study_progress_report():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)
 
 
 @bp.route('/reports/study-progress/export', methods=['GET'])
@@ -19752,4 +19792,4 @@ def export_study_progress_report():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _db_error_response(e)

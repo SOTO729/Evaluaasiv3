@@ -309,7 +309,7 @@ class Campus(db.Model):
     # Relación muchos-a-muchos con estándares de competencia (ECM)
     competency_standards = db.relationship('CampusCompetencyStandard', backref='campus', lazy='dynamic', cascade='all, delete-orphan')
     
-    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False, include_ecms=False, coordinator_id=None):
+    def to_dict(self, include_groups=False, include_partner=False, include_cycles=False, include_responsable=False, include_config=False, include_ecms=False, coordinator_id=None, _preloaded_groups=None, _preloaded_group_count=None):
         data = {
             'id': self.id,
             'partner_id': self.partner_id,
@@ -342,7 +342,7 @@ class Campus(db.Model):
             'configuration_completed_at': self.configuration_completed_at.isoformat() if self.configuration_completed_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'group_count': self.groups.filter_by(coordinator_id=coordinator_id).with_entities(db.func.count()).scalar() if coordinator_id and self.groups else (self.groups.with_entities(db.func.count()).scalar() if self.groups else 0),
+            'group_count': (_preloaded_group_count if _preloaded_group_count is not None else (self.groups.filter_by(coordinator_id=coordinator_id).with_entities(db.func.count()).scalar() if coordinator_id and self.groups else (self.groups.with_entities(db.func.count()).scalar() if self.groups else 0))),
             'cycle_count': self.school_cycles.with_entities(db.func.count()).scalar() if self.school_cycles else 0,
             # Campos de configuración siempre incluidos (con valores por defecto si son None)
             'office_version': self.office_version or 'office_365',
@@ -425,10 +425,15 @@ class Campus(db.Model):
             }
         
         if include_groups:
-            gq = self.groups
-            if coordinator_id:
-                gq = gq.filter_by(coordinator_id=coordinator_id)
-            data['groups'] = [g.to_dict() for g in gq.all()]
+            # M3: si el caller pre-cargó los groups (e.g. get_campuses con un
+            # solo IN-query), usarlos directo y evitar N+1.
+            if _preloaded_groups is not None:
+                data['groups'] = [grp.to_dict() for grp in _preloaded_groups]
+            else:
+                gq = self.groups
+                if coordinator_id:
+                    gq = gq.filter_by(coordinator_id=coordinator_id)
+                data['groups'] = [grp.to_dict() for grp in gq.all()]
             
         if include_partner:
             data['partner'] = self.partner.to_dict() if self.partner else None
