@@ -1164,8 +1164,10 @@ def create_campus_responsable(campus_id):
     from datetime import datetime
     
     try:
-        campus = Campus.query.get_or_404(campus_id)
-        data = request.get_json()
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
+        data = request.get_json() or {}
         
         # Verificar si se quiere reemplazar/editar el responsable existente
         replace_existing = data.get('replace_existing', False)
@@ -1188,6 +1190,20 @@ def create_campus_responsable(campus_id):
                         }
                     }), 400
                 # Si replace_existing=true, continuamos sin desvincular aún
+        
+        # ── H5: pre-validar coordinator_id ANTES de cualquier db.session.add()
+        # para evitar autoflush parcial si la validación falla.
+        current_user = g.current_user
+        coordinator_id_value = None
+        if current_user.role == 'coordinator':
+            coordinator_id_value = current_user.id
+        elif data.get('coordinator_id'):
+            coord_check = User.query.get(data['coordinator_id'])
+            if not coord_check or coord_check.role != 'coordinator' or not coord_check.is_active:
+                return jsonify({'error': 'El coordinador seleccionado no es válido o no está activo'}), 400
+            coordinator_id_value = data['coordinator_id']
+        else:
+            return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
         
         # Validar campos requeridos
         # Determinar si el plantel es extranjero (CURP no requerido para extranjeros)
@@ -1254,6 +1270,9 @@ def create_campus_responsable(campus_id):
                 existing_email_user.can_manage_groups = data.get('can_manage_groups', False)
                 existing_email_user.can_view_reports = data.get('can_view_reports', True)
                 existing_email_user.campus_id = campus.id
+                # ── H5: simetría — avanzar activation_status también al actualizar.
+                if campus.activation_status == 'pending':
+                    campus.activation_status = 'configuring'
                 
                 db.session.commit()
                 
@@ -1311,6 +1330,9 @@ def create_campus_responsable(campus_id):
         can_manage_groups = data.get('can_manage_groups', False)
         can_view_reports = data.get('can_view_reports', True)
         
+        # ── H5: todas las validaciones ya pasaron (incluyendo coordinator_id arriba).
+        # Mutar la sesión solo cuando estamos seguros de que todo procederá.
+        
         # Si hay un responsable anterior y estamos creando uno nuevo, desvincularlo
         if replace_existing and current_responsable:
             current_responsable.campus_id = None
@@ -1329,24 +1351,13 @@ def create_campus_responsable(campus_id):
             date_of_birth=date_of_birth,
             role='responsable',
             campus_id=campus.id,
+            coordinator_id=coordinator_id_value,  # H5: ya pre-validado arriba
             is_active=True,
             is_verified=True,  # Pre-verificado ya que lo crea un admin/coordinator
             can_bulk_create_candidates=can_bulk_create,
             can_manage_groups=can_manage_groups,
             can_view_reports=can_view_reports
         )
-        
-        # ── Asignar coordinator_id obligatorio ──
-        current_user = g.current_user
-        if current_user.role == 'coordinator':
-            new_user.coordinator_id = current_user.id
-        elif data.get('coordinator_id'):
-            coord_check = User.query.get(data['coordinator_id'])
-            if not coord_check or coord_check.role != 'coordinator' or not coord_check.is_active:
-                return jsonify({'error': 'El coordinador seleccionado no es válido o no está activo'}), 400
-            new_user.coordinator_id = data['coordinator_id']
-        else:
-            return jsonify({'error': 'Debe seleccionar un coordinador para el responsable'}), 400
         
         new_user.set_password(password)
         new_user.encrypted_password = encrypt_password(password)
@@ -1397,7 +1408,9 @@ def create_campus_responsable(campus_id):
 def get_campus_responsable(campus_id):
     """Obtener información del responsable del plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         if not campus.responsable_id:
             return jsonify({
@@ -1445,7 +1458,9 @@ def get_campus_responsable(campus_id):
 def update_campus_responsable(campus_id):
     """Actualizar datos o permisos del responsable del plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         if not campus.responsable_id:
             return jsonify({'error': 'El plantel no tiene responsable asignado'}), 404
@@ -1509,7 +1524,9 @@ def get_available_responsables(campus_id):
     El director del plantel (identificado por su CURP) aparece primero en la lista.
     """
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Obtener todos los planteles del mismo partner
         partner_campus_ids = [c.id for c in Campus.query.filter_by(partner_id=campus.partner_id).all()]
@@ -1581,7 +1598,9 @@ def assign_existing_responsable(campus_id):
     El responsable debe pertenecer al mismo partner y no estar asignado a otro plantel activo.
     """
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         data = request.get_json()
         
         responsable_id = data.get('responsable_id')
@@ -1688,7 +1707,9 @@ def assign_existing_responsable(campus_id):
 def list_campus_responsables(campus_id):
     """Listar TODOS los responsables del plantel (no solo el principal)"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
 
         # Buscar todos los usuarios con role='responsable' y campus_id=este campus
         responsables = User.query.filter(
@@ -1743,7 +1764,9 @@ def add_campus_responsable(campus_id):
     from datetime import datetime as dt
 
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         data = request.get_json()
         
         # Determinar si el plantel es extranjero
@@ -1930,7 +1953,9 @@ def add_campus_responsable(campus_id):
 def update_responsable_permissions(campus_id, user_id):
     """Actualizar permisos de un responsable específico del plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         responsable = User.query.get_or_404(user_id)
 
         if responsable.role != 'responsable' or responsable.campus_id != campus.id:
@@ -1979,7 +2004,9 @@ def update_responsable_permissions(campus_id, user_id):
 def remove_campus_responsable(campus_id, user_id):
     """Desactivar un responsable del plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         responsable = User.query.get_or_404(user_id)
 
         if responsable.role != 'responsable' or responsable.campus_id != campus.id:
@@ -2033,7 +2060,9 @@ def activate_campus(campus_id):
     try:
         if g.current_user.role == 'responsable':
             return jsonify({'error': 'Los responsables no pueden activar/desactivar planteles'}), 403
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Verificar que el plantel no esté ya activo
         if campus.is_active:
@@ -2095,7 +2124,9 @@ def configure_campus(campus_id):
     try:
         if g.current_user.role == 'responsable':
             return jsonify({'error': 'Los responsables no pueden editar la configuración del plantel'}), 403
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Verificar que el plantel tenga un responsable asignado
         if not campus.responsable_id:
@@ -2261,7 +2292,9 @@ def configure_campus(campus_id):
 def get_campus_config(campus_id):
     """Obtener la configuración de un plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         return jsonify({
             'campus_id': campus.id,
@@ -2308,7 +2341,9 @@ def get_campus_config(campus_id):
 def deactivate_campus(campus_id):
     """Desactivar un plantel (preserva configuración para reactivación rápida)"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Solo desactivar, preservar toda la configuración
         campus.is_active = False
@@ -2342,7 +2377,9 @@ def get_campus_competency_standards(campus_id):
         from app.models.competency_standard import CompetencyStandard
         from app.models.brand import Brand
         
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Obtener los ECM asignados al plantel
         campus_standards = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).all()
@@ -2398,7 +2435,9 @@ def update_campus_competency_standards(campus_id):
         from app.models.partner import CampusCompetencyStandard
         from app.models.competency_standard import CompetencyStandard
         
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         data = request.get_json()
         
         # Lista de IDs de competency_standards a asignar
@@ -2509,7 +2548,9 @@ def get_available_competency_standards():
 def get_school_cycles(campus_id):
     """Listar ciclos escolares de un plantel"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         
@@ -2539,7 +2580,9 @@ def get_school_cycles(campus_id):
 def create_school_cycle(campus_id):
     """Crear un nuevo ciclo escolar"""
     try:
-        campus = Campus.query.get_or_404(campus_id)
+        campus, _access_error = _verify_campus_access(campus_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Verificar que el plantel esté activo
         if not campus.is_active:
@@ -5106,7 +5149,9 @@ def get_partner_users(partner_id):
 def add_user_to_partner(partner_id, user_id):
     """Asociar un usuario a un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, _access_error = _verify_partner_access(partner_id, g.current_user)
+        if _access_error:
+            return _access_error
         user = User.query.get_or_404(user_id)
         
         # Verificar si ya está asociado
@@ -5136,7 +5181,9 @@ def add_user_to_partner(partner_id, user_id):
 def remove_user_from_partner(partner_id, user_id):
     """Desasociar un usuario de un partner"""
     try:
-        partner = Partner.query.get_or_404(partner_id)
+        partner, _access_error = _verify_partner_access(partner_id, g.current_user)
+        if _access_error:
+            return _access_error
         user = User.query.get_or_404(user_id)
         
         # Verificar si está asociado
@@ -5348,7 +5395,9 @@ def link_to_partner(partner_id):
     try:
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
-        partner = Partner.query.get_or_404(partner_id)
+        partner, _access_error = _verify_partner_access(partner_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         if not partner.is_active:
             return jsonify({'error': 'Este partner no está activo'}), 400
@@ -5385,7 +5434,9 @@ def unlink_from_partner(partner_id):
     try:
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
-        partner = Partner.query.get_or_404(partner_id)
+        partner, _access_error = _verify_partner_access(partner_id, g.current_user)
+        if _access_error:
+            return _access_error
         
         # Verificar si está ligado
         if not user.partners.filter_by(id=partner_id).first():
