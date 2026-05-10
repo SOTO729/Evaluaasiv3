@@ -330,6 +330,10 @@ def _cascade_member_orphan_assignments(group_id, user_id):
 
 _VALID_ASSIGNMENT_TYPES = ('all', 'selected')
 
+# M7: Cap longitud del término de búsqueda para evitar abuso/DoS en LIKE patterns.
+# Cualquier input mayor se trunca silenciosamente antes de construir el patrón %term%.
+MAX_SEARCH_LENGTH = 500
+
 
 def _resolve_billing_coordinator_id(group, current_user):
     """Resuelve el coordinator_id que debe ser cobrado por una operación de saldo.
@@ -409,7 +413,7 @@ def get_partners():
             query = query.filter(Partner.is_active == True)
             
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             query = query.filter(
                 db.or_(
                     Partner.name.ilike(search_term),
@@ -1294,6 +1298,17 @@ def create_campus_responsable(campus_id):
         except ValueError:
             return jsonify({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
         
+        # M5: validar CURP único ANTES de la rama de update-via-email para evitar
+        # asignar al responsable existente un CURP que ya pertenece a otro usuario.
+        if not _is_generic_foreign_curp(curp):
+            existing_curp_user_pre = User.query.filter_by(curp=curp).first()
+            if existing_curp_user_pre and not (
+                replace_existing
+                and current_responsable_id
+                and existing_curp_user_pre.id == current_responsable_id
+            ):
+                return jsonify({'error': 'Ya existe un usuario con ese CURP'}), 400
+
         # Verificar email único (excepto si es el responsable actual que estamos actualizando)
         existing_email_user = User.query.filter_by(email=email).first()
         if existing_email_user:
@@ -3105,7 +3120,7 @@ def search_groups_paginated():
 
         # Búsqueda textual
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             query = query.filter(
                 db.or_(
                     CandidateGroup.name.ilike(search_term),
@@ -3668,7 +3683,7 @@ def get_group_members(group_id):
 
         # ── Búsqueda textual ──
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             valid_fields = {'name', 'first_surname', 'second_surname', 'email', 'curp', 'username'}
             if search_field and search_field in valid_fields:
                 field_map = {
@@ -4236,7 +4251,7 @@ def bulk_assign_by_criteria(group_id):
         
         # Filtro de búsqueda textual
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp']:
                 field_map = {
                     'name': User.name,
@@ -4528,7 +4543,7 @@ def search_candidates():
         # Usuarios son compartidos: todos los coordinadores ven todos los candidatos
         
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             # Si hay un campo específico, buscar solo en ese campo
             if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp']:
                 field_map = {
@@ -5172,7 +5187,7 @@ def get_partner_users(partner_id):
         query = partner.users
         
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             query = query.filter(
                 db.or_(
                     User.name.ilike(search_term),
@@ -8880,7 +8895,7 @@ def get_available_study_materials():
         query = StudyMaterial.query.filter(StudyMaterial.is_published == True)
         
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             query = query.filter(
                 db.or_(
                     StudyMaterial.title.ilike(search_term),
@@ -8973,7 +8988,7 @@ def get_available_ecms():
         )
         
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             query = query.filter(
                 db.or_(
                     CompetencyStandard.code.ilike(search_term),
@@ -9100,7 +9115,7 @@ def get_available_exams():
         query = query.outerjoin(CompetencyStandard, Exam.competency_standard_id == CompetencyStandard.id)
         
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             # Buscar también por código ECM
             query = query.filter(
                 db.or_(
@@ -9915,7 +9930,7 @@ def search_candidates_advanced():
         
         # Filtro de búsqueda textual
         if search:
-            search_term = f'%{search}%'
+            search_term = f'%{search[:MAX_SEARCH_LENGTH]}%'
             if search_field and search_field in ['name', 'first_surname', 'second_surname', 'email', 'curp']:
                 field_map = {
                     'name': User.name,
