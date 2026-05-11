@@ -32,11 +32,11 @@ def _safe_cache_get(key):
 
 
 def _safe_cache_set(key, value, timeout=300):
+    """cache.set tolerante a fallos de Redis (UM-stats-fix)."""
     try:
         cache.set(key, value, timeout=timeout)
     except Exception as _e:
         logger.warning('cache.set fallo (%s): %s', key, _e)
-
 
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
@@ -2473,7 +2473,7 @@ def get_user_stats():
         
         # Guardar en caché por 5 minutos
         _safe_cache_set(cache_key, result, timeout=300)
-
+        
         return jsonify(result)
         
     except HTTPException:
