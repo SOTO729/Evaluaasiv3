@@ -3916,6 +3916,32 @@ def get_group_members(group_id):
                     'ecm_name': row[3],
                 })
 
+        # ── Estado de validación CURP en cola RENAPO (solo página) ──
+        # Mapea user_id → status de la fila más reciente en la cola.
+        # Si no hay fila, el usuario no está encolado (verified o sin curp).
+        curp_queue_status_map = {}
+        if page_user_ids:
+            try:
+                from app.models.curp_verification import CurpVerificationQueue
+                q_rows = db.session.query(
+                    CurpVerificationQueue.user_id,
+                    CurpVerificationQueue.status,
+                    CurpVerificationQueue.created_at,
+                ).filter(
+                    CurpVerificationQueue.user_id.in_(page_user_ids)
+                ).order_by(
+                    CurpVerificationQueue.user_id,
+                    CurpVerificationQueue.created_at.desc(),
+                ).all()
+                seen = set()
+                for uid, status_q, _ in q_rows:
+                    if uid in seen:
+                        continue
+                    seen.add(uid)
+                    curp_queue_status_map[uid] = status_q
+            except Exception:
+                curp_queue_status_map = {}
+
         # ── Construir respuesta para la página ──
         members_data = []
         for m in page_members:
@@ -3967,6 +3993,27 @@ def get_group_members(group_id):
                 'can_receive_conocer': has_curp_flag,
                 'can_receive_badge': has_email_flag,
             }
+
+            # Estado de validación RENAPO del CURP (para badge en UI).
+            #   verified  → user.curp_verified=True
+            #   pending|processing → fila activa en cola
+            #   rejected|failed → última fila en cola con esos status
+            #   giveup    → curp_renapo_giveup_at IS NOT NULL
+            #   none      → sin CURP (extranjeros / falta capturar)
+            if user:
+                if not has_curp_flag:
+                    curp_status = 'none'
+                elif user.curp_verified:
+                    curp_status = 'verified'
+                elif getattr(user, 'curp_renapo_giveup_at', None):
+                    curp_status = 'giveup'
+                else:
+                    curp_status = curp_queue_status_map.get(m.user_id, 'pending')
+                member_dict['curp_status'] = curp_status
+                member_dict['curp_verified'] = bool(user.curp_verified)
+                member_dict['curp_verified_at'] = (
+                    user.curp_verified_at.isoformat() if user.curp_verified_at else None
+                )
 
             # Asignaciones ECM del candidato en este grupo
             member_dict['ecm_assignments'] = ecm_assignments_map.get(m.user_id, [])

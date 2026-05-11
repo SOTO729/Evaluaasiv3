@@ -198,6 +198,53 @@ export default function GroupMembersPage() {
     return <ArrowUpDown className="h-3 w-3 ml-1 inline opacity-30" />;
   };
 
+  const renderCurpStatusBadge = (member: GroupMember) => {
+    const status = (member as any).curp_status as string | undefined;
+    if (!status || status === 'none') return null;
+    const map: Record<string, { label: string; title: string; cls: string }> = {
+      verified: {
+        label: '✓',
+        title: 'CURP validada contra RENAPO',
+        cls: 'bg-green-100 text-green-700 border-green-300',
+      },
+      pending: {
+        label: '⏳',
+        title: 'Validación de CURP encolada (esperando turno)',
+        cls: 'bg-amber-50 text-amber-700 border-amber-200',
+      },
+      processing: {
+        label: '⏳',
+        title: 'Validando CURP contra RENAPO…',
+        cls: 'bg-blue-50 text-blue-700 border-blue-200',
+      },
+      rejected: {
+        label: '!',
+        title: 'RENAPO no encontró esta CURP — el usuario debe corregirla',
+        cls: 'bg-orange-50 text-orange-700 border-orange-200',
+      },
+      failed: {
+        label: '!',
+        title: 'Error técnico durante validación — se reintentará',
+        cls: 'bg-red-50 text-red-600 border-red-200',
+      },
+      giveup: {
+        label: '✕',
+        title: 'Reintentos automáticos terminados (>30 días sin validar) — pídele al usuario que corrija su CURP',
+        cls: 'bg-gray-100 text-gray-600 border-gray-300',
+      },
+    };
+    const cfg = map[status];
+    if (!cfg) return null;
+    return (
+      <span
+        title={cfg.title}
+        className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-none border ${cfg.cls}`}
+      >
+        {cfg.label}
+      </span>
+    );
+  };
+
   const renderEligibilityBadges = (email?: string | null, curp?: string | null) => {
     const badges = [
       { label: 'RE', title: 'Reporte de Evaluación', eligible: true },
@@ -672,7 +719,14 @@ export default function GroupMembersPage() {
                       </div>
                     </td>
                     <td className="fluid-px-4 fluid-py-3 fluid-text-sm text-gray-600 hidden lg:table-cell font-mono">
-                      {member.user?.curp || <span className="text-gray-400">-</span>}
+                      {member.user?.curp ? (
+                        <div className="flex items-center gap-2">
+                          <span>{member.user.curp}</span>
+                          {renderCurpStatusBadge(member)}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="fluid-px-4 fluid-py-3 hidden lg:table-cell">
                       {member.ecm_assignments && member.ecm_assignments.length > 0 ? (

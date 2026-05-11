@@ -36,6 +36,7 @@ with app.app_context():
             check_and_add_vm_session_ad_password,
             check_and_fix_vm_session_unique_slot,
             check_and_create_scorm_tables,
+            check_and_add_curp_giveup_column,
         )
         check_and_add_columns()
         check_and_add_study_interactive_columns()
@@ -63,6 +64,7 @@ with app.app_context():
         check_and_fix_vm_session_unique_slot()
         check_and_create_scorm_tables()
         check_and_recover_orphaned_curp_users()
+        check_and_add_curp_giveup_column()
     except Exception as e:
         print(f"⚠️  Auto-migración falló (continuando de todas formas): {e}")
 

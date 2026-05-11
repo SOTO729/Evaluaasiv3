@@ -59,6 +59,7 @@ def _run_loop(app, worker_id: str):
     BATCH_SIZE = 5  # filas por iteración
     INTER_QUERY_SLEEP = 1.5  # respiración entre consultas RENAPO
     STALE_LOCK_SWEEP_SECONDS = 300  # liberar locks zombi cada 5 min
+    DAILY_RETRY_INTERVAL_SECONDS = 24 * 3600  # cron diario re-encolado + giveup
 
     # Esperar 15s al arrancar para no competir con migraciones/startup
     time.sleep(15)
@@ -72,13 +73,22 @@ def _run_loop(app, worker_id: str):
     except Exception as e:
         logger.error(f"[CURP-WORKER] error liberando stale locks: {e}")
 
+    # One-shot backfill al arrancar: encola candidatos elegibles que nunca
+    # se procesaron (cubre datos creados antes de este release y datos en
+    # DEV/PROD con curp_verified=False sin fila activa en cola).
+    try:
+        with app.app_context():
+            enqueued = _backfill_unverified_users(reason='startup_backfill')
+            if enqueued:
+                logger.info(f"[CURP-WORKER] startup backfill: {enqueued} usuarios encolados")
+    except Exception as e:
+        logger.error(f"[CURP-WORKER] backfill startup error: {e}")
+
+    last_daily_retry = time.time()  # ya hicimos backfill, próxima en 24h
+
     while True:
         try:
-            # Sweep periódico de stale locks: recupera filas atascadas en
-            # 'processing' cuando un proceso muere o se cuelga mid-procesamiento.
-            # Sin esto, las filas quedan zombi hasta el próximo reinicio del
-            # container (puede ser días). Throttled a cada 5 min para no
-            # martillar la DB.
+            # Sweep periódico de stale locks (5 min)
             if time.time() - last_stale_sweep >= STALE_LOCK_SWEEP_SECONDS:
                 try:
                     with app.app_context():
@@ -86,6 +96,19 @@ def _run_loop(app, worker_id: str):
                 except Exception as sweep_err:
                     logger.error(f"[CURP-WORKER] error en stale sweep periódico: {sweep_err}")
                 last_stale_sweep = time.time()
+
+            # Cron diario: re-encolar candidatos sin validar + marcar giveup
+            if time.time() - last_daily_retry >= DAILY_RETRY_INTERVAL_SECONDS:
+                try:
+                    with app.app_context():
+                        n_giveup = _mark_giveup_expired_users()
+                        n_enq = _backfill_unverified_users(reason='daily_retry')
+                        logger.info(
+                            f"[CURP-WORKER] daily cron: giveup={n_giveup} encolados={n_enq}"
+                        )
+                except Exception as cron_err:
+                    logger.error(f"[CURP-WORKER] daily cron error: {cron_err}")
+                last_daily_retry = time.time()
 
             with app.app_context():
                 claimed = _claim_pending_rows(worker_id, BATCH_SIZE)
@@ -654,3 +677,149 @@ def _send_self_fix_email(user, curp: str, success: bool, result=None, error_msg:
             logger.warning(f"[CURP-WORKER] self_fix email FAIL to={user.email}")
     except Exception as e:
         logger.error(f"[CURP-WORKER] self_fix email exception to={user.email}: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Cron diario: re-encolado de candidatos sin validar + giveup tras 30 días
+# ---------------------------------------------------------------------------
+
+# Ventana en días desde created_at en la que seguimos reintentando RENAPO.
+# Pasado este umbral, marcamos curp_renapo_giveup_at y dejamos de reintentar.
+DAILY_RETRY_WINDOW_DAYS = 30
+
+# Mínimo tiempo entre intentos por usuario para no spamear RENAPO.
+# Solo encolamos si su último curp_verified_at (o último intento) es viejo.
+MIN_HOURS_BETWEEN_DAILY_RETRIES = 20
+
+
+def _backfill_unverified_users(reason: str = 'daily_retry') -> int:
+    """Encola usuarios con curp_verified=False elegibles para reintento RENAPO.
+
+    Criterios:
+      - is_active = True
+      - curp_verified = False
+      - curp IS NOT NULL y no es CURP genérica extranjera
+      - curp_renapo_giveup_at IS NULL (no se ha dado por vencido)
+      - created_at >= NOW() - DAILY_RETRY_WINDOW_DAYS (dentro de ventana)
+      - NO tiene fila activa (pending/processing) en la cola para esta CURP
+      - role = 'candidato' (no reintentar contra editores/admins)
+
+    Devuelve el número de filas encoladas.
+    """
+    from app import db
+    from app.models.user import User
+    from app.models.curp_verification import (
+        CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING,
+    )
+
+    # Constantes locales (no importamos las de routes para no acoplar)
+    GENERIC_FOREIGN_CURPS = {
+        'XEXX010101HNEXXXA4',  # masculino genérico SEP
+        'XEXX010101MNEXXXA8',  # femenino genérico SEP
+    }
+
+    cutoff = datetime.utcnow() - timedelta(days=DAILY_RETRY_WINDOW_DAYS)
+    min_gap = datetime.utcnow() - timedelta(hours=MIN_HOURS_BETWEEN_DAILY_RETRIES)
+
+    try:
+        # Subquery: user_ids con fila activa en cola
+        active_q = db.session.query(CurpVerificationQueue.user_id).filter(
+            CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING])
+        ).subquery()
+
+        candidates = User.query.filter(
+            User.is_active == True,  # noqa: E712
+            User.curp_verified == False,  # noqa: E712
+            User.curp.isnot(None),
+            User.curp != '',
+            User.curp_renapo_giveup_at.is_(None),
+            User.created_at >= cutoff,
+            User.role == 'candidato',
+            ~User.curp.in_(GENERIC_FOREIGN_CURPS),
+            ~User.id.in_(db.session.query(active_q.c.user_id)),
+        )
+
+        # Para reason='daily_retry': solo si su último verified_at es viejo
+        # (o nulo). Para 'startup_backfill': todos.
+        if reason == 'daily_retry':
+            candidates = candidates.filter(
+                db.or_(
+                    User.curp_verified_at.is_(None),
+                    User.curp_verified_at <= min_gap,
+                )
+            )
+
+        users = candidates.limit(2000).all()
+        if not users:
+            return 0
+
+        enqueued = 0
+        for u in users:
+            try:
+                row = CurpVerificationQueue(
+                    user_id=u.id,
+                    curp=(u.curp or '').upper().strip(),
+                    source=reason,
+                    batch_id=None,
+                    status=QUEUE_PENDING,
+                    next_retry_at=datetime.utcnow(),
+                )
+                db.session.add(row)
+                enqueued += 1
+                # Commit cada 100 para no acumular transacción larga
+                if enqueued % 100 == 0:
+                    db.session.commit()
+            except Exception as e:
+                logger.error(f"[CURP-WORKER] backfill add error user={u.id}: {e}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+        try:
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"[CURP-WORKER] backfill final commit: {e}")
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+        return enqueued
+    except Exception as e:
+        logger.error(f"[CURP-WORKER] _backfill_unverified_users error: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return 0
+
+
+def _mark_giveup_expired_users() -> int:
+    """Marca curp_renapo_giveup_at en candidatos que llevan >30 días con
+    curp_verified=False. A partir de ese momento ya no se reencolan
+    automáticamente. El usuario sigue pudiendo corregir su CURP
+    manualmente desde /mi-curp o ProfilePage.
+    """
+    from app import db
+    from app.models.user import User
+
+    cutoff = datetime.utcnow() - timedelta(days=DAILY_RETRY_WINDOW_DAYS)
+    try:
+        affected = User.query.filter(
+            User.is_active == True,  # noqa: E712
+            User.curp_verified == False,  # noqa: E712
+            User.curp_renapo_giveup_at.is_(None),
+            User.created_at < cutoff,
+            User.role == 'candidato',
+        ).update(
+            {'curp_renapo_giveup_at': datetime.utcnow()},
+            synchronize_session=False,
+        )
+        db.session.commit()
+        return int(affected or 0)
+    except Exception as e:
+        logger.error(f"[CURP-WORKER] _mark_giveup_expired_users error: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return 0

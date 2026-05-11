@@ -83,6 +83,7 @@ class User(db.Model):
     curp_renapo_name = db.Column(db.String(100), nullable=True)  # Nombre(s) devuelto por RENAPO
     curp_renapo_first_surname = db.Column(db.String(100), nullable=True)  # Primer apellido RENAPO
     curp_renapo_second_surname = db.Column(db.String(100), nullable=True)  # Segundo apellido RENAPO
+    curp_renapo_giveup_at = db.Column(db.DateTime, nullable=True)  # Fin de reintentos automáticos diarios (30d o N rechazos)
     phone = db.Column(db.String(20))
     
     # Institucional

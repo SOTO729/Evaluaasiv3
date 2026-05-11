@@ -1681,6 +1681,35 @@ def check_and_add_user_soft_delete_columns():
             pass
 
 
+def check_and_add_curp_giveup_column():
+    """Agregar columna curp_renapo_giveup_at a users.
+
+    Marca el momento en que el sistema deja de reintentar la validación
+    RENAPO automáticamente (30 días desde creación o N rechazos).
+    """
+    print("🔍 Verificando columna curp_renapo_giveup_at en users...")
+    db_type = get_db_type()
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('users')]
+        if 'curp_renapo_giveup_at' in existing_columns:
+            print("  ✓ Columna curp_renapo_giveup_at ya existe")
+            return
+        col_def = 'DATETIME NULL' if db_type == 'mssql' else 'TIMESTAMP NULL'
+        db.session.execute(text(f"ALTER TABLE users ADD curp_renapo_giveup_at {col_def}"))
+        db.session.commit()
+        print("  ✓ Columna curp_renapo_giveup_at agregada")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna curp_renapo_giveup_at ya existe")
+        else:
+            print(f"  ❌ Error en check_and_add_curp_giveup_column: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def check_and_add_result_mode_column():
     """Agregar columna mode a results para distinguir exam vs simulator"""
     print("🔍 Verificando columna mode en results...")
