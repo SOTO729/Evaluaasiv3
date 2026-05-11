@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { authService } from '../services/authService'
 import api from '../services/api'
+import { submitOwnCurp, getOwnCurpStatus } from '../services/curpValidationService'
 import { 
   Mail, 
   Calendar, 
@@ -60,6 +61,8 @@ interface UserProfile {
   created_at: string
   last_login?: string
   curp?: string
+  curp_verified?: boolean
+  curp_verified_at?: string | null
   phone?: string
   campus_id?: number
   subsystem_id?: number
@@ -179,9 +182,12 @@ const ProfilePage = () => {
 
   // CURP validation
   const [curpInput, setCurpInput] = useState('')
-  const [curpValidating, setCurpValidating] = useState(false)
+  const [curpValidating, setCurpValidating] = useState(false) // submitting el POST
+  const [curpVerifying, setCurpVerifying] = useState(false)   // RENAPO en background
   const [curpError, setCurpError] = useState<string | null>(null)
   const [curpSuccess, setCurpSuccess] = useState(false)
+  const curpPollTimerRef = useRef<number | null>(null)
+  const curpPollAttemptsRef = useRef(0)
 
   // Historial de asignaciones
   const [assignments, setAssignments] = useState<Assignment[]>([])
@@ -267,6 +273,56 @@ const ProfilePage = () => {
     }
   }
 
+  const stopCurpPolling = () => {
+    if (curpPollTimerRef.current) {
+      window.clearTimeout(curpPollTimerRef.current)
+      curpPollTimerRef.current = null
+    }
+  }
+
+  const startCurpPolling = () => {
+    curpPollAttemptsRef.current = 0
+    const tick = async () => {
+      try {
+        const st = await getOwnCurpStatus()
+        curpPollAttemptsRef.current += 1
+        if (st.curp_verified) {
+          // Validada exitosamente
+          stopCurpPolling()
+          setCurpVerifying(false)
+          setCurpSuccess(true)
+          setSuccess('Tu CURP fue validada exitosamente. Tus datos se actualizaron con la información de RENAPO.')
+          setTimeout(() => setSuccess(null), 6000)
+          await loadProfile()
+          return
+        }
+        if (!st.verifying) {
+          // Worker terminó sin éxito → revertir a estado "necesita corrección"
+          stopCurpPolling()
+          setCurpVerifying(false)
+          setCurpError(
+            'No pudimos validar tu CURP contra RENAPO. Verifica que esté escrita correctamente y vuelve a intentarlo. ' +
+            'También te enviamos un correo con el resultado.'
+          )
+          await loadProfile()
+          return
+        }
+        // Sigue verificando — reagendar hasta ~10 min total (150 intentos a 4s)
+        if (curpPollAttemptsRef.current < 150) {
+          curpPollTimerRef.current = window.setTimeout(tick, 4000)
+        } else {
+          // No abortamos en backend, solo dejamos de pollear. El email avisará.
+          stopCurpPolling()
+          setCurpVerifying(false)
+        }
+      } catch {
+        // Error de red: reintentar más espaciado
+        curpPollTimerRef.current = window.setTimeout(tick, 8000)
+      }
+    }
+    curpPollTimerRef.current = window.setTimeout(tick, 4000)
+  }
+
   const handleValidateCurp = async () => {
     const curp = curpInput.trim().toUpperCase()
     if (!curp) { setCurpError('Ingresa tu CURP'); return }
@@ -276,33 +332,70 @@ const ProfilePage = () => {
     try {
       setCurpValidating(true)
       setCurpError(null)
-      const response = await api.post('/users/my-curp', { curp })
-      const data = response.data
-      if (data.valid) {
-        setCurpSuccess(true)
-        // Update profile with the returned user data
-        if (data.user) {
-          setProfile(data.user as UserProfile)
-          updateUser(data.user)
-          setEditData({
-            name: data.user.name || '',
-            first_surname: data.user.first_surname || '',
-            second_surname: data.user.second_surname || '',
-            phone: data.user.phone || '',
-            gender: data.user.gender || ''
-          })
-        }
-        setSuccess('CURP validada correctamente. Tus datos han sido actualizados con la información de RENAPO.')
-        setTimeout(() => setSuccess(null), 6000)
-      } else {
-        setCurpError(data.error || 'CURP no válida')
+      const result = await submitOwnCurp(curp)
+
+      if ('verifying' in result && result.verifying) {
+        // Encolada — el worker la procesará en segundo plano y notificará por email
+        setCurpVerifying(true)
+        setSuccess(result.message)
+        setTimeout(() => setSuccess(null), 10000)
+        await loadProfile()
+        startCurpPolling()
+        return
       }
+
+      if ('valid' in result && result.valid) {
+        // Caso especial: CURP genérica de extranjero — respuesta inmediata
+        setCurpSuccess(true)
+        setSuccess(result.message || 'CURP aceptada.')
+        setTimeout(() => setSuccess(null), 6000)
+        await loadProfile()
+        return
+      }
+
+      // valid === false → error de formato, duplicado, etc.
+      const err = ('error' in result && result.error) ? result.error : 'CURP no válida'
+      setCurpError(err)
     } catch (err: any) {
-      setCurpError(err.response?.data?.error || 'Error al validar la CURP')
+      setCurpError(err?.response?.data?.error || 'Error al validar la CURP')
     } finally {
       setCurpValidating(false)
     }
   }
+
+  // Limpieza del timer al desmontar
+  useEffect(() => {
+    return () => stopCurpPolling()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Al cargar el perfil: si hay verificación de CURP en curso para este usuario,
+  // retomar el polling para que el usuario vea el resultado cuando llegue.
+  useEffect(() => {
+    if (!profile) return
+    if (profile.curp_verified) return
+    if (profile.role !== 'candidato' && profile.role !== 'responsable') return
+    if (!profile.curp) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const st = await getOwnCurpStatus()
+        if (cancelled) return
+        if (st.curp_verified) {
+          await loadProfile()
+          return
+        }
+        if (st.verifying && !curpVerifying) {
+          setCurpVerifying(true)
+          startCurpPolling()
+        }
+      } catch {
+        /* noop */
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, profile?.curp_verified, profile?.curp])
 
   const handleChangeEmail = async () => {
     if (!newEmail || !emailPassword) {
@@ -711,59 +804,87 @@ const ProfilePage = () => {
               
               <div className="fluid-p-5">
                 <label className="block fluid-text-xs font-medium text-gray-500 uppercase tracking-wide fluid-mb-1">CURP</label>
-                {profile?.curp ? (
-                  <div className="flex items-center fluid-gap-2">
-                    <p className="text-gray-900 font-mono fluid-text-sm font-medium break-all tracking-wide">{profile.curp}</p>
-                    {profile.curp && <CheckCircle2 className="fluid-icon-xs text-green-500 flex-shrink-0" />}
-                  </div>
-                ) : (profile?.role === 'candidato' || profile?.role === 'responsable') ? (
-                  <div className="fluid-mt-1">
-                    <p className="fluid-text-xs text-gray-500 fluid-mb-2">
-                      Ingresa tu CURP para validarla con RENAPO. Tus datos personales se actualizarán automáticamente.
-                    </p>
-                    <div className="flex fluid-gap-2">
-                      <input
-                        type="text"
-                        value={curpInput}
-                        onChange={(e) => { setCurpInput(e.target.value.toUpperCase()); setCurpError(null); setCurpSuccess(false) }}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !curpValidating) handleValidateCurp() }}
-                        maxLength={18}
-                        placeholder="GARL850101HDFRRL09"
-                        disabled={curpValidating || curpSuccess}
-                        className="flex-1 fluid-px-3 fluid-py-2 border border-gray-200 rounded-fluid-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-sm font-mono uppercase tracking-wider bg-gray-50 disabled:opacity-50"
-                      />
-                      <button
-                        onClick={handleValidateCurp}
-                        disabled={curpValidating || curpSuccess || !curpInput.trim()}
-                        className="inline-flex items-center fluid-gap-1 fluid-px-4 fluid-py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-semibold rounded-fluid-md fluid-text-sm transition-colors"
-                      >
-                        {curpValidating ? (
-                          <Loader2 className="fluid-icon-sm animate-spin" />
-                        ) : curpSuccess ? (
-                          <CheckCircle2 className="fluid-icon-sm" />
-                        ) : (
-                          <Search className="fluid-icon-sm" />
+                {(() => {
+                  const isCandRes = profile?.role === 'candidato' || profile?.role === 'responsable'
+                  const verified = !!profile?.curp_verified
+                  const hasCurp = !!profile?.curp?.trim()
+                  // 1) Validada → muestra solo el dato
+                  if (hasCurp && verified) {
+                    return (
+                      <div className="flex items-center fluid-gap-2">
+                        <p className="text-gray-900 font-mono fluid-text-sm font-medium break-all tracking-wide">{profile?.curp}</p>
+                        <CheckCircle2 className="fluid-icon-xs text-green-500 flex-shrink-0" />
+                      </div>
+                    )
+                  }
+                  // 2) Hay CURP pero está siendo verificada en background (post-submit)
+                  if (hasCurp && isCandRes && curpVerifying) {
+                    return (
+                      <div className="fluid-mt-1">
+                        <div className="flex items-center fluid-gap-2 fluid-mb-2">
+                          <p className="text-gray-900 font-mono fluid-text-sm font-medium break-all tracking-wide">{profile?.curp}</p>
+                          <Loader2 className="fluid-icon-xs text-amber-500 animate-spin flex-shrink-0" />
+                        </div>
+                        <div className="flex items-start fluid-gap-2 fluid-text-xs text-amber-800 bg-amber-50 border border-amber-200 fluid-p-3 rounded-fluid-md">
+                          <Loader2 className="fluid-icon-sm animate-spin flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-medium">Validando tu CURP contra RENAPO…</p>
+                            <p className="fluid-mt-1">
+                              Puedes cerrar esta página. Te enviaremos un correo a <b>{profile?.email}</b> cuando termine.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  }
+                  // 3) Candidato/responsable sin CURP, o con CURP rechazada → mostrar input
+                  if (isCandRes) {
+                    const placeholder = hasCurp ? (profile?.curp || '') : 'GARL850101HDFRRL09'
+                    const helper = hasCurp
+                      ? 'Tu CURP anterior no fue validada por RENAPO. Verifica que esté escrita correctamente y vuelve a enviarla.'
+                      : 'Ingresa tu CURP para validarla con RENAPO. Tus datos personales se actualizarán automáticamente.'
+                    return (
+                      <div className="fluid-mt-1">
+                        <p className="fluid-text-xs text-gray-500 fluid-mb-2">{helper}</p>
+                        <div className="flex fluid-gap-2">
+                          <input
+                            type="text"
+                            value={curpInput}
+                            onChange={(e) => { setCurpInput(e.target.value.toUpperCase()); setCurpError(null); setCurpSuccess(false) }}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && !curpValidating) handleValidateCurp() }}
+                            maxLength={18}
+                            placeholder={placeholder}
+                            disabled={curpValidating || curpSuccess}
+                            className="flex-1 fluid-px-3 fluid-py-2 border border-gray-200 rounded-fluid-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500 fluid-text-sm font-mono uppercase tracking-wider bg-gray-50 disabled:opacity-50"
+                          />
+                          <button
+                            onClick={handleValidateCurp}
+                            disabled={curpValidating || curpSuccess || !curpInput.trim()}
+                            className="inline-flex items-center fluid-gap-1 fluid-px-4 fluid-py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white font-semibold rounded-fluid-md fluid-text-sm transition-colors"
+                          >
+                            {curpValidating ? (
+                              <Loader2 className="fluid-icon-sm animate-spin" />
+                            ) : curpSuccess ? (
+                              <CheckCircle2 className="fluid-icon-sm" />
+                            ) : (
+                              <Search className="fluid-icon-sm" />
+                            )}
+                            {curpValidating ? 'Enviando…' : curpSuccess ? 'Validada' : 'Validar'}
+                          </button>
+                        </div>
+                        <p className="fluid-text-xs text-gray-400 fluid-mt-1">{curpInput.length}/18 caracteres</p>
+                        {curpError && (
+                          <div className="fluid-mt-2 flex items-center fluid-gap-1 fluid-text-xs text-red-600">
+                            <AlertCircle className="fluid-icon-xs flex-shrink-0" />
+                            {curpError}
+                          </div>
                         )}
-                        {curpValidating ? 'Validando...' : curpSuccess ? 'Validada' : 'Validar'}
-                      </button>
-                    </div>
-                    <p className="fluid-text-xs text-gray-400 fluid-mt-1">{curpInput.length}/18 caracteres</p>
-                    {curpError && (
-                      <div className="fluid-mt-2 flex items-center fluid-gap-1 fluid-text-xs text-red-600">
-                        <AlertCircle className="fluid-icon-xs flex-shrink-0" />
-                        {curpError}
                       </div>
-                    )}
-                    {curpValidating && (
-                      <div className="fluid-mt-2 flex items-center fluid-gap-2 fluid-text-xs text-amber-700 bg-amber-50 fluid-p-2 rounded-fluid-md">
-                        <Loader2 className="fluid-icon-xs animate-spin flex-shrink-0" />
-                        Consultando RENAPO, esto puede tomar unos segundos...
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-900 font-mono fluid-text-sm font-medium">No registrado</p>
-                )}
+                    )
+                  }
+                  // 4) Otros roles sin CURP
+                  return <p className="text-gray-900 font-mono fluid-text-sm font-medium">No registrado</p>
+                })()}
               </div>
             </div>
           )}

@@ -340,6 +340,12 @@ def _process_queue_row(q_id, worker_id: str):
             row.finished_at = datetime.utcnow()
             db.session.commit()
             logger.info(f"[CURP-WORKER] q={row.id} CURP {row.curp} VÁLIDA — usuario {user.id}")
+            # Notificar al usuario si fue una corrección self-fix
+            if row.source == 'self_fix':
+                try:
+                    _send_self_fix_email(user, row.curp, success=True, result=result)
+                except Exception as mail_err:
+                    logger.error(f"[CURP-WORKER] q={row.id} no se pudo enviar email éxito a {user.id}: {mail_err}")
         except Exception as apply_err:
             logger.error(f"[CURP-WORKER] q={row.id} error aplicando RENAPO: {apply_err}")
             try:
@@ -370,6 +376,12 @@ def _process_queue_row(q_id, worker_id: str):
         row.finished_at = datetime.utcnow()
         db.session.commit()
         logger.info(f"[CURP-WORKER] q={row.id} CURP {row.curp} delegada a usuario tras {row.attempts} intentos")
+        # Notificar al usuario si fue una corrección self-fix
+        if row.source == 'self_fix':
+            try:
+                _send_self_fix_email(user, row.curp, success=False, error_msg=row.last_error)
+            except Exception as mail_err:
+                logger.error(f"[CURP-WORKER] q={row.id} no se pudo enviar email rechazo a {user.id}: {mail_err}")
     else:
         # Reintentar con backoff: 15min, 30min, 1h, 2h, 4h
         backoff_minutes = 15 * (2 ** (row.attempts - 1))
@@ -542,3 +554,103 @@ def enqueue_curp_verification(user_id: str, curp: str, source: str = 'bulk', bat
         except Exception:
             pass
         return None
+
+
+# ---------------------------------------------------------------------------
+# Email al USUARIO (self-fix) cuando termina la validación de su propia CURP
+# ---------------------------------------------------------------------------
+
+def _send_self_fix_email(user, curp: str, success: bool, result=None, error_msg: str = None):
+    """Envía un correo al propio usuario notificándole el resultado de su
+    intento de corregir la CURP. Best-effort: si no tiene email, simplemente
+    se omite (el desbloqueo del usuario ya ocurrió en la transacción previa).
+    """
+    if not user or not getattr(user, 'email', None):
+        logger.info(f"[CURP-WORKER] self_fix sin email para user={getattr(user,'id',None)} — solo desbloqueo silencioso")
+        return
+
+    from app.services.email_service import send_email
+    from flask import current_app
+
+    # Construir URL de regreso al dashboard si está disponible
+    try:
+        frontend_url = current_app.config.get('FRONTEND_URL') or current_app.config.get('PUBLIC_URL') or ''
+    except Exception:
+        frontend_url = ''
+    dashboard_link = f"{frontend_url.rstrip('/')}/dashboard" if frontend_url else None
+
+    nombre_display = (getattr(user, 'name', '') or '').strip() or user.email
+
+    if success:
+        subject = 'Tu CURP fue validada correctamente'
+        renapo_block = ''
+        if result is not None:
+            try:
+                renapo_block = (
+                    '<p style="margin:16px 0 8px 0;color:#444"><b>Datos verificados con RENAPO:</b></p>'
+                    f'<ul style="margin:0;padding-left:20px;color:#444">'
+                    f'<li>Nombre: {(result.name or "—")}</li>'
+                    f'<li>Primer apellido: {(result.first_surname or "—")}</li>'
+                    f'<li>Segundo apellido: {(result.second_surname or "—")}</li>'
+                    f'</ul>'
+                )
+            except Exception:
+                renapo_block = ''
+        link_html = (
+            f'<p><a href="{dashboard_link}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Ir a mi dashboard</a></p>'
+            if dashboard_link else ''
+        )
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#222">
+          <h2 style="color:#16a34a;margin:0 0 8px 0">✓ Tu CURP fue validada</h2>
+          <p>Hola {nombre_display},</p>
+          <p>Tu CURP <b>{curp}</b> fue validada exitosamente contra RENAPO. Ya puedes
+             continuar usando la plataforma con normalidad.</p>
+          {renapo_block}
+          {link_html}
+          <p style="color:#777;font-size:12px;margin-top:24px">
+             Si no realizaste esta solicitud, por favor avisa a tu coordinador.
+          </p>
+        </div>
+        """
+        plain = (
+            f"Hola {nombre_display},\n\n"
+            f"Tu CURP {curp} fue validada exitosamente contra RENAPO. "
+            f"Ya puedes continuar usando la plataforma.\n"
+        )
+    else:
+        subject = 'No pudimos validar tu CURP'
+        link_html = (
+            f'<p><a href="{dashboard_link}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Corregir mi CURP</a></p>'
+            if dashboard_link else ''
+        )
+        err_detail = f'<p style="color:#666;font-size:13px"><b>Detalle:</b> {error_msg or "CURP no encontrada en RENAPO"}</p>' if error_msg else ''
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;color:#222">
+          <h2 style="color:#dc2626;margin:0 0 8px 0">✗ No pudimos validar tu CURP</h2>
+          <p>Hola {nombre_display},</p>
+          <p>La CURP <b>{curp}</b> no pudo ser validada contra RENAPO después de
+             varios intentos. Por favor revisa que esté escrita exactamente como
+             aparece en tu documento oficial (acta de nacimiento o constancia
+             CURP) y vuelve a intentarlo desde tu perfil.</p>
+          {err_detail}
+          {link_html}
+          <p style="color:#777;font-size:12px;margin-top:24px">
+             Si crees que se trata de un error, contacta a tu coordinador.
+          </p>
+        </div>
+        """
+        plain = (
+            f"Hola {nombre_display},\n\n"
+            f"No pudimos validar tu CURP {curp} contra RENAPO. Por favor verifica "
+            f"que esté escrita correctamente y vuelve a intentarlo desde tu perfil.\n"
+        )
+
+    try:
+        ok = send_email(to=user.email, subject=subject, html=html, plain_text=plain)
+        if ok:
+            logger.info(f"[CURP-WORKER] self_fix email OK to={user.email} success={success}")
+        else:
+            logger.warning(f"[CURP-WORKER] self_fix email FAIL to={user.email}")
+    except Exception as e:
+        logger.error(f"[CURP-WORKER] self_fix email exception to={user.email}: {e}")

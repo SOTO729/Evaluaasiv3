@@ -3259,23 +3259,24 @@ def _run_candidate_curp_verification(app_obj, user_id, curp, max_rounds: int = 6
 @jwt_required()
 @rate_limit(limit=10, window=60, key_prefix='rl_um_mecurp')
 def candidate_validate_own_curp():
-    """Permite al candidato validar/corregir su propia CURP contra RENAPO.
+    """Permite al usuario (candidato o responsable) corregir su CURP contra RENAPO.
 
-    Flujo:
-      1. Candidato envía nueva CURP.
-      2. Se valida formato + unicidad (síncrono, rápido).
-      3. Se persiste la nueva CURP y se ponen los GroupMembers en
-         estado 'curp_verifying'.
-      4. Se lanza un thread en segundo plano que aplica las MISMAS reglas
-         que la verificación masiva: hasta 6 rondas iterativas contra RENAPO,
-         con 7 reintentos internos por consulta, y pausa de 5s entre rondas.
-      5. Mientras tanto el endpoint regresa 202 con {verifying: true} para que
-         el frontend haga polling a `/me/curp-status`.
-      6. Si todas las rondas fallan, los GroupMembers vuelven a 'curp_required'
-         para que el candidato pueda corregir su CURP.
+    Flujo 100% asíncrono — el usuario NO necesita quedarse en la página:
+      1. Se valida formato + unicidad localmente (síncrono, rápido).
+      2. Se persiste la nueva CURP en `users.curp` y se ponen los GroupMembers
+         del usuario en estado 'curp_verifying'.
+      3. Se cancelan filas previas en la cola para este usuario y se inserta
+         una nueva fila con `source='self_fix'`.
+      4. El worker procesa la cola en background. Cuando termina:
+           - Si RENAPO valida: marca `curp_verified=True`, desbloquea GroupMembers
+             a 'active' y envía email al usuario "Tu CURP fue validada".
+           - Si RENAPO rechaza tras los reintentos: GroupMembers vuelven a
+             'curp_required' y envía email al usuario "No pudimos validar tu CURP".
+      5. El endpoint responde inmediatamente con 202 `{verifying: true}` —
+         el frontend puede mostrar un mensaje "te avisaremos por correo" o
+         hacer polling a `/me/curp-status` si quiere actualización en vivo.
 
-    CURPs genéricas de extranjero se aceptan inmediatamente sin RENAPO.
-    Solo para candidatos cuya CURP aún no está verificada.
+    CURPs genéricas de extranjero se aceptan inmediatamente sin RENAPO (200).
     """
     try:
         current_user_id = get_jwt_identity()
@@ -3283,8 +3284,8 @@ def candidate_validate_own_curp():
         if not user:
             return jsonify({'error': 'Usuario no encontrado'}), 404
 
-        if user.role != 'candidato':
-            return jsonify({'error': 'Solo los candidatos pueden usar este endpoint'}), 403
+        if user.role not in ('candidato', 'responsable'):
+            return jsonify({'error': 'Solo candidatos y responsables pueden usar este endpoint'}), 403
 
         if user.curp_verified:
             return jsonify({
@@ -3301,8 +3302,6 @@ def candidate_validate_own_curp():
         # CURP genérica de extranjero — aceptar sin RENAPO
         if _is_generic_foreign_curp(new_curp):
             user.curp = new_curp
-            # No se marca curp_verified porque es genérica; el flag
-            # requires_curp_validation usa _GENERIC_FOREIGN para no bloquear.
             from app.models.partner import GroupMember
             for gm in GroupMember.query.filter_by(user_id=user.id).all():
                 if gm.status in ('curp_required', 'curp_pending', 'curp_verifying'):
@@ -3339,113 +3338,63 @@ def candidate_validate_own_curp():
                 'reason': 'duplicate'
             }), 409
 
-        # ===== Validación SÍNCRONA contra RENAPO =====
-        # En el flujo self-service el usuario está esperando frente a la pantalla.
-        # No tiene sentido encolar y hacerlo polling 12h. Llamamos directo al
-        # servicio (con cache + circuit-breaker) y respondemos en el mismo
-        # request con el veredicto. Si RENAPO está caído devolvemos
-        # service_unavailable para que el usuario reintente más tarde.
-        from app.services.renapo_service import (
-            validate_curp_renapo,
-            apply_renapo_to_user,
-            is_renapo_circuit_open,
+        # ===== Encolar para validación ASÍNCRONA contra RENAPO =====
+        # No bloqueamos al usuario esperando 25s+. Persistimos la CURP, marcamos
+        # los GroupMembers como 'curp_verifying' y delegamos al worker. El
+        # worker enviará un email al usuario cuando termine (éxito o rechazo).
+        from app.models.curp_verification import (
+            CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING, QUEUE_FAILED,
         )
         from app.models.partner import GroupMember
 
-        # Si circuit breaker está abierto, no consultamos RENAPO; respondemos
-        # service_unavailable inmediatamente.
-        if is_renapo_circuit_open():
-            return jsonify({
-                'valid': False,
-                'curp': new_curp,
-                'error': 'El servicio RENAPO no está disponible en este momento. Intenta de nuevo en unos minutos.',
-                'reason': 'service_unavailable',
-            }), 503
-
-        try:
-            result = validate_curp_renapo(new_curp, use_cache=True)
-        except Exception as renapo_err:
-            import logging
-            logging.getLogger(__name__).error(f'[ME-CURP] error consultando RENAPO: {renapo_err}')
-            return jsonify({
-                'valid': False,
-                'curp': new_curp,
-                'error': 'No fue posible contactar al servicio de validación. Intenta de nuevo en unos minutos.',
-                'reason': 'service_unavailable',
-            }), 503
-
-        # Circuit-open detectado por el servicio durante la consulta
-        if (result.error or '').lower().startswith('servicio renapo temporalmente no disponible'):
-            return jsonify({
-                'valid': False,
-                'curp': new_curp,
-                'error': 'El servicio RENAPO no está disponible en este momento. Intenta de nuevo en unos minutos.',
-                'reason': 'service_unavailable',
-            }), 503
-
-        if result.valid:
-            try:
-                user.curp = new_curp
-                apply_renapo_to_user(user, result)
-                user.is_active = True
-                for gm in GroupMember.query.filter_by(user_id=user.id).all():
-                    if gm.status in ('curp_required', 'curp_pending', 'curp_verifying'):
-                        gm.status = 'active'
-                # Cancelar cualquier fila pending/processing en la cola para este usuario
-                try:
-                    from app.models.curp_verification import (
-                        CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING, QUEUE_DONE
-                    )
-                    CurpVerificationQueue.query.filter(
-                        CurpVerificationQueue.user_id == user.id,
-                        CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING]),
-                    ).update({
-                        'status': QUEUE_DONE,
-                        'finished_at': datetime.utcnow(),
-                    }, synchronize_session=False)
-                except Exception:
-                    pass
-                db.session.commit()
-            except Exception as apply_err:
-                db.session.rollback()
-                import logging
-                logging.getLogger(__name__).error(f'[ME-CURP] error aplicando RENAPO: {apply_err}')
-                return jsonify({
-                    'valid': False,
-                    'curp': new_curp,
-                    'error': 'No fue posible guardar tu validación. Intenta de nuevo.',
-                    'reason': 'persist',
-                }), 500
-            return jsonify({
-                'valid': True,
-                'curp': new_curp,
-                'message': 'CURP validada exitosamente contra RENAPO.',
-                'data': {
-                    'name': result.name,
-                    'first_surname': result.first_surname,
-                    'second_surname': result.second_surname,
-                    'gender': result.gender,
-                },
-                'user': user.to_dict() if hasattr(user, 'to_dict') else None,
-            }), 200
-
-        # RENAPO respondió que la CURP NO existe
-        # Persistimos la CURP intentada para que el usuario la vea, pero no la
-        # marcamos verificada. Los GroupMembers vuelven a 'curp_required'.
         try:
             user.curp = new_curp
             for gm in GroupMember.query.filter_by(user_id=user.id).all():
-                if gm.status in ('curp_pending', 'curp_verifying', 'active'):
-                    gm.status = 'curp_required'
+                if gm.status in ('curp_required', 'curp_pending', 'active'):
+                    gm.status = 'curp_verifying'
+
+            # Cancelar filas previas en la cola para este usuario (CURPs
+            # anteriores que ya no aplican o reintentos del mismo CURP).
+            CurpVerificationQueue.query.filter(
+                CurpVerificationQueue.user_id == user.id,
+                CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING]),
+            ).update({
+                'status': QUEUE_FAILED,
+                'finished_at': datetime.utcnow(),
+                'last_error': 'Reemplazado por nueva CURP enviada por el usuario',
+                'locked_at': None,
+                'locked_by': None,
+            }, synchronize_session=False)
+
+            # Insertar nueva entrada en la cola
+            new_row = CurpVerificationQueue(
+                user_id=user.id,
+                curp=new_curp,
+                status=QUEUE_PENDING,
+                source='self_fix',  # marca para que el worker notifique al usuario
+                next_retry_at=datetime.utcnow(),
+            )
+            db.session.add(new_row)
             db.session.commit()
-        except Exception:
+        except Exception as enq_err:
             db.session.rollback()
+            import logging
+            logging.getLogger(__name__).error(f'[ME-CURP] error encolando: {enq_err}')
+            return jsonify({
+                'valid': False,
+                'curp': new_curp,
+                'error': 'No fue posible registrar tu solicitud. Intenta de nuevo.',
+                'reason': 'persist',
+            }), 500
+
         return jsonify({
-            'valid': False,
+            'verifying': True,
             'curp': new_curp,
-            'error': result.error or 'CURP no encontrada en RENAPO. Verifica que esté escrita correctamente.',
-            'reason': 'not_found',
-        }), 404
+            'message': (
+                'Tu CURP se está validando contra RENAPO en segundo plano. '
+                'Puedes cerrar esta página: te enviaremos un correo cuando termine.'
+            ),
+        }), 202
 
     except HTTPException:
         raise
@@ -3465,10 +3414,21 @@ def candidate_curp_status():
             return jsonify({'error': 'Usuario no encontrado'}), 404
 
         from app.models.partner import GroupMember
+        from app.models.curp_verification import (
+            CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING,
+        )
         gm_statuses = [
             gm.status for gm in GroupMember.query.filter_by(user_id=user.id).all()
         ]
-        verifying = any(s == 'curp_verifying' for s in gm_statuses)
+        # 'verifying' es verdadero si:
+        #   - algún GroupMember está en estado 'curp_verifying', O
+        #   - hay una fila pending/processing en la cola para este usuario
+        #     (cubre el caso de responsables que no tienen GroupMember).
+        queue_active = db.session.query(CurpVerificationQueue.id).filter(
+            CurpVerificationQueue.user_id == user.id,
+            CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING]),
+        ).first()
+        verifying = any(s == 'curp_verifying' for s in gm_statuses) or bool(queue_active)
         return jsonify({
             'user_id': user.id,
             'curp': user.curp,
@@ -3476,7 +3436,7 @@ def candidate_curp_status():
             'curp_verified_at': user.curp_verified_at.isoformat() if user.curp_verified_at else None,
             'verifying': verifying,
             'requires_validation': bool(
-                user.role == 'candidato'
+                user.role in ('candidato', 'responsable')
                 and not user.curp_verified
                 and (user.curp or '').upper().strip() not in GENERIC_FOREIGN_CURPS
             ),
