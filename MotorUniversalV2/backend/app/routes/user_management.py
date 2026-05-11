@@ -679,6 +679,7 @@ def get_user_detail(user_id):
 @bp.route('/users/<string:user_id>/group-history', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_gh')  # UM-N3
 def get_user_group_history(user_id):
     """Obtener historial completo de grupos de un candidato con asignaciones y resultados"""
     try:
@@ -821,6 +822,7 @@ def get_user_group_history(user_id):
 @bp.route('/users/check-name-similarity', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=120, window=60, key_prefix='rl_um_namesim')  # UM-N1
 def check_name_similarity():
     """
     Busca usuarios existentes con nombre similar (exacto o parcial).
@@ -840,10 +842,12 @@ def check_name_similarity():
         seen_ids = set()
 
         # 1. Coincidencia EXACTA: nombre + primer_apellido + segundo_apellido
+        # UM-N1: filtrar is_deleted para no exponer PII de usuarios eliminados.
         exact_filters = [
             func.lower(func.ltrim(func.rtrim(User.name))) == name.lower(),
             func.lower(func.ltrim(func.rtrim(User.first_surname))) == first_surname.lower(),
             User.is_active == True,
+            User.is_deleted == False,  # noqa: E712
         ]
         if second_surname:
             exact_filters.append(
@@ -867,11 +871,13 @@ def check_name_similarity():
                 })
 
         # 2. Coincidencia PARCIAL: nombre + primer_apellido (sin segundo apellido)
+        # UM-N1: filtrar is_deleted.
         if second_surname:
             partial_matches = User.query.filter(
                 func.lower(func.ltrim(func.rtrim(User.name))) == name.lower(),
                 func.lower(func.ltrim(func.rtrim(User.first_surname))) == first_surname.lower(),
                 User.is_active == True,
+                User.is_deleted == False,  # noqa: E712
                 or_(
                     User.second_surname == None,
                     func.lower(func.ltrim(func.rtrim(User.second_surname))) != second_surname.lower()
@@ -893,12 +899,14 @@ def check_name_similarity():
                     })
 
         # 3. Coincidencia por primer_apellido + segundo_apellido (mismos apellidos, nombre diferente)
+        # UM-N1: filtrar is_deleted.
         if second_surname:
             surname_matches = User.query.filter(
                 func.lower(func.ltrim(func.rtrim(User.first_surname))) == first_surname.lower(),
                 func.lower(func.ltrim(func.rtrim(User.second_surname))) == second_surname.lower(),
                 func.lower(func.ltrim(func.rtrim(User.name))) != name.lower(),
                 User.is_active == True,
+                User.is_deleted == False,  # noqa: E712
             ).limit(5).all()
             for u in surname_matches:
                 if u.id not in seen_ids:
@@ -1775,6 +1783,7 @@ def get_user_password(user_id):
 @bp.route('/users/<string:user_id>/toggle-active', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=60, window=60, key_prefix='rl_um_toggle')  # UM-N4
 def toggle_user_active(user_id):
     """Activar o desactivar un usuario"""
     try:
@@ -1871,14 +1880,15 @@ def toggle_user_active(user_id):
 @bp.route('/users/<string:user_id>/document-options', methods=['PUT'])
 @jwt_required()
 @management_required
+@rate_limit(limit=60, window=60, key_prefix='rl_um_docopts')  # UM-N5
 def update_user_document_options(user_id):
-    """Actualizar opciones de documentos de un usuario (admin y coordinador)"""
+    """Actualizar opciones de documentos de un usuario (solo admin/developer)."""
     try:
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
-        
-        # Solo admin/developer puede modificar opciones de documentos (recursos compartidos)
-        if current_user.role in ('coordinator', 'responsable'):
+
+        # UM-N5: solo admin/developer. Soporte/coordinador/responsable/auxiliar NO.
+        if current_user.role not in ('admin', 'developer'):
             return jsonify({'error': 'Solo administradores pueden modificar opciones de documentos'}), 403
         
         data = request.get_json()
@@ -2212,8 +2222,10 @@ def delete_user(user_id):
         db.session.commit()
         _invalidate_user_caches()
 
+        # UM-N25: no exponer PII (email/nombre) en respuesta.
+        logger.info('[SOFT-DELETE] usuario %s eliminado por %s', user_name, current_user.id)
         return jsonify({
-            'message': f'Usuario {user_name} ({user_email or "sin email"}) eliminado correctamente',
+            'message': 'Usuario eliminado correctamente',
             'soft_delete': True,
         })
 
@@ -2264,8 +2276,10 @@ def hard_delete_user(user_id):
         db.session.commit()
         _invalidate_user_caches()
 
+        # UM-N25: no exponer PII en respuesta.
+        logger.info('[HARD-DELETE] usuario %s eliminado permanentemente por %s', user_name, current_user.id)
         return jsonify({
-            'message': f'Usuario {user_name} ({user_email or "sin email"}) eliminado permanentemente',
+            'message': 'Usuario eliminado permanentemente',
             'hard_delete': True,
         })
 
@@ -2368,6 +2382,7 @@ def bulk_delete_users():
 @bp.route('/stats', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_stats')  # UM-N6
 def get_user_stats():
     """
     Obtener estadísticas de usuarios.
@@ -2488,6 +2503,7 @@ def get_user_stats():
 @bp.route('/stats/invalidate', methods=['POST'])
 @jwt_required()
 @admin_required
+@rate_limit(limit=30, window=60, key_prefix='rl_um_statsinv')  # UM-N16
 def invalidate_stats_cache():
     """Invalidar caché de estadísticas (solo admin/developer — UM-H8)."""
     try:
@@ -2505,6 +2521,7 @@ def invalidate_stats_cache():
 @bp.route('/roles', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_roles')  # UM-N15
 def get_available_roles():
     """Obtener roles que puede crear el usuario actual"""
     try:
@@ -2558,6 +2575,7 @@ def get_available_roles():
 @bp.route('/available-campuses', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_camp')  # UM-N7
 def get_available_campuses():
     """
     Obtener lista de planteles disponibles.
@@ -2615,6 +2633,7 @@ def get_available_campuses():
 @bp.route('/available-partners', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_part')  # UM-N8
 def get_available_partners():
     """Obtener lista de partners disponibles para asignar a responsable_partner"""
     try:
@@ -2656,6 +2675,7 @@ def get_available_partners():
 @bp.route('/available-states', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_states')  # UM-N9
 def get_available_states():
     """Obtener lista de estados únicos de los campus de los partners del coordinador.
     Si el usuario es admin/developer/soporte, devuelve todos los estados de todos los campus."""
@@ -2694,6 +2714,7 @@ def get_available_states():
 @bp.route('/available-coordinators', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_coords')  # UM-N10
 def get_available_coordinators():
     """Obtener lista de coordinadores activos para asignar a responsables.
 
@@ -3473,6 +3494,7 @@ def candidate_curp_status():
 @bp.route('/candidates/bulk-upload/preview', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=60, window=60, key_prefix='rl_um_bulkprev')  # UM-N11 (generoso para flujos de hasta 5K candidatos)
 def preview_bulk_upload_candidates():
     """
     Preview de carga masiva de candidatos — valida SIN crear usuarios.
@@ -4439,6 +4461,7 @@ def bulk_upload_candidates():
 @bp.route('/candidates/bulk-upload/template', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=60, window=60, key_prefix='rl_um_tmpl')  # UM-N12
 def download_bulk_upload_template():
     """
     Descargar plantilla Excel para carga masiva de candidatos
@@ -4599,7 +4622,14 @@ def export_user_credentials():
         
         if not user_ids:
             return jsonify({'error': 'Debes seleccionar al menos un usuario'}), 400
-        
+
+        # UM-N30: límite generoso (20K) para no OOMear el worker.
+        if len(user_ids) > 20000:
+            return jsonify({
+                'error': 'No puedes exportar más de 20,000 usuarios en una sola operación. '
+                         'Divide la selección en lotes más pequeños.'
+            }), 400
+
         # Obtener usuarios
         CHUNK = 500
         users_map = {}
@@ -4816,6 +4846,7 @@ def export_user_credentials():
 @bp.route('/bulk-history', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_bhist')  # UM-N13
 def list_bulk_upload_history():
     """Listar todas las cargas masivas con paginación y filtros"""
     try:
@@ -4866,6 +4897,7 @@ def list_bulk_upload_history():
 @bp.route('/bulk-history/<int:batch_id>', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=300, window=60, key_prefix='rl_um_bdet')  # UM-N14
 def get_bulk_upload_detail(batch_id):
     """Obtener detalle de una carga masiva (resumen + miembros)"""
     try:
