@@ -110,8 +110,10 @@ export const examService = {
     return response.data
   },
 
-  deleteQuestion: async (id: string): Promise<{ message: string }> => {
-    const response = await api.delete<{ message: string }>(`/exams/questions/${id}`)
+  deleteQuestion: async (id: string, force: boolean = false): Promise<{ message: string }> => {
+    // M9: backend devuelve 409 si hay Results del examen; usar force=true para borrar igualmente.
+    const qs = force ? '?force=true' : ''
+    const response = await api.delete<{ message: string }>(`/exams/questions/${id}${qs}`)
     return response.data
   },
 
@@ -392,7 +394,7 @@ export const examService = {
     }>;
     count: number;
   }> => {
-    const response = await api.get(`/exams/${examId}/my-results`)
+    const response = await api.get(`/exams/${examId}/my-results`, { params: { per_page: 100 } })
     return response.data
   },
 

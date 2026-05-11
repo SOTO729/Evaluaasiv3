@@ -166,12 +166,28 @@ const TopicDetailPage = () => {
   })
 
   const deleteQuestionMutation = useMutation({
-    mutationFn: (id: string) => examService.deleteQuestion(id),
+    mutationFn: (params: { id: string; force?: boolean }) => examService.deleteQuestion(params.id, params.force),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['questions', topicId] })
       queryClient.invalidateQueries({ queryKey: ['topics', categoryId] })
       setIsDeleteModalOpen(false)
       setSelectedQuestion(null)
+    },
+    onError: (error: any) => {
+      // M9: 409 cuando hay Results existentes — ofrecer force
+      const status = error?.response?.status
+      const data = error?.response?.data || {}
+      if (status === 409 && data.code === 'has_results') {
+        const ok = window.confirm(
+          (data.message || 'Hay resultados que referencian esta pregunta.') +
+          '\n\n¿Forzar la eliminación de todas formas? (rompera el historial)'
+        )
+        if (ok && selectedQuestion) {
+          deleteQuestionMutation.mutate({ id: selectedQuestion.id, force: true })
+        }
+        return
+      }
+      showToast('Error al eliminar pregunta: ' + (data.error || error.message || 'Error desconocido'), 'error')
     },
   })
 
@@ -282,7 +298,7 @@ const TopicDetailPage = () => {
 
   const confirmDelete = () => {
     if (selectedQuestion) {
-      deleteQuestionMutation.mutate(selectedQuestion.id)
+      deleteQuestionMutation.mutate({ id: selectedQuestion.id })
     }
   }
 
