@@ -58,19 +58,35 @@ def _run_loop(app, worker_id: str):
     POLL_INTERVAL_SECONDS = 30
     BATCH_SIZE = 5  # filas por iteración
     INTER_QUERY_SLEEP = 1.5  # respiración entre consultas RENAPO
+    STALE_LOCK_SWEEP_SECONDS = 300  # liberar locks zombi cada 5 min
 
     # Esperar 15s al arrancar para no competir con migraciones/startup
     time.sleep(15)
 
     # Liberar locks "stale" de réplicas anteriores que murieron mid-procesamiento
+    last_stale_sweep = 0.0
     try:
         with app.app_context():
             _release_stale_locks()
+        last_stale_sweep = time.time()
     except Exception as e:
         logger.error(f"[CURP-WORKER] error liberando stale locks: {e}")
 
     while True:
         try:
+            # Sweep periódico de stale locks: recupera filas atascadas en
+            # 'processing' cuando un proceso muere o se cuelga mid-procesamiento.
+            # Sin esto, las filas quedan zombi hasta el próximo reinicio del
+            # container (puede ser días). Throttled a cada 5 min para no
+            # martillar la DB.
+            if time.time() - last_stale_sweep >= STALE_LOCK_SWEEP_SECONDS:
+                try:
+                    with app.app_context():
+                        _release_stale_locks()
+                except Exception as sweep_err:
+                    logger.error(f"[CURP-WORKER] error en stale sweep periódico: {sweep_err}")
+                last_stale_sweep = time.time()
+
             with app.app_context():
                 claimed = _claim_pending_rows(worker_id, BATCH_SIZE)
                 if claimed:
