@@ -1226,8 +1226,14 @@ def permanent_delete_campus(campus_id):
         raise
         
     except Exception as e:
+        # H12 (audit partners): no exponer detalles del error DB al cliente
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar el plantel: {str(e)}'}), 500
+        try:
+            from flask import current_app
+            current_app.logger.exception(f'permanent_delete_campus failed campus_id={campus_id}')
+        except Exception:
+            pass
+        return _db_error_response(e)
 
 
 # ============== ACTIVACIÓN DE PLANTEL ==============
@@ -4013,8 +4019,14 @@ def get_group_members(group_id):
         raise
 
     except Exception as e:
+        # H2 (audit partners): no leak de traceback al cliente
         import traceback
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        try:
+            from flask import current_app
+            current_app.logger.exception('get_group_members_eligibility error')
+        except Exception:
+            traceback.print_exc()
+        return _db_error_response(e)
 
 
 @bp.route('/groups/<int:group_id>/campus-responsables', methods=['GET'])
@@ -5413,6 +5425,9 @@ def get_my_partners():
     try:
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
+        # H10 (audit partners): solo candidatos gestionan su propia lista de partners.
+        if user.role != 'candidato':
+            return jsonify({'error': 'Solo los candidatos pueden ver sus partners enlazados'}), 403
         
         partners_data = []
         for partner in user.partners.all():
@@ -5470,6 +5485,9 @@ def get_available_partners():
     try:
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
+        # H10 (audit partners): solo candidatos consultan el catálogo público de partners.
+        if user.role != 'candidato':
+            return jsonify({'error': 'Solo los candidatos pueden consultar partners disponibles'}), 403
         
         # Obtener IDs de partners a los que ya está ligado
         current_partner_ids = [p.id for p in user.partners.all()]
@@ -5507,6 +5525,9 @@ def link_to_partner(partner_id):
     try:
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
+        # H10 (audit partners): solo candidatos pueden ligarse a partners desde este endpoint.
+        if user.role != 'candidato':
+            return jsonify({'error': 'Solo los candidatos pueden ligarse a un partner desde este endpoint'}), 403
         partner, _access_error = _verify_partner_access(partner_id, g.current_user)
         if _access_error:
             return _access_error
@@ -5546,6 +5567,9 @@ def unlink_from_partner(partner_id):
     try:
         user_id = get_jwt_identity()
         user = User.query.get_or_404(user_id)
+        # H10 (audit partners): solo candidatos pueden desligarse desde este endpoint.
+        if user.role != 'candidato':
+            return jsonify({'error': 'Solo los candidatos pueden desligarse desde este endpoint'}), 403
         partner, _access_error = _verify_partner_access(partner_id, g.current_user)
         if _access_error:
             return _access_error
@@ -10870,8 +10894,9 @@ def upload_mi_plantel_logo():
         if not file.filename:
             return jsonify({'error': 'Archivo vacío'}), 400
         
-        # Validar tipo de archivo
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+        # H7 (audit partners): quitar SVG (XSS persistente cuando se sirve inline)
+        # y validar magic bytes para asegurar que el archivo es realmente del tipo declarado.
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
         ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
         if ext not in allowed_extensions:
             return jsonify({'error': f'Formato no permitido. Use: {", ".join(allowed_extensions)}'}), 400
@@ -10882,6 +10907,20 @@ def upload_mi_plantel_logo():
         file.seek(0)
         if size > 2 * 1024 * 1024:
             return jsonify({'error': 'El archivo no debe superar 2MB'}), 400
+
+        # H7: magic bytes — el header debe coincidir con la extensión declarada.
+        head = file.read(16)
+        file.seek(0)
+        _IMG_SIGS = {
+            'png': head.startswith(b'\x89PNG\r\n\x1a\n'),
+            'jpg': head.startswith(b'\xff\xd8\xff'),
+            'jpeg': head.startswith(b'\xff\xd8\xff'),
+            'webp': head.startswith(b'RIFF') and head[8:12] == b'WEBP',
+        }
+        if not _IMG_SIGS.get(ext, False):
+            return jsonify({
+                'error': 'El contenido del archivo no coincide con la extensión declarada (imagen inválida o corrupta)'
+            }), 400
         
         from app.utils.azure_storage import AzureStorageService
         storage = AzureStorageService()
@@ -13221,6 +13260,14 @@ def bulk_assign_exams_by_ecm(group_id):
         if not file.filename.endswith(('.xlsx', '.xls')):
             return jsonify({'error': 'El archivo debe ser Excel (.xlsx o .xls)'}), 400
         
+        # H8 (audit partners): cap de tamaño del archivo (2GB) para evitar DoS
+        # vía load_workbook en archivos gigantes.
+        file.seek(0, 2)
+        _f_size = file.tell()
+        file.seek(0)
+        if _f_size > 2 * 1024 * 1024 * 1024:  # 2 GiB
+            return jsonify({'error': 'El archivo excede el tamaño máximo permitido (2 GB)'}), 413
+        
         # Obtener código ECM (requerido)
         ecm_code = request.form.get('ecm_code', '').strip().upper()
         if not ecm_code:
@@ -15352,6 +15399,43 @@ def get_ecm_assignments():
             where_parts.append("AND cs.brand_id = :brand_id")
             params['brand_id'] = int(brand_id)
 
+        # H5 (audit partners): aislamiento por GRUPO (coordinator_id en candidate_groups).
+        # Coordinators/auxiliares solo deben ver ECMs y agregados de SUS grupos.
+        # Inyectamos JOIN candidate_groups y WHERE en cada subquery que usa group_exams,
+        # más un filtro user-based para results.
+        _coord_filter_id = _get_coordinator_filter(user)
+        if _coord_filter_id:
+            params['coord_filter_id'] = _coord_filter_id
+            _ge_stats_join = "JOIN candidate_groups cg ON cg.id = ge.group_id"
+            _ge_stats_where = "WHERE cg.coordinator_id = :coord_filter_id"
+            _user_stats_join = "JOIN candidate_groups cg ON cg.id = ge.group_id"
+            _user_stats_extra_all = "AND cg.coordinator_id = :coord_filter_id"
+            _user_stats_extra_sel = "AND cg.coordinator_id = :coord_filter_id"
+            _cost_stats_join = "JOIN candidate_groups cg ON cg.id = ge.group_id"
+            _cost_stats_where = "AND cg.coordinator_id = :coord_filter_id"
+            _result_stats_extra = """AND r.user_id IN (
+                    SELECT DISTINCT gm.user_id FROM group_members gm
+                    JOIN candidate_groups cg ON cg.id = gm.group_id
+                    WHERE cg.coordinator_id = :coord_filter_id
+                )"""
+            # Limita el listado de ECMs visibles
+            where_parts.append("""AND cs.id IN (
+                SELECT DISTINCT e2.competency_standard_id
+                FROM group_exams ge2
+                JOIN exams e2 ON e2.id = ge2.exam_id
+                JOIN candidate_groups cg2 ON cg2.id = ge2.group_id
+                WHERE cg2.coordinator_id = :coord_filter_id
+            )""")
+        else:
+            _ge_stats_join = ""
+            _ge_stats_where = ""
+            _user_stats_join = ""
+            _user_stats_extra_all = ""
+            _user_stats_extra_sel = ""
+            _cost_stats_join = ""
+            _cost_stats_where = ""
+            _result_stats_extra = ""
+
         where_sql = '\n            '.join(where_parts)
 
         sql = text(f"""
@@ -15373,6 +15457,8 @@ def get_ecm_assignments():
                        COUNT(DISTINCT e.id) AS exams_count
                 FROM exams e
                 JOIN group_exams ge ON ge.exam_id = e.id
+                {_ge_stats_join}
+                {_ge_stats_where}
                 GROUP BY e.competency_standard_id
             ) ge_stats ON ge_stats.ecm_id = cs.id
             LEFT JOIN (
@@ -15382,13 +15468,17 @@ def get_ecm_assignments():
                     FROM group_exams ge
                     JOIN exams e ON e.id = ge.exam_id
                     JOIN group_members gm ON gm.group_id = ge.group_id
+                    {_user_stats_join}
                     WHERE ge.assignment_type = 'all'
+                    {_user_stats_extra_all}
                     UNION
                     SELECT e.competency_standard_id, gem.user_id
                     FROM group_exams ge
                     JOIN exams e ON e.id = ge.exam_id
                     JOIN group_exam_members gem ON gem.group_exam_id = ge.id
+                    {_user_stats_join}
                     WHERE ge.assignment_type != 'all'
+                    {_user_stats_extra_sel}
                 ) AS all_users
                 GROUP BY ecm_id
             ) user_stats ON user_stats.ecm_id = cs.id
@@ -15398,8 +15488,10 @@ def get_ecm_assignments():
                 FROM balance_transactions bt
                 JOIN group_exams ge ON ge.id = bt.reference_id
                 JOIN exams e ON e.id = ge.exam_id
+                {_cost_stats_join}
                 WHERE bt.reference_type = 'group_exam'
                   AND bt.concept IN ('asignacion_certificacion', 'asignacion_retoma')
+                  {_cost_stats_where}
                 GROUP BY e.competency_standard_id
             ) cost_stats ON cost_stats.ecm_id = cs.id
             LEFT JOIN (
@@ -15409,6 +15501,7 @@ def get_ecm_assignments():
                              / NULLIF(COUNT(*), 0), 1) AS pass_rate
                 FROM results r
                 WHERE r.competency_standard_id IS NOT NULL AND r.status = 1
+                {_result_stats_extra}
                 GROUP BY r.competency_standard_id
             ) result_stats ON result_stats.ecm_id = cs.id
             WHERE 1=1
@@ -15532,6 +15625,13 @@ def get_ecm_assignment_detail(ecm_id):
         params = {'ecm_id': ecm_id, 'offset_val': offset, 'limit_val': per_page}
         where_parts = []
 
+        # H6 (audit partners): aislamiento por GRUPO. Coordinators ven solo asignaciones
+        # de sus grupos. Se proyecta a.coordinator_id en base_assignments y se filtra aquí.
+        _coord_filter_id = _get_coordinator_filter(user)
+        if _coord_filter_id:
+            where_parts.append("AND a.coordinator_id = :coord_filter_id")
+            params['coord_filter_id'] = _coord_filter_id
+
         if exam_id_filter:
             where_parts.append("AND a.exam_id = :exam_id_f")
             params['exam_id_f'] = exam_id_filter
@@ -15621,7 +15721,8 @@ def get_ecm_assignment_detail(ecm_id):
                     COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
                     p.id AS partner_id,
                     p.name AS partner_name,
-                    e.name AS exam_name
+                    e.name AS exam_name,
+                    cg.coordinator_id AS coordinator_id
                 FROM group_exams ge
                 JOIN exams e ON e.id = ge.exam_id
                 JOIN candidate_groups cg ON cg.id = ge.group_id
@@ -15649,7 +15750,8 @@ def get_ecm_assignment_detail(ecm_id):
                     COALESCE(c.enable_tier_advanced, 0),
                     COALESCE(c.enable_digital_badge, 0),
                     p.id, p.name,
-                    e.name
+                    e.name,
+                    cg.coordinator_id
                 FROM group_exams ge
                 JOIN exams e ON e.id = ge.exam_id
                 JOIN candidate_groups cg ON cg.id = ge.group_id
@@ -16103,6 +16205,12 @@ def export_ecm_assignments_excel(ecm_id):
         params = {'ecm_id': ecm_id}
         where_parts = []
 
+        # H6 (audit partners): aislamiento por GRUPO en export ECM.
+        _coord_filter_id = _get_coordinator_filter(user)
+        if _coord_filter_id:
+            where_parts.append("AND a.coordinator_id = :coord_filter_id")
+            params['coord_filter_id'] = _coord_filter_id
+
         if exam_id_filter:
             where_parts.append("AND a.exam_id = :exam_id_f")
             params['exam_id_f'] = exam_id_filter
@@ -16187,7 +16295,8 @@ def export_ecm_assignments_excel(ecm_id):
                     COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
                     p.id AS partner_id,
                     p.name AS partner_name,
-                    e.name AS exam_name
+                    e.name AS exam_name,
+                    cg.coordinator_id AS coordinator_id
                 FROM group_exams ge
                 JOIN exams e ON e.id = ge.exam_id
                 JOIN candidate_groups cg ON cg.id = ge.group_id
@@ -16215,7 +16324,8 @@ def export_ecm_assignments_excel(ecm_id):
                     COALESCE(c.enable_tier_advanced, 0),
                     COALESCE(c.enable_digital_badge, 0),
                     p.id, p.name,
-                    e.name
+                    e.name,
+                    cg.coordinator_id
                 FROM group_exams ge
                 JOIN exams e ON e.id = ge.exam_id
                 JOIN candidate_groups cg ON cg.id = ge.group_id
@@ -17870,6 +17980,14 @@ def get_conocer_tramites():
             where_parts.append("AND cs.id = :ecm_id")
             params['ecm_id'] = ecm_id
 
+        # H3 (audit partners): aislamiento multi-tenant por GRUPO.
+        # Coordinators y auxiliares comparten partners/campuses pero NO grupos,
+        # así que filtramos por `cg.coordinator_id`. Admin/developer ven todo.
+        _coord_filter = _get_coordinator_filter(user)
+        if _coord_filter:
+            where_parts.append("AND cg.coordinator_id = :coord_filter_id")
+            params['coord_filter_id'] = _coord_filter
+
         where_sql = '\n                '.join(where_parts)
 
         cte_sql = f"""
@@ -18118,10 +18236,17 @@ def export_conocer_tramites_excel():
             where_parts.append("AND cs.id = :ecm_id")
             params['ecm_id'] = ecm_id
         if user_ids_param:
+            # H1 (audit partners): user_ids vienen de query string y antes se interpolaban
+            # con f"'{uid}'" sin escape, abriendo SQL injection si un uid contenía '.
+            # Ahora validamos que sean UUIDs/IDs alfanuméricos seguros y usamos bindparam
+            # expanding para inyectar via parámetros nombrados.
+            import re as _re_uid
+            _SAFE_UID = _re_uid.compile(r'^[A-Za-z0-9_\-]{1,64}$')
             uid_list = [uid.strip() for uid in user_ids_param.split(',') if uid.strip()]
+            uid_list = [u for u in uid_list if _SAFE_UID.match(u)][:5000]
             if uid_list:
-                placeholders = ','.join(f"'{uid}'" for uid in uid_list[:5000])
-                where_parts.append(f"AND u.id IN ({placeholders})")
+                where_parts.append("AND u.id IN :uid_list")
+                params['uid_list'] = tuple(uid_list)
 
         where_sql = '\n                '.join(where_parts)
 
@@ -18159,6 +18284,11 @@ def export_conocer_tramites_excel():
                 {where_sql}
             ORDER BY u.name, u.first_surname, u.second_surname
         """)
+
+        # H1: bindparam expanding para IN :uid_list cuando aplique
+        if 'uid_list' in params:
+            from sqlalchemy import bindparam
+            sql = sql.bindparams(bindparam('uid_list', expanding=True))
 
         rows = db.session.execute(sql, params).fetchall()
 
