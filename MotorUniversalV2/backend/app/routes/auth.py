@@ -98,17 +98,15 @@ def register():
         if not data.get(field):
             return jsonify({'error': f'{field} es requerido'}), 400
     
-    # Verificar si ya existe
-    # Roles soporte, editor, editor_invitado y coordinator pueden compartir email
-    SHARED_EMAIL_ROLES = ('soporte', 'editor', 'editor_invitado', 'coordinator')
-    user_role = data.get('role', 'candidato')
-    if user_role not in SHARED_EMAIL_ROLES and User.query.filter_by(email=data['email']).first():
+    # AH1: endpoint público - NO se acepta role/campus_id/subsystem_id del cliente.
+    # El registro público solo crea candidatos. Otros roles se crean vía /api/user-management.
+    if User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'El email ya está registrado'}), 400
     
     if User.query.filter_by(username=data['username']).first():
         return jsonify({'error': 'El username ya está en uso'}), 400
     
-    # Crear usuario
+    # Crear usuario - forzar role='candidato', ignorar campos privilegiados del request
     user = User(
         email=data['email'],
         username=data['username'],
@@ -118,9 +116,9 @@ def register():
         gender=data.get('gender'),
         phone=data.get('phone'),
         curp=data.get('curp'),
-        campus_id=data.get('campus_id', 0),
-        subsystem_id=data.get('subsystem_id', 0),
-        role=data.get('role', 'candidato')  # Cambiado de 'alumno' a 'candidato'
+        campus_id=0,
+        subsystem_id=0,
+        role='candidato'  # AH1: hardcoded - no aceptar role del cliente
     )
     user.set_password(data['password'])
     user.encrypted_password = encrypt_password(data['password'])
@@ -287,22 +285,19 @@ def login():
     if not user or not user.check_password(password):
         # Incrementar contador de intentos fallidos
         failed_count = increment_failed_login(username)
-        attempts_remaining = MAX_FAILED_ATTEMPTS - failed_count
         
         # Bloquear cuenta si excede el límite
         if failed_count >= MAX_FAILED_ATTEMPTS:
             lock_account(username, LOCKOUT_DURATION)
             return jsonify({
                 'error': 'Cuenta bloqueada',
-                'message': f'Has excedido {MAX_FAILED_ATTEMPTS} intentos fallidos. Tu cuenta ha sido bloqueada por {LOCKOUT_DURATION // 60} minutos.',
+                'message': f'Has excedido el límite de intentos fallidos. Tu cuenta ha sido bloqueada por {LOCKOUT_DURATION // 60} minutos.',
                 'locked': True,
                 'retry_after': LOCKOUT_DURATION
             }), 423
         
-        return jsonify({
-            'error': 'Credenciales inválidas',
-            'attempts_remaining': attempts_remaining if attempts_remaining > 0 else 0
-        }), 401
+        # AH9: no revelar attempts_remaining al cliente (info disclosure)
+        return jsonify({'error': 'Credenciales inválidas'}), 401
     
     if not user.is_active:
         return jsonify({'error': 'Credenciales inválidas'}), 401
@@ -389,6 +384,15 @@ def sso_exchange():
 
     if not user.is_active:
         return jsonify({'error': 'Usuario inactivo'}), 403
+
+    # AH6: SSO no debe saltarse el lockout de la cuenta
+    locked, remaining_seconds = is_account_locked(user.username)
+    if locked:
+        return jsonify({
+            'error': 'Cuenta bloqueada temporalmente',
+            'retry_after': remaining_seconds,
+            'locked': True,
+        }), 423
 
     # Actualizar last_login
     user.last_login = datetime.utcnow()
@@ -524,7 +528,7 @@ def get_current_user():
 
 
 @bp.route('/change-password', methods=['POST'])
-@jwt_required()
+@jwt_required()  # NOTA: requiere current_password en body (equivalente a step-up auth)
 def change_password():
     """
     Cambiar contraseña
@@ -625,7 +629,7 @@ def verify_password():
 
 
 @bp.route('/request-email-change', methods=['POST'])
-@jwt_required()
+@jwt_required()  # NOTA: requiere password en body (equivalente a step-up auth)
 def request_email_change():
     """
     Solicitar cambio de correo electrónico
@@ -1450,9 +1454,7 @@ def get_locked_accounts():
         raise
         
     except Exception as e:
-        print(f"Error en get_locked_accounts: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error en get_locked_accounts")
         return jsonify({'error': 'Error al obtener cuentas bloqueadas'}), 500
 
 
@@ -1508,7 +1510,7 @@ def admin_unlock_account():
         raise
         
     except Exception as e:
-        print(f"Error en admin_unlock_account: {e}")
+        logger.exception("Error en admin_unlock_account")
         return jsonify({'error': 'Error al desbloquear la cuenta'}), 500
 
 
@@ -1543,5 +1545,5 @@ def admin_unlock_all():
         raise
         
     except Exception as e:
-        print(f"Error en admin_unlock_all: {e}")
+        logger.exception("Error en admin_unlock_all")
         return jsonify({'error': 'Error al desbloquear las cuentas'}), 500
