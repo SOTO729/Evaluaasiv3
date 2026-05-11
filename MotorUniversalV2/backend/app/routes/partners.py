@@ -336,6 +336,25 @@ _VALID_ASSIGNMENT_TYPES = ('all', 'selected')
 # Cualquier input mayor se trunca silenciosamente antes de construir el patrón %term%.
 MAX_SEARCH_LENGTH = 500
 
+# M1 (audit partners): cap de paginación. Previene DoS / memory-exhaustion cuando un
+# cliente pasa per_page=100000. Cap por defecto = 200; algunos listados especiales
+# pueden subir hasta 500 explícitamente vía MAX_PER_PAGE_EXPORT.
+MAX_PER_PAGE = 200
+MAX_PER_PAGE_EXPORT = 500
+
+
+def _clamp_per_page(value, default=20, max_value=MAX_PER_PAGE):
+    """Devuelve un per_page seguro: 1 ≤ value ≤ max_value."""
+    try:
+        v = int(value) if value is not None else default
+    except (TypeError, ValueError):
+        v = default
+    if v < 1:
+        v = default
+    if v > max_value:
+        v = max_value
+    return v
+
 
 def _db_error_response(exc: Exception):
     """M8: handler genérico para excepciones DB en endpoints del módulo.
@@ -418,7 +437,7 @@ def get_partners():
     """Listar todos los partners"""
     try:
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=20)
         search = request.args.get('search', '')
         active_only = request.args.get('active_only', 'true').lower() == 'true'
         
@@ -912,7 +931,7 @@ def create_campus(partner_id):
             _CONFUSING = set('ILO0')
             chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
             while True:
-                username = ''.join(random.choices(chars, k=10))
+                username = ''.join(secrets.choice(chars) for _ in range(10))
                 if not User.query.filter_by(username=username).first():
                     return username
         
@@ -1417,7 +1436,7 @@ def create_campus_responsable(campus_id):
             _CONFUSING = set('ILO0')
             chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
             while True:
-                username = ''.join(random.choices(chars, k=10))
+                username = ''.join(secrets.choice(chars) for _ in range(10))
                 if not User.query.filter_by(username=username).first():
                     return username
         
@@ -1932,7 +1951,7 @@ def add_campus_responsable(campus_id):
         _CONFUSING = set('ILO0')
         chars = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
         while True:
-            username = ''.join(random.choices(chars, k=10))
+            username = ''.join(secrets.choice(chars) for _ in range(10))
             if not User.query.filter_by(username=username).first():
                 break
         from app.routes.user_management import generate_secure_password
@@ -2380,7 +2399,13 @@ def configure_campus(campus_id):
         
     except ValueError as e:
         db.session.rollback()
-        return jsonify({'error': f'Error en formato de datos: {str(e)}'}), 400
+        # M4 (audit partners): no leak de detalles del error de parseo al cliente.
+        try:
+            from flask import current_app
+            current_app.logger.warning(f'campus configure ValueError: {e}')
+        except Exception:
+            pass
+        return jsonify({'error': 'Formato de datos inválido en la configuración del plantel'}), 400
     except HTTPException:
         raise
     except Exception as e:
@@ -4582,7 +4607,7 @@ def search_candidates():
         search_field = request.args.get('search_field', '')  # Campo específico de búsqueda
         exclude_group_id = request.args.get('exclude_group_id', type=int)
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=20)
         
         query = User.query.filter(
             User.role == 'candidato',
@@ -5259,7 +5284,7 @@ def get_partner_users(partner_id):
             return error
         
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=20)
         search = request.args.get('search', '')
         
         query = partner.users
@@ -8935,7 +8960,7 @@ def get_available_study_materials():
         
         search = request.args.get('search', '')
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=20)
         group_id = request.args.get('group_id', type=int)
         
         # Obtener IDs de materiales ya asignados al grupo directamente
@@ -9140,7 +9165,11 @@ def get_available_ecms():
         
     except Exception as e:
         import traceback
-        print(f"[DEBUG] Error en get_available_ecms: {traceback.format_exc()}")
+        try:
+            from flask import current_app
+            current_app.logger.exception("get_available_ecms")
+        except Exception:
+            print(f"[DEBUG] Error en get_available_ecms: {traceback.format_exc()}")
         return _db_error_response(e)
 
 
@@ -9168,7 +9197,7 @@ def get_available_exams():
         
         search = request.args.get('search', '')
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=20)
         group_id = request.args.get('group_id', type=int)
         campus_id = request.args.get('campus_id', type=int)
         ecm_id = request.args.get('ecm_id', type=int)
@@ -9401,7 +9430,11 @@ def get_available_exams():
         
     except Exception as e:
         import traceback
-        print(f"[DEBUG] Error en get_available_exams: {traceback.format_exc()}")
+        try:
+            from flask import current_app
+            current_app.logger.exception("get_available_exams")
+        except Exception:
+            print(f"[DEBUG] Error en get_available_exams: {traceback.format_exc()}")
         return _db_error_response(e)
 
 
@@ -9527,8 +9560,11 @@ def get_exam_materials_for_assignment(exam_id):
         
     except Exception as e:
         import traceback
-        print(f"Error in get_exam_materials_for_assignment: {e}")
-        print(traceback.format_exc())
+        try:
+            from flask import current_app
+            current_app.logger.exception("get_exam_materials_for_assignment")
+        except Exception:
+            print(f"Error in get_exam_materials_for_assignment: {e}")
         return _db_error_response(e)
 
 
@@ -9809,11 +9845,17 @@ def move_members_to_group(source_group_id):
                 moved.extend(chunk_moved)
             except Exception as chunk_err:
                 db.session.rollback()
+                # M4 (audit partners): no exponer mensaje de DB al cliente.
+                try:
+                    from flask import current_app
+                    current_app.logger.exception('move members chunk commit failed')
+                except Exception:
+                    pass
                 for m in chunk_moved:
                     errors.append({
                         'user_id': m['user_id'],
                         'name': m['name'],
-                        'error': f'Error al guardar chunk: {str(chunk_err)[:200]}'
+                        'error': 'Error al guardar el lote (rollback ejecutado)'
                     })
 
         return jsonify({
@@ -11149,7 +11191,7 @@ def get_mi_plantel_evaluations():
         
         # Parámetros de paginación y filtrado
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 100, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=100, max_value=MAX_PER_PAGE_EXPORT)
         per_page = min(per_page, 200)  # Máximo 200
         exam_id = request.args.get('exam_id', type=int)
         result_status = request.args.get('result', type=int)  # 0=reprobado, 1=aprobado
@@ -12405,7 +12447,7 @@ def search_mi_plantel_candidates():
         search = request.args.get('search', '')
         exclude_group_id = request.args.get('exclude_group_id', type=int)
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=20)
         
         query = User.query.filter(User.role == 'candidato', User.is_active == True)
         
@@ -17270,7 +17312,7 @@ def get_mi_partner_certificates():
         cert_type_filter = request.args.get('cert_type', '')  # reporte_evaluacion, certificado_eduit, certificado_conocer, insignia_digital
         search = request.args.get('search', '').strip()
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 25, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=25)
         per_page = min(per_page, 100)
         
         # Obtener campuses del partner filtrados
@@ -18887,7 +18929,11 @@ def _download_cosu_pdf_from_blob():
         from config import Config
         conn_str = Config.AZURE_STORAGE_CONNECTION_STRING
         if not conn_str:
-            print("[COSU PDF] No AZURE_STORAGE_CONNECTION_STRING configured")
+            try:
+                from flask import current_app
+                current_app.logger.warning("[COSU PDF] No AZURE_STORAGE_CONNECTION_STRING configured")
+            except Exception:
+                print("[COSU PDF] No AZURE_STORAGE_CONNECTION_STRING configured")
             return None
         
         blob_service = BlobServiceClient.from_connection_string(conn_str)
@@ -18901,7 +18947,11 @@ def _download_cosu_pdf_from_blob():
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[COSU PDF] Error downloading: {e}")
+        try:
+            from flask import current_app
+            current_app.logger.exception("[COSU PDF] Error downloading")
+        except Exception:
+            print(f"[COSU PDF] Error downloading: {e}")
 
 
 # ============== MÓDULO DE REPORTES ==============
@@ -19484,7 +19534,7 @@ def get_reports():
 
         # Paginación
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 50, type=int)
+        per_page = _clamp_per_page(request.args.get('per_page'), default=50)
         per_page = min(per_page, 200)
         start = (page - 1) * per_page
         end = start + per_page
