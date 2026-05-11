@@ -2,7 +2,7 @@
 Rutas de exámenes
 """
 import json
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from werkzeug.exceptions import HTTPException
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app import db
@@ -234,6 +234,36 @@ def _validate_base64_image(image_data_uri):
     return real_mime, raw
 
 
+# ============= ERROR HANDLING (M1) =============
+
+# Constantes de hardening (M7/M8)
+_MAX_SEARCH_LENGTH = 100   # M7: cap a parámetro de búsqueda
+_MAX_LEVENSHTEIN_INPUT = 500  # M8: cap a inputs de Levenshtein
+
+
+def _internal_error(e, context: str = ''):
+    """M1: log estructurado + respuesta genérica al cliente.
+
+    Evita filtrar trazas SQL/paths/secretos al cliente. La traza completa
+    queda en current_app.logger (Container Apps log stream).
+    """
+    try:
+        import traceback as _tb
+        current_app.logger.error(
+            "exams_internal_error context=%s exc_type=%s msg=%s\n%s",
+            context, type(e).__name__, str(e)[:500], _tb.format_exc()
+        )
+    except Exception:
+        # No bloquear la respuesta si falla el logging
+        pass
+    return jsonify({
+        'status': 'error',
+        'error': 'Error interno del servidor',
+        'message': 'Error interno del servidor',
+        'context': context or 'exams',
+    }), 500
+
+
 # ============= EXÁMENES =============
 
 # Endpoint de verificación de despliegue
@@ -355,17 +385,19 @@ def get_exams():
     per_page = request.args.get('per_page', 20, type=int)
     is_published = request.args.get('is_published', type=bool)
     published_only = request.args.get('published_only', type=bool)
-    search = request.args.get('search', '', type=str).strip()
+    search = request.args.get('search', '', type=str).strip()[:_MAX_SEARCH_LENGTH]  # M7
     
     query = Exam.query
     
     # Filtrar por búsqueda
     if search:
-        search_filter = f'%{search}%'
+        # M7: escapar wildcards SQL para evitar DoS por '%' arbitrarios
+        safe = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        search_filter = f'%{safe}%'
         query = query.filter(
             db.or_(
-                Exam.name.ilike(search_filter),
-                Exam.description.ilike(search_filter)
+                Exam.name.ilike(search_filter, escape='\\'),
+                Exam.description.ilike(search_filter, escape='\\')
             )
         )
     
@@ -558,7 +590,7 @@ def create_exam():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al crear el examen: {str(e)}'}), 500
+        return _internal_error(e, 'create_exam')
 
 
 @bp.route('/<int:exam_id>/clone', methods=['POST'])
@@ -738,7 +770,7 @@ def clone_exam(exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al clonar el examen: {str(e)}'}), 500
+        return jsonify({'error': f'Error al clonar el examen'}), 500
 
 
 @bp.route('/<int:exam_id>', methods=['GET'])
@@ -865,25 +897,27 @@ def delete_exam(exam_id):
         db.session.execute(text('DELETE FROM dbo.study_material_exams WHERE exam_id = :exam_id'), {'exam_id': exam_id})
         
         # Archivar códigos de certificado antes de eliminar resultados
+        # M3: usar savepoint anidado para que un fallo en el archivado NO
+        # corrompa la transacción principal (evita FK huérfanas).
         try:
             from app.models.certificate_code_history import CertificateCodeHistory
-            results_to_delete = Result.query.filter_by(exam_id=exam_id).all()
-            for r in results_to_delete:
-                for code_type in ['certificate_code', 'eduit_certificate_code']:
-                    code_val = getattr(r, code_type, None)
-                    if code_val:
-                        existing = CertificateCodeHistory.query.filter_by(code=code_val).first()
-                        if not existing:
-                            db.session.add(CertificateCodeHistory(
-                                result_id=str(r.id), user_id=str(r.user_id), exam_id=r.exam_id,
-                                code=code_val, code_type=code_type,
-                                score=r.score, result_value=r.result,
-                                competency_standard_id=r.competency_standard_id,
-                                start_date=r.start_date, end_date=r.end_date,
-                            ))
-            db.session.flush()
+            with db.session.begin_nested():
+                results_to_delete = Result.query.filter_by(exam_id=exam_id).all()
+                for r in results_to_delete:
+                    for code_type in ['certificate_code', 'eduit_certificate_code']:
+                        code_val = getattr(r, code_type, None)
+                        if code_val:
+                            existing = CertificateCodeHistory.query.filter_by(code=code_val).first()
+                            if not existing:
+                                db.session.add(CertificateCodeHistory(
+                                    result_id=str(r.id), user_id=str(r.user_id), exam_id=r.exam_id,
+                                    code=code_val, code_type=code_type,
+                                    score=r.score, result_value=r.result,
+                                    competency_standard_id=r.competency_standard_id,
+                                    start_date=r.start_date, end_date=r.end_date,
+                                ))
         except Exception as archive_err:
-            print(f'⚠️ Error archivando códigos antes de eliminar: {archive_err}')
+            current_app.logger.warning(f'archive_codes_skipped exam_id={exam_id} err={archive_err}')
 
         # Eliminar results
         db.session.execute(text('DELETE FROM dbo.results WHERE exam_id = :exam_id'), {'exam_id': exam_id})
@@ -951,7 +985,7 @@ def delete_exam(exam_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar examen: {str(e)}'}), 500
+        return jsonify({'error': 'Error al eliminar examen'}), 500
 
 
 # ============= CATEGORÍAS =============
@@ -1064,7 +1098,7 @@ def delete_category(exam_id, category_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar categoría: {str(e)}'}), 500
+        return jsonify({'error': 'Error al eliminar categoría'}), 500
 
 
 @bp.route('/<int:exam_id>/categories/<int:category_id>', methods=['PUT'])
@@ -1237,7 +1271,7 @@ def delete_topic(topic_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar el tema: {str(e)}'}), 500
+        return jsonify({'error': 'Error al eliminar el tema'}), 500
 
 
 
@@ -1365,10 +1399,33 @@ def update_question(question_id):
 def delete_question(question_id):
     """Eliminar pregunta y todas sus respuestas"""
     from app.models.answer import Answer
+    from app.models.result import Result
+    from app.models.topic import Topic
+    from app.models.category import Category
     
     question, _user, err = _verify_question_access(question_id, edit=True)
     if err:
         return err
+    
+    # M9: bloquear hard-delete si hay Results existentes del examen que contiene
+    # esta pregunta — al borrar se rompe el historial (answers_data referencia
+    # el question_id). Permitir override explícito con ?force=true.
+    force = request.args.get('force', 'false').lower() == 'true'
+    if not force:
+        try:
+            topic = Topic.query.get(question.topic_id)
+            if topic:
+                category = Category.query.get(topic.category_id)
+                if category:
+                    has_results = db.session.query(Result.id).filter_by(exam_id=category.exam_id).first()
+                    if has_results:
+                        return jsonify({
+                            'error': 'No se puede eliminar la pregunta',
+                            'message': 'Hay resultados de examen que referencian esta pregunta. Use ?force=true para forzar la eliminación (rompera el historial).',
+                            'code': 'has_results'
+                        }), 409
+        except Exception as _check_err:
+            current_app.logger.warning(f'delete_question results-check failed q={question_id}: {_check_err}')
     
     try:
         # 1. Eliminar todas las respuestas de la pregunta primero
@@ -1386,7 +1443,7 @@ def delete_question(question_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al eliminar pregunta: {str(e)}'}), 500
+        return jsonify({'error': 'Error al eliminar pregunta'}), 500
 
 
 @bp.route('/questions/<question_id>', methods=['GET'])
@@ -1460,7 +1517,7 @@ def create_answer(question_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Error al crear respuesta: {str(e)}'}), 500
+        return jsonify({'error': 'Error al crear respuesta'}), 500
 
 
 @bp.route('/answers/<answer_id>', methods=['PUT'])
@@ -2437,10 +2494,7 @@ def validate_exam(exam_id):
         print(f"ERROR en validación: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({
-            'error': 'Error al validar el examen',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'validate_exam')
 
 
 @bp.route('/<int:exam_id>/validate', methods=['OPTIONS'])
@@ -2629,7 +2683,13 @@ def calculate_text_similarity(user_answer: str, correct_answer: str) -> float:
     # Normalizar textos
     s1 = user_answer.lower().strip()
     s2 = correct_answer.lower().strip()
-    
+
+    # M8: cap a inputs para evitar DoS O(n*m) con strings enormes
+    if len(s1) > _MAX_LEVENSHTEIN_INPUT:
+        s1 = s1[:_MAX_LEVENSHTEIN_INPUT]
+    if len(s2) > _MAX_LEVENSHTEIN_INPUT:
+        s2 = s2[:_MAX_LEVENSHTEIN_INPUT]
+
     if s1 == s2:
         return 1.0
     
@@ -3222,10 +3282,7 @@ def evaluate_exam(exam_id):
         import traceback
         print(f"ERROR en evaluate_exam: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'error': 'Error al evaluar el examen',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'evaluate_exam')
 
 
 @bp.route('/<int:exam_id>/evaluate', methods=['OPTIONS'])
@@ -3403,7 +3460,7 @@ def check_exam_access(exam_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _internal_error(e, 'check_exam_access')
 
 
 @bp.route('/<int:exam_id>/check-access', methods=['OPTIONS'])
@@ -3445,7 +3502,10 @@ def verify_exam_pin(exam_id):
             if hmac.compare_digest(pin, group_exam.security_pin):
                 return jsonify({'valid': True}), 200
             else:
-                return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 401
+                # H4: protección por rate-limit (decorator). Mantenemos 200
+                # con valid:false para no disparar el flujo de refresh-token
+                # en el cliente axios.
+                return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 200
 
         # Si no tiene PIN de asignación, verificar PIN diario del campus / grupo
         from app.models.partner import CandidateGroup, Campus
@@ -3471,12 +3531,12 @@ def verify_exam_pin(exam_id):
             if daily_pin and _hmac.compare_digest(pin, daily_pin):
                 return jsonify({'valid': True}), 200
 
-        return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 401
+        return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 200
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return _internal_error(e, 'verify_exam_pin')
 
 
 @bp.route('/<int:exam_id>/save-result', methods=['POST'])
@@ -3770,10 +3830,7 @@ def save_exam_result(exam_id):
         import traceback
         print(f"ERROR en save_exam_result: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'error': 'Error al guardar el resultado',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'save_exam_result')
 
 
 @bp.route('/<int:exam_id>/save-result', methods=['OPTIONS'])
@@ -3808,19 +3865,39 @@ def get_my_exam_results(exam_id):
         # Si el examen tiene ECM, buscar resultados por ECM (historial unificado)
         # Si no tiene ECM, buscar solo por exam_id (comportamiento legacy)
         if exam.competency_standard_id:
-            results = Result.query.filter_by(
+            base_q = Result.query.filter_by(
                 user_id=str(user_id),
                 competency_standard_id=exam.competency_standard_id
-            ).order_by(Result.created_at.desc()).all()
+            )
         else:
-            results = Result.query.filter_by(
+            base_q = Result.query.filter_by(
                 user_id=str(user_id),
                 exam_id=exam_id
-            ).order_by(Result.created_at.desc()).all()
-        
+            )
+
+        # M10: paginación + límite duro para evitar payloads >1 MB con include_details=True.
+        # Compat: si el cliente no envía page/per_page, devolvemos el comportamiento
+        # histórico pero con un cap de seguridad.
+        try:
+            page = max(1, int(request.args.get('page', 1)))
+        except (TypeError, ValueError):
+            page = 1
+        try:
+            per_page = int(request.args.get('per_page', 50))
+        except (TypeError, ValueError):
+            per_page = 50
+        per_page = max(1, min(per_page, 100))  # hard cap
+
+        ordered_q = base_q.order_by(Result.created_at.desc())
+        total = ordered_q.count()
+        results = ordered_q.offset((page - 1) * per_page).limit(per_page).all()
+
         return jsonify({
             'results': [r.to_dict(include_details=True) for r in results],
-            'total': len(results),
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page if per_page else 1,
             'grouped_by': 'ecm' if exam.competency_standard_id else 'exam',
             'ecm_id': exam.competency_standard_id
         }), 200
@@ -3833,10 +3910,7 @@ def get_my_exam_results(exam_id):
         import traceback
         print(f"ERROR en get_my_exam_results: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'error': 'Error al obtener resultados',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'get_my_exam_results')
 
 
 @bp.route('/results/<result_id>/upload-report', methods=['POST'])
@@ -3941,10 +4015,7 @@ def upload_result_report(result_id):
         import traceback
         print(f"ERROR en upload_result_report: {str(e)}")
         print(traceback.format_exc())
-        return jsonify({
-            'error': 'Error al subir el reporte',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'upload_result_report')
 
 
 @bp.route('/results/<result_id>/upload-report', methods=['OPTIONS'])
@@ -4019,10 +4090,7 @@ def generate_result_pdf(result_id):
         import traceback
         current_app.logger.error(f"❌ [PDF] Error generando PDF: {str(e)}")
         current_app.logger.error(traceback.format_exc())
-        return jsonify({
-            'error': 'Error al generar el PDF',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'generate_pdf')
 
 
 @bp.route('/results/<result_id>/generate-pdf', methods=['OPTIONS'])
@@ -4064,7 +4132,10 @@ def generate_certificate_pdf(result_id):
         if not exam:
             return jsonify({'error': 'Examen no encontrado'}), 404
         
-        if result.score < exam.passing_score:
+        # M4: usar result.result (1=aprobado/0=reprobado) calculado al guardar
+        # sobre el percentage real, en vez de comparar score (entero redondeado)
+        # vs passing_score, lo cual permitía certificados para reprobados de 0.5pt.
+        if getattr(result, 'result', None) != 1:
             return jsonify({'error': 'Solo se pueden generar certificados para exámenes aprobados'}), 400
         
         buffer_final = _gen_cert(result, exam, user)
@@ -4096,10 +4167,7 @@ def generate_certificate_pdf(result_id):
         import traceback
         current_app.logger.error(f"❌ [CERTIFICADO] Error generando certificado: {str(e)}")
         current_app.logger.error(traceback.format_exc())
-        return jsonify({
-            'error': 'Error al generar el certificado',
-            'message': str(e)
-        }), 500
+        return _internal_error(e, 'generate_certificate')
 
 
 @bp.route('/results/<result_id>/generate-certificate', methods=['OPTIONS'])
@@ -4196,8 +4264,9 @@ def request_pdf_generation(result_id):
     user_id = get_jwt_identity()
     
     try:
+        # M5: user_id se guarda como str en save-result; comparar como str para evitar 404 espúrios
         # Verificar que el resultado pertenece al usuario
-        result = Result.query.filter_by(id=result_id, user_id=user_id).first()
+        result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
         
         if not result:
             return jsonify({'error': 'Resultado no encontrado'}), 404
@@ -4285,7 +4354,8 @@ def get_pdf_status(result_id):
     user_id = get_jwt_identity()
     
     try:
-        result = Result.query.filter_by(id=result_id, user_id=user_id).first()
+        # M5: comparar user_id como str (consistente con save-result)
+        result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
         
         if not result:
             return jsonify({'error': 'Resultado no encontrado'}), 404
@@ -4308,7 +4378,7 @@ def get_pdf_status(result_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return _internal_error(e, 'pdf_async')
 
 
 @bp.route('/results/<result_id>/request-pdf', methods=['OPTIONS'])
