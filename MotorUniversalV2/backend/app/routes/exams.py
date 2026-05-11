@@ -13,7 +13,7 @@ from app.models.topic import Topic
 from app.models.question import Question, QuestionType
 from app.models.answer import Answer
 from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
-from app.utils.rate_limit import rate_limit_exams, rate_limit_evaluation, rate_limit_pdf
+from app.utils.rate_limit import rate_limit_exams, rate_limit_evaluation, rate_limit_pdf, rate_limit
 from app.utils.cache_utils import invalidate_on_exam_complete
 
 bp = Blueprint('exams', __name__)
@@ -34,6 +34,204 @@ def require_permission(permission):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+
+# ============= HELPERS DE AUTORIZACIÓN (H1, H8) =============
+# Multi-tenant isolation para editor / editor_invitado.
+# Se aplican a TODOS los endpoints jerárquicos (exam → category → topic →
+# question/answer y exam → category → topic → exercise → step → action)
+# para evitar IDOR / enumeration entre cuentas de editores.
+
+def _get_current_user():
+    """Carga el usuario actual del JWT."""
+    return User.query.get(get_jwt_identity())
+
+
+def _is_priv_user(user):
+    """admin / developer pueden todo."""
+    return bool(user and user.role in ('admin', 'developer'))
+
+
+def _exam_visible_to(exam, user):
+    """¿Puede el usuario VER (lectura) este examen? Aislamiento de editor_invitado."""
+    if not user or not exam:
+        return False
+    if _is_priv_user(user):
+        return True
+    role = user.role
+    if role == 'editor_invitado':
+        return str(exam.created_by) == str(user.id)
+    if role == 'editor' and exam.created_by:
+        creator = User.query.get(exam.created_by)
+        if creator and creator.role == 'editor_invitado':
+            return False
+    # candidatos/responsables/coordinadores: visibilidad real se controla en
+    # otros endpoints (asignaciones de grupo). Los CRUD aquí están protegidos
+    # adicionalmente por @require_permission.
+    return True
+
+
+def _check_exam_edit(exam, user):
+    """¿Puede el usuario MODIFICAR este examen? Retorna (resp, code) o None."""
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 401
+    if _is_priv_user(user):
+        return None
+    role = user.role
+    if role == 'editor_invitado' and str(exam.created_by) != str(user.id):
+        return jsonify({'error': 'No tienes permiso para modificar este examen'}), 403
+    if role == 'editor' and exam.created_by:
+        creator = User.query.get(exam.created_by)
+        if creator and creator.role == 'editor_invitado':
+            return jsonify({'error': 'No tienes permiso para modificar este examen'}), 403
+    return None
+
+
+def _verify_exam_access(exam_id, edit=False):
+    """Carga un examen verificando aislamiento multi-tenant.
+    Retorna (exam, user, err_response). err_response es (jsonify, code) o None."""
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return None, None, (jsonify({'error': 'Examen no encontrado'}), 404)
+    user = _get_current_user()
+    if not _exam_visible_to(exam, user):
+        # Enmascarar como 404 para no filtrar la existencia
+        return None, user, (jsonify({'error': 'Examen no encontrado'}), 404)
+    if edit:
+        err = _check_exam_edit(exam, user)
+        if err:
+            return None, user, err
+    return exam, user, None
+
+
+def _verify_category_access(category_id, edit=False, exam_id=None):
+    cat = Category.query.get(category_id)
+    if not cat:
+        return None, None, (jsonify({'error': 'Categoría no encontrada'}), 404)
+    if exam_id is not None and cat.exam_id != exam_id:
+        return None, None, (jsonify({'error': 'La categoría no pertenece a este examen'}), 400)
+    _, user, err = _verify_exam_access(cat.exam_id, edit=edit)
+    if err:
+        return None, user, err
+    return cat, user, None
+
+
+def _verify_topic_access(topic_id, edit=False):
+    t = Topic.query.get(topic_id)
+    if not t:
+        return None, None, (jsonify({'error': 'Tema no encontrado'}), 404)
+    _, user, err = _verify_category_access(t.category_id, edit=edit)
+    if err:
+        return None, user, err
+    return t, user, None
+
+
+def _verify_question_access(question_id, edit=False):
+    q = Question.query.get(question_id)
+    if not q:
+        return None, None, (jsonify({'error': 'Pregunta no encontrada'}), 404)
+    _, user, err = _verify_topic_access(q.topic_id, edit=edit)
+    if err:
+        return None, user, err
+    return q, user, None
+
+
+def _verify_answer_access(answer_id, edit=False):
+    a = Answer.query.get(answer_id)
+    if not a:
+        return None, None, (jsonify({'error': 'Respuesta no encontrada'}), 404)
+    _, user, err = _verify_question_access(a.question_id, edit=edit)
+    if err:
+        return None, user, err
+    return a, user, None
+
+
+def _verify_exercise_access(exercise_id, edit=False):
+    ex = Exercise.query.get(exercise_id)
+    if not ex:
+        return None, None, (jsonify({'error': 'Ejercicio no encontrado'}), 404)
+    _, user, err = _verify_topic_access(ex.topic_id, edit=edit)
+    if err:
+        return None, user, err
+    return ex, user, None
+
+
+def _verify_step_access(step_id, edit=False):
+    s = ExerciseStep.query.get(step_id)
+    if not s:
+        return None, None, (jsonify({'error': 'Paso no encontrado'}), 404)
+    _, user, err = _verify_exercise_access(s.exercise_id, edit=edit)
+    if err:
+        return None, user, err
+    return s, user, None
+
+
+def _verify_action_access(action_id, edit=False):
+    a = ExerciseAction.query.get(action_id)
+    if not a:
+        return None, None, (jsonify({'error': 'Acción no encontrada'}), 404)
+    _, user, err = _verify_step_access(a.step_id, edit=edit)
+    if err:
+        return None, user, err
+    return a, user, None
+
+
+# ============= HELPERS DE VALIDACIÓN DE UPLOADS (H6, H7) =============
+
+# Magic bytes para detectar tipos reales (defensa contra rename .pdf / .png).
+_PDF_MAGIC = b'%PDF-'
+_PNG_MAGIC = b'\x89PNG\r\n\x1a\n'
+_JPEG_MAGIC = b'\xff\xd8\xff'
+_WEBP_MAGIC = b'WEBP'  # RIFF....WEBP — se chequea con offset 8
+_GIF_MAGIC = (b'GIF87a', b'GIF89a')
+
+# Limites de tamaño (bytes)
+_MAX_PDF_BYTES = 10 * 1024 * 1024     # 10 MB
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024    # 5 MB
+# Whitelist explícita de MIME types de imagen aceptados — SVG bloqueado por XSS.
+_ALLOWED_IMAGE_MIMES = ('image/png', 'image/jpeg', 'image/webp', 'image/gif')
+
+
+def _is_valid_pdf_bytes(head):
+    return head[:5] == _PDF_MAGIC
+
+
+def _is_valid_image_bytes(head):
+    if head.startswith(_PNG_MAGIC):
+        return 'image/png'
+    if head.startswith(_JPEG_MAGIC):
+        return 'image/jpeg'
+    if head.startswith(b'RIFF') and len(head) >= 12 and head[8:12] == _WEBP_MAGIC:
+        return 'image/webp'
+    if head[:6] in _GIF_MAGIC:
+        return 'image/gif'
+    return None
+
+
+def _validate_base64_image(image_data_uri):
+    """Valida un data: URI de imagen y devuelve (mime, raw_bytes) o (None, error_msg)."""
+    import base64
+    if not isinstance(image_data_uri, str) or not image_data_uri.startswith('data:image'):
+        return None, 'Formato de imagen inválido'
+    # Header: data:image/<mime>;base64,<payload>
+    header, _, payload = image_data_uri.partition(',')
+    if not payload or ';base64' not in header:
+        return None, 'Imagen debe ir codificada en base64'
+    declared_mime = header[5:header.index(';')] if ';' in header else ''
+    if declared_mime not in _ALLOWED_IMAGE_MIMES:
+        return None, f'Tipo de imagen no permitido: {declared_mime}. Permitidos: png, jpeg, webp, gif.'
+    try:
+        raw = base64.b64decode(payload, validate=True)
+    except Exception:
+        return None, 'Base64 inválido'
+    if len(raw) > _MAX_IMAGE_BYTES:
+        return None, f'Imagen demasiado grande (>{_MAX_IMAGE_BYTES // (1024*1024)} MB)'
+    real_mime = _is_valid_image_bytes(raw[:32])
+    if not real_mime:
+        return None, 'Contenido binario no corresponde a una imagen válida'
+    if real_mime != declared_mime:
+        return None, f'MIME declarado ({declared_mime}) no coincide con contenido ({real_mime})'
+    return real_mime, raw
 
 
 # ============= EXÁMENES =============
@@ -388,10 +586,10 @@ def clone_exam(exam_id):
     """
     import uuid
     
-    # Obtener el examen original
-    original_exam = Exam.query.get(exam_id)
-    if not original_exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    # H8: verificar acceso multi-tenant al examen original
+    original_exam, _user, err = _verify_exam_access(exam_id, edit=False)
+    if err:
+        return err
     
     data = request.get_json() or {}
     user_id = get_jwt_identity()
@@ -568,21 +766,9 @@ def get_exam(exam_id):
       404:
         description: Examen no encontrado
     """
-    exam = Exam.query.get(exam_id)
-    
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
-    
-    # Verificar visibilidad según rol
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    if user:
-        if user.role == 'editor_invitado' and exam.created_by != user_id:
-            return jsonify({'error': 'Examen no encontrado'}), 404
-        elif user.role == 'editor' and exam.created_by:
-            creator = User.query.get(exam.created_by)
-            if creator and creator.role == 'editor_invitado':
-                return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=False)
+    if err:
+        return err
     
     include_details = request.args.get('include_details', 'false').lower() == 'true'
     
@@ -611,23 +797,12 @@ def update_exam(exam_id):
       404:
         description: Examen no encontrado
     """
-    exam = Exam.query.get(exam_id)
-    
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    # Editor invitado solo puede editar su propio contenido
-    if user and user.role == 'editor_invitado' and exam.created_by != user_id:
-        return jsonify({'error': 'No tienes permiso para editar este examen'}), 403
-    # Editor regular no puede editar contenido de editor_invitado
-    if user and user.role == 'editor' and exam.created_by:
-        creator = User.query.get(exam.created_by)
-        if creator and creator.role == 'editor_invitado':
-            return jsonify({'error': 'No tienes permiso para editar este examen'}), 403
     
     # Actualizar campos permitidos
     updatable_fields = [
@@ -678,20 +853,10 @@ def delete_exam(exam_id):
     from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
     from app.models.result import Result
     
-    exam = Exam.query.get(exam_id)
-    
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
-    
-    # Verificar ownership para editor_invitado
+    exam, user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    if user and user.role == 'editor_invitado' and exam.created_by != user_id:
-        return jsonify({'error': 'No tienes permiso para eliminar este examen'}), 403
-    if user and user.role == 'editor' and exam.created_by:
-        creator = User.query.get(exam.created_by)
-        if creator and creator.role == 'editor_invitado':
-            return jsonify({'error': 'No tienes permiso para eliminar este examen'}), 403
     
     try:
         # Eliminar study_materials y study_material_exams que referencian este examen
@@ -795,9 +960,9 @@ def delete_exam(exam_id):
 @jwt_required()
 def get_categories(exam_id):
     """Obtener categorías de un examen"""
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=False)
+    if err:
+        return err
     
     categories = exam.categories.all()
     include_details = request.args.get('include_details', 'false').lower() == 'true'
@@ -812,9 +977,9 @@ def get_categories(exam_id):
 @require_permission('exams:create')
 def create_category(exam_id):
     """Crear categoría"""
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     
     # Verificar que el examen esté en borrador
     if exam.is_published:
@@ -850,21 +1015,17 @@ def delete_category(exam_id, category_id):
     from app.models.answer import Answer
     from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
     
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     
     # Verificar que el examen esté en borrador
     if exam.is_published:
         return jsonify({'error': 'No se puede eliminar categorías de un examen publicado'}), 400
     
-    category = Category.query.get(category_id)
-    if not category:
-        return jsonify({'error': 'Categoría no encontrada'}), 404
-    
-    # Verificar que la categoría pertenece al examen
-    if category.exam_id != exam_id:
-        return jsonify({'error': 'La categoría no pertenece a este examen'}), 400
+    category, _user2, err2 = _verify_category_access(category_id, edit=True, exam_id=exam_id)
+    if err2:
+        return err2
     
     try:
         # Eliminar en orden correcto (de más profundo a más superficial)
@@ -911,21 +1072,17 @@ def delete_category(exam_id, category_id):
 @require_permission('exams:update')
 def update_category(exam_id, category_id):
     """Actualizar categoría"""
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     
     # Verificar que el examen esté en borrador
     if exam.is_published:
         return jsonify({'error': 'No se puede modificar categorías de un examen publicado'}), 400
     
-    category = Category.query.get(category_id)
-    if not category:
-        return jsonify({'error': 'Categoría no encontrada'}), 404
-    
-    # Verificar que la categoría pertenece al examen
-    if category.exam_id != exam_id:
-        return jsonify({'error': 'La categoría no pertenece a este examen'}), 400
+    category, _user2, err2 = _verify_category_access(category_id, edit=True, exam_id=exam_id)
+    if err2:
+        return err2
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -956,9 +1113,9 @@ def update_category(exam_id, category_id):
 @jwt_required()
 def get_topics(category_id):
     """Obtener temas de una categoría"""
-    category = Category.query.get(category_id)
-    if not category:
-        return jsonify({'error': 'Categoría no encontrada'}), 404
+    category, _user, err = _verify_category_access(category_id, edit=False)
+    if err:
+        return err
     
     topics = category.topics.all()
     include_details = request.args.get('include_details', 'false').lower() == 'true'
@@ -973,9 +1130,9 @@ def get_topics(category_id):
 @require_permission('exams:create')
 def create_topic(category_id):
     """Crear tema"""
-    category = Category.query.get(category_id)
-    if not category:
-        return jsonify({'error': 'Categoría no encontrada'}), 404
+    category, _user, err = _verify_category_access(category_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -1002,9 +1159,9 @@ def create_topic(category_id):
 @require_permission('exams:update')
 def update_topic(topic_id):
     """Actualizar tema"""
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
+    topic, _user, err = _verify_topic_access(topic_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -1048,9 +1205,9 @@ def delete_topic(topic_id):
     from app.models.answer import Answer
     from app.models.exercise import Exercise, ExerciseStep, ExerciseAction
     
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
+    topic, _user, err = _verify_topic_access(topic_id, edit=True)
+    if err:
+        return err
     
     try:
         # 1. Eliminar respuestas de las preguntas (sin importar tipo exam/simulator)
@@ -1100,18 +1257,16 @@ def get_question_types():
 @jwt_required()
 def get_questions(topic_id):
     """Obtener preguntas de un tema"""
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
+    topic, user, err = _verify_topic_access(topic_id, edit=False)
+    if err:
+        return err
     
     # Ordenar preguntas por question_number para que las nuevas aparezcan al final
     questions = topic.questions.order_by(Question.question_number).all()
     include_correct = request.args.get('include_correct', 'false').lower() == 'true'
     
     # Solo mostrar respuestas correctas a editores/admins
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    if user and user.role not in ['admin', 'developer', 'editor']:
+    if user and user.role not in ('admin', 'developer', 'editor', 'editor_invitado'):
         include_correct = False
     
     return jsonify({
@@ -1124,9 +1279,9 @@ def get_questions(topic_id):
 @require_permission('exams:create')
 def create_question(topic_id):
     """Crear pregunta"""
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
+    topic, _user, err = _verify_topic_access(topic_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -1171,9 +1326,9 @@ def create_question(topic_id):
 @require_permission('exams:update')
 def update_question(question_id):
     """Actualizar pregunta"""
-    question = Question.query.get(question_id)
-    if not question:
-        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    question, _user, err = _verify_question_access(question_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -1211,9 +1366,9 @@ def delete_question(question_id):
     """Eliminar pregunta y todas sus respuestas"""
     from app.models.answer import Answer
     
-    question = Question.query.get(question_id)
-    if not question:
-        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    question, _user, err = _verify_question_access(question_id, edit=True)
+    if err:
+        return err
     
     try:
         # 1. Eliminar todas las respuestas de la pregunta primero
@@ -1237,13 +1392,15 @@ def delete_question(question_id):
 @bp.route('/questions/<question_id>', methods=['GET'])
 @jwt_required()
 def get_question(question_id):
-    """Obtener una pregunta por ID"""
-    question = Question.query.get(question_id)
-    if not question:
-        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    """Obtener una pregunta por ID. H5: include_correct sólo para editores/admin."""
+    question, user, err = _verify_question_access(question_id, edit=False)
+    if err:
+        return err
+    
+    is_editor = bool(user and user.role in ('admin', 'developer', 'editor', 'editor_invitado'))
     
     return jsonify({
-        'question': question.to_dict(include_correct=True)
+        'question': question.to_dict(include_correct=is_editor)
     }), 200
 
 
@@ -1252,15 +1409,16 @@ def get_question(question_id):
 @bp.route('/questions/<question_id>/answers', methods=['GET'])
 @jwt_required()
 def get_answers(question_id):
-    """Obtener todas las respuestas de una pregunta"""
-    question = Question.query.get(question_id)
-    if not question:
-        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    """Obtener todas las respuestas de una pregunta. H5: include_correct según rol."""
+    question, user, err = _verify_question_access(question_id, edit=False)
+    if err:
+        return err
     
     answers = Answer.query.filter_by(question_id=question_id).all()
+    is_editor = bool(user and user.role in ('admin', 'developer', 'editor', 'editor_invitado'))
     
     return jsonify({
-        'answers': [answer.to_dict(include_correct=True) for answer in answers]
+        'answers': [answer.to_dict(include_correct=is_editor) for answer in answers]
     }), 200
 
 
@@ -1269,9 +1427,9 @@ def get_answers(question_id):
 @require_permission('exams:create')
 def create_answer(question_id):
     """Crear una nueva respuesta para una pregunta"""
-    question = Question.query.get(question_id)
-    if not question:
-        return jsonify({'error': 'Pregunta no encontrada'}), 404
+    question, _user, err = _verify_question_access(question_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -1310,9 +1468,9 @@ def create_answer(question_id):
 @require_permission('exams:update')
 def update_answer(answer_id):
     """Actualizar una respuesta"""
-    answer = Answer.query.get(answer_id)
-    if not answer:
-        return jsonify({'error': 'Respuesta no encontrada'}), 404
+    answer, _user, err = _verify_answer_access(answer_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     user_id = get_jwt_identity()
@@ -1342,9 +1500,9 @@ def update_answer(answer_id):
 @require_permission('exams:delete')
 def delete_answer(answer_id):
     """Eliminar una respuesta"""
-    answer = Answer.query.get(answer_id)
-    if not answer:
-        return jsonify({'error': 'Respuesta no encontrada'}), 404
+    answer, _user, err = _verify_answer_access(answer_id, edit=True)
+    if err:
+        return err
     
     db.session.delete(answer)
     db.session.commit()
@@ -1360,9 +1518,9 @@ def get_topic_exercises(topic_id):
     """
     Obtener todos los ejercicios de un tema
     """
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
+    topic, _user, err = _verify_topic_access(topic_id, edit=False)
+    if err:
+        return err
     
     exercises = Exercise.query.filter_by(topic_id=topic_id).order_by(Exercise.exercise_number).all()
     
@@ -1394,9 +1552,9 @@ def create_exercise(topic_id):
     import uuid
     from datetime import datetime
     
-    topic = Topic.query.get(topic_id)
-    if not topic:
-        return jsonify({'error': 'Tema no encontrado'}), 404
+    topic, _user, err = _verify_topic_access(topic_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -1440,9 +1598,9 @@ def update_exercise(exercise_id):
     """
     from datetime import datetime
     
-    exercise = Exercise.query.get(exercise_id)
-    if not exercise:
-        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    exercise, _user, err = _verify_exercise_access(exercise_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -1488,10 +1646,10 @@ def delete_exercise(exercise_id):
     log(f"{'='*50}")
     log(f"Exercise ID: {exercise_id}")
     
-    exercise = Exercise.query.get(exercise_id)
-    if not exercise:
-        log(f"ERROR: Ejercicio {exercise_id} no encontrado")
-        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    exercise, _user, err = _verify_exercise_access(exercise_id, edit=True)
+    if err:
+        log(f"ERROR: acceso denegado o ejercicio no encontrado")
+        return err
     
     # Obtener todos los pasos para eliminar sus imágenes
     steps = exercise.steps.all()
@@ -1582,9 +1740,9 @@ def get_exercise_details(exercise_id):
     """
     Obtener ejercicio con todos sus pasos y acciones
     """
-    exercise = Exercise.query.get(exercise_id)
-    if not exercise:
-        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    exercise, _user, err = _verify_exercise_access(exercise_id, edit=False)
+    if err:
+        return err
     
     return jsonify({
         'exercise': exercise.to_dict(include_steps=True)
@@ -1599,9 +1757,9 @@ def get_exercise_steps(exercise_id):
     """
     Listar todos los pasos de un ejercicio
     """
-    exercise = Exercise.query.get(exercise_id)
-    if not exercise:
-        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    exercise, _user, err = _verify_exercise_access(exercise_id, edit=False)
+    if err:
+        return err
     
     # La relación ya tiene order_by definido, solo necesitamos .all()
     steps = exercise.steps.all()
@@ -1624,10 +1782,10 @@ def create_exercise_step(exercise_id):
     print(f"\n=== CREAR PASO DE EJERCICIO ===")
     print(f"Exercise ID: {exercise_id}")
     
-    exercise = Exercise.query.get(exercise_id)
-    if not exercise:
-        print(f"ERROR: Ejercicio {exercise_id} no encontrado")
-        return jsonify({'error': 'Ejercicio no encontrado'}), 404
+    exercise, _user, err = _verify_exercise_access(exercise_id, edit=True)
+    if err:
+        print(f"ERROR: acceso denegado o ejercicio no encontrado")
+        return err
     
     data = request.get_json()
     print(f"Datos recibidos: {data}")
@@ -1637,9 +1795,12 @@ def create_exercise_step(exercise_id):
     next_number = (last_step.step_number + 1) if last_step else 1
     print(f"Número de paso asignado: {next_number}")
     
-    # Procesar imagen si viene en base64
+    # Procesar imagen si viene en base64 (H7: validar tipo/tamaño)
     image_url = data.get('image_url')
-    if image_url and image_url.startswith('data:image'):
+    if image_url and isinstance(image_url, str) and image_url.startswith('data:'):
+        mime, raw = _validate_base64_image(image_url)
+        if mime is None:
+            return jsonify({'error': raw}), 400
         # Subir a Azure Blob Storage
         blob_url = azure_storage.upload_base64_image(image_url, folder='exercise-steps')
         if blob_url:
@@ -1687,9 +1848,9 @@ def get_step(step_id):
     """
     Obtener un paso específico
     """
-    step = ExerciseStep.query.get(step_id)
-    if not step:
-        return jsonify({'error': 'Paso no encontrado'}), 404
+    step, _user, err = _verify_step_access(step_id, edit=False)
+    if err:
+        return err
     
     return jsonify({
         'step': step.to_dict(include_actions=True)
@@ -1708,10 +1869,10 @@ def update_step(step_id):
     print(f"\n=== ACTUALIZAR PASO ===")
     print(f"Step ID: {step_id}")
     
-    step = ExerciseStep.query.get(step_id)
-    if not step:
-        print(f"ERROR: Paso {step_id} no encontrado")
-        return jsonify({'error': 'Paso no encontrado'}), 404
+    step, _user, err = _verify_step_access(step_id, edit=True)
+    if err:
+        print(f"ERROR: acceso denegado o paso no encontrado")
+        return err
     
     data = request.get_json()
     print(f"Datos a actualizar: {data}")
@@ -1759,10 +1920,10 @@ def delete_step(step_id):
     print(f"\n=== ELIMINAR PASO ===")
     print(f"Step ID: {step_id}")
     
-    step = ExerciseStep.query.get(step_id)
-    if not step:
-        print(f"ERROR: Paso {step_id} no encontrado")
-        return jsonify({'error': 'Paso no encontrado'}), 404
+    step, _user, err = _verify_step_access(step_id, edit=True)
+    if err:
+        print(f"ERROR: acceso denegado o paso no encontrado")
+        return err
     
     # Guardar info del paso antes de eliminarlo
     exercise_id = step.exercise_id
@@ -1832,9 +1993,9 @@ def get_step_actions(step_id):
     """
     Listar todas las acciones de un paso
     """
-    step = ExerciseStep.query.get(step_id)
-    if not step:
-        return jsonify({'error': 'Paso no encontrado'}), 404
+    step, _user, err = _verify_step_access(step_id, edit=False)
+    if err:
+        return err
     
     # Usar query directa para evitar ORDER BY duplicado (la relación ya tiene order_by)
     actions = ExerciseAction.query.filter_by(step_id=step_id).order_by(ExerciseAction.action_number).all()
@@ -1856,10 +2017,10 @@ def create_step_action(step_id):
     print(f"\n=== CREAR ACCIÓN ===")
     print(f"Step ID: {step_id}")
     
-    step = ExerciseStep.query.get(step_id)
-    if not step:
-        print(f"ERROR: Paso {step_id} no encontrado")
-        return jsonify({'error': 'Paso no encontrado'}), 404
+    step, _user, err = _verify_step_access(step_id, edit=True)
+    if err:
+        print(f"ERROR: acceso denegado o paso no encontrado")
+        return err
     
     data = request.get_json()
     print(f"Datos recibidos: {data}")
@@ -1925,9 +2086,9 @@ def get_action(action_id):
     """
     Obtener una acción específica
     """
-    action = ExerciseAction.query.get(action_id)
-    if not action:
-        return jsonify({'error': 'Acción no encontrada'}), 404
+    action, _user, err = _verify_action_access(action_id, edit=False)
+    if err:
+        return err
     
     return jsonify({
         'action': action.to_dict()
@@ -1946,10 +2107,10 @@ def update_action(action_id):
     print(f"\n=== ACTUALIZAR ACCIÓN ===")
     print(f"Action ID: {action_id}")
     
-    action = ExerciseAction.query.get(action_id)
-    if not action:
-        print(f"ERROR: Acción {action_id} no encontrada")
-        return jsonify({'error': 'Acción no encontrada'}), 404
+    action, _user, err = _verify_action_access(action_id, edit=True)
+    if err:
+        print(f"ERROR: acceso denegado o acción no encontrada")
+        return err
     
     data = request.get_json()
     print(f"Datos a actualizar: {data}")
@@ -2011,10 +2172,10 @@ def delete_action(action_id):
     print(f"\n=== ELIMINAR ACCIÓN ===")
     print(f"Action ID: {action_id}")
     
-    action = ExerciseAction.query.get(action_id)
-    if not action:
-        print(f"ERROR: Acción {action_id} no encontrada")
-        return jsonify({'error': 'Acción no encontrada'}), 404
+    action, _user, err = _verify_action_access(action_id, edit=True)
+    if err:
+        print(f"ERROR: acceso denegado o acción no encontrada")
+        return err
     
     print(f"Eliminando acción tipo '{action.action_type}' del paso {action.step_id}")
     db.session.delete(action)
@@ -2048,9 +2209,9 @@ def upload_step_image(step_id):
     from datetime import datetime
     from app.utils.azure_storage import azure_storage
     
-    step = ExerciseStep.query.get(step_id)
-    if not step:
-        return jsonify({'error': 'Paso no encontrado'}), 404
+    step, _user, err = _verify_step_access(step_id, edit=True)
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -2062,8 +2223,11 @@ def upload_step_image(step_id):
     
     image_data = data['image_data']
     
-    # Subir a Azure Blob Storage si es base64
-    if image_data.startswith('data:image'):
+    # H7: validar whitelist de MIME + magic bytes + tamaño ANTES de subir
+    if isinstance(image_data, str) and image_data.startswith('data:'):
+        mime, raw_or_err = _validate_base64_image(image_data)
+        if mime is None:
+            return jsonify({'error': raw_or_err}), 400
         blob_url = azure_storage.upload_base64_image(image_data, folder='exercise-steps')
         if blob_url:
             image_data = blob_url
@@ -2080,7 +2244,13 @@ def upload_step_image(step_id):
                 except Exception as e:
                     print(f"Error al eliminar imagen anterior: {e}")
         else:
-            print("Warning: Blob storage no disponible, guardando base64 en BD")
+            # No aceptamos fallback de base64 directo en BD si vino como data: URI;
+            # si el blob no está disponible, fallar explícito.
+            return jsonify({'error': 'Almacenamiento de imágenes no disponible'}), 503
+    else:
+        # URL externa: validar que sea https y no un esquema peligroso
+        if not (isinstance(image_data, str) and image_data.startswith('https://')):
+            return jsonify({'error': 'image_data debe ser un data: URI base64 o una URL https'}), 400
     
     step.image_url = image_data
     step.image_width = data.get('image_width')
@@ -2124,9 +2294,9 @@ def validate_exam(exam_id):
     try:
         print(f"\n=== VALIDAR EXAMEN {exam_id} ===")
         
-        exam = Exam.query.get(exam_id)
-        if not exam:
-            return jsonify({'error': 'Examen no encontrado'}), 404
+        exam, _user, err = _verify_exam_access(exam_id, edit=False)
+        if err:
+            return err
         
         errors = []
         warnings = []
@@ -2289,9 +2459,9 @@ def check_ecm_conflict(exam_id):
     """
     Verificar si hay otro examen publicado con el mismo código ECM
     """
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=False)
+    if err:
+        return err
     
     # Si el examen no tiene código ECM, no hay conflicto
     if not exam.competency_standard_id:
@@ -2349,9 +2519,9 @@ def publish_exam(exam_id):
     """
     print(f"\n=== PUBLICAR EXAMEN {exam_id} ===")
     
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     
     # Primero validar el examen
     categories = Category.query.filter_by(exam_id=exam_id).all()
@@ -2416,9 +2586,9 @@ def unpublish_exam(exam_id):
     """
     print(f"\n=== DESPUBLICAR EXAMEN {exam_id} ===")
     
-    exam = Exam.query.get(exam_id)
-    if not exam:
-        return jsonify({'error': 'Examen no encontrado'}), 404
+    exam, _user, err = _verify_exam_access(exam_id, edit=True)
+    if err:
+        return err
     
     from datetime import datetime
     exam.is_published = False
@@ -3247,8 +3417,11 @@ def options_check_exam_access(exam_id):
 
 @bp.route('/<int:exam_id>/verify-pin', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=5, window=300, key_prefix='rl_verify_pin')
 def verify_exam_pin(exam_id):
-    """Verificar PIN de seguridad para iniciar un examen."""
+    """Verificar PIN de seguridad para iniciar un examen.
+    H4: rate-limited (5 intentos / 5 min por IP+user) y devuelve 401 en fallo.
+    """
     try:
         from app.models.partner import GroupExam
 
@@ -3272,7 +3445,7 @@ def verify_exam_pin(exam_id):
             if hmac.compare_digest(pin, group_exam.security_pin):
                 return jsonify({'valid': True}), 200
             else:
-                return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 200
+                return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 401
 
         # Si no tiene PIN de asignación, verificar PIN diario del campus / grupo
         from app.models.partner import CandidateGroup, Campus
@@ -3294,10 +3467,11 @@ def verify_exam_pin(exam_id):
 
         if campus_obj:
             daily_pin = campus_obj.get_daily_pin()
-            if daily_pin and pin == daily_pin:
+            import hmac as _hmac
+            if daily_pin and _hmac.compare_digest(pin, daily_pin):
                 return jsonify({'valid': True}), 200
 
-        return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 200
+        return jsonify({'valid': False, 'error': 'PIN incorrecto'}), 401
 
     except Exception as e:
         import traceback
@@ -3349,6 +3523,41 @@ def save_exam_result(exam_id):
         group_id = data.get('group_id')
         group_exam_id = data.get('group_exam_id')
         mode = data.get('mode', 'exam')  # 'exam' o 'simulator'
+        
+        # H2: si el cliente envió group_exam_id, validar membresía/asignación
+        # ANTES de seguir (no confiar en valores del request body).
+        if group_exam_id:
+            try:
+                from app.models.partner import (
+                    GroupExam as _GE, GroupMember as _GM, GroupExamMember as _GEM
+                )
+                ge_validate = _GE.query.get(group_exam_id)
+                if not ge_validate or ge_validate.exam_id != exam_id:
+                    return jsonify({'error': 'Asignación de examen inválida'}), 403
+                # Debe ser miembro activo del grupo de la asignación
+                membership = _GM.query.filter_by(
+                    group_id=ge_validate.group_id,
+                    user_id=str(user_id),
+                    status='active'
+                ).first()
+                if not membership:
+                    return jsonify({'error': 'No eres miembro activo de este grupo'}), 403
+                # Si la asignación es 'selected', validar GroupExamMember
+                if (ge_validate.assignment_type or 'all') == 'selected':
+                    gem = _GEM.query.filter_by(
+                        group_exam_id=group_exam_id, user_id=str(user_id)
+                    ).first()
+                    if not gem:
+                        return jsonify({
+                            'error': 'No tienes asignación individual para este examen'
+                        }), 403
+                # Forzar coherencia
+                group_id = ge_validate.group_id
+            except HTTPException:
+                raise
+            except Exception as mem_err:
+                print(f"⚠️ Error validando membresía: {mem_err}")
+                return jsonify({'error': 'Error validando asignación de examen'}), 500
         
         # Fallback: si no se envió contexto de grupo, intentar resolverlo
         if not group_id or not group_exam_id:
@@ -3467,6 +3676,35 @@ def save_exam_result(exam_id):
         
         db.session.add(result)
         db.session.commit()
+        
+        # H3: protección contra race-condition. Después del commit, recontamos
+        # y si excede el total permitido (porque hubo INSERTs concurrentes),
+        # eliminamos este resultado y devolvemos 409. Esto cierra la ventana
+        # entre el check de intentos y el insert.
+        if group_exam_id:
+            try:
+                from app.models.partner import GroupExam as _GE3, EcmRetake as _ER3
+                ge_post = _GE3.query.get(group_exam_id)
+                if ge_post:
+                    max_att2 = ge_post.max_attempts or 1
+                    retakes2 = _ER3.query.filter_by(
+                        user_id=str(user_id), group_exam_id=group_exam_id
+                    ).count()
+                    total_allowed2 = max_att2 + retakes2
+                    current_count = Result.query.filter_by(
+                        user_id=str(user_id), group_exam_id=group_exam_id
+                    ).count()
+                    if current_count > total_allowed2:
+                        # Race detectada: revertir este resultado (el más reciente)
+                        db.session.delete(result)
+                        db.session.commit()
+                        return jsonify({
+                            'error': 'Conflicto: intentos concurrentes excedieron el límite. Vuelve a intentar.'
+                        }), 409
+            except HTTPException:
+                raise
+            except Exception as race_err:
+                print(f"⚠️ Error en validación post-commit: {race_err}")
         
         # Invalidar cache del dashboard del usuario para que vea los resultados actualizados
         invalidate_on_exam_complete(str(user_id), exam_id, exam.competency_standard_id)
@@ -3634,9 +3872,28 @@ def upload_result_report(result_id):
         if file.filename == '':
             return jsonify({'error': 'Nombre de archivo vacío'}), 400
         
-        # Verificar que es un PDF
+        # H6: validar tipo real (magic bytes + MIME + tamaño)
+        # Content-Length check (Flask MAX_CONTENT_LENGTH también debería estar configurado).
+        try:
+            file.stream.seek(0, 2)  # SEEK_END
+            size = file.stream.tell()
+            file.stream.seek(0)
+        except Exception:
+            size = None
+        if size is not None and size > _MAX_PDF_BYTES:
+            return jsonify({
+                'error': f'Archivo demasiado grande (>{_MAX_PDF_BYTES // (1024*1024)} MB)'
+            }), 413
+        head = file.stream.read(5)
+        file.stream.seek(0)
+        if not _is_valid_pdf_bytes(head):
+            return jsonify({'error': 'El archivo no es un PDF válido (magic bytes incorrectos)'}), 400
+        declared_mime = (file.mimetype or '').lower()
+        if declared_mime and declared_mime not in ('application/pdf', 'application/octet-stream'):
+            return jsonify({'error': f'Tipo MIME no permitido: {declared_mime}'}), 400
+        # Doble check de la extensión por defensa adicional
         if not file.filename.lower().endswith('.pdf'):
-            return jsonify({'error': 'El archivo debe ser un PDF'}), 400
+            return jsonify({'error': 'El archivo debe tener extensión .pdf'}), 400
         
         # Subir a Azure Blob Storage
         storage = AzureStorageService()
