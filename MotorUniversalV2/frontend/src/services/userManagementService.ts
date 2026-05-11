@@ -706,6 +706,28 @@ export async function getBulkUploadDetail(batchId: number): Promise<BulkUploadBa
   return response.data;
 }
 
+export interface BulkCurpProgress {
+  batch_id: number;
+  total_created: number;
+  total_enqueued: number;
+  in_progress: number;
+  finished: number;
+  counts: {
+    pending: number;
+    processing: number;
+    done: number;
+    failed: number;
+    rejected: number;
+  };
+  verified_members: number;
+  is_complete: boolean;
+}
+
+export async function getBulkCurpProgress(batchId: number): Promise<BulkCurpProgress> {
+  const response = await api.get(`/user-management/bulk-history/${batchId}/curp-progress`);
+  return response.data;
+}
+
 export async function exportBulkUploadBatch(batchId: number, groupName?: string, statusFilter?: string): Promise<void> {
   try {
     const params: Record<string, string> = {};

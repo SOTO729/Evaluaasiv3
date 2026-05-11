@@ -31,8 +31,10 @@ import {
   downloadBulkUploadTemplate,
   previewBulkUpload,
   exportBulkUploadBatch,
+  getBulkCurpProgress,
   BulkUploadResult,
-  BulkUploadPreviewResult
+  BulkUploadPreviewResult,
+  BulkCurpProgress,
 } from '../../services/userManagementService';
 import {
   getPartners,
@@ -1232,6 +1234,11 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                 </div>
               )}
 
+              {/* Indicador de progreso de validación CURP (async, polling) */}
+              {result.batch_id && (
+                <BulkCurpProgressBar batchId={result.batch_id} totalCreated={result.details.created.length} />
+              )}
+
               {/* Botón descargar Excel */}
               {result.batch_id && (
                 <div className="flex justify-center">
@@ -1464,6 +1471,153 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Componente de progreso de validación CURP (polling al worker en background)
+// ─────────────────────────────────────────────────────────────────────────────
+interface BulkCurpProgressBarProps {
+  batchId: number;
+  totalCreated: number;
+}
+
+function BulkCurpProgressBar({ batchId, totalCreated }: BulkCurpProgressBarProps) {
+  const [progress, setProgress] = useState<BulkCurpProgress | null>(null);
+  const [stopped, setStopped] = useState(false);
+  const attemptsRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const data = await getBulkCurpProgress(batchId);
+        if (cancelled) return;
+        setProgress(data);
+        attemptsRef.current += 1;
+
+        // Detener polling si: terminó, no hay nada encolado, o llegamos al límite (≈10 min)
+        const noQueue = data.total_enqueued === 0;
+        const done = data.is_complete;
+        if (done || noQueue || attemptsRef.current >= 150) {
+          setStopped(true);
+          return;
+        }
+        timerRef.current = setTimeout(poll, 4000);
+      } catch {
+        // Silencioso: reintentar con backoff suave
+        if (cancelled) return;
+        attemptsRef.current += 1;
+        if (attemptsRef.current >= 150) {
+          setStopped(true);
+          return;
+        }
+        timerRef.current = setTimeout(poll, 6000);
+      }
+    };
+    poll();
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [batchId]);
+
+  if (!progress) {
+    return (
+      <div className="border border-blue-200 bg-blue-50 rounded-xl p-4">
+        <div className="flex items-center gap-3 text-sm text-blue-800">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Consultando estado de validación de CURP…
+        </div>
+      </div>
+    );
+  }
+
+  // Sin filas encoladas: no hay nada que validar (todos eran CURP genéricas o no había CURP)
+  if (progress.total_enqueued === 0) {
+    if (totalCreated === 0) return null;
+    return (
+      <div className="border border-gray-200 bg-gray-50 rounded-xl p-4 text-sm text-gray-700">
+        No hay CURPs para validar contra RENAPO en esta carga.
+      </div>
+    );
+  }
+
+  const total = progress.total_enqueued;
+  const finished = progress.finished;
+  const inProgress = progress.in_progress;
+  const pct = total > 0 ? Math.round((finished / total) * 100) : 0;
+  const verified = progress.counts.done;
+  const rejected = progress.counts.rejected;
+  const failed = progress.counts.failed;
+  const isDone = stopped || progress.is_complete;
+
+  return (
+    <div className={`border rounded-xl p-4 ${isDone ? 'border-green-200 bg-green-50' : 'border-blue-200 bg-blue-50'}`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {isDone ? (
+            <CheckCircle2 className="h-5 w-5 text-green-600" />
+          ) : (
+            <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+          )}
+          <span className={isDone ? 'text-green-800' : 'text-blue-800'}>
+            {isDone ? 'Validación de CURP completada' : 'Validando CURP contra RENAPO…'}
+          </span>
+        </div>
+        <span className={`text-sm font-semibold ${isDone ? 'text-green-800' : 'text-blue-800'}`}>
+          {finished} / {total} ({pct}%)
+        </span>
+      </div>
+
+      {/* Barra de progreso */}
+      <div className="w-full h-2 bg-white rounded-full overflow-hidden border border-blue-100">
+        <div
+          className={`h-full transition-all duration-500 ${isDone ? 'bg-green-500' : 'bg-blue-500'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      {/* Conteos */}
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        <span className="text-green-700">
+          <CheckCircle2 className="inline h-3 w-3 mr-1" />
+          Validadas: <b>{verified}</b>
+        </span>
+        {inProgress > 0 && (
+          <span className="text-blue-700">
+            <Loader2 className="inline h-3 w-3 mr-1 animate-spin" />
+            En proceso: <b>{inProgress}</b>
+          </span>
+        )}
+        {rejected > 0 && (
+          <span className="text-amber-700">
+            <AlertCircle className="inline h-3 w-3 mr-1" />
+            Rechazadas por RENAPO: <b>{rejected}</b>
+          </span>
+        )}
+        {failed > 0 && (
+          <span className="text-red-700">
+            <XCircle className="inline h-3 w-3 mr-1" />
+            Con error: <b>{failed}</b>
+          </span>
+        )}
+      </div>
+
+      {!isDone && (
+        <p className="mt-2 text-xs text-blue-700">
+          La validación corre en segundo plano. Puedes cerrar este diálogo; el proceso continúa.
+        </p>
+      )}
+      {isDone && (rejected > 0 || failed > 0) && (
+        <p className="mt-2 text-xs text-amber-700">
+          Los candidatos sin validación quedarán bloqueados al iniciar sesión hasta que corrijan su CURP.
+        </p>
+      )}
     </div>
   );
 }

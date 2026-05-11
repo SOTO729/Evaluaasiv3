@@ -4889,6 +4889,88 @@ def get_bulk_upload_detail(batch_id):
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 
+@bp.route('/bulk-history/<int:batch_id>/curp-progress', methods=['GET'])
+@jwt_required()
+@management_required
+@rate_limit(limit=600, window=60, key_prefix='rl_um_curp_prog')
+def get_bulk_curp_progress(batch_id):
+    """Progreso de validación RENAPO para un batch de carga masiva.
+
+    Devuelve conteos por estado de la cola CurpVerificationQueue + estado
+    final de los usuarios del batch. Pensado para polling desde la UI
+    mientras el worker en background procesa.
+    """
+    try:
+        from app.models.partner import BulkUploadBatch, BulkUploadMember
+        from app.models.curp_verification import (
+            CurpVerificationQueue,
+            QUEUE_PENDING, QUEUE_PROCESSING, QUEUE_DONE,
+            QUEUE_FAILED, QUEUE_REJECTED,
+        )
+        from werkzeug.exceptions import HTTPException
+
+        current_user = g.current_user
+        bulk_perm_err = _ensure_bulk_upload_allowed(current_user)
+        if bulk_perm_err:
+            return bulk_perm_err
+        batch = BulkUploadBatch.query.get_or_404(batch_id)
+
+        # Tenant scope idéntico al detail endpoint.
+        if _is_coordinator_role(current_user.role):
+            eff_id = _get_effective_coordinator_id(current_user)
+            if batch.uploaded_by_id != eff_id:
+                return jsonify({'error': 'No tienes acceso a este registro'}), 403
+        elif current_user.role in ('responsable', 'responsable_partner', 'responsable_estatal', 'soporte'):
+            if batch.uploaded_by_id != current_user.id:
+                return jsonify({'error': 'No tienes acceso a este registro'}), 403
+
+        # Conteos por status en la cola para este batch.
+        counts = {
+            'pending': 0,
+            'processing': 0,
+            'done': 0,
+            'failed': 0,
+            'rejected': 0,
+        }
+        rows = db.session.query(
+            CurpVerificationQueue.status,
+            db.func.count(CurpVerificationQueue.id),
+        ).filter(
+            CurpVerificationQueue.batch_id == batch_id
+        ).group_by(CurpVerificationQueue.status).all()
+        for status, n in rows:
+            if status in counts:
+                counts[status] = int(n)
+
+        total_enqueued = sum(counts.values())
+        finished = counts['done'] + counts['failed'] + counts['rejected']
+        in_progress = counts['pending'] + counts['processing']
+
+        # Conteo de miembros del batch que ya quedaron como 'curp_verified'
+        # (lo escribe el worker tras éxito) — útil cuando filas viejas en
+        # la cola ya no existen.
+        verified_members = BulkUploadMember.query.filter(
+            BulkUploadMember.batch_id == batch_id,
+            BulkUploadMember.status == 'curp_verified',
+        ).count()
+
+        return jsonify({
+            'batch_id': batch_id,
+            'total_created': batch.total_created or 0,
+            'total_enqueued': total_enqueued,
+            'in_progress': in_progress,
+            'finished': finished,
+            'counts': counts,
+            'verified_members': verified_members,
+            'is_complete': total_enqueued > 0 and in_progress == 0,
+        }), 200
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception('user_management error get_bulk_curp_progress')
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
 @bp.route('/bulk-history/<int:batch_id>/export', methods=['GET'])
 @jwt_required()
 @management_required
