@@ -14,6 +14,7 @@ from app.routes.partners import (
     FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE, GENERIC_FOREIGN_CURPS,
     _get_foreign_curp, _is_generic_foreign_curp,
 )
+from app.utils.rate_limit import rate_limit
 import uuid
 import re
 import logging
@@ -337,7 +338,19 @@ def list_users():
         ]
         
         query = db.session.query(*columns)
-        
+
+        # UM-C3: excluir usuarios soft-eliminados de todos los listados.
+        query = query.filter(User.is_deleted == False)  # noqa: E712
+
+        # UM-M3: responsable NUNCA puede listar otros responsables; devolver
+        # 403 explícito si se pide rol responsable directamente.
+        if current_user.role == 'responsable' and role_filter:
+            requested_roles = {r.strip() for r in role_filter.split(',') if r.strip()}
+            if requested_roles - {'candidato'}:
+                return jsonify({
+                    'error': 'No tienes permiso para listar usuarios distintos de candidatos.'
+                }), 403
+
         # Coordinadores y auxiliares: ven TODOS los candidatos (compartidos) + sus propios responsables/auxiliares
         if _is_coordinator_role(current_user.role):
             coord_id = _get_effective_coordinator_id(current_user)
@@ -551,7 +564,7 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     if cached is not None:
         return cached
     
-    query = User.query
+    query = User.query.filter(User.is_deleted == False)  # noqa: E712
     if _is_coordinator_role(user_role):
         # Coincidir con la query principal de list_users:
         # candidatos (compartidos) + responsables/auxiliares del coordinador efectivo
@@ -603,6 +616,10 @@ def get_user_detail(user_id):
     try:
         current_user = g.current_user
         user = User.query.get_or_404(user_id)
+
+        # UM-C3: ocultar usuarios soft-eliminados excepto a admin/developer.
+        if getattr(user, 'is_deleted', False) and current_user.role not in ('admin', 'developer'):
+            return jsonify({'error': 'Usuario no encontrado'}), 404
         
         # Coordinadores y auxiliares pueden ver candidatos, responsables y responsables del partner
         if _is_coordinator_role(current_user.role):
@@ -903,6 +920,7 @@ def check_name_similarity():
 @bp.route('/users', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=60, window=60, key_prefix='rl_um_create')
 def create_user():
     """Crear un nuevo usuario"""
     try:
@@ -968,6 +986,18 @@ def create_user():
             campus = Campus.query.get(data['campus_id'])
             if not campus:
                 return jsonify({'error': 'El plantel especificado no existe'}), 404
+
+            # UM-C5: validar que el campus pertenezca al tenant del creador.
+            # Coordinador/auxiliar: el campus debe pertenecer a un partner del coordinador.
+            if _is_coordinator_role(current_user.role):
+                _eff_coord_id = _get_effective_coordinator_id(current_user)
+                from app.models.partner import user_partners as _up
+                _belongs = db.session.query(_up.c.partner_id).filter(
+                    _up.c.user_id == _eff_coord_id,
+                    _up.c.partner_id == campus.partner_id,
+                ).first()
+                if not _belongs:
+                    return jsonify({'error': 'El plantel seleccionado no pertenece a tus partners'}), 403
             
             # Validar fecha de nacimiento
             from datetime import datetime as dt
@@ -984,10 +1014,19 @@ def create_user():
         if role in ('responsable_partner', 'responsable_estatal'):
             if not data.get('partner_id'):
                 return jsonify({'error': 'Debe seleccionar un partner para el responsable'}), 400
-            from app.models.partner import Partner
+            from app.models.partner import Partner, user_partners as _up_check
             partner = Partner.query.get(data['partner_id'])
             if not partner:
                 return jsonify({'error': 'El partner especificado no existe'}), 404
+            # UM-C4: coordinador/auxiliar solo puede asignar partners propios
+            if _is_coordinator_role(current_user.role):
+                _eff = _get_effective_coordinator_id(current_user)
+                _ok = db.session.query(_up_check.c.partner_id).filter(
+                    _up_check.c.user_id == _eff,
+                    _up_check.c.partner_id == data['partner_id'],
+                ).first()
+                if not _ok:
+                    return jsonify({'error': 'El partner seleccionado no está asignado a tu cuenta'}), 403
             # Para responsable_estatal, assigned_state es obligatorio
             if role == 'responsable_estatal' and not data.get('assigned_state'):
                 return jsonify({'error': 'Debe seleccionar un estado para el responsable estatal'}), 400
@@ -1078,7 +1117,6 @@ def create_user():
         # Para candidatos creados por responsable, asignar campus_id del responsable
         if role == 'candidato' and current_user.role == 'responsable' and current_user.campus_id:
             user_campus_id = current_user.campus_id
-        
         # Crear usuario
         # Determinar coordinator_id para multi-tenancy
         # Auxiliar hereda el coordinator_id de su creador (mismo tenant que el coordinador)
@@ -1104,6 +1142,10 @@ def create_user():
             # Coordinador o auxiliar: ambos quedan ligados al coordinador efectivo
             # Incluye creación de auxiliar por parte del coordinador
             user_coordinator_id = effective_coord_id
+        elif current_user.role == 'responsable' and role == 'candidato':
+            # UM-C7: candidato creado por responsable hereda el coordinator_id
+            # del responsable para preservar multi-tenancy.
+            user_coordinator_id = current_user.coordinator_id
         elif current_user.role in ['admin', 'developer', 'soporte'] and role == 'auxiliar' and data.get('coordinator_id'):
             # Admin/developer/soporte creando auxiliar: validar y persistir coordinator_id del body
             coord_check_aux = User.query.get(data['coordinator_id'])
@@ -1364,19 +1406,27 @@ def update_user(user_id):
         # Los CURPs genéricos de extranjero pueden repetirse
         if 'curp' in data and user.role not in ['editor', 'editor_invitado']:
             curp = data['curp'].upper().strip() if data['curp'] else None
+            # UM-H2: validar formato antes de cualquier commit
             if curp and not _is_generic_foreign_curp(curp):
+                try:
+                    from app.services.renapo_service import validate_curp_format
+                    fmt_valid, fmt_error = validate_curp_format(curp)
+                    if not fmt_valid:
+                        return jsonify({'error': f'CURP inválida: {fmt_error}'}), 400
+                except Exception:
+                    pass
                 existing = User.query.filter(User.curp == curp, User.id != user_id).first()
                 if existing:
                     return _duplicate_curp_response(curp, existing)
-                
-                # ── Si CURP cambia, resetear verificación (se verifica en segundo plano) ──
-                curp_changed = curp != user.curp
-                if curp_changed:
-                    user.curp_verified = False
-                    user.curp_verified_at = None
-                    user.curp_renapo_name = None
-                    user.curp_renapo_first_surname = None
-                    user.curp_renapo_second_surname = None
+
+            # UM-H1: si la CURP cambia (incluido pasar a None o a genérica),
+            # resetear todas las marcas de verificación RENAPO.
+            if curp != user.curp:
+                user.curp_verified = False
+                user.curp_verified_at = None
+                user.curp_renapo_name = None
+                user.curp_renapo_first_surname = None
+                user.curp_renapo_second_surname = None
             user.curp = curp
         
         # Email - verificar unicidad (solo si se proporciona un valor no vacío)
@@ -1403,6 +1453,16 @@ def update_user(user_id):
                 campus = Campus.query.get(data['campus_id'])
                 if not campus:
                     return jsonify({'error': 'Plantel no encontrado'}), 400
+                # UM-C5: validar tenant scope para coordinador/auxiliar
+                if _is_coordinator_role(current_user.role):
+                    _eff = _get_effective_coordinator_id(current_user)
+                    from app.models.partner import user_partners as _up
+                    _ok = db.session.query(_up.c.partner_id).filter(
+                        _up.c.user_id == _eff,
+                        _up.c.partner_id == campus.partner_id,
+                    ).first()
+                    if not _ok:
+                        return jsonify({'error': 'El plantel seleccionado no pertenece a tus partners'}), 403
                 user.campus_id = data['campus_id']
             if 'can_bulk_create_candidates' in data:
                 user.can_bulk_create_candidates = bool(data['can_bulk_create_candidates'])
@@ -1432,6 +1492,15 @@ def update_user(user_id):
                 partner = Partner.query.get(data['partner_id'])
                 if not partner:
                     return jsonify({'error': 'Partner no encontrado'}), 400
+                # UM-C4: validar que el partner sea del tenant del coordinador
+                if _is_coordinator_role(current_user.role):
+                    _eff2 = _get_effective_coordinator_id(current_user)
+                    _ok2 = db.session.query(user_partners.c.partner_id).filter(
+                        user_partners.c.user_id == _eff2,
+                        user_partners.c.partner_id == data['partner_id'],
+                    ).first()
+                    if not _ok2:
+                        return jsonify({'error': 'El partner seleccionado no está asignado a tu cuenta'}), 403
                 # Eliminar relaciones anteriores
                 db.session.execute(user_partners.delete().where(user_partners.c.user_id == user.id))
                 # Crear nueva relación
@@ -1523,6 +1592,7 @@ def update_user(user_id):
 @bp.route('/users/<string:user_id>/password', methods=['PUT'])
 @jwt_required()
 @management_required
+@rate_limit(limit=30, window=60, key_prefix='rl_um_chpwd')
 def change_user_password(user_id):
     """Cambiar contraseña de un usuario (sin requerir contraseña actual)"""
     try:
@@ -1572,6 +1642,7 @@ def change_user_password(user_id):
 @bp.route('/users/<string:user_id>/generate-password', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=30, window=60, key_prefix='rl_um_genpwd')
 def generate_temp_password(user_id):
     """Generar una contraseña temporal para un usuario (admin y coordinador)"""
     try:
@@ -1620,6 +1691,7 @@ def generate_temp_password(user_id):
 @bp.route('/users/<string:user_id>/password', methods=['GET'])
 @jwt_required()
 @management_required
+@rate_limit(limit=60, window=60, key_prefix='rl_um_getpwd')
 def get_user_password(user_id):
     """Obtener la contraseña descifrada de un usuario (admin y coordinador)"""
     try:
@@ -1648,7 +1720,9 @@ def get_user_password(user_id):
                 GroupMember.user_id == user_id,
                 CandidateGroup.campus_id == current_user.campus_id
             ).first()
-            if not in_campus:
+            # UM-M2: aceptar también candidatos cuyo campus_id directo coincide
+            # (los que aún no fueron asignados a un grupo del plantel).
+            if not in_campus and user.campus_id != current_user.campus_id:
                 return jsonify({'error': 'Este candidato no pertenece a tu plantel'}), 403
         
         # Desencriptar la contraseña
@@ -1712,6 +1786,7 @@ def toggle_user_active(user_id):
         was_inactive = not user.is_active
         user.is_active = not user.is_active
         db.session.commit()
+        _invalidate_user_caches()  # UM-M6
         
         status = 'activado' if user.is_active else 'desactivado'
 
@@ -1818,7 +1893,20 @@ def update_user_document_options(user_id):
 
 
 # ============== ELIMINAR USUARIO (SOLO ADMIN) ==============
+#
+# Política de borrado (UM-C3 — auditoría):
+#   - El flujo normal (DELETE /users/<id> y bulk-delete) hace SOFT-DELETE:
+#       anonimiza PII, marca is_deleted=True/deleted_at=now, limpia relaciones
+#       operativas (group_members, group_exam_members, coordinator_balances,
+#       chat_message_templates) pero PRESERVA evidencia (payments, results,
+#       conocer_certificates, issued_badges, vouchers, activity_logs,
+#       bulk_upload_*, study_*_progress) para auditoría y verificación
+#       pública de certificados.
+#   - El hard-delete (DELETE /users/<id>/hard) está reservado a admin y
+#       cascadea todas las tablas dependientes. Solo debe usarse en respuesta
+#       a una solicitud ARCO/GDPR genuina del titular.
 
+# Tablas en las que la FK se debe poner NULL al hard-delete
 _USER_NULLABLE_REFS = [
     ('answers', 'created_by'),
     ('answers', 'updated_by'),
@@ -1890,21 +1978,27 @@ _USER_DELETE_REFS = [
 
 
 def _purge_user_from_db(user_id):
-    """Elimina un user_id limpiando todas las FK en una sola transacción.
-    Asume que el caller ya hizo commit/rollback de la sesión."""
+    """HARD-DELETE: elimina un user_id limpiando todas las FK.
+
+    Reservado para flujo ARCO/GDPR (admin-only). El flujo normal usa
+    `_soft_delete_user` que preserva evidencia.
+    """
     for table, col in _USER_NULLABLE_REFS:
         try:
             db.session.execute(
                 text(f"UPDATE {table} SET {col} = NULL WHERE {col} = :uid"),
                 {'uid': user_id}
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.warning('[HARD-DELETE] no se pudo nullificar %s.%s para %s: %s', table, col, user_id, _e)
 
-    db.session.execute(
-        text("UPDATE users SET coordinator_id = NULL WHERE coordinator_id = :uid"),
-        {'uid': user_id}
-    )
+    try:
+        db.session.execute(
+            text("UPDATE users SET coordinator_id = NULL WHERE coordinator_id = :uid"),
+            {'uid': user_id}
+        )
+    except Exception as _e:
+        logger.warning('[HARD-DELETE] no se pudo limpiar coordinator_id en cascada para %s: %s', user_id, _e)
 
     # Borrar cadena de support: messages -> participants -> conversations
     try:
@@ -1931,8 +2025,8 @@ def _purge_user_from_db(user_id):
             text("DELETE FROM support_conversations WHERE candidate_user_id = :uid"),
             {'uid': user_id}
         )
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.warning('[HARD-DELETE] no se pudo limpiar support_* para %s: %s', user_id, _e)
 
     for table, col in _USER_DELETE_REFS:
         try:
@@ -1940,8 +2034,8 @@ def _purge_user_from_db(user_id):
                 text(f"DELETE FROM {table} WHERE {col} = :uid"),
                 {'uid': user_id}
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.warning('[HARD-DELETE] no se pudo borrar %s.%s para %s: %s', table, col, user_id, _e)
 
     db.session.execute(
         text("DELETE FROM users WHERE id = :uid"),
@@ -1949,11 +2043,134 @@ def _purge_user_from_db(user_id):
     )
 
 
+# Tablas con relaciones puramente OPERATIVAS que sí se limpian al soft-delete.
+# NO se incluyen tablas con valor de auditoría/financiero (payments, results,
+# conocer_certificates, issued_badges, vouchers, activity_logs,
+# bulk_upload_*, student_*_progress, study_scorm_attempts, ecm_*).
+_USER_SOFT_DELETE_CLEAR_REFS = [
+    ('group_exam_members', 'user_id'),
+    ('group_members', 'user_id'),
+    ('group_study_material_members', 'user_id'),
+    ('chat_message_templates', 'owner_user_id'),
+    ('coordinator_balances', 'coordinator_id'),
+    ('user_partners', 'user_id'),
+]
+
+
+def _soft_delete_user(user, current_user_id):
+    """SOFT-DELETE: anonimiza PII, marca is_deleted, limpia relaciones
+    operativas y conserva intactas las tablas de auditoría/evidencia.
+
+    No hace commit; el caller decide cuándo persistir.
+    """
+    uid = user.id
+
+    # 1. Limpiar relaciones operativas (membresías, plantillas, balances vacíos).
+    for table, col in _USER_SOFT_DELETE_CLEAR_REFS:
+        try:
+            db.session.execute(
+                text(f"DELETE FROM {table} WHERE {col} = :uid"),
+                {'uid': uid}
+            )
+        except Exception as _e:
+            logger.warning('[SOFT-DELETE] no se pudo limpiar %s.%s para %s: %s', table, col, uid, _e)
+
+    # 2. Si era responsable de un campus, liberar el campus.
+    try:
+        db.session.execute(
+            text("UPDATE campuses SET responsable_id = NULL WHERE responsable_id = :uid"),
+            {'uid': uid}
+        )
+    except Exception as _e:
+        logger.warning('[SOFT-DELETE] no se pudo liberar responsable en campuses: %s', _e)
+
+    # 3. Cerrar / liberar conversaciones de soporte SIN borrar mensajes
+    # (los mensajes deben conservarse para auditoría — UM-C3).
+    try:
+        db.session.execute(
+            text("UPDATE support_conversations SET status = 'closed' WHERE candidate_user_id = :uid AND status != 'closed'"),
+            {'uid': uid}
+        )
+    except Exception:
+        pass
+
+    # 4. Si era coordinador de otros usuarios, dejar a esos huérfanos del
+    # coordinator_id para que un admin los reasigne (no se cascadea borrar).
+    try:
+        db.session.execute(
+            text("UPDATE users SET coordinator_id = NULL WHERE coordinator_id = :uid"),
+            {'uid': uid}
+        )
+    except Exception as _e:
+        logger.warning('[SOFT-DELETE] no se pudo nullificar coordinator_id en cascada: %s', _e)
+
+    # 5. Anonimizar PII y marcar como eliminado. El username se reserva
+    # con prefijo deleted_ para liberar el original.
+    original_username = user.username or uid
+    suffix = uid[:8] if uid else 'x'
+    user.is_deleted = True
+    user.deleted_at = datetime.utcnow()
+    user.is_active = False
+    user.is_verified = False
+    user.email = None
+    user.username = f'deleted_{suffix}_{original_username}'[:100]
+    user.name = '(Usuario eliminado)'
+    user.first_surname = ''
+    user.second_surname = None
+    user.curp = None
+    user.curp_verified = False
+    user.curp_verified_at = None
+    user.curp_renapo_name = None
+    user.curp_renapo_first_surname = None
+    user.curp_renapo_second_surname = None
+    user.phone = None
+    user.gender = None
+    user.date_of_birth = None
+    user.linkedin_token = None
+    # Las credenciales se invalidan para que el usuario no pueda autenticarse.
+    try:
+        import secrets
+        user.password_hash = secrets.token_urlsafe(64)
+        user.encrypted_password = None
+    except Exception:
+        pass
+
+    return {
+        'id': uid,
+        'previous_username': original_username,
+    }
+
+
+def _invalidate_user_caches():
+    """Limpiar caches que dependen del set de usuarios (stats, counts)."""
+    try:
+        # Flask-Caching delete_many no soporta wildcards; limpiamos llaves conocidas.
+        from app import cache as _cache
+        for role in ('admin', 'developer', 'coordinator', 'auxiliar', 'soporte', 'responsable'):
+            try:
+                _cache.delete(f'user_stats_{role}_all')
+            except Exception:
+                pass
+        # Heurística: limpiar también la versión sin sufijo coord/campus
+        try:
+            _cache.delete('user_stats_admin')
+            _cache.delete('user_stats_coordinator')
+        except Exception:
+            pass
+        # Como cache.delete_many con wildcard no funciona en SimpleCache,
+        # confiamos en el TTL de 5 minutos para los counts dispersos.
+    except Exception:
+        pass
+
+
 @bp.route('/users/<string:user_id>', methods=['DELETE'])
 @jwt_required()
 @admin_required
+@rate_limit(limit=30, window=60, key_prefix='rl_um_delete')
 def delete_user(user_id):
-    """Eliminar un usuario permanentemente (solo admin, no developer)."""
+    """SOFT-DELETE: anonimiza al usuario y lo excluye de listados, preservando
+    evidencia financiera y de certificación. Solo admin.
+    """
     try:
         current_user = g.current_user
 
@@ -1962,8 +2179,65 @@ def delete_user(user_id):
 
         user = User.query.get_or_404(user_id)
 
+        if getattr(user, 'is_deleted', False):
+            return jsonify({'error': 'El usuario ya fue eliminado'}), 400
+
         if user_id == current_user.id:
             return jsonify({'error': 'No puedes eliminarte a ti mismo'}), 400
+
+        if user.role in ('admin', 'developer'):
+            return jsonify({'error': 'No se pueden eliminar usuarios admin/developer'}), 400
+
+        user_email = user.email
+        user_name = user.full_name
+
+        _soft_delete_user(user, current_user.id)
+        db.session.commit()
+        _invalidate_user_caches()
+
+        return jsonify({
+            'message': f'Usuario {user_name} ({user_email or "sin email"}) eliminado correctamente',
+            'soft_delete': True,
+        })
+
+    except HTTPException:
+        raise
+    except Exception:
+        db.session.rollback()
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@bp.route('/users/<string:user_id>/hard', methods=['DELETE'])
+@jwt_required()
+@admin_required
+@rate_limit(limit=10, window=300, key_prefix='rl_um_harddel')
+def hard_delete_user(user_id):
+    """HARD-DELETE: borra permanentemente y cascadea evidencia. Solo admin.
+
+    Reservado para solicitudes ARCO/GDPR — destruye payments, results,
+    certificados emitidos e historial. Confirmar con header
+    X-Confirm-Hard-Delete: yes para evitar borrados accidentales.
+    """
+    try:
+        current_user = g.current_user
+
+        if current_user.role != 'admin':
+            return jsonify({'error': 'Solo el administrador puede eliminar usuarios'}), 403
+
+        if request.headers.get('X-Confirm-Hard-Delete', '').lower() != 'yes':
+            return jsonify({
+                'error': 'Esta operación destruye evidencia financiera y de certificación. '
+                         'Incluye el header X-Confirm-Hard-Delete: yes para confirmar.'
+            }), 400
+
+        user = User.query.get_or_404(user_id)
+
+        if user_id == current_user.id:
+            return jsonify({'error': 'No puedes eliminarte a ti mismo'}), 400
+
+        if user.role in ('admin', 'developer'):
+            return jsonify({'error': 'No se pueden eliminar usuarios admin/developer'}), 400
 
         user_email = user.email
         user_name = user.full_name
@@ -1971,14 +2245,16 @@ def delete_user(user_id):
         db.session.expunge(user)
         _purge_user_from_db(user_id)
         db.session.commit()
+        _invalidate_user_caches()
 
         return jsonify({
-            'message': f'Usuario {user_name} ({user_email}) eliminado permanentemente'
+            'message': f'Usuario {user_name} ({user_email or "sin email"}) eliminado permanentemente',
+            'hard_delete': True,
         })
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         logger.exception('user_management error')
         return jsonify({'error': 'Error interno del servidor'}), 500
@@ -1987,11 +2263,9 @@ def delete_user(user_id):
 @bp.route('/users/bulk-delete', methods=['POST'])
 @jwt_required()
 @admin_required
+@rate_limit(limit=5, window=60, key_prefix='rl_um_bulkdel')
 def bulk_delete_users():
-    """Eliminar múltiples usuarios en una sola operación (solo admin).
-
-    Body: { "user_ids": ["id1", "id2", ...] }
-    """
+    """SOFT-DELETE en lote (solo admin). Body: { "user_ids": [...] }"""
     try:
         current_user = g.current_user
 
@@ -2004,23 +2278,21 @@ def bulk_delete_users():
         if not isinstance(user_ids, list) or not user_ids:
             return jsonify({'error': 'Debes proporcionar una lista de user_ids'}), 400
 
-        # Limitar para evitar bloqueos largos
         if len(user_ids) > 500:
             return jsonify({'error': 'No puedes eliminar más de 500 usuarios a la vez'}), 400
 
-        # Excluir auto-eliminación
         user_ids = [uid for uid in user_ids if uid and uid != current_user.id]
         if not user_ids:
             return jsonify({'error': 'No hay usuarios válidos para eliminar'}), 400
 
-        # Validar que existan y obtener info
-        users = User.query.filter(User.id.in_(user_ids)).all()
-        existing_ids = [u.id for u in users]
+        users = User.query.filter(
+            User.id.in_(user_ids),
+            User.is_deleted == False,  # noqa: E712
+        ).all()
 
-        if not existing_ids:
-            return jsonify({'error': 'Ninguno de los usuarios existe'}), 404
+        if not users:
+            return jsonify({'error': 'Ninguno de los usuarios existe o ya fueron eliminados'}), 404
 
-        # Bloquear eliminación de admins/developers para evitar lockout
         protected = [u for u in users if u.role in ('admin', 'developer')]
         if protected:
             names = ', '.join(u.username or u.id for u in protected)
@@ -2033,15 +2305,30 @@ def bulk_delete_users():
 
         for user in users:
             try:
-                uid = user.id
-                uname = user.full_name or user.username or user.email
-                db.session.expunge(user)
-                _purge_user_from_db(uid)
-                deleted.append({'id': uid, 'name': uname})
-            except Exception as e:
-                failed.append({'id': user.id, 'error': str(e)})
+                sp = db.session.begin_nested()
+                try:
+                    info = _soft_delete_user(user, current_user.id)
+                    sp.commit()
+                    deleted.append({'id': info['id'], 'name': info['previous_username']})
+                except Exception as inner_err:
+                    try:
+                        sp.rollback()
+                    except Exception:
+                        pass
+                    logger.warning('[BULK-SOFT-DELETE] error eliminando %s: %s', user.id, inner_err)
+                    failed.append({'id': user.id, 'error': 'No se pudo eliminar este usuario'})
+            except Exception as outer_err:
+                logger.warning('[BULK-SOFT-DELETE] savepoint failed for %s: %s', user.id, outer_err)
+                failed.append({'id': user.id, 'error': 'No se pudo iniciar la transacción'})
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception('[BULK-SOFT-DELETE] commit final falló')
+            return jsonify({'error': 'Error interno del servidor'}), 500
+
+        _invalidate_user_caches()
 
         return jsonify({
             'message': f'{len(deleted)} usuarios eliminados',
@@ -2096,7 +2383,7 @@ def get_user_stats():
             func.count(User.id).label('total'),
             func.sum(case((User.is_active == True, 1), else_=0)).label('active'),
             func.sum(case((User.is_verified == True, 1), else_=0)).label('verified')
-        )
+        ).filter(User.is_deleted == False)  # noqa: E712  # UM-C3
         
         if _is_coordinator_role(current_user.role):
             coord_id = _get_effective_coordinator_id(current_user)
@@ -2183,14 +2470,11 @@ def get_user_stats():
 
 @bp.route('/stats/invalidate', methods=['POST'])
 @jwt_required()
-@management_required
+@admin_required
 def invalidate_stats_cache():
-    """Invalidar caché de estadísticas (admin y coordinador)"""
+    """Invalidar caché de estadísticas (solo admin/developer — UM-H8)."""
     try:
-        cache.delete('user_stats_admin')
-        cache.delete('user_stats_coordinator')
-        # Invalidar también los conteos de usuarios
-        cache.delete_many('user_count_*')
+        _invalidate_user_caches()
         return jsonify({'message': 'Caché de estadísticas invalidada'})
     except HTTPException:
         raise
@@ -2394,11 +2678,20 @@ def get_available_states():
 @jwt_required()
 @management_required
 def get_available_coordinators():
-    """Obtener lista de coordinadores activos para asignar a responsables"""
+    """Obtener lista de coordinadores activos para asignar a responsables.
+
+    UM-M7: solo admin/developer/soporte/gerente pueden ver el roster completo
+    de coordinadores. Otros roles reciben 403.
+    """
     try:
+        current_user = g.current_user
+        if current_user.role not in ('admin', 'developer', 'soporte', 'gerente'):
+            return jsonify({'error': 'No tienes permiso para listar coordinadores'}), 403
+
         coordinators = User.query.filter(
             User.role == 'coordinator',
-            User.is_active == True
+            User.is_active == True,
+            User.is_deleted == False,  # noqa: E712
         ).order_by(User.name).all()
 
         return jsonify({
@@ -2449,6 +2742,14 @@ def _parse_bulk_candidates_excel(file_storage):
     file_storage.seek(0)
     if file_size > MAX_BULK_FILE_MB * 1024 * 1024:
         return None, f'Archivo excede {MAX_BULK_FILE_MB}MB (tiene {file_size / 1024 / 1024:.1f}MB)'
+
+    # UM-H6: validar magic bytes de xlsx (zip header PK\x03\x04) antes de
+    # pasarlo a openpyxl, que de otra forma reporta errores oscuros para
+    # archivos maliciosos o renombrados.
+    head = file_storage.read(4)
+    file_storage.seek(0)
+    if head[:2] != b'PK':
+        return None, 'El archivo no es un .xlsx válido (debe ser un archivo Excel moderno).'
 
     try:
         workbook = load_workbook(filename=io.BytesIO(file_storage.read()), data_only=True)
@@ -2558,7 +2859,11 @@ def _batch_fetch_existing(valid_rows):
     existing_by_email = {}
     for i in range(0, len(all_emails), CHUNK):
         chunk = all_emails[i:i + CHUNK]
-        users = User.query.filter(sf.lower(User.email).in_(chunk)).all()
+        # UM-C3: excluir soft-deleted para permitir reutilizar email/CURP.
+        users = User.query.filter(
+            sf.lower(User.email).in_(chunk),
+            User.is_deleted == False,  # noqa: E712
+        ).all()
         for u in users:
             if u.email:
                 existing_by_email[u.email.lower()] = u
@@ -2566,7 +2871,10 @@ def _batch_fetch_existing(valid_rows):
     existing_by_curp = {}
     for i in range(0, len(all_curps), CHUNK):
         chunk = all_curps[i:i + CHUNK]
-        users = User.query.filter(sf.upper(User.curp).in_(chunk)).all()
+        users = User.query.filter(
+            sf.upper(User.curp).in_(chunk),
+            User.is_deleted == False,  # noqa: E712
+        ).all()
         for u in users:
             if u.curp:
                 existing_by_curp[u.curp.upper()] = u
@@ -2732,6 +3040,7 @@ def _validate_target_group(group_id, current_user):
 @bp.route('/validate-curp', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=20, window=60, key_prefix='rl_um_curp')
 def validate_curp_renapo_endpoint():
     """Valida una CURP contra RENAPO (síncrono ~10s).
     Retorna datos del ciudadano si la CURP es válida.
@@ -2910,6 +3219,7 @@ def _run_candidate_curp_verification(app_obj, user_id, curp, max_rounds: int = 6
 
 @bp.route('/me/validate-curp', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=10, window=60, key_prefix='rl_um_mecurp')
 def candidate_validate_own_curp():
     """Permite al candidato validar/corregir su propia CURP contra RENAPO.
 
@@ -4252,6 +4562,7 @@ def download_bulk_upload_template():
 @bp.route('/export-credentials', methods=['POST'])
 @jwt_required()
 @management_required
+@rate_limit(limit=10, window=60, key_prefix='rl_um_export')
 def export_user_credentials():
     """
     Exportar usuarios seleccionados con el mismo formato del reporte de altas masivas.
@@ -4277,7 +4588,10 @@ def export_user_credentials():
         users_map = {}
         for i in range(0, len(user_ids), CHUNK):
             chunk = user_ids[i:i + CHUNK]
-            q = User.query.filter(User.id.in_(chunk))
+            # UM-C3: excluir usuarios soft-eliminados.
+            q = User.query.filter(User.id.in_(chunk), User.is_deleted == False)  # noqa: E712
+            # UM-C1: respetar el tenant del solicitante para no filtrar credenciales
+            # de otros tenants vía IDs adivinados.
             if _is_coordinator_role(current_user.role):
                 coord_id = _get_effective_coordinator_id(current_user)
                 q = q.filter(
@@ -4287,6 +4601,20 @@ def export_user_credentials():
                             User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
                             User.coordinator_id == coord_id
                         )
+                    )
+                )
+            elif current_user.role == 'soporte':
+                q = q.filter(User.role.in_(SOPORTE_VISIBLE_ROLES))
+            elif current_user.role == 'responsable':
+                from app.models.partner import GroupMember as _GM, CandidateGroup as _CG
+                _campus_uids = db.session.query(_GM.user_id).join(
+                    _CG, _GM.group_id == _CG.id
+                ).filter(_CG.campus_id == current_user.campus_id).distinct().subquery()
+                q = q.filter(
+                    User.role == 'candidato',
+                    or_(
+                        User.id.in_(_campus_uids),
+                        User.campus_id == current_user.campus_id,
                     )
                 )
             for u in q.all():
@@ -4486,10 +4814,12 @@ def list_bulk_upload_history():
 
         query = BulkUploadBatch.query
 
-        # Multi-tenant: coordinador solo ve sus cargas
+        # UM-C2: respetar tenant scope.
         if _is_coordinator_role(current_user.role):
             eff_id = _get_effective_coordinator_id(current_user)
             query = query.filter(BulkUploadBatch.uploaded_by_id == eff_id)
+        elif current_user.role in ('responsable', 'responsable_partner', 'responsable_estatal', 'soporte'):
+            query = query.filter(BulkUploadBatch.uploaded_by_id == current_user.id)
 
         # Filtros opcionales
         partner_id = request.args.get('partner_id', type=int)
@@ -4531,10 +4861,13 @@ def get_bulk_upload_detail(batch_id):
             return bulk_perm_err
         batch = BulkUploadBatch.query.get_or_404(batch_id)
 
-        # Multi-tenant
+        # UM-C2: respetar tenant scope.
         if _is_coordinator_role(current_user.role):
             eff_id = _get_effective_coordinator_id(current_user)
             if batch.uploaded_by_id != eff_id:
+                return jsonify({'error': 'No tienes acceso a este registro'}), 403
+        elif current_user.role in ('responsable', 'responsable_partner', 'responsable_estatal', 'soporte'):
+            if batch.uploaded_by_id != current_user.id:
                 return jsonify({'error': 'No tienes acceso a este registro'}), 403
 
         return jsonify(batch.to_dict(include_members=True)), 200
@@ -4566,10 +4899,13 @@ def export_bulk_upload_batch(batch_id):
             return bulk_perm_err
         batch = BulkUploadBatch.query.get_or_404(batch_id)
 
-        # Multi-tenant
+        # UM-C2: respetar tenant scope.
         if _is_coordinator_role(current_user.role):
             eff_id = _get_effective_coordinator_id(current_user)
             if batch.uploaded_by_id != eff_id:
+                return jsonify({'error': 'No tienes acceso a este registro'}), 403
+        elif current_user.role in ('responsable', 'responsable_partner', 'responsable_estatal', 'soporte'):
+            if batch.uploaded_by_id != current_user.id:
                 return jsonify({'error': 'No tienes acceso a este registro'}), 403
 
         # Filtro opcional por status

@@ -1631,6 +1631,56 @@ def check_and_add_assigned_state_column():
             db.session.rollback()
 
 
+def check_and_add_user_soft_delete_columns():
+    """Agregar columnas is_deleted y deleted_at a users (soft-delete, UM-C3).
+
+    Permite anonimizar usuarios preservando evidencia financiera y de
+    certificación (payments, results, conocer_certificates, issued_badges,
+    vouchers, activity_logs) requerida para auditoría y verificación pública.
+    """
+    print("🔍 Verificando columnas de soft-delete en users...")
+    db_type = get_db_type()
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('users')]
+        cols = {
+            'is_deleted': 'BIT NOT NULL DEFAULT 0' if db_type == 'mssql' else 'BOOLEAN NOT NULL DEFAULT FALSE',
+            'deleted_at': 'DATETIME NULL' if db_type == 'mssql' else 'TIMESTAMP NULL',
+        }
+        for col_name, col_def in cols.items():
+            if col_name in existing_columns:
+                print(f"  ✓ Columna {col_name} ya existe en users")
+                continue
+            print(f"  📝 Agregando columna {col_name} a users...")
+            try:
+                db.session.execute(text(f"ALTER TABLE users ADD {col_name} {col_def}"))
+                db.session.commit()
+                print(f"  ✓ Columna {col_name} agregada")
+            except Exception as e:
+                if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                    print(f"  ⚠️  Columna {col_name} ya existe")
+                else:
+                    print(f"  ❌ Error agregando {col_name}: {e}")
+                    db.session.rollback()
+        # Índice para acelerar filtros WHERE is_deleted = 0
+        try:
+            db.session.execute(text(
+                "CREATE INDEX ix_users_is_deleted ON users(is_deleted)"
+                if db_type != 'mssql' else
+                "IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name = 'ix_users_is_deleted' AND object_id = OBJECT_ID('users')) "
+                "CREATE INDEX ix_users_is_deleted ON users(is_deleted)"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    except Exception as e:
+        print(f"  ❌ Error en check_and_add_user_soft_delete_columns: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def check_and_add_result_mode_column():
     """Agregar columna mode a results para distinguir exam vs simulator"""
     print("🔍 Verificando columna mode en results...")

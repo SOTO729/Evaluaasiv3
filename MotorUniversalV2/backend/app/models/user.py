@@ -136,6 +136,14 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_login = db.Column(db.DateTime)
     last_seen = db.Column(db.DateTime)
+
+    # Soft delete (auditoría / preservación de evidencia financiera y de certificación).
+    # Cuando is_deleted=True, el usuario se considera eliminado: PII anonimizada,
+    # excluido de listados/stats/exports pero conserva referencias en payments,
+    # results, conocer_certificates, issued_badges, vouchers, activity_logs y
+    # bulk_upload_* para auditoría y verificación pública de certificados.
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    deleted_at = db.Column(db.DateTime, nullable=True)
     
     # Relaciones
     vouchers = db.relationship('Voucher', backref='user', lazy='dynamic', cascade='all, delete-orphan')

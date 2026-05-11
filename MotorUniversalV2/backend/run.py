@@ -29,6 +29,7 @@ with app.app_context():
             check_and_create_bulk_upload_tables,
             check_and_create_support_chat_tables,
             check_and_add_assigned_state_column,
+            check_and_add_user_soft_delete_columns,
             check_and_add_result_mode_column,
             check_and_add_partner_config_subsistema,
             check_and_recover_orphaned_curp_users,
@@ -55,6 +56,7 @@ with app.app_context():
         check_and_create_bulk_upload_tables()
         check_and_create_support_chat_tables()
         check_and_add_assigned_state_column()
+        check_and_add_user_soft_delete_columns()
         check_and_add_result_mode_column()
         check_and_add_partner_config_subsistema()
         check_and_add_vm_session_ad_password()
