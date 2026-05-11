@@ -27,6 +27,7 @@ from app.models.balance import CoordinatorBalance, BalanceTransaction, create_ba
 from app.models.competency_standard import CompetencyStandard
 from app.models.result import Result
 from app.models.student_progress import StudentTopicProgress
+from app.utils.rate_limit import rate_limit_by_role
 
 bp = Blueprint('partners', __name__)
 
@@ -4268,6 +4269,13 @@ def add_group_members_bulk(group_id):
 @bp.route('/groups/<int:group_id>/members/bulk-assign-by-criteria', methods=['POST'])
 @jwt_required()
 @coordinator_required
+@rate_limit_by_role(
+    # H11: límites generosos para coordinator/auxiliar, más acotado para responsable.
+    limits={'coordinator': 1000, 'auxiliar': 500, 'responsable': 200, 'responsable_partner': 200, 'responsable_estatal': 200},
+    default=60,
+    window=60,
+    key_prefix='rl_bulk_criteria',
+)
 def bulk_assign_by_criteria(group_id):
     """Asignar masivamente candidatos por criterios de búsqueda - optimizado para cientos de miles"""
     try:
@@ -4927,6 +4935,13 @@ def download_group_members_template():
 @bp.route('/groups/<int:group_id>/members/upload', methods=['POST'])
 @jwt_required()
 @coordinator_required
+@rate_limit_by_role(
+    # H11: límite por rol. Upload de xlsx es costoso (parsing), aun así conservador.
+    limits={'coordinator': 1000, 'auxiliar': 500, 'responsable': 100, 'responsable_partner': 100, 'responsable_estatal': 100},
+    default=30,
+    window=60,
+    key_prefix='rl_bulk_upload_members',
+)
 def upload_group_members(group_id):
     """Procesar archivo Excel para asignar candidatos al grupo
     
@@ -4961,7 +4976,18 @@ def upload_group_members(group_id):
         file.seek(0)
         if file_size > MAX_FILE_MB * 1024 * 1024:
             return jsonify({'error': f'Archivo excede {MAX_FILE_MB}MB'}), 400
-        
+
+        # H9 (audit partners): validar magic bytes. .xlsx es un ZIP (PK\x03\x04);
+        # .xls (BIFF) es OLE2 (D0 CF 11 E0 A1 B1 1A E1). Rechazamos cualquier otro.
+        _head = file.read(8)
+        file.seek(0)
+        _is_xlsx = _head.startswith(b'PK\x03\x04')
+        _is_xls = _head.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1')
+        if not (_is_xlsx or _is_xls):
+            return jsonify({
+                'error': 'El contenido del archivo no coincide con un Excel válido (.xlsx/.xls)'
+            }), 400
+
         # Modo de asignación: 'move' o 'add'
         mode = request.form.get('mode', 'add')
 
@@ -7658,6 +7684,13 @@ def swap_exam_member(group_id, exam_id):
 @bp.route('/groups/<int:group_id>/exams/<int:exam_id>/members/bulk-swap', methods=['POST'])
 @jwt_required()
 @coordinator_required
+@rate_limit_by_role(
+    # H11: bulk swap es operación pesada.
+    limits={'coordinator': 1000, 'auxiliar': 500, 'responsable': 200, 'responsable_partner': 200, 'responsable_estatal': 200},
+    default=60,
+    window=60,
+    key_prefix='rl_bulk_swap',
+)
 def bulk_swap_exam_members(group_id, exam_id):
     """Reasignación masiva: recibe un array de pares {from_user_id, to_user_id}.
 
@@ -13221,6 +13254,13 @@ def download_bulk_exam_assign_template(group_id):
 @bp.route('/groups/<int:group_id>/exams/bulk-assign', methods=['POST'])
 @jwt_required()
 @coordinator_required
+@rate_limit_by_role(
+    # H11: bulk assign por ECM con upload Excel. Operación costosa.
+    limits={'coordinator': 1000, 'auxiliar': 500, 'responsable': 100, 'responsable_partner': 100, 'responsable_estatal': 100},
+    default=30,
+    window=60,
+    key_prefix='rl_bulk_assign_ecm',
+)
 def bulk_assign_exams_by_ecm(group_id):
     """
     Procesar archivo Excel y asignar exámenes seleccionados masivamente.
@@ -13267,6 +13307,16 @@ def bulk_assign_exams_by_ecm(group_id):
         file.seek(0)
         if _f_size > 2 * 1024 * 1024 * 1024:  # 2 GiB
             return jsonify({'error': 'El archivo excede el tamaño máximo permitido (2 GB)'}), 413
+        
+        # H9 (audit partners): validar magic bytes (.xlsx = ZIP, .xls = OLE2).
+        _head = file.read(8)
+        file.seek(0)
+        _is_xlsx = _head.startswith(b'PK\x03\x04')
+        _is_xls = _head.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1')
+        if not (_is_xlsx or _is_xls):
+            return jsonify({
+                'error': 'El contenido del archivo no coincide con un Excel válido (.xlsx/.xls)'
+            }), 400
         
         # Obtener código ECM (requerido)
         ecm_code = request.form.get('ecm_code', '').strip().upper()
@@ -18220,6 +18270,15 @@ def export_conocer_tramites_excel():
         params = {}
         where_parts = []
 
+        # H4 (audit partners): aislamiento por grupo (coordinador). Los coordinadores
+        # comparten partner/planteles pero NO grupos. ci.* proviene de un OUTER APPLY
+        # sobre group_members + candidate_groups; aplicamos el filtro sobre el
+        # coordinador del grupo activo del usuario.
+        _coord_filter_id = _get_coordinator_filter(user)
+        if _coord_filter_id:
+            where_parts.append("AND ci.coordinator_id = :coord_filter_id")
+            params['coord_filter_id'] = _coord_filter_id
+
         if search:
             where_parts.append(
                 "AND (LOWER(u.name + ' ' + COALESCE(u.first_surname, '') + ' ' + COALESCE(u.second_surname, '')) LIKE :search "
@@ -18272,7 +18331,7 @@ def export_conocer_tramites_excel():
             LEFT JOIN ecm_candidate_assignments eca
                 ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
             OUTER APPLY (
-                SELECT TOP 1 c.state_name, c.country, c.id AS campus_id, p.id AS partner_id
+                SELECT TOP 1 c.state_name, c.country, c.id AS campus_id, p.id AS partner_id, cg.coordinator_id AS coordinator_id
                 FROM group_members gm
                 JOIN candidate_groups cg ON cg.id = gm.group_id
                 JOIN campuses c ON c.id = cg.campus_id

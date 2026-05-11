@@ -468,3 +468,75 @@ def rate_limit_by_user(limit=200, window=60):
         
         return decorated_function
     return decorator
+
+
+def rate_limit_by_role(limits=None, default=60, window=60, key_prefix='rl_role'):
+    """
+    Rate limiting consciente del rol (H11 audit partners).
+
+    Args:
+        limits: dict {role_name: max_requests_per_window}. Roles no listados usan ``default``.
+        default: límite usado para roles no listados o usuarios anónimos.
+        window: ventana en segundos (60 = por minuto).
+        key_prefix: prefijo de la clave en cache.
+
+    Notas:
+    - admin/developer reciben un múltiplo del límite máximo (~unlimited en la práctica).
+    - Si Redis falla, la request pasa (fail-open) para no romper el flujo.
+    """
+    limits = limits or {}
+
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not RATE_LIMIT_ENABLED:
+                return f(*args, **kwargs)
+
+            from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+            from flask import request as _req
+
+            try:
+                verify_jwt_in_request(optional=True)
+                user_id = get_jwt_identity()
+
+                role = None
+                if user_id:
+                    try:
+                        from app.models.user import User
+                        u = User.query.get(user_id)
+                        role = u.role if u else None
+                    except Exception:
+                        role = None
+
+                # admin/developer prácticamente ilimitados
+                if role in ('admin', 'developer'):
+                    return f(*args, **kwargs)
+
+                effective_limit = limits.get(role, default)
+                endpoint = _req.endpoint or 'unknown'
+                principal = user_id or get_client_ip()
+                cache_key = f"{key_prefix}:{endpoint}:{role or 'anon'}:{principal}"
+
+                current = cache.get(cache_key)
+                if current is None:
+                    cache.set(cache_key, 1, timeout=window)
+                elif current >= effective_limit:
+                    return jsonify({
+                        'error': 'Too Many Requests',
+                        'message': (
+                            f'Límite de {effective_limit} requests por {window}s excedido '
+                            f'para tu rol. Intenta más tarde.'
+                        ),
+                        'retry_after': window
+                    }), 429
+                else:
+                    cache.set(cache_key, current + 1, timeout=window)
+
+                return f(*args, **kwargs)
+
+            except Exception as e:
+                print(f"Rate limit by role warning: {e}")
+                return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
