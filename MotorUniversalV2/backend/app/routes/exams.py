@@ -272,82 +272,9 @@ def exercises_ping():
     return jsonify({'status': 'ok', 'message': 'exercises routes loaded'}), 200
 
 
-# SECURITY: Endpoint deshabilitado — ejecutaba db.create_all() sin autenticación
-# @bp.route('/migrate-exercise-tables', methods=['POST', 'OPTIONS'])
-# def migrate_exercise_tables(): REMOVED — was public without auth
-def _disabled_migrate_exercise_tables():
-    """DISABLED: Crear tablas exercise_steps y exercise_actions si no existen"""
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
-    
-    try:
-        # Importar db para crear tablas
-        db.create_all()
-        return jsonify({
-            'status': 'ok',
-            'message': 'Tablas creadas/verificadas correctamente',
-            'tables': ['exercise_steps', 'exercise_actions']
-        }), 200
-    except HTTPException:
-        raise
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
-
-
-# SECURITY: Endpoint deshabilitado — modificaba datos sin autenticación
-# @bp.route('/fix-ordering-answers', methods=['POST', 'OPTIONS'])
-# def fix_ordering_answers(): REMOVED — was public without auth
-def _disabled_fix_ordering_answers():
-    """DISABLED: Arreglar answer_number NULL en respuestas existentes"""
-    if request.method == 'OPTIONS':
-        return jsonify({'status': 'ok'}), 200
-    
-    try:
-        # Obtener todas las preguntas de tipo ordering
-        ordering_type = QuestionType.query.filter_by(name='ordering').first()
-        if not ordering_type:
-            return jsonify({
-                'status': 'ok',
-                'message': 'No hay tipo de pregunta ordering',
-                'fixed_count': 0
-            }), 200
-        
-        ordering_questions = Question.query.filter_by(question_type_id=ordering_type.id).all()
-        fixed_count = 0
-        
-        for question in ordering_questions:
-            # Obtener respuestas de esta pregunta
-            answers = Answer.query.filter_by(question_id=question.id).order_by(Answer.created_at).all()
-            
-            # Verificar si alguna tiene answer_number NULL o 0
-            needs_fix = any(a.answer_number is None or a.answer_number == 0 for a in answers)
-            
-            if needs_fix:
-                # Renumerar todas las respuestas de esta pregunta
-                for idx, answer in enumerate(answers, start=1):
-                    if answer.answer_number != idx:
-                        answer.answer_number = idx
-                        fixed_count += 1
-        
-        db.session.commit()
-        
-        return jsonify({
-            'status': 'ok',
-            'message': f'Se arreglaron {fixed_count} respuestas',
-            'fixed_count': fixed_count,
-            'questions_checked': len(ordering_questions)
-        }), 200
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'status': 'error',
-            'message': str(e)
-        }), 500
+# L2: Removidas funciones muertas _disabled_migrate_exercise_tables y
+# _disabled_fix_ordering_answers (rutas públicas sin auth removidas previamente;
+# el código del cuerpo era una "dead reference" peligrosa de mantener).
 
 
 @bp.route('', methods=['GET'])
@@ -2000,7 +1927,7 @@ def delete_step(step_id):
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Error al eliminar imagen del blob: {str(e)}")
+            current_app.logger.warning(f'upload_step_image: failed to delete previous blob: {str(e)}')
     
     # 1. Eliminar todas las acciones del paso primero
     actions_deleted = ExerciseAction.query.filter_by(step_id=step.id).delete()
@@ -2258,6 +2185,7 @@ def options_action_item(action_id):
 @bp.route('/steps/<step_id>/upload-image', methods=['POST'])
 @jwt_required()
 @require_permission('exams:update')
+@rate_limit(limit=30, window=60, key_prefix='rl_upload_image')  # L4
 def upload_step_image(step_id):
     """
     Subir imagen para un paso (como base64)
@@ -2299,7 +2227,7 @@ def upload_step_image(step_id):
                 except HTTPException:
                     raise
                 except Exception as e:
-                    print(f"Error al eliminar imagen anterior: {e}")
+                    current_app.logger.warning(f'create_step_action: failed to delete previous image: {e}')
         else:
             # No aceptamos fallback de base64 directo en BD si vino como data: URI;
             # si el blob no está disponible, fallar explícito.
@@ -2491,9 +2419,6 @@ def validate_exam(exam_id):
         raise
     
     except Exception as e:
-        print(f"ERROR en validación: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return _internal_error(e, 'validate_exam')
 
 
@@ -3279,9 +3204,6 @@ def evaluate_exam(exam_id):
         raise
         
     except Exception as e:
-        import traceback
-        print(f"ERROR en evaluate_exam: {str(e)}")
-        print(traceback.format_exc())
         return _internal_error(e, 'evaluate_exam')
 
 
@@ -3541,6 +3463,7 @@ def verify_exam_pin(exam_id):
 
 @bp.route('/<int:exam_id>/save-result', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=20, window=60, key_prefix='rl_save_result')  # L4
 def save_exam_result(exam_id):
     """
     Guarda el resultado de un examen en la base de datos
@@ -3789,7 +3712,7 @@ def save_exam_result(exam_id):
                     ecm_code=ecm_code
                 )
         except Exception as email_err:
-            print(f"Error enviando email de resultado: {email_err}")
+            current_app.logger.warning(f'save_exam_result: email send failed: {email_err}')
         
         # ── Emisión automática de Insignia Digital (Open Badges 3.0) ──
         issued_badge_data = None
@@ -3806,7 +3729,7 @@ def save_exam_result(exam_id):
                     }
                     print(f"🏅 Insignia digital emitida: {badge.badge_code}")
             except Exception as badge_err:
-                print(f"Error emitiendo insignia digital: {badge_err}")
+                current_app.logger.warning(f'save_exam_result: badge issuance failed: {badge_err}')
         
         print(f"✅ Resultado guardado: id={result.id}, score={score}, percentage={percentage}, aprobado={result_value == 1}")
         print(f"=== FIN GUARDAR RESULTADO ===\n")
@@ -3827,9 +3750,6 @@ def save_exam_result(exam_id):
         
     except Exception as e:
         db.session.rollback()
-        import traceback
-        print(f"ERROR en save_exam_result: {str(e)}")
-        print(traceback.format_exc())
         return _internal_error(e, 'save_exam_result')
 
 
@@ -3907,14 +3827,12 @@ def get_my_exam_results(exam_id):
         raise
         
     except Exception as e:
-        import traceback
-        print(f"ERROR en get_my_exam_results: {str(e)}")
-        print(traceback.format_exc())
         return _internal_error(e, 'get_my_exam_results')
 
 
 @bp.route('/results/<result_id>/upload-report', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=10, window=60, key_prefix='rl_upload_report')  # L4
 def upload_result_report(result_id):
     """
     Sube el PDF del reporte de evaluación a Azure Blob Storage
@@ -3996,7 +3914,7 @@ def upload_result_report(result_id):
                     download_url=report_url
                 )
         except Exception as email_err:
-            print(f"Error enviando email de reporte listo: {email_err}")
+            current_app.logger.warning(f'request_pdf_generation: email send failed: {email_err}')
         
         print(f"✅ Reporte PDF guardado: {report_url}")
         print(f"=== FIN SUBIR REPORTE ===\n")
@@ -4012,9 +3930,6 @@ def upload_result_report(result_id):
         
     except Exception as e:
         db.session.rollback()
-        import traceback
-        print(f"ERROR en upload_result_report: {str(e)}")
-        print(traceback.format_exc())
         return _internal_error(e, 'upload_result_report')
 
 
@@ -4475,14 +4390,32 @@ def download_xae_legacy(exam_id):
                 'xae_content': '',
                 'xae_url': blob_url,
             }), 404
+        # L5: distinguir 4xx vs 5xx upstream
+        upstream_code = e.code
+        gateway_status = 502 if upstream_code >= 500 else 502
+        current_app.logger.warning(
+            f'download_xae blob HTTPError exam_id={exam_id} upstream={upstream_code} url={blob_url}'
+        )
         return jsonify({
             'success': False,
-            'error': f'Blob fetch failed: HTTP {e.code}',
+            'error': f'Blob fetch failed: upstream HTTP {upstream_code}',
             'xae_content': '',
-        }), 502
-    except Exception as e:
+            'upstream_status': upstream_code,
+        }), gateway_status
+    except urllib.error.URLError as e:
+        # L5: timeout o falla de red al blob — 504 (gateway timeout) en lugar de 502 genérico
+        current_app.logger.warning(
+            f'download_xae blob URLError exam_id={exam_id} reason={getattr(e, "reason", e)}'
+        )
         return jsonify({
             'success': False,
-            'error': f'Blob fetch error: {str(e)}',
+            'error': 'Upstream blob unreachable',
+            'xae_content': '',
+        }), 504
+    except Exception as e:
+        current_app.logger.error(f'download_xae unexpected error exam_id={exam_id}: {e}')
+        return jsonify({
+            'success': False,
+            'error': 'Internal proxy error',
             'xae_content': '',
         }), 502
