@@ -4151,11 +4151,7 @@ def debug_result_data(result_id):
         raise
         
     except Exception as e:
-        import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        return _internal_error(e, 'debug_result_data')
 
 
 # ============= GENERACIÓN ASÍNCRONA DE PDFs =============
@@ -4245,11 +4241,7 @@ def request_pdf_generation(result_id):
         raise
             
     except Exception as e:
-        import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
+        return _internal_error(e, 'request_pdf_generation')
 
 
 @bp.route('/results/<result_id>/pdf-status', methods=['GET'])
