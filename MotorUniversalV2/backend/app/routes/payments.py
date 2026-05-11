@@ -127,7 +127,8 @@ def process_payment():
     payment_method_id = data.get('payment_method_id', '').strip()
     installments = data.get('installments', 1)
     issuer_id = data.get('issuer_id')
-    payer_email = data.get('payer_email', '').strip()
+    # PH3: ignorar payer_email del body; usar siempre el email del usuario autenticado
+    payer_email = (user.email or '').strip()
 
     if not units or not isinstance(units, int) or units < 1:
         return jsonify({'error': 'Debes indicar un número válido de vouchers (mínimo 1)'}), 400
@@ -158,7 +159,7 @@ def process_payment():
             payment_method_id=payment_method_id,
             installments=installments,
             issuer_id=issuer_id,
-            payer_email=payer_email or user.email,
+            payer_email=payer_email,
         )
         return jsonify(result), 200
     except ValueError as e:
@@ -202,7 +203,8 @@ def candidate_pay():
     payment_method_id = data.get('payment_method_id', '').strip()
     installments = data.get('installments', 1)
     issuer_id = data.get('issuer_id')
-    payer_email = data.get('payer_email', '').strip()
+    # PH3: ignorar payer_email del body; usar siempre el email del usuario autenticado
+    payer_email = (user.email or '').strip()
 
     if not group_exam_id:
         return jsonify({'error': 'group_exam_id es requerido'}), 400
@@ -275,7 +277,7 @@ def candidate_pay():
             payment_method_id=payment_method_id,
             installments=installments,
             issuer_id=issuer_id,
-            payer_email=payer_email or user.email,
+            payer_email=payer_email,
         )
         return jsonify(result), 200
     except ValueError as e:
@@ -319,7 +321,8 @@ def candidate_retake():
     payment_method_id = data.get('payment_method_id', '').strip()
     installments = data.get('installments', 1)
     issuer_id = data.get('issuer_id')
-    payer_email = data.get('payer_email', '').strip()
+    # PH3: ignorar payer_email del body; usar siempre el email del usuario autenticado
+    payer_email = (user.email or '').strip()
 
     if not group_exam_id:
         return jsonify({'error': 'group_exam_id es requerido'}), 400
@@ -396,7 +399,7 @@ def candidate_retake():
             payment_method_id=payment_method_id,
             installments=installments,
             issuer_id=issuer_id,
-            payer_email=payer_email or user.email,
+            payer_email=payer_email,
         )
         return jsonify(result), 200
     except ValueError as e:
@@ -436,10 +439,12 @@ def webhook():
         logger.warning('Webhook sin data_id: args=%s body=%s', dict(request.args), body)
         return jsonify({'status': 'ignored'}), 200
 
-    # Verificar firma — se omite en pruebas del panel (live_mode=false) para
-    # permitir validar la URL desde MercadoPago. Para pagos reales (live_mode=true)
-    # la firma siempre se valida si el header está presente.
-    if x_signature and is_live:
+    # PH1: cuando is_live=True, la firma HMAC es OBLIGATORIA. Antes se omitía si
+    # el header no venía, permitiendo a un atacante invocar /webhook sin firma.
+    if is_live:
+        if not x_signature:
+            logger.warning('Webhook live sin firma (data_id=%s, request_id=%s)', data_id, x_request_id)
+            return jsonify({'error': 'Signature required'}), 401
         parts = dict(p.split('=', 1) for p in x_signature.split(',') if '=' in p)
         ts = parts.get('ts', '').strip()
         v1 = parts.get('v1', '').strip()
@@ -458,10 +463,10 @@ def webhook():
 
     try:
         process_webhook_notification(topic, str(data_id), full_body=body)
-    except Exception as e:
-        logger.exception('Error procesando webhook: %s', e)
-        # Siempre retornar 200 a MP para evitar reintentos excesivos
-        return jsonify({'status': 'error', 'detail': str(e)}), 200
+    except Exception:
+        logger.exception('Error procesando webhook (data_id=%s)', data_id)
+        # PH2: no exponer detalle de excepción al caller. Siempre 200 para evitar reintentos excesivos.
+        return jsonify({'status': 'error'}), 200
 
     return jsonify({'status': 'ok'}), 200
 
