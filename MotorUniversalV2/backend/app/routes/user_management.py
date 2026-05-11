@@ -16,6 +16,9 @@ from app.routes.partners import (
 )
 import uuid
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('user_management', __name__, url_prefix='/api/user-management')
 
@@ -533,10 +536,9 @@ def list_users():
         
         raise
         
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 def _get_cached_user_count(user_role, role_filter='', active_filter='', coordinator_id=None, campus_id=None):
@@ -634,7 +636,8 @@ def get_user_detail(user_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== HISTORIAL DE GRUPOS DE UN CANDIDATO ==============
@@ -775,7 +778,8 @@ def get_user_group_history(user_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== VERIFICACIÓN DE SIMILITUD DE NOMBRE ==============
@@ -890,7 +894,8 @@ def check_name_similarity():
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== CREAR USUARIOS ==============
@@ -1297,7 +1302,8 @@ def create_user():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== ACTUALIZAR USUARIOS ==============
@@ -1508,7 +1514,8 @@ def update_user(user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== CAMBIAR CONTRASEÑA ==============
@@ -1556,7 +1563,8 @@ def change_user_password(user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== GENERAR CONTRASEÑA TEMPORAL (ADMIN Y COORDINADOR) ==============
@@ -1603,7 +1611,8 @@ def generate_temp_password(user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== VER CONTRASEÑA DE USUARIO (ADMIN Y COORDINADOR) ==============
@@ -1666,7 +1675,8 @@ def get_user_password(user_id):
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== ACTIVAR/DESACTIVAR USUARIOS ==============
@@ -1760,7 +1770,8 @@ def toggle_user_active(user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== OPCIONES DE DOCUMENTOS ==============
@@ -1802,7 +1813,8 @@ def update_user_document_options(user_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== ELIMINAR USUARIO (SOLO ADMIN) ==============
@@ -1968,7 +1980,8 @@ def delete_user(user_id):
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/users/bulk-delete', methods=['POST'])
@@ -2042,7 +2055,8 @@ def bulk_delete_users():
         raise
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== ESTADÍSTICAS ==============
@@ -2162,10 +2176,9 @@ def get_user_stats():
         
         raise
         
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/stats/invalidate', methods=['POST'])
@@ -2182,7 +2195,8 @@ def invalidate_stats_cache():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== ROLES DISPONIBLES ==============
@@ -2234,7 +2248,8 @@ def get_available_roles():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== PLANTELES PARA RESPONSABLES ==============
@@ -2290,7 +2305,8 @@ def get_available_campuses():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== PARTNERS DISPONIBLES (para responsable_partner) ==============
@@ -2330,7 +2346,8 @@ def get_available_partners():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== ESTADOS DISPONIBLES (para responsable_estatal) ==============
@@ -2367,7 +2384,8 @@ def get_available_states():
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== COORDINADORES DISPONIBLES (para asignar a responsables) ==============
@@ -2397,7 +2415,8 @@ def get_available_coordinators():
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== HELPERS: CARGA MASIVA DE CANDIDATOS ==============
@@ -3118,7 +3137,8 @@ def candidate_curp_status():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== PREVIEW CARGA MASIVA ==============
@@ -3350,7 +3370,8 @@ def preview_bulk_upload_candidates():
         raise
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== CARGA MASIVA DE CANDIDATOS (OPTIMIZADO) ==============
@@ -4084,7 +4105,8 @@ def bulk_upload_candidates():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/candidates/bulk-upload/template', methods=['GET'])
@@ -4221,7 +4243,8 @@ def download_bulk_upload_template():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== EXPORTAR USUARIOS CON CONTRASEÑAS (ADMIN Y COORDINADOR) ==============
@@ -4439,7 +4462,8 @@ def export_user_credentials():
         raise
         
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== HISTÓRICO DE ALTAS MASIVAS ==============
@@ -4488,7 +4512,8 @@ def list_bulk_upload_history():
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/bulk-history/<int:batch_id>', methods=['GET'])
@@ -4518,7 +4543,8 @@ def get_bulk_upload_detail(batch_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/bulk-history/<int:batch_id>/export', methods=['GET'])
@@ -4676,7 +4702,8 @@ def export_bulk_upload_batch(batch_id):
     except HTTPException:
         raise
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ---------------------------------------------------------------------------
