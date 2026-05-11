@@ -223,7 +223,7 @@ const BrandingConfigPage = () => {
                     <Building2 className="w-7 h-7 text-gray-400" />
                   </div>
                   <span className="fluid-text-xs text-gray-400 block">Sin logo configurado</span>
-                  <span className="fluid-text-xs text-gray-300">PNG, JPG, WebP, SVG — Máx 2MB</span>
+                  <span className="fluid-text-xs text-gray-300">PNG, JPG, WebP — Máx 2MB</span>
                 </div>
               )}
             </div>
@@ -232,7 +232,7 @@ const BrandingConfigPage = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                accept="image/png,image/jpeg,image/webp"
                 onChange={handleLogoSelect}
                 className="hidden"
               />

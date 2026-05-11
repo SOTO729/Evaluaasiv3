@@ -520,13 +520,14 @@ describe('BrandingConfigPage', () => {
     expect(fileInput.accept).toContain('image/png');
     expect(fileInput.accept).toContain('image/jpeg');
     expect(fileInput.accept).toContain('image/webp');
-    expect(fileInput.accept).toContain('image/svg+xml');
+    // H7 (backend audit partners): SVG ya no es aceptado (XSS persistente al servir inline).
+    expect(fileInput.accept).not.toContain('image/svg+xml');
   });
 
   it('F3. muestra descripción de formatos permitidos', async () => {
     renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/PNG, JPG, WebP, SVG/i)).toBeInTheDocument();
+      expect(screen.getByText(/PNG, JPG, WebP/i)).toBeInTheDocument();
     });
   });
 
