@@ -7089,7 +7089,11 @@ def get_group_exam_members_detail(group_id, exam_id):
                 topic_ids = [r[0] for r in topic_rows]
                 total_topics = len(topic_ids)
         except Exception as prog_err:
-            print(f"⚠️ Error calculando topics: {prog_err}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error calculando topics: {prog_err}")
+            except Exception:
+                pass
 
         # ── Build base member subquery using SQLAlchemy ──
         # Always use ALL group members so that after a swap, the source user
@@ -7520,7 +7524,11 @@ def swap_exam_member(group_id, exam_id):
                             'progress': round(avg_progress, 1)
                         }), 400
         except Exception as prog_err:
-            print(f"⚠️ Error verificando progreso: {prog_err}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error verificando progreso: {prog_err}")
+            except Exception:
+                pass
 
         # === VALIDAR QUE EL CANDIDATO DESTINO NO ESTÉ BLOQUEADO ===
 
@@ -7552,7 +7560,11 @@ def swap_exam_member(group_id, exam_id):
                         'progress': round(dest_avg, 1)
                     }), 400
         except Exception as dest_prog_err:
-            print(f"⚠️ Error verificando progreso del destino: {dest_prog_err}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error verificando progreso del destino: {dest_prog_err}")
+            except Exception:
+                pass
 
         # === REALIZAR EL SWAP ===
 
@@ -7616,7 +7628,11 @@ def swap_exam_member(group_id, exam_id):
                     # en este caso raro.
                     db.session.delete(eca)
                     transferred_assignment_number = existing_dest_eca.assignment_number
-                    print(f"⚠️ Destino ya tenía ECA {existing_dest_eca.assignment_number}, se eliminó ECA {eca.assignment_number} del origen")
+                    try:
+                        from flask import current_app
+                        current_app.logger.info(f"Destino ya tenia ECA {existing_dest_eca.assignment_number}, se elimino ECA {eca.assignment_number} del origen")
+                    except Exception:
+                        pass
                 else:
                     # Transferir: cambiar user_id al destino
                     eca.user_id = to_user_id
@@ -7624,7 +7640,11 @@ def swap_exam_member(group_id, exam_id):
                     from app.models.user import User
                     to_user = User.query.get(to_user_id)
                     if to_user:
-                        print(f"✅ ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
+                        try:
+                            from flask import current_app
+                            current_app.logger.info(f"ECA {eca.assignment_number} transferida de {from_user_id} a {to_user.full_name}")
+                        except Exception:
+                            pass
 
         # === REVOCAR ACCESO DEL ORIGEN ===
         # Al perder su número de asignación, el origen pierde acceso al examen
@@ -7658,10 +7678,18 @@ def swap_exam_member(group_id, exam_id):
                 if deleted_tp or deleted_cp:
                     revoked_items.append(f'study_progress({deleted_tp}t,{deleted_cp}c)')
         except Exception as rev_err:
-            print(f"⚠️ Error limpiando progreso del origen: {rev_err}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error limpiando progreso del origen: {rev_err}")
+            except Exception:
+                pass
 
         if revoked_items:
-            print(f"🔒 Revocación para {from_user_id}: {', '.join(revoked_items)}")
+            try:
+                from flask import current_app
+                current_app.logger.info(f"Revocacion para {from_user_id}: {', '.join(revoked_items)}")
+            except Exception:
+                pass
 
         # === REGISTRAR EN HISTORIAL ===
         if transferred_assignment_number:
@@ -7796,7 +7824,11 @@ def bulk_swap_exam_members(group_id, exam_id):
         except HTTPException:
             raise
         except Exception as e:
-            print(f"⚠️ Error pre-cargando material: {e}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error pre-cargando material: {e}")
+            except Exception:
+                pass
 
         results = []
         errors = []
@@ -7991,10 +8023,18 @@ def bulk_swap_exam_members(group_id, exam_id):
                     if deleted_tp or deleted_cp:
                         revoked_items.append(f'study_progress({deleted_tp}t,{deleted_cp}c)')
             except Exception as rev_err:
-                print(f"⚠️ Error limpiando progreso del origen {from_user_id}: {rev_err}")
+                try:
+                    from flask import current_app
+                    current_app.logger.warning(f"Error limpiando progreso del origen {from_user_id}: {rev_err}")
+                except Exception:
+                    pass
 
             if revoked_items:
-                print(f"🔒 Revocación bulk para {from_user_id}: {', '.join(revoked_items)}")
+                try:
+                    from flask import current_app
+                    current_app.logger.info(f"Revocacion bulk para {from_user_id}: {', '.join(revoked_items)}")
+                except Exception:
+                    pass
 
             # === REGISTRAR EN HISTORIAL ===
             if transferred_number:
@@ -9318,7 +9358,11 @@ def get_available_exams():
             except HTTPException:
                 raise
             except Exception as e:
-                print(f"[DEBUG] Error contando preguntas: {e}")
+                try:
+                    from flask import current_app
+                    current_app.logger.debug(f"Error contando preguntas: {e}")
+                except Exception:
+                    pass
             
             # Contar ejercicios por tipo (exam vs simulator)
             exam_exercises = 0
@@ -9342,7 +9386,11 @@ def get_available_exams():
             except HTTPException:
                 raise
             except Exception as e:
-                print(f"[DEBUG] Error contando ejercicios: {e}")
+                try:
+                    from flask import current_app
+                    current_app.logger.debug(f"Error contando ejercicios: {e}")
+                except Exception:
+                    pass
             
             total_questions = exam_questions + simulator_questions
             total_exercises = exam_exercises + simulator_exercises
@@ -9451,10 +9499,18 @@ def get_exam_materials_for_assignment(exam_id):
         from app.models import Exam
         from sqlalchemy import text
         
-        print(f"=== get_exam_materials_for_assignment: exam_id={exam_id} ===")
+        try:
+            from flask import current_app
+            current_app.logger.debug(f"get_exam_materials_for_assignment: exam_id={exam_id}")
+        except Exception:
+            pass
         
         exam = Exam.query.get_or_404(exam_id)
-        print(f"Exam found: {exam.name}")
+        try:
+            from flask import current_app
+            current_app.logger.debug(f"Exam found: {exam.name}")
+        except Exception:
+            pass
         
         # Obtener IDs de materiales vinculados al examen (desde study_material_exams)
         linked_material_ids = []
@@ -9464,25 +9520,45 @@ def get_exam_materials_for_assignment(exam_id):
                 WHERE exam_id = :exam_id
             '''), {'exam_id': exam_id})
             linked_material_ids = [r[0] for r in result.fetchall()]
-            print(f"Linked materials from study_material_exams: {linked_material_ids}")
+            try:
+                from flask import current_app
+                current_app.logger.debug(f"Linked materials from study_material_exams: {linked_material_ids}")
+            except Exception:
+                pass
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Error getting linked materials from study_material_exams: {e}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error getting linked materials from study_material_exams: {e}")
+            except Exception:
+                pass
         
         # También verificar materiales con el campo legacy exam_id
         try:
             legacy_materials = StudyMaterial.query.filter_by(exam_id=exam_id).all()
-            print(f"Legacy materials with exam_id={exam_id}: {[m.id for m in legacy_materials]}")
+            try:
+                from flask import current_app
+                current_app.logger.debug(f"Legacy materials with exam_id={exam_id}: {[m.id for m in legacy_materials]}")
+            except Exception:
+                pass
             for mat in legacy_materials:
                 if mat.id not in linked_material_ids:
                     linked_material_ids.append(mat.id)
         except HTTPException:
             raise
         except Exception as e:
-            print(f"Error getting legacy materials: {e}")
+            try:
+                from flask import current_app
+                current_app.logger.warning(f"Error getting legacy materials: {e}")
+            except Exception:
+                pass
         
-        print(f"Total linked material IDs: {linked_material_ids}")
+        try:
+            from flask import current_app
+            current_app.logger.debug(f"Total linked material IDs: {linked_material_ids}")
+        except Exception:
+            pass
         
         materials_data = []
         linked_set = set(linked_material_ids)
@@ -9494,7 +9570,11 @@ def get_exam_materials_for_assignment(exam_id):
                 StudyMaterial.is_published == True
             ).order_by(StudyMaterial.title).all()
             
-            print(f"Linked published materials found: {len(linked_materials)}")
+            try:
+                from flask import current_app
+                current_app.logger.debug(f"Linked published materials found: {len(linked_materials)}")
+            except Exception:
+                pass
             
             for mat in linked_materials:
                 # Calcular conteos
@@ -9525,7 +9605,11 @@ def get_exam_materials_for_assignment(exam_id):
                 StudyMaterial.is_published == True
             ).order_by(StudyMaterial.title).all()
         
-        print(f"Other published materials found: {len(other_published)}")
+        try:
+            from flask import current_app
+            current_app.logger.debug(f"Other published materials found: {len(other_published)}")
+        except Exception:
+            pass
         
         for mat in other_published:
             # Calcular conteos
@@ -9544,7 +9628,11 @@ def get_exam_materials_for_assignment(exam_id):
                 'topics_count': topics_count,
             })
         
-        print(f"Total materials to return: {len(materials_data)}")
+        try:
+            from flask import current_app
+            current_app.logger.debug(f"Total materials to return: {len(materials_data)}")
+        except Exception:
+            pass
         
         return jsonify({
             'exam_id': exam_id,
