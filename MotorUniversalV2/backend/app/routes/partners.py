@@ -463,7 +463,7 @@ def get_partners():
         
         query = query.order_by(Partner.name)
         
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         return jsonify({
             'partners': [p.to_dict(include_states=True, coordinator_id=coord_id) for p in pagination.items],
@@ -3806,7 +3806,7 @@ def get_group_members(group_id):
             query = query.order_by(*sort_cols)
 
         # ── Paginación SQL ──
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         page_members = pagination.items
         total_all = pagination.total
 
@@ -4660,7 +4660,7 @@ def search_candidates():
         
         query = query.order_by(User.first_surname, User.name)
         
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         candidates = []
         for user in pagination.items:
@@ -5299,7 +5299,7 @@ def get_partner_users(partner_id):
                 )
             )
         
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         return jsonify({
             'partner_id': partner_id,
@@ -6572,6 +6572,10 @@ def assign_exam_to_group(group_id):
 def unassign_exam_from_group(group_id, exam_id):
     """Desasignar un examen de un grupo"""
     try:
+        # SR-N1 (audit partners): aislamiento por coordinador (cross-tenant fix)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupExam
         
         group_exam = GroupExam.query.filter_by(
@@ -6601,6 +6605,10 @@ def unassign_exam_from_group(group_id, exam_id):
 def get_group_exam_members(group_id, exam_id):
     """Obtener los miembros asignados a un examen específico del grupo"""
     try:
+        # SR-N1 (audit partners): aislamiento por coordinador (cross-tenant fix)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupExam
         from app.models.partner import GroupExamMember
         
@@ -6709,6 +6717,10 @@ def add_members_to_exam(group_id, exam_id):
     - user_ids: Lista de user_ids a agregar
     """
     try:
+        # SR-N1 (audit partners 2nd round): aislamiento por coordinador (cross-tenant)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupExam
         from app.models.partner import GroupExamMember
         
@@ -7043,6 +7055,10 @@ def get_group_exam_members_detail(group_id, exam_id):
     - filter_status (str, optional) — 'locked', 'swappable', 'all'
     """
     try:
+        # SR-N1 (audit partners 2nd round): aislamiento por coordinador (cross-tenant)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupExam
         from app.models.partner import GroupExamMember, EcmCandidateAssignment
         from app.models.result import Result
@@ -7401,6 +7417,10 @@ def swap_exam_member(group_id, exam_id):
     - El candidato destino debe ser miembro del grupo
     """
     try:
+        # SR-N1 (audit partners 2nd round): aislamiento por coordinador (cross-tenant)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupExam
         from app.models.partner import GroupExamMember, EcmCandidateAssignment, EcmSwapHistory
         from app.models.result import Result
@@ -7759,6 +7779,10 @@ def bulk_swap_exam_members(group_id, exam_id):
     Si alguna falla la validación, se informa del error pero se procesan las demás.
     """
     try:
+        # SR-N1 (audit partners 2nd round): aislamiento por coordinador (cross-tenant)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupExam
         from app.models.partner import GroupExamMember, EcmCandidateAssignment, EcmSwapHistory
         from app.models.result import Result
@@ -8105,6 +8129,10 @@ def get_swap_history(group_id, exam_id):
     - dir (str): Dirección 'asc' o 'desc' (default 'desc')
     """
     try:
+        # SR-N1 (audit partners 2nd round): aislamiento por coordinador (cross-tenant)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models.partner import EcmSwapHistory
 
         page = request.args.get('page', 1, type=int)
@@ -8140,7 +8168,7 @@ def get_swap_history(group_id, exam_id):
         else:
             query = query.order_by(sort_column.desc())
 
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
 
         # Agrupar por assignment_number para la línea de tiempo
         records = [r.to_dict() for r in pagination.items]
@@ -8172,6 +8200,10 @@ def get_swap_timeline(group_id, exam_id):
     Devuelve cada assignment_number con su cadena completa de movimientos.
     """
     try:
+        # SR-N1 (audit partners 2nd round): aislamiento por coordinador (cross-tenant)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models.partner import EcmSwapHistory, EcmCandidateAssignment
         from app.models import GroupExam
 
@@ -8768,6 +8800,10 @@ def assign_study_materials_to_group(group_id):
 def unassign_study_material_from_group(group_id, material_id):
     """Desasignar un material de estudio del grupo"""
     try:
+        # SR-N1 (audit partners): aislamiento por coordinador (cross-tenant fix)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupStudyMaterial
         
         assignment = GroupStudyMaterial.query.filter_by(
@@ -8797,6 +8833,10 @@ def unassign_study_material_from_group(group_id, material_id):
 def get_study_material_members(group_id, material_id):
     """Obtener los miembros asignados a un material específico del grupo"""
     try:
+        # SR-N1 (audit partners): aislamiento por coordinador (cross-tenant fix)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupStudyMaterial, GroupStudyMaterialMember
         
         assignment = GroupStudyMaterial.query.filter_by(
@@ -8846,6 +8886,10 @@ def update_study_material_members(group_id, material_id):
     - user_ids: Lista de user_ids que deben estar asignados
     """
     try:
+        # SR-N1 (audit partners): aislamiento por coordinador (cross-tenant fix)
+        _, _err = _verify_group_access(group_id, g.current_user)
+        if _err:
+            return _err
         from app.models import GroupStudyMaterial, GroupStudyMaterialMember
         
         assignment = GroupStudyMaterial.query.filter_by(
@@ -9066,7 +9110,7 @@ def get_available_study_materials():
             )
         
         query = query.order_by(StudyMaterial.title)
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         materials_data = []
         for mat in pagination.items:
@@ -9298,7 +9342,7 @@ def get_available_exams():
             db.func.coalesce(CompetencyStandard.code, ''),
             Exam.name
         )
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         exams_data = []
         for exam in pagination.items:
@@ -10265,7 +10309,7 @@ def search_candidates_advanced():
             query = query.order_by(User.created_at.desc())
         else:
             query = query.order_by(User.first_surname, User.name)
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         # Batch: obtener membresías activas para todos los usuarios de la página
         # Para pages grandes (>100 items), skip membresía para acelerar respuesta
@@ -12566,7 +12610,7 @@ def search_mi_plantel_candidates():
                 )
             )
         
-        paginated = query.order_by(User.name).paginate(page=page, per_page=per_page, max_per_page=1000, error_out=False)
+        paginated = query.order_by(User.name).paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
         
         return jsonify({
             'candidates': [{
