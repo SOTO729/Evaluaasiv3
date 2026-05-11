@@ -3855,16 +3855,27 @@ def options_generate_certificate(result_id):
 
 
 @bp.route('/results/<result_id>/debug-data', methods=['GET'])
+@jwt_required()
 def debug_result_data(result_id):
     """
-    Endpoint de debug para ver los datos de un resultado (temporal sin auth)
+    Endpoint de debug para ver los datos de un resultado.
+    Acceso restringido: solo admin/developer pueden ver datos arbitrarios; el
+    resto solo puede ver sus propios resultados.
     """
     try:
         from app.models.result import Result
-        
-        # Buscar sin filtrar por user_id para debug
-        result = Result.query.filter_by(id=result_id).first()
-        
+
+        user_id = get_jwt_identity()
+        viewer = User.query.get(user_id)
+        if not viewer:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+
+        is_admin = viewer.role in ('admin', 'developer')
+        if is_admin:
+            result = Result.query.filter_by(id=result_id).first()
+        else:
+            result = Result.query.filter_by(id=result_id, user_id=str(user_id)).first()
+
         if not result:
             return jsonify({'error': 'Resultado no encontrado'}), 404
         
@@ -4059,19 +4070,20 @@ def options_pdf_async(result_id):
 
 
 @bp.route('/<int:exam_id>/download-xae', methods=['GET'])
+@jwt_required()
 def download_xae_legacy(exam_id):
     """Devuelve el contenido XAE de un examen para clientes Office (.NET 4.5).
-    
+
     Estrategia: por compatibilidad con el binario legacy, se hace proxy del XAE
     almacenado en Azure Blob Storage:
         https://acemsstorage.blob.core.windows.net/conocer/MotorUniversal/Examen/<id>.xae
-    
-    El cliente .NET (UsuarioSoapClient.DescargarExamen) escribe el contenido a 
+
+    El cliente .NET (UsuarioSoapClient.DescargarExamen) escribe el contenido a
     "<id>.xae" antes de cargarlo. Si el blob no existe, retorna xae_content vacío
     y el cliente fallará gracefully (mostrará error de examen no disponible).
-    
-    Público — el XAE en Blob es ya públicamente accesible vía URL directa; este
-    endpoint sólo lo proxa para que clientes nuevos no necesiten conocer la URL.
+
+    Acceso: requiere JWT válido. El cliente Office obtiene un token vía
+    /api/vb6/login y lo inyecta como Authorization: Bearer en ApiClient.
     """
     import urllib.request
     import urllib.error
