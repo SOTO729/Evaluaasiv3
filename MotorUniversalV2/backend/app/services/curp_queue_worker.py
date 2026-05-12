@@ -55,10 +55,12 @@ def start_curp_worker(app):
 
 def _run_loop(app, worker_id: str):
     """Loop principal del worker."""
-    POLL_INTERVAL_SECONDS = 30
-    BATCH_SIZE = 5  # filas por iteración
-    INTER_QUERY_SLEEP = 1.5  # respiración entre consultas RENAPO
-    STALE_LOCK_SWEEP_SECONDS = 300  # liberar locks zombi cada 5 min
+    # Pacing gentil para no saturar gob.mx/curp (sitio sensible a carga).
+    POLL_INTERVAL_SECONDS = 60           # antes 30
+    BATCH_SIZE = 2                       # antes 5
+    INTER_QUERY_SLEEP = 5.0              # antes 1.5 — más respiro entre CURPs
+    SLOW_SITE_PAUSE_SECONDS = 600        # 10 min de pausa si RENAPO va lento
+    STALE_LOCK_SWEEP_SECONDS = 300       # liberar locks zombi cada 5 min
     DAILY_RETRY_INTERVAL_SECONDS = 24 * 3600  # cron diario re-encolado + giveup
 
     # Esperar 15s al arrancar para no competir con migraciones/startup
@@ -111,6 +113,19 @@ def _run_loop(app, worker_id: str):
                 last_daily_retry = time.time()
 
             with app.app_context():
+                # Pausa adaptativa: si RENAPO viene respondiendo lento,
+                # esperar antes de tomar más carga (evita death-spiral).
+                try:
+                    from app.services.renapo_service import is_renapo_slow
+                    if is_renapo_slow():
+                        logger.warning(
+                            f"[CURP-WORKER] RENAPO lento detectado, pausa {SLOW_SITE_PAUSE_SECONDS}s"
+                        )
+                        time.sleep(SLOW_SITE_PAUSE_SECONDS)
+                        continue
+                except Exception as _slow_err:
+                    logger.debug(f"[CURP-WORKER] slow-check falló: {_slow_err}")
+
                 claimed = _claim_pending_rows(worker_id, BATCH_SIZE)
                 if claimed:
                     logger.info(f"[CURP-WORKER] {worker_id} procesando {len(claimed)} filas")
