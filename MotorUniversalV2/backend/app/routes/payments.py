@@ -24,6 +24,7 @@ from app.services.mercadopago_service import (
     process_webhook_notification,
     verify_webhook_signature,
 )
+from app.utils.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ bp = Blueprint('payments', __name__)
 
 @bp.route('/checkout', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=5, window=60, key_prefix='rl_pay_checkout')
 def create_checkout():
     """Crea una preferencia de Checkout Pro en Mercado Pago.
 
@@ -90,6 +92,7 @@ def create_checkout():
 
 @bp.route('/process', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=5, window=60, key_prefix='rl_pay_process')
 def process_payment():
     """Procesa un pago directo con token de tarjeta tokenizado client-side.
 
@@ -175,6 +178,7 @@ def process_payment():
 
 @bp.route('/candidate-pay', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=5, window=60, key_prefix='rl_pay_candidate')
 def candidate_pay():
     """Candidato paga por una certificación específica (asignación de examen).
 
@@ -256,15 +260,19 @@ def candidate_pay():
     if cert_cost <= 0:
         return jsonify({'error': 'No hay costo de certificación configurado'}), 400
 
-    # Verificar que no haya ya un pago aprobado para esta asignación
-    existing = Payment.query.filter_by(
-        user_id=current_user_id,
-        group_exam_id=group_exam_id,
-        payment_type='certification',
-        status='approved'
+    # H1: Verificar que no haya ya un pago aprobado NI uno en proceso para esta
+    # asignación. Incluir 'pending'/'in_process' bloquea el race window donde dos
+    # requests concurrentes del mismo candidato podrían generar dos cargos en MP.
+    existing = Payment.query.filter(
+        Payment.user_id == current_user_id,
+        Payment.group_exam_id == group_exam_id,
+        Payment.payment_type == 'certification',
+        Payment.status.in_(('approved', 'pending', 'in_process'))
     ).first()
     if existing:
-        return jsonify({'error': 'Ya tienes un pago aprobado para esta certificación'}), 400
+        if existing.status == 'approved':
+            return jsonify({'error': 'Ya tienes un pago aprobado para esta certificación'}), 400
+        return jsonify({'error': 'Ya tienes un pago en proceso para esta certificación. Espera unos minutos.'}), 409
 
     try:
         result = process_candidate_payment(
@@ -293,6 +301,7 @@ def candidate_pay():
 
 @bp.route('/candidate-retake', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=5, window=60, key_prefix='rl_pay_retake')
 def candidate_retake():
     """Candidato paga por una retoma de examen.
 
@@ -388,6 +397,18 @@ def candidate_retake():
     if results_count < total_allowed:
         return jsonify({'error': 'Aún tienes intentos disponibles, no necesitas una retoma'}), 400
 
+    # H1: bloquear si ya hay una retoma aprobada o en proceso para esta asignación.
+    existing_retake = Payment.query.filter(
+        Payment.user_id == current_user_id,
+        Payment.group_exam_id == group_exam_id,
+        Payment.payment_type == 'retake',
+        Payment.status.in_(('approved', 'pending', 'in_process'))
+    ).first()
+    if existing_retake:
+        if existing_retake.status == 'approved':
+            return jsonify({'error': 'Ya tienes una retoma aprobada para este examen'}), 400
+        return jsonify({'error': 'Ya tienes una retoma en proceso. Espera unos minutos.'}), 409
+
     try:
         result = process_candidate_payment(
             user=user,
@@ -439,21 +460,22 @@ def webhook():
         logger.warning('Webhook sin data_id: args=%s body=%s', dict(request.args), body)
         return jsonify({'status': 'ignored'}), 200
 
-    # PH1: cuando is_live=True, la firma HMAC es OBLIGATORIA. Antes se omitía si
-    # el header no venía, permitiendo a un atacante invocar /webhook sin firma.
-    if is_live:
-        if not x_signature:
-            logger.warning('Webhook live sin firma (data_id=%s, request_id=%s)', data_id, x_request_id)
-            return jsonify({'error': 'Signature required'}), 401
-        parts = dict(p.split('=', 1) for p in x_signature.split(',') if '=' in p)
-        ts = parts.get('ts', '').strip()
-        v1 = parts.get('v1', '').strip()
-        if not verify_webhook_signature(x_request_id, str(data_id), ts, v1):
-            logger.warning(
-                'Firma de webhook inválida (live=%s, data_id=%s, request_id=%s)',
-                is_live, data_id, x_request_id,
-            )
-            return jsonify({'error': 'Invalid signature'}), 401
+    # PH1 + M3: la firma HMAC es OBLIGATORIA SIEMPRE (live o test). Antes,
+    # cuando live_mode=false el endpoint retornaba 200 sin verificar firma, lo
+    # cual permite usarlo como oráculo ("endpoint vivo") y generar ruido en
+    # logs sin coste. Ahora exigimos firma antes de cualquier rama.
+    if not x_signature:
+        logger.warning('Webhook sin firma (live=%s, data_id=%s, request_id=%s)', is_live, data_id, x_request_id)
+        return jsonify({'error': 'Signature required'}), 401
+    parts = dict(p.split('=', 1) for p in x_signature.split(',') if '=' in p)
+    ts = parts.get('ts', '').strip()
+    v1 = parts.get('v1', '').strip()
+    if not verify_webhook_signature(x_request_id, str(data_id), ts, v1):
+        logger.warning(
+            'Firma de webhook inválida (live=%s, data_id=%s, request_id=%s)',
+            is_live, data_id, x_request_id,
+        )
+        return jsonify({'error': 'Invalid signature'}), 401
 
     logger.info('Webhook recibido: topic=%s, data_id=%s, live=%s', topic, data_id, is_live)
 
@@ -491,9 +513,10 @@ def payment_status(reference):
     if not payment:
         return jsonify({'error': 'Pago no encontrado'}), 404
 
-    # Solo el dueño o admin puede ver el pago
+    # M1: para evitar enumeración de referencias válidas, devolver 404 (no 403)
+    # cuando el caller no tiene permiso sobre este pago.
     if payment.user_id != user.id and user.role not in ('admin', 'developer', 'gerente', 'financiero'):
-        return jsonify({'error': 'No tienes permiso para ver este pago'}), 403
+        return jsonify({'error': 'Pago no encontrado'}), 404
 
     return jsonify(payment.to_dict()), 200
 
