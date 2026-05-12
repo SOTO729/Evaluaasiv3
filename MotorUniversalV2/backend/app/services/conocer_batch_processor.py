@@ -327,6 +327,14 @@ def _process_batch(batch_id: int):
     # Procesar cada PDF único — re-leyendo del ZIP bajo demanda
     processed_in_pass2 = 0
     for (curp, ecm_code), entry_data in seen.items():
+        # Chequeo de cancelación cooperativa: si el coordinador/admin canceló
+        # el batch mientras se procesaba, abortamos el loop preservando el
+        # estado 'cancelled' — NO sobrescribimos a 'completed' al final.
+        db.session.refresh(batch)
+        if batch.status == 'cancelled':
+            print(f"[CONOCER-BATCH] Batch {batch_id} cancelado durante pasada 2 — abortando")
+            zf.close()
+            return
         start_time = time.time()
         filename = entry_data['filename']
         parsed = entry_data['parsed']
@@ -387,7 +395,10 @@ def _process_batch(batch_id: int):
             if not issue_date:
                 issue_date = datetime.utcnow().date()
 
-            folio = parsed.get('folio', f'BATCH{batch_id}_{int(time.time())}')
+            # parsed['folio'] siempre se asigna a None cuando no se encuentra,
+            # así que dict.get(key, default) NO devuelve el default — hay que
+            # usar `or` para caer al placeholder cuando es None/vacío.
+            folio = parsed.get('folio') or f'BATCH{batch_id}_{int(time.time())}'
 
             # === SUBIR PDF A BLOB STORAGE ===
             uploaded_blob_name, file_hash, file_size = blob_svc.upload_certificate(
@@ -521,6 +532,12 @@ def _process_batch(batch_id: int):
 
     # === Finalizar batch ===
     zf.close()
+
+    # No pisar el estado si el batch fue cancelado mientras corríamos.
+    db.session.refresh(batch)
+    if batch.status == 'cancelled':
+        print(f"[CONOCER-BATCH] Batch {batch_id} quedó cancelado — no se marca como completed")
+        return
 
     batch.status = 'completed'
     batch.completed_at = datetime.utcnow()

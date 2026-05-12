@@ -3871,7 +3871,7 @@ export interface ConocerUploadLog {
 export interface ConocerUploadBatchesResponse {
   batches: ConocerUploadBatch[];
   total: number;
-  page: number;
+  current_page: number;
   per_page: number;
   pages: number;
 }
@@ -3879,9 +3879,11 @@ export interface ConocerUploadBatchesResponse {
 export interface ConocerUploadLogsResponse {
   logs: ConocerUploadLog[];
   total: number;
-  page: number;
+  current_page: number;
   per_page: number;
   pages: number;
+  batch_status?: string;
+  batch_progress?: number;
   summary: {
     matched: number;
     replaced: number;

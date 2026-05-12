@@ -18794,7 +18794,10 @@ def send_conocer_solicitud():
             return jsonify({'error': 'No hay contactos activos configurados. Agrega contactos en la sección de configuración.'}), 400
 
         # 2. Get pending assignments with their ECM data
-        pending_sql = text("""
+        # Aislamiento multi-tenant: coordinator solo ve sus pendientes; admin/developer ven global.
+        _coord_filter_id = _get_coordinator_filter(g.current_user)
+        _coord_where = "AND cg.coordinator_id = :coord_filter_id" if _coord_filter_id else ""
+        pending_sql = text(f"""
             SELECT 
                 eca.id AS eca_id,
                 eca.assignment_number,
@@ -18821,9 +18824,11 @@ def send_conocer_solicitud():
                   (cg.enable_tier_advanced_override = 1)
                   OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
               )
+              {_coord_where}
             ORDER BY cs.code, u.name
         """)
-        pending_rows = db.session.execute(pending_sql).fetchall()
+        _send_params = {'coord_filter_id': _coord_filter_id} if _coord_filter_id else {}
+        pending_rows = db.session.execute(pending_sql, _send_params).fetchall()
 
         if not pending_rows:
             return jsonify({'error': 'No hay trámites pendientes para enviar.'}), 400

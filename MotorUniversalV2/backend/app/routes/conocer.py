@@ -678,6 +678,9 @@ def list_upload_batches():
     status_filter = request.args.get('status')
     
     query = ConocerUploadBatch.query
+    # Aislamiento multi-tenant: coordinators solo ven sus propios batches.
+    if current_user.role == 'coordinator':
+        query = query.filter(ConocerUploadBatch.uploaded_by == current_user_id)
     if status_filter:
         query = query.filter_by(status=status_filter)
     
@@ -708,12 +711,16 @@ def get_upload_batch_detail(batch_id):
     batch = ConocerUploadBatch.query.get(batch_id)
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
+    # Aislamiento multi-tenant: coordinator solo accede a sus propios batches.
+    if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
+        return jsonify({'error': 'No tienes acceso a este batch'}), 403
     
     data = batch.to_dict(include_uploader=True)
     data['progress_percentage'] = batch.progress_percentage
     data['success_count'] = batch.success_count
     
-    return jsonify(data)
+    # Frontend espera {batch: ...} — ver ConocerUploadPage y ConocerUploadDetailPage.
+    return jsonify({'batch': data})
 
 
 @conocer_bp.route('/admin/upload-batches/<int:batch_id>/logs', methods=['GET'])
@@ -731,6 +738,8 @@ def get_upload_batch_logs(batch_id):
     batch = ConocerUploadBatch.query.get(batch_id)
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
+    if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
+        return jsonify({'error': 'No tienes acceso a este batch'}), 403
     
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 50, type=int), 200)
@@ -764,7 +773,14 @@ def get_upload_batch_logs(batch_id):
         'current_page': page,
         'per_page': per_page,
         'batch_status': batch.status,
-        'batch_progress': batch.progress_percentage
+        'batch_progress': batch.progress_percentage,
+        'summary': {
+            'matched': batch.matched_files or 0,
+            'replaced': batch.replaced_files or 0,
+            'skipped': batch.skipped_files or 0,
+            'discarded': batch.discarded_files or 0,
+            'error': batch.error_files or 0,
+        },
     })
 
 
@@ -783,6 +799,8 @@ def export_upload_batch_logs(batch_id):
     batch = ConocerUploadBatch.query.get(batch_id)
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
+    if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
+        return jsonify({'error': 'No tienes acceso a este batch'}), 403
     
     logs = ConocerUploadLog.query.filter_by(batch_id=batch_id)\
         .order_by(ConocerUploadLog.created_at.asc()).all()
@@ -879,6 +897,8 @@ def cancel_upload_batch(batch_id):
     batch = ConocerUploadBatch.query.get(batch_id)
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
+    if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
+        return jsonify({'error': 'No tienes acceso a este batch'}), 403
     
     if batch.status not in ('queued', 'processing'):
         return jsonify({'error': f'Solo se pueden cancelar batches en cola o procesando (estado actual: {batch.status})'}), 400
@@ -887,19 +907,9 @@ def cancel_upload_batch(batch_id):
     batch.completed_at = datetime.utcnow()
     batch.error_message = f'Cancelado por {current_user.email}'
     db.session.commit()
-    
-    # Intentar eliminar ZIP temporal del blob
-    try:
-        import os
-        from azure.storage.blob import BlobServiceClient as _BSC
-        conn_str = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-        container_name = os.getenv('AZURE_STORAGE_CONTAINER', 'evaluaasi-files')
-        if conn_str and batch.blob_name:
-            bsc = _BSC.from_connection_string(conn_str)
-            blob_client = bsc.get_blob_client(container=container_name, blob=batch.blob_name)
-            blob_client.delete_blob()
-    except Exception:
-        pass  # No es crítico
+    # NO eliminar el ZIP en blob: el worker puede estar leyéndolo y un retry
+    # posterior lo necesita. El ZIP se borra en la finalización normal o por
+    # limpieza de retención (TTL del contenedor).
     
     return jsonify({
         'message': 'Batch cancelado exitosamente',
@@ -923,6 +933,8 @@ def retry_upload_batch(batch_id):
     batch = ConocerUploadBatch.query.get(batch_id)
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
+    if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
+        return jsonify({'error': 'No tienes acceso a este batch'}), 403
     
     if batch.status == 'completed':
         return jsonify({'error': 'Este batch ya fue completado exitosamente'}), 400
