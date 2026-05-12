@@ -29,8 +29,9 @@ CHALLENGE_POLL_INTERVAL = 3  # segundos entre checks del challenge
 # CURPs genéricos de extranjero — NO se validan contra RENAPO
 GENERIC_FOREIGN_CURPS = {'XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8'}
 
-# Retry config — 7 intentos con backoff exponencial + jitter
-MAX_RETRIES = 7
+# Retry config — 2 intentos en caliente; el worker reagenda la CURP
+# para reintento asíncrono (15min/30min/1h backoff) en vez de hammerear.
+MAX_RETRIES = 2
 RETRY_BASE_DELAY = 2  # seconds (base para backoff exponencial)
 RETRY_MAX_DELAY = 30  # segundos máximo entre reintentos
 RETRY_JITTER = 0.5    # ±50% jitter aleatorio sobre el delay calculado
@@ -42,6 +43,32 @@ _CIRCUIT_THRESHOLD = 10       # tras N fallos consecutivos, abrir circuito
 _CIRCUIT_COOLDOWN = 120       # segundos de espera antes de reintentar
 _circuit_opened_at = 0.0      # timestamp cuando se abrió
 _BROWSER_RESTART_AFTER = 3    # reiniciar browser tras N fallos seguidos en un call
+
+# ── Detección de lentitud de RENAPO ──
+# Si el sitio responde pero lento, el worker debe pausar para no empeorarlo.
+_latency_lock = threading.Lock()
+_recent_latencies = []         # lista circular últimas N latencias exitosas
+_LATENCY_WINDOW = 5            # tamaño de la ventana
+_LATENCY_SLOW_THRESHOLD = 20.0 # segundos: si las últimas 3 superan esto → lento
+_LATENCY_SLOW_COUNT = 3        # cuántas de las últimas deben ser >= threshold
+
+
+def _record_renapo_latency(seconds: float):
+    """Registra la latencia de una consulta RENAPO exitosa."""
+    with _latency_lock:
+        _recent_latencies.append(float(seconds))
+        while len(_recent_latencies) > _LATENCY_WINDOW:
+            _recent_latencies.pop(0)
+
+
+def is_renapo_slow() -> bool:
+    """True si las últimas N consultas exitosas fueron lentas (>threshold).
+    Usado por el worker para pausar el batch antes de saturar al sitio."""
+    with _latency_lock:
+        if len(_recent_latencies) < _LATENCY_SLOW_COUNT:
+            return False
+        recent = _recent_latencies[-_LATENCY_SLOW_COUNT:]
+        return all(l >= _LATENCY_SLOW_THRESHOLD for l in recent)
 
 # ── Validación de formato CURP ──
 # Entidades federativas válidas (2 letras)
@@ -284,6 +311,7 @@ async def _consultar_renapo_async(curp: str) -> RenapoValidationResult:
 
     for attempt in range(1, MAX_RETRIES + 1):
         context = None
+        _attempt_start = _time.time()
         try:
             # Reiniciar browser si hubo muchos fallos seguidos
             if consecutive_errors >= _BROWSER_RESTART_AFTER:
@@ -343,6 +371,7 @@ async def _consultar_renapo_async(curp: str) -> RenapoValidationResult:
             # Procesar respuesta API interceptada
             if api_response_data:
                 _record_renapo_success()
+                _record_renapo_latency(_time.time() - _attempt_start)
                 return _parse_renapo_response(curp, api_response_data)
 
             # Sin respuesta API — contar como fallo para retry
