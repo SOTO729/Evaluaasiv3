@@ -181,9 +181,10 @@ def _assign_existing_to_group_response(existing_user, target_group, dup_field):
             'existing_user_assigned': True,
             'duplicate_field': dup_field,
         }), 200
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({'error': f'Error al asignar usuario existente al grupo: {str(e)}'}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 def _is_coordinator_role(role):
@@ -3128,8 +3129,9 @@ def validate_curp_renapo_endpoint():
 
     except HTTPException:
         raise
-    except Exception as e:
-        return jsonify({'error': f'Error validando CURP: {str(e)}'}), 500
+    except Exception:
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/validate-curp/batch', methods=['POST'])
@@ -3164,8 +3166,9 @@ def validate_curp_batch_endpoint():
 
     except HTTPException:
         raise
-    except Exception as e:
-        return jsonify({'error': f'Error validando CURPs: {str(e)}'}), 500
+    except Exception:
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 # ============== AUTO-VALIDACIÓN DE CURP POR EL CANDIDATO ==============
@@ -3398,9 +3401,10 @@ def candidate_validate_own_curp():
 
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        return jsonify({'error': f'Error validando CURP: {str(e)}'}), 500
+        logger.exception('user_management error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
 
 @bp.route('/me/curp-status', methods=['GET'])
