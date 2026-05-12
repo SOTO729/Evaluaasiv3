@@ -275,6 +275,14 @@ def _process_queue_row(q_id, worker_id: str):
         db.session.commit()
         return
 
+    # W1: si el usuario fue soft-eliminado, no gastar RENAPO ni emails.
+    if getattr(user, 'is_deleted', False):
+        row.status = QUEUE_FAILED
+        row.finished_at = datetime.utcnow()
+        row.last_error = 'Usuario eliminado (soft-delete)'
+        db.session.commit()
+        return
+
     # Si la CURP del usuario ya cambió, abortamos esta entrada (la nueva habrá creado otra)
     if (user.curp or '').upper().strip() != (row.curp or '').upper().strip():
         row.status = QUEUE_FAILED
@@ -331,7 +339,34 @@ def _process_queue_row(q_id, worker_id: str):
         return
 
     # Consultar RENAPO (con cache). El servicio cachea positivos 30d, negativos 1h.
-    result = validate_curp_renapo(row.curp, use_cache=True)
+    # Envolvemos en sub-thread con timeout duro para evitar que un Playwright
+    # colgado bloquee al worker completo (cubre el caso visto en DEV donde
+    # 5 filas quedaron en 'processing' >13h sin avance).
+    _renapo_holder = {'result': None, 'err': None}
+
+    def _run_renapo():
+        try:
+            _renapo_holder['result'] = validate_curp_renapo(row.curp, use_cache=True)
+        except Exception as _e:
+            _renapo_holder['err'] = _e
+
+    _t = threading.Thread(target=_run_renapo, daemon=True, name=f'renapo-q{q_id}')
+    _t.start()
+    _t.join(timeout=240)  # 4 min hard cap
+    if _t.is_alive():
+        # Timeout duro — liberar fila SIN consumir attempts, el sub-thread
+        # eventualmente morirá cuando Playwright timeoutee internamente.
+        logger.warning(f"[CURP-WORKER] q={row.id} timeout duro RENAPO (>240s), liberando")
+        row.last_error = 'Timeout interno worker RENAPO (>240s)'
+        row.next_retry_at = datetime.utcnow() + timedelta(minutes=30)
+        row.status = QUEUE_PENDING
+        row.locked_at = None
+        row.locked_by = None
+        db.session.commit()
+        return
+    if _renapo_holder['err']:
+        raise _renapo_holder['err']
+    result = _renapo_holder['result']
 
     # Distinguir "circuit-open" devuelto por el servicio (NO consume reintento)
     if (result.error or '').lower().startswith('servicio renapo temporalmente no disponible'):
