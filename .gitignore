@@ -48,6 +48,14 @@ MotorUniversalV2/backend/audit_*.py
 MotorUniversalV2/backend/audit_*.json
 MotorUniversalV2/backend/cleanup_*.py
 MotorUniversalV2/backend/_inv.py
+MotorUniversalV2/backend/_*.py
+MotorUniversalV2/backend/_*.txt
+MotorUniversalV2/backend/_last_tag.txt
+
+# Auditoria / smoke tests locales
+smoke_*.ps1
+exam_audit_dump.txt
+__pycache__/
 
 # XAE artefacto local
 MotorUniversalV2/clients/EvaluaasiOfficeV2/test_*.xae
