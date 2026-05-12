@@ -106,6 +106,10 @@ def register():
     if User.query.filter_by(username=data['username']).first():
         return jsonify({'error': 'El username ya está en uso'}), 400
     
+    # B2: validar fortaleza mínima de contraseña (consistente con change-password y reset-password)
+    if len(data['password']) < 8:
+        return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+    
     # Crear usuario - forzar role='candidato', ignorar campos privilegiados del request
     user = User(
         email=data['email'],
@@ -130,8 +134,8 @@ def register():
     try:
         from app.services.email_service import send_email_verification
         send_email_verification(user)
-    except Exception as e:
-        logger.error(f"Error enviando email de verificación: {e}")
+    except Exception:
+        logger.exception("auth.register: error enviando email de verificación")
     
     return jsonify({
         'message': 'Usuario creado exitosamente. Revisa tu correo para verificar tu cuenta.',
@@ -221,8 +225,8 @@ def resend_verification():
     try:
         from app.services.email_service import send_email_verification
         send_email_verification(user, include_credentials=True)
-    except Exception as e:
-        logger.error(f"Error reenviando email de verificación: {e}")
+    except Exception:
+        logger.exception("auth.resend_verification: error reenviando email")
 
     return jsonify(success_msg), 200
 
@@ -585,6 +589,7 @@ def change_password():
 
 @bp.route('/verify-password', methods=['POST'])
 @jwt_required()
+@rate_limit_login(limit=10, window=60)  # A3: evitar uso como password oracle
 def verify_password():
     """
     Verificar contraseña del usuario actual
@@ -691,11 +696,18 @@ def request_email_change():
         if existing_user and existing_user.id != user.id:
             return jsonify({'error': 'Este correo electrónico ya está registrado'}), 400
     
-    # En producción, aquí se enviaría un correo de verificación
-    # Por ahora, actualizamos directamente
+    # M1: actualizar y notificar al email ANTERIOR para detectar account hijacking.
+    # (Idealmente: flujo de doble confirmación con token al nuevo email + ventana de
+    # reversión al viejo. Por ahora notificamos para que el dueño original detecte.)
     old_email = user.email
     user.email = new_email
     db.session.commit()
+    
+    try:
+        from app.services.email_service import send_email_change_notice
+        send_email_change_notice(user, old_email=old_email, new_email=new_email)
+    except Exception:
+        logger.exception("auth.request_email_change: fallo notificando al email anterior")
     
     return jsonify({
         'message': 'Correo electrónico actualizado exitosamente',
@@ -758,8 +770,8 @@ def forgot_password():
             return jsonify(success_msg), 200
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error guardando token de reset: {e}")
+    except Exception:
+        logger.exception("auth.forgot_password: error guardando token de reset")
         return jsonify(success_msg), 200
     
     # Enviar email
@@ -768,8 +780,8 @@ def forgot_password():
         send_password_reset_email(user, token)
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error enviando email de reset: {e}")
+    except Exception:
+        logger.exception("auth.forgot_password: error enviando email de reset")
     
     return jsonify(success_msg), 200
 
@@ -823,8 +835,8 @@ def reset_password():
         user_id = user_id.decode()
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error verificando token de reset: {e}")
+    except Exception:
+        logger.exception("auth.reset_password: error verificando token")
         return jsonify({'error': 'Error al verificar el enlace'}), 500
     
     user = User.query.get(user_id)
@@ -908,8 +920,8 @@ def contact_form():
             return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Error en formulario de contacto: {e}")
+    except Exception:
+        logger.exception("auth.contact_form: error enviando mensaje")
         return jsonify({'message': 'Tu mensaje fue recibido. Nos pondremos en contacto pronto.'}), 200
 
 
@@ -1104,13 +1116,9 @@ def get_my_assignments():
         }), 200
         
     except HTTPException:
-        
         raise
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo historial de asignaciones: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        logger.exception("auth.get_my_assignments: error obteniendo historial")
         return jsonify({'error': 'Error al obtener el historial de asignaciones'}), 500
 
 
@@ -1376,13 +1384,9 @@ def get_campus_assignments():
         }), 200
         
     except HTTPException:
-        
         raise
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo asignaciones del campus: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        logger.exception("auth.get_campus_assignments: error obteniendo asignaciones")
         return jsonify({'error': 'Error al obtener las asignaciones del plantel'}), 500
 
 

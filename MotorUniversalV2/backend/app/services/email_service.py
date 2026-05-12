@@ -866,6 +866,44 @@ def send_password_reset_email(user, reset_token: str) -> bool:
     )
 
 
+def send_email_change_notice(user, old_email: str, new_email: str) -> bool:
+    """Notifica al email ANTERIOR que su correo de cuenta fue cambiado.
+    Sirve como mecanismo de detección de account hijacking (M1 en auth audit).
+    Si quien recibe este aviso no realizó el cambio, debe contactar a soporte.
+    """
+    if not old_email:
+        return False
+
+    full_name = f"{user.name or ''} {user.first_surname or ''}".strip() or 'Usuario'
+    body = f"""
+        <h2 style="margin:0 0 8px;color:#111827;font-size:20px;">Cambio de correo en tu cuenta</h2>
+        <p style="color:#4b5563;font-size:14px;line-height:1.6;">
+            Hola <strong>{full_name}</strong>, te informamos que el correo de inicio de sesión de tu cuenta
+            fue modificado.
+        </p>
+        <div style="background-color:#f3f4f6;border-radius:8px;padding:12px 16px;margin:16px 0;font-size:14px;color:#111827;">
+            <div><strong>Correo anterior:</strong> {old_email}</div>
+            <div><strong>Correo nuevo:</strong> {new_email}</div>
+        </div>
+        <div style="background-color:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;margin:16px 0;">
+            <p style="margin:0;color:#92400e;font-size:13px;">
+                <strong>⚠️ ¿No fuiste tú?</strong> Si no realizaste este cambio, contacta a soporte de
+                inmediato; es probable que tu cuenta haya sido comprometida.
+            </p>
+        </div>
+    """
+
+    return send_email(
+        to=old_email,
+        subject="[Evaluaasi] Tu correo de cuenta fue cambiado",
+        html=_base_template("Cambio de correo", body),
+        plain_text=(
+            f"Tu correo de cuenta Evaluaasi fue cambiado de {old_email} a {new_email}. "
+            f"Si no fuiste tú, contacta a soporte de inmediato."
+        ),
+    )
+
+
 # ═══════════════════════════════════════════════════════════════
 # 3. NOTIFICACIÓN DE RESULTADOS DE EXAMEN
 # ═══════════════════════════════════════════════════════════════
