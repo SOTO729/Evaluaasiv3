@@ -269,6 +269,7 @@ const UsersListPage = lazy(() => import('./pages/users/UsersListPage'))
 const UserFormPage = lazy(() => import('./pages/users/UserFormPage'))
 const UserDetailPage = lazy(() => import('./pages/users/UserDetailPage'))
 const BulkUploadHistoryPage = lazy(() => import('./pages/users/BulkUploadHistoryPage'))
+const CurpQueueDashboardPage = lazy(() => import('./pages/users/CurpQueueDashboardPage'))
 const BulkUploadDetailPage = lazy(() => import('./pages/users/BulkUploadDetailPage'))
 
 // Admin - Cuentas Bloqueadas
@@ -558,6 +559,7 @@ function App() {
               {/* User Management (Gestión de Usuarios) */}
               <Route path="/user-management" element={<UsersListPage />} />
               <Route path="/user-management/new" element={<UserFormPage />} />
+              <Route path="/user-management/curp-queue" element={<CurpQueueDashboardPage />} />
               <Route path="/user-management/bulk-history" element={<BulkUploadHistoryPage />} />
               <Route path="/user-management/bulk-history/:batchId" element={<BulkUploadDetailPage />} />
               <Route path="/user-management/:userId" element={<UserDetailPage />} />

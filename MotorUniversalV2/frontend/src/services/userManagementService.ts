@@ -827,3 +827,73 @@ export async function getUserGroupHistory(userId: string): Promise<GroupHistoryR
   const response = await api.get(`/user-management/users/${userId}/group-history`);
   return response.data;
 }
+
+// ============== CURP QUEUE DASHBOARD (admin only) ==============
+
+export interface CurpQueueRow {
+  id: number;
+  curp: string;
+  user_id?: string;
+  status?: string;
+  attempts: number;
+  circuit_open_retries: number;
+  locked_at?: string | null;
+  locked_by?: string | null;
+  lock_age_seconds?: number | null;
+  is_zombie?: boolean;
+  source?: string;
+  batch_id?: number | null;
+  last_error?: string | null;
+  next_retry_at?: string | null;
+  wait_seconds?: number | null;
+  finished_at?: string | null;
+  created_at?: string | null;
+  duration_seconds?: number | null;
+}
+
+export interface CurpQueueDashboard {
+  server_time: string;
+  total: number;
+  counts: {
+    pending: number;
+    processing: number;
+    done: number;
+    failed: number;
+    rejected: number;
+  };
+  processing: CurpQueueRow[];
+  processing_count: number;
+  zombie_locks: number;
+  next_pending: CurpQueueRow[];
+  recent_finished: CurpQueueRow[];
+  top_errors: Array<{ error: string; count: number }>;
+  renapo: {
+    circuit_open: boolean;
+    available: boolean;
+    consecutive_failures?: number;
+    threshold?: number;
+    cooldown_seconds?: number;
+    cooldown_remaining?: number;
+  };
+  cache: {
+    total: number;
+    positive: number;
+    negative: number;
+    total_hits: number;
+    fresh: number;
+  };
+  active_workers: string[];
+  last_hour: { done: number; rejected: number; failed: number };
+  last_hour_total: number;
+  throughput_24h: Array<{ bucket: string; done: number; rejected: number; failed: number }>;
+}
+
+export async function getCurpQueueDashboard(): Promise<CurpQueueDashboard> {
+  const response = await api.get('/user-management/curp-queue/dashboard');
+  return response.data;
+}
+
+export async function releaseCurpQueueLock(queueId: number): Promise<{ success: boolean; queue_id: number; new_status: string }> {
+  const response = await api.post(`/user-management/curp-queue/${queueId}/release`);
+  return response.data;
+}

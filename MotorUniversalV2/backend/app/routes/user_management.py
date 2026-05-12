@@ -6,7 +6,7 @@ from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_, and_, func, case, text
 from werkzeug.exceptions import HTTPException
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import db, cache
 from app.models import User
 from app.models.user import encrypt_password
@@ -5288,4 +5288,284 @@ def _recover_orphaned_curp_users(app_obj, users_data):
         '[CURP-RECOVERY] Finished: %d verified, %d format invalid, %d rejected after %d rounds',
         verified, format_invalid, final_rejected if 'final_rejected' in dir() else 0, MAX_ROUNDS,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DASHBOARD CURP QUEUE (admin/developer) — monitoreo en tiempo real
+# ─────────────────────────────────────────────────────────────────────────────
+
+@bp.route('/curp-queue/dashboard', methods=['GET'])
+@jwt_required()
+@admin_required
+@rate_limit(limit=600, window=60, key_prefix='rl_um_curp_dash')
+def curp_queue_dashboard():
+    """Dashboard real-time del worker de validación CURP.
+
+    Devuelve métricas agregadas + filas activas/recientes para auditoría:
+      - counts por status (pending, processing, done, failed, rejected)
+      - circuit breaker RENAPO (open/closed, cooldown remaining)
+      - filas actualmente en 'processing' (con lock)
+      - últimas N filas terminadas (done/rejected/failed)
+      - top errores recientes agrupados
+      - throughput por hora (últimas 24h)
+      - cache RENAPO: tamaño, hits totales, recientes
+      - locks zombi (locked_at > 10 min)
+
+    Admin/developer only. Polling-friendly (rate-limit 600 req/min).
+    """
+    try:
+        from app.models.curp_verification import (
+            CurpVerificationQueue, CurpRenapoCache,
+            QUEUE_PENDING, QUEUE_PROCESSING, QUEUE_DONE,
+            QUEUE_FAILED, QUEUE_REJECTED,
+        )
+        from sqlalchemy import desc
+
+        now = datetime.utcnow()
+
+        # 1) Counts por status
+        counts = {QUEUE_PENDING: 0, QUEUE_PROCESSING: 0, QUEUE_DONE: 0,
+                  QUEUE_FAILED: 0, QUEUE_REJECTED: 0}
+        rows = db.session.query(
+            CurpVerificationQueue.status,
+            db.func.count(CurpVerificationQueue.id)
+        ).group_by(CurpVerificationQueue.status).all()
+        for status, n in rows:
+            if status in counts:
+                counts[status] = int(n)
+        total = sum(counts.values())
+
+        # 2) Filas en processing — incluyen locked_at para detectar zombis
+        processing_rows = (
+            CurpVerificationQueue.query
+            .filter(CurpVerificationQueue.status == QUEUE_PROCESSING)
+            .order_by(desc(CurpVerificationQueue.locked_at))
+            .limit(50)
+            .all()
+        )
+        processing_data = []
+        zombie_locks = 0
+        for r in processing_rows:
+            age_seconds = None
+            is_zombie = False
+            if r.locked_at:
+                age_seconds = int((now - r.locked_at).total_seconds())
+                if age_seconds > 600:  # > 10 min
+                    is_zombie = True
+                    zombie_locks += 1
+            processing_data.append({
+                'id': r.id,
+                'curp': r.curp,
+                'user_id': r.user_id,
+                'attempts': r.attempts,
+                'circuit_open_retries': r.circuit_open_retries,
+                'locked_at': r.locked_at.isoformat() if r.locked_at else None,
+                'locked_by': r.locked_by,
+                'lock_age_seconds': age_seconds,
+                'is_zombie': is_zombie,
+                'source': r.source,
+                'batch_id': r.batch_id,
+            })
+
+        # 3) Próximas filas pending (orden por next_retry_at)
+        next_pending = (
+            CurpVerificationQueue.query
+            .filter(CurpVerificationQueue.status == QUEUE_PENDING)
+            .order_by(CurpVerificationQueue.next_retry_at.asc())
+            .limit(20)
+            .all()
+        )
+        next_pending_data = [{
+            'id': r.id,
+            'curp': r.curp,
+            'attempts': r.attempts,
+            'circuit_open_retries': r.circuit_open_retries,
+            'next_retry_at': r.next_retry_at.isoformat() if r.next_retry_at else None,
+            'last_error': r.last_error,
+            'source': r.source,
+            'batch_id': r.batch_id,
+            'wait_seconds': int((r.next_retry_at - now).total_seconds()) if r.next_retry_at else None,
+        } for r in next_pending]
+
+        # 4) Últimas 50 finalizadas (done/rejected/failed) — orden por finished_at
+        recent_finished = (
+            CurpVerificationQueue.query
+            .filter(CurpVerificationQueue.status.in_([QUEUE_DONE, QUEUE_REJECTED, QUEUE_FAILED]))
+            .filter(CurpVerificationQueue.finished_at.isnot(None))
+            .order_by(desc(CurpVerificationQueue.finished_at))
+            .limit(50)
+            .all()
+        )
+        recent_finished_data = [{
+            'id': r.id,
+            'curp': r.curp,
+            'user_id': r.user_id,
+            'status': r.status,
+            'attempts': r.attempts,
+            'last_error': r.last_error,
+            'source': r.source,
+            'batch_id': r.batch_id,
+            'finished_at': r.finished_at.isoformat() if r.finished_at else None,
+            'created_at': r.created_at.isoformat() if r.created_at else None,
+            'duration_seconds': (
+                int((r.finished_at - r.created_at).total_seconds())
+                if r.finished_at and r.created_at else None
+            ),
+        } for r in recent_finished]
+
+        # 5) Throughput últimas 24h — done por hora (bucketing en Python para portabilidad)
+        since_24h = now - timedelta(hours=24)
+        buckets = {}
+        for i in range(24):
+            ts = now - timedelta(hours=23 - i)
+            key = ts.strftime('%Y-%m-%d %H:00')
+            buckets[key] = {'done': 0, 'rejected': 0, 'failed': 0}
+        last_hour_total = {'done': 0, 'rejected': 0, 'failed': 0}
+        finished_24h = db.session.query(
+            CurpVerificationQueue.finished_at,
+            CurpVerificationQueue.status,
+        ).filter(
+            CurpVerificationQueue.finished_at >= since_24h,
+            CurpVerificationQueue.status.in_([QUEUE_DONE, QUEUE_REJECTED, QUEUE_FAILED]),
+        ).all()
+        for fin_at, st in finished_24h:
+            if not fin_at:
+                continue
+            key = fin_at.strftime('%Y-%m-%d %H:00')
+            if key in buckets and st in buckets[key]:
+                buckets[key][st] += 1
+        # Conteo de la última hora exacta
+        one_hour_ago = now - timedelta(hours=1)
+        recent_hour = db.session.query(
+            CurpVerificationQueue.status,
+            db.func.count(CurpVerificationQueue.id),
+        ).filter(
+            CurpVerificationQueue.finished_at >= one_hour_ago,
+            CurpVerificationQueue.status.in_([QUEUE_DONE, QUEUE_REJECTED, QUEUE_FAILED]),
+        ).group_by(CurpVerificationQueue.status).all()
+        for st, c in recent_hour:
+            if st in last_hour_total:
+                last_hour_total[st] = int(c)
+
+        throughput_24h = [{'bucket': k, **v} for k, v in buckets.items()]
+
+        # 6) Top errores recientes (últimas 24h)
+        since_err = now - timedelta(hours=24)
+        top_errors_rows = db.session.query(
+            CurpVerificationQueue.last_error,
+            db.func.count(CurpVerificationQueue.id).label('c'),
+        ).filter(
+            CurpVerificationQueue.last_error.isnot(None),
+            CurpVerificationQueue.created_at >= since_err,
+        ).group_by(CurpVerificationQueue.last_error).order_by(text('c DESC')).limit(10).all()
+        top_errors = [{'error': (e or '')[:200], 'count': int(c)} for e, c in top_errors_rows]
+
+        # 7) Estado RENAPO circuit breaker (acceso vía módulo para leer estado vivo)
+        renapo_state = {'circuit_open': False, 'available': True}
+        try:
+            from app.services import renapo_service as _rs
+            import time as _t
+            renapo_state['circuit_open'] = bool(_rs.is_renapo_circuit_open())
+            renapo_state['available'] = not renapo_state['circuit_open']
+            renapo_state['consecutive_failures'] = int(getattr(_rs, '_consecutive_failures', 0))
+            renapo_state['threshold'] = int(getattr(_rs, '_CIRCUIT_THRESHOLD', 10))
+            renapo_state['cooldown_seconds'] = int(getattr(_rs, '_CIRCUIT_COOLDOWN', 120))
+            opened_at = float(getattr(_rs, '_circuit_opened_at', 0) or 0)
+            if renapo_state['circuit_open'] and opened_at:
+                elapsed = _t.time() - opened_at
+                renapo_state['cooldown_remaining'] = max(0, int(renapo_state['cooldown_seconds'] - elapsed))
+            else:
+                renapo_state['cooldown_remaining'] = 0
+        except Exception as _e:
+            logger.warning('No se pudo leer circuit breaker RENAPO: %s', _e)
+
+        # 8) Cache RENAPO stats
+        cache_stats = {'total': 0, 'positive': 0, 'negative': 0, 'total_hits': 0, 'fresh': 0}
+        try:
+            cache_stats['total'] = int(CurpRenapoCache.query.count())
+            cache_stats['positive'] = int(
+                CurpRenapoCache.query.filter(CurpRenapoCache.valid.is_(True)).count()
+            )
+            cache_stats['negative'] = cache_stats['total'] - cache_stats['positive']
+            hits_row = db.session.query(
+                db.func.coalesce(db.func.sum(CurpRenapoCache.hits), 0)
+            ).scalar()
+            cache_stats['total_hits'] = int(hits_row or 0)
+            cache_stats['fresh'] = int(
+                CurpRenapoCache.query.filter(CurpRenapoCache.expires_at > now).count()
+            )
+        except Exception as _e:
+            logger.warning('No se pudieron leer stats cache RENAPO: %s', _e)
+
+        # 9) Workers vivos: identificadores únicos de locked_by sobre filas activas
+        worker_ids = db.session.query(
+            CurpVerificationQueue.locked_by
+        ).filter(
+            CurpVerificationQueue.locked_by.isnot(None),
+            CurpVerificationQueue.locked_at >= now - timedelta(minutes=10),
+        ).distinct().all()
+        active_workers = [w[0] for w in worker_ids if w[0]]
+
+        # 10) Throughput hour-rate (CURPs/hora basado en última hora)
+        throughput_rate_per_hour = sum(last_hour_total.values())
+
+        return jsonify({
+            'server_time': now.isoformat(),
+            'total': total,
+            'counts': counts,
+            'processing': processing_data,
+            'processing_count': len(processing_data),
+            'zombie_locks': zombie_locks,
+            'next_pending': next_pending_data,
+            'recent_finished': recent_finished_data,
+            'top_errors': top_errors,
+            'renapo': renapo_state,
+            'cache': cache_stats,
+            'active_workers': active_workers,
+            'last_hour': last_hour_total,
+            'last_hour_total': throughput_rate_per_hour,
+            'throughput_24h': throughput_24h,
+        }), 200
+    except Exception:
+        logger.exception('curp_queue_dashboard error')
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@bp.route('/curp-queue/<int:queue_id>/release', methods=['POST'])
+@jwt_required()
+@admin_required
+def curp_queue_release_lock(queue_id):
+    """Liberar manualmente un lock zombi de una fila en 'processing'.
+
+    Pone status='pending', locked_at=NULL, locked_by=NULL para que el worker
+    la retome. Solo admin/developer.
+    """
+    try:
+        from app.models.curp_verification import (
+            CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING,
+        )
+        row = CurpVerificationQueue.query.get_or_404(queue_id)
+        if row.status != QUEUE_PROCESSING:
+            return jsonify({
+                'error': f'La fila no está en processing (status actual: {row.status})'
+            }), 400
+        row.status = QUEUE_PENDING
+        row.locked_at = None
+        row.locked_by = None
+        row.next_retry_at = datetime.utcnow()
+        db.session.commit()
+        logger.info(
+            '[CURP-DASH] admin %s liberó manualmente lock q=%s',
+            g.current_user.id, queue_id,
+        )
+        return jsonify({'success': True, 'queue_id': queue_id, 'new_status': row.status}), 200
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception('curp_queue_release_lock error')
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'Error interno del servidor'}), 500
 

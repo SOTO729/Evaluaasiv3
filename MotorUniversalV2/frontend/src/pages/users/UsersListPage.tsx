@@ -541,6 +541,18 @@ export default function UsersListPage() {
                 </Link>
               </>
             )}
+
+            {/* Dashboard worker CURP — solo admin/developer */}
+            {(currentUser?.role === 'admin' || currentUser?.role === 'developer') && (
+              <Link
+                to="/user-management/curp-queue"
+                className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 bg-white/20 hover:bg-white/30 text-white border border-white/30 rounded-fluid-lg font-medium fluid-text-sm transition-colors"
+                title="Auditoría en tiempo real del worker de validación CURP/RENAPO"
+              >
+                <Shield className="fluid-icon-sm" />
+                Auditoría CURP
+              </Link>
+            )}
             
             <Link
               to="/user-management/new"
