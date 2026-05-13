@@ -1267,6 +1267,8 @@ def create_user():
         renapo_error_msg = None
         renapo_unavailable = False  # True si debemos encolar para retry async
         local_validated = False     # True si pasó validación local (RENAPO OFF)
+        curp_invalid_local = False  # True si CURP NO pasó validación local
+        curp_invalid_err = None     # Detalle del fallo local
         skip_renapo = data.get('skip_renapo_validation', False)
 
         from app.services.curp_local_validator import is_renapo_enabled
@@ -1278,11 +1280,15 @@ def create_user():
                 from app.services.curp_local_validator import validate_curp_local
                 is_valid_local, local_err, _ = validate_curp_local(user_curp)
                 if not is_valid_local:
-                    return jsonify({
-                        'error': f'CURP inválida: {local_err}',
-                        'reason': 'curp_format',
-                    }), 400
-                local_validated = True
+                    # Política: NO rechazar la creación. El usuario se crea igual,
+                    # pero su perfil queda BLOQUEADO (curp_verified=False) hasta
+                    # que entregue una CURP correcta vía /me/validate-curp.
+                    # Para candidatos en grupo, GroupMember.status='curp_required'.
+                    curp_invalid_local = True
+                    curp_invalid_err = local_err
+                    user_curp = None  # no persistir la CURP inválida
+                else:
+                    local_validated = True
             else:
                 # ─── Modo RENAPO: cache-only + encolado async (legacy) ───
                 try:
@@ -1375,10 +1381,14 @@ def create_user():
         # Asignar al grupo destino si aplica (solo candidatos)
         if role == 'candidato' and target_group:
             from app.models.partner import GroupMember
+            # Si la CURP fue inválida en modo local, bloqueamos el perfil del
+            # candidato dejándolo en 'curp_required' hasta que entregue una
+            # CURP correcta. Si pasó (o no se proporcionó), entra como 'active'.
+            _gm_status = 'curp_required' if curp_invalid_local else 'active'
             db.session.add(GroupMember(
                 group_id=target_group.id,
                 user_id=new_user.id,
-                status='active',
+                status=_gm_status,
             ))
 
         db.session.commit()
@@ -1428,6 +1438,16 @@ def create_user():
             response_data['renapo_data'] = renapo_result.to_dict()
         elif local_validated:
             response_data['curp_validated_locally'] = True
+        elif curp_invalid_local:
+            # Modo local: CURP rechazada por formato. Usuario creado pero
+            # bloqueado hasta que entregue una CURP correcta.
+            response_data['curp_blocked'] = True
+            response_data['curp_error'] = curp_invalid_err
+            response_data['curp_warning'] = (
+                f'La CURP no pasó la validación de formato ({curp_invalid_err}). '
+                f'El usuario fue creado pero su perfil queda bloqueado hasta que '
+                f'entregue una CURP correcta al iniciar sesión.'
+            )
         elif renapo_rejected:
             response_data['curp_pending_validation'] = True
             response_data['renapo_warning'] = (
@@ -1663,8 +1683,14 @@ def update_user(user_id):
                     user.curp = None
                     user.curp_verified = False
                     user.curp_verified_at = None
+                    # Bloquear perfil del candidato: GroupMembers → 'curp_required'
+                    if user.role == 'candidato':
+                        from app.models.partner import GroupMember as _GM_upd
+                        for gm in _GM_upd.query.filter_by(user_id=user.id).all():
+                            if gm.status in ('active', 'curp_pending', 'curp_verifying'):
+                                gm.status = 'curp_required'
                     db.session.commit()
-                    curp_msg = f'. CURP rechazada: {local_err}'
+                    curp_msg = f'. CURP rechazada: {local_err}. Perfil bloqueado hasta que el usuario entregue una CURP correcta.'
             else:
                 try:
                     from app.services.renapo_service import (
@@ -2955,8 +2981,10 @@ def _validate_rows(parsed_rows):
 
     En modo LOCAL (CURP_RENAPO_ENABLED=false): valida CURP completa (formato
     + dígito verificador + entidad) síncronamente. Filas con CURP inválida
-    se rechazan aquí. En modo RENAPO: solo valida longitud (mantiene
-    compatibilidad con el flujo legacy donde el worker valida después).
+    NO se rechazan — quedan marcadas con r['_curp_invalid']=True para que
+    el usuario se cree con perfil bloqueado (curp=None, curp_verified=False,
+    GroupMember.status='curp_required'). En modo RENAPO: solo valida longitud
+    (mantiene compatibilidad con el flujo legacy donde el worker valida después).
     """
     from app.services.curp_local_validator import is_renapo_enabled, validate_curp_local
     renapo_on = is_renapo_enabled()
@@ -2975,12 +3003,16 @@ def _validate_rows(parsed_rows):
             errs.append('genero vacío')
         if r['email'] and not validate_email(r['email']):
             errs.append('formato de email inválido')
+        # CURP es OPCIONAL. Si viene y es inválida (modo local) NO se rechaza
+        # la fila — solo se marca para crear al usuario con perfil bloqueado.
+        r['_curp_invalid'] = False
+        r['_curp_error'] = None
         if r['curp']:
             if not renapo_on and not _is_generic_foreign_curp(r['curp']):
-                # ─── Modo LOCAL: validación completa síncrona ───
                 is_v_local, local_err, _ = validate_curp_local(r['curp'])
                 if not is_v_local:
-                    errs.append(f'CURP inválida: {local_err}')
+                    r['_curp_invalid'] = True
+                    r['_curp_error'] = local_err
             elif renapo_on and len(r['curp']) != 18 and not _is_generic_foreign_curp(r['curp']):
                 # Modo RENAPO legacy: solo longitud, formato lo valida el worker
                 errs.append(f'CURP debe tener 18 caracteres (tiene {len(r["curp"])})')
@@ -3990,15 +4022,19 @@ def bulk_upload_candidates():
             """Construye el dict de kwargs + password para un User sin agregarlo
             todavía a la sesión. Devuelve (payload, password, username).
 
-            En modo local (CURP_RENAPO_ENABLED=false), si la CURP pasó la
-            validación local en _validate_rows, marca curp_verified=True
-            de una vez (sin esperar al worker).
+            En modo local (CURP_RENAPO_ENABLED=false):
+              - Si la CURP pasó la validación local → curp_verified=True.
+              - Si la CURP falló (r['_curp_invalid']) → curp=None,
+                curp_verified=False. Más adelante, si hay grupo destino, el
+                GroupMember se crea con status='curp_required' para bloquear
+                el perfil del candidato hasta que entregue una CURP válida.
             """
             from app.services.curp_local_validator import is_renapo_enabled
             _renapo_on_bulk = is_renapo_enabled()
-            _curp_val = r['curp'] or None
+            _curp_was_invalid = bool(r.get('_curp_invalid'))
+            _curp_val = None if _curp_was_invalid else (r['curp'] or None)
             _curp_pre_verified = bool(
-                (not _renapo_on_bulk) and _curp_val  # local mode + CURP presente y ya validada en _validate_rows
+                (not _renapo_on_bulk) and _curp_val and not _curp_was_invalid
             )
             username = username_map[r['row']]
             password = _gen_pwd()
@@ -4020,17 +4056,19 @@ def bulk_upload_candidates():
                 first_surname=r['primer_apellido'].upper() if r['primer_apellido'] else r['primer_apellido'],
                 second_surname=r['segundo_apellido'].upper() if r['segundo_apellido'] else None,
                 gender=r['genero'],
-                curp=r['curp'] or None,
+                curp=_curp_val,
                 role='candidato',
                 coordinator_id=_coord_id,
                 campus_id=_campus_id,
                 is_active=True,
                 is_verified=False,
             )
-            # Modo local: marcar verificado de una vez
+            # Modo local: marcar verificado de una vez si pasó validación
             if _curp_pre_verified:
                 payload['curp_verified'] = True
                 payload['curp_verified_at'] = datetime.utcnow()
+            elif _curp_was_invalid:
+                payload['curp_verified'] = False
             return payload, password, username
 
         def _instantiate_and_add(payload, password):
@@ -4055,9 +4093,12 @@ def bulk_upload_candidates():
                 'curp': r.get('curp'),
                 'gender': r.get('genero'),
                 'user_id': uid,
+                'curp_invalid': bool(r.get('_curp_invalid')),
+                'curp_error': r.get('_curp_error'),
             })
             needs_curp_verify = bool(
                 target_group and r.get('curp') and r['curp'] not in GENERIC_FOREIGN_CURPS
+                and not r.get('_curp_invalid')
             )
             if needs_curp_verify:
                 curp_pending_user_ids.add(uid)
@@ -4235,6 +4276,13 @@ def bulk_upload_candidates():
                 ).with_entities(GroupMember.user_id).all()
                 existing_members.update(m.user_id for m in members)
 
+            # Set de uids cuya CURP NO pasó validación local en _validate_rows.
+            # Esos GroupMembers se crean en 'curp_required' (perfil bloqueado).
+            invalid_curp_uids = {
+                c['user_id'] for c in created
+                if c.get('curp_invalid') and c.get('user_id')
+            }
+
             batch_count = 0
             for uid, uname in all_assign_ids:
                 if uid not in existing_members:
@@ -4244,7 +4292,10 @@ def bulk_upload_candidates():
                         # a /mi-curp en su login. La cola de verificación corre en
                         # background y solo cambia el status si RENAPO RECHAZA
                         # definitivamente la CURP (curp_required) tras MAX intentos.
-                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status='active'))
+                        # En modo LOCAL: si la CURP ya falló validación de formato,
+                        # entrar directamente como 'curp_required'.
+                        _gm_status = 'curp_required' if uid in invalid_curp_uids else 'active'
+                        db.session.add(GroupMember(group_id=target_group.id, user_id=uid, status=_gm_status))
                         if uid in {ea['user_id'] for ea in existing_assigned}:
                             assigned_existing += 1
                         else:
@@ -4408,6 +4459,11 @@ def bulk_upload_candidates():
                     curp=c.get('curp'),
                     gender=c.get('gender'),
                     status='created',
+                    error_message=(
+                        f'CURP rechazada por validación local: {c.get("curp_error")}. '
+                        f'Perfil bloqueado hasta entregar CURP correcta.'
+                        if c.get('curp_invalid') else None
+                    ),
                 ))
 
             # Save existing_assigned members

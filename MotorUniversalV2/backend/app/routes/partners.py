@@ -848,19 +848,27 @@ def create_campus(partner_id):
         if is_foreign:
             # Para planteles extranjeros: asignar CURP genérico según género
             director_curp = _get_foreign_curp(data['director_gender'])
+            director_curp_invalid_local = False
+            director_curp_err = None
         else:
             if not data.get('director_curp'):
                 return jsonify({'error': 'El CURP del director es requerido'}), 400
             
-            # Validar CURP del director (18 caracteres)
+            # Validar CURP del director con validación LOCAL completa.
+            # Si NO pasa: NO rechazar — crear al director igual con curp=None
+            # y curp_verified=False (perfil bloqueado hasta entregar CURP válida).
             director_curp = data['director_curp'].upper().strip()
-            if len(director_curp) != 18:
-                return jsonify({'error': 'El CURP del director debe tener 18 caracteres'}), 400
-            
-            # Verificar que el CURP del director no esté ya registrado como usuario
-            existing_curp_user = User.query.filter_by(curp=director_curp).first()
-            if existing_curp_user:
-                return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({director_curp}). No se puede usar la misma persona como director en otro plantel.'}), 400
+            from app.services.curp_local_validator import validate_curp_local as _v_curp_p
+            _is_v_dir, _dir_err, _ = _v_curp_p(director_curp)
+            director_curp_invalid_local = not _is_v_dir
+            director_curp_err = _dir_err if not _is_v_dir else None
+            if director_curp_invalid_local:
+                director_curp = None  # no persistir CURP inválida
+            else:
+                # Verificar que el CURP del director no esté ya registrado como usuario
+                existing_curp_user = User.query.filter_by(curp=director_curp).first()
+                if existing_curp_user:
+                    return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({director_curp}). No se puede usar la misma persona como director en otro plantel.'}), 400
         
         if not data.get('director_date_of_birth'):
             return jsonify({'error': 'La fecha de nacimiento del director es requerida'}), 400
@@ -966,6 +974,17 @@ def create_campus(partner_id):
         )
         director_user.set_password(director_password)
         director_user.encrypted_password = encrypt_password(director_password)
+        
+        # Validación CURP local: marcar verificada si pasó, o bloquear (curp_verified=False).
+        from app.services.curp_local_validator import (
+            apply_local_validation_to_user as _apply_curp_dir,
+            is_renapo_enabled as _renapo_on_dir,
+        )
+        if director_curp_invalid_local:
+            director_user.curp_verified = False
+            director_user.curp_verified_at = None
+        elif director_curp and not _renapo_on_dir():
+            _apply_curp_dir(director_user, mark_verified=True)
         
         db.session.add(director_user)
         
@@ -1348,11 +1367,20 @@ def create_campus_responsable(campus_id):
         if not re.match(email_pattern, email):
             return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
         
-        # Validar CURP solo para nacionales (18 caracteres alfanuméricos)
+        # Validar CURP solo para nacionales: usa validación LOCAL completa
+        # (formato regex + dígito verificador + catálogo de entidad).
+        # Si NO pasa: NO rechazar — crear al responsable igual, pero con
+        # curp=None y curp_verified=False. El perfil queda bloqueado hasta
+        # que el usuario entregue una CURP correcta vía /me/validate-curp.
+        curp_invalid_local = False
+        curp_invalid_err = None
         if not is_foreign:
-            curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
-            if not re.match(curp_pattern, curp):
-                return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
+            from app.services.curp_local_validator import validate_curp_local
+            is_v_curp, local_err_curp, _ = validate_curp_local(curp)
+            if not is_v_curp:
+                curp_invalid_local = True
+                curp_invalid_err = local_err_curp
+                curp = None  # no persistir CURP inválida
         
         # Validar género
         if data['gender'] not in ['M', 'F', 'O']:
@@ -1366,7 +1394,8 @@ def create_campus_responsable(campus_id):
         
         # M5: validar CURP único ANTES de la rama de update-via-email para evitar
         # asignar al responsable existente un CURP que ya pertenece a otro usuario.
-        if not _is_generic_foreign_curp(curp):
+        # Solo si hay CURP que persistir (si fue rechazada localmente, curp=None).
+        if curp and not _is_generic_foreign_curp(curp):
             existing_curp_user_pre = User.query.filter_by(curp=curp).first()
             if existing_curp_user_pre and not (
                 replace_existing
@@ -1385,7 +1414,18 @@ def create_campus_responsable(campus_id):
                 existing_email_user.first_surname = data['first_surname'].strip()
                 existing_email_user.second_surname = data['second_surname'].strip()
                 existing_email_user.gender = data['gender']
-                existing_email_user.curp = curp
+                # Solo actualizar CURP si la nueva es válida (modo local).
+                # Si la nueva falló validación, NO sobrescribir; conservar la
+                # CURP previa (si existía) y devolver advertencia.
+                if not curp_invalid_local:
+                    existing_email_user.curp = curp
+                    if curp:
+                        from app.services.curp_local_validator import (
+                            apply_local_validation_to_user as _apply_curp_local2,
+                            is_renapo_enabled as _renapo_on_p2,
+                        )
+                        if not _renapo_on_p2():
+                            _apply_curp_local2(existing_email_user, mark_verified=True)
                 existing_email_user.date_of_birth = date_of_birth
                 existing_email_user.can_bulk_create_candidates = data.get('can_bulk_create_candidates', False)
                 existing_email_user.can_manage_groups = data.get('can_manage_groups', False)
@@ -1398,7 +1438,12 @@ def create_campus_responsable(campus_id):
                 db.session.commit()
                 
                 return jsonify({
-                    'message': 'Responsable del plantel actualizado exitosamente',
+                    'message': 'Responsable del plantel actualizado exitosamente' + (
+                        f'. ADVERTENCIA: la nueva CURP no pasó validación ({curp_invalid_err}). '
+                        f'Se conservó la CURP anterior si existía.' if curp_invalid_local else ''
+                    ),
+                    'curp_blocked': curp_invalid_local,
+                    'curp_error': curp_invalid_err,
                     'responsable': {
                         'id': existing_email_user.id,
                         'username': existing_email_user.username,
@@ -1421,7 +1466,8 @@ def create_campus_responsable(campus_id):
                 return jsonify({'error': 'Ya existe un usuario con ese correo electrónico'}), 400
         
         # Verificar CURP único (excepto si es el responsable actual o es CURP genérico de extranjero)
-        if not _is_generic_foreign_curp(curp):
+        # Solo si hay CURP que persistir (si fue rechazada localmente, curp=None).
+        if curp and not _is_generic_foreign_curp(curp):
             existing_curp_user = User.query.filter_by(curp=curp).first()
             if existing_curp_user:
                 if replace_existing and current_responsable_id and existing_curp_user.id == current_responsable_id:
@@ -1483,6 +1529,19 @@ def create_campus_responsable(campus_id):
         new_user.set_password(password)
         new_user.encrypted_password = encrypt_password(password)
         
+        # Validación CURP local: marcar verificada si se persistió, o bloquear
+        # el perfil (curp_verified=False) si la validación local falló.
+        from app.services.curp_local_validator import (
+            apply_local_validation_to_user as _apply_curp_local,
+            is_renapo_enabled as _renapo_on_p,
+        )
+        if curp_invalid_local:
+            new_user.curp_verified = False
+            new_user.curp_verified_at = None
+        elif curp and not _renapo_on_p():
+            # CURP nacional válida o genérica extranjera, en modo local: marcar verificada.
+            _apply_curp_local(new_user, mark_verified=True)
+        
         db.session.add(new_user)
         
         # Asociar el responsable al plantel y actualizar estado de activación
@@ -1492,7 +1551,13 @@ def create_campus_responsable(campus_id):
         db.session.commit()
         
         return jsonify({
-            'message': 'Responsable del plantel creado exitosamente',
+            'message': 'Responsable del plantel creado exitosamente' + (
+                f'. ADVERTENCIA: la CURP no pasó validación ({curp_invalid_err}). '
+                f'El perfil queda bloqueado hasta que el responsable entregue una CURP correcta.'
+                if curp_invalid_local else ''
+            ),
+            'curp_blocked': curp_invalid_local,
+            'curp_error': curp_invalid_err,
             'responsable': {
                 'id': new_user.id,
                 'username': new_user.username,
@@ -1923,11 +1988,20 @@ def add_campus_responsable(campus_id):
         if not re.match(email_pattern, email):
             return jsonify({'error': 'Formato de correo electrónico inválido'}), 400
 
-        # Validar CURP solo para nacionales
+        # Validar CURP local (solo nacionales). En modo LOCAL: si NO pasa, NO rechazar;
+        # crear al responsable con curp=None y curp_verified=False (perfil bloqueado).
+        curp_invalid_local2 = False
+        curp_invalid_err2 = None
         if not is_foreign:
-            curp_pattern = r'^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$'
-            if not re.match(curp_pattern, curp):
-                return jsonify({'error': 'Formato de CURP inválido. Debe tener 18 caracteres'}), 400
+            from app.services.curp_local_validator import (
+                validate_curp_local as _v_curp2,
+                is_renapo_enabled as _renapo_on2,
+            )
+            _is_v2, _err2, _ = _v_curp2(curp)
+            if not _is_v2:
+                curp_invalid_local2 = True
+                curp_invalid_err2 = _err2
+                curp = None
 
         if data['gender'] not in ['M', 'F', 'O']:
             return jsonify({'error': 'Género inválido'}), 400
@@ -1940,8 +2014,8 @@ def add_campus_responsable(campus_id):
         # Verificar unicidad de email y CURP
         if User.query.filter_by(email=email).first():
             return jsonify({'error': 'Ya existe un usuario registrado con ese correo electrónico. No se puede usar el mismo correo para otro responsable.'}), 400
-        # CURP genérico de extranjero puede repetirse
-        if not _is_generic_foreign_curp(curp):
+        # CURP genérico de extranjero puede repetirse. Si CURP fue rechazada (curp=None), no hay unicidad que validar.
+        if curp and not _is_generic_foreign_curp(curp):
             existing_curp_user = User.query.filter_by(curp=curp).first()
             if existing_curp_user:
                 return jsonify({'error': f'Ya existe un usuario registrado con ese CURP ({curp}). No se puede usar la misma persona como responsable en otro plantel.'}), 400
@@ -1957,9 +2031,9 @@ def add_campus_responsable(campus_id):
         from app.routes.user_management import generate_secure_password
         password = generate_secure_password(12)
 
-        # ── Validación CURP contra RENAPO (solo nacionales) ──
+        # ── Validación CURP contra RENAPO (solo nacionales con CURP válida y RENAPO ON) ──
         renapo_result = None
-        if not is_foreign and not _is_generic_foreign_curp(curp):
+        if not is_foreign and curp and not _is_generic_foreign_curp(curp) and _renapo_on2():
             try:
                 from app.services.renapo_service import validate_curp_renapo
                 renapo_result = validate_curp_renapo(curp)
@@ -2025,6 +2099,16 @@ def add_campus_responsable(campus_id):
         if renapo_result and renapo_result.valid:
             from app.services.renapo_service import apply_renapo_to_user
             apply_renapo_to_user(new_user, renapo_result)
+        # Modo LOCAL (RENAPO OFF): marcar CURP verificada si pasó validación local.
+        elif curp and not _renapo_on2():
+            _apply_curp_local_p2 = __import__(
+                'app.services.curp_local_validator', fromlist=['apply_local_validation_to_user']
+            ).apply_local_validation_to_user
+            _apply_curp_local_p2(new_user, mark_verified=True)
+        # Si la CURP fue rechazada localmente, garantizar bloqueo del perfil.
+        if curp_invalid_local2:
+            new_user.curp_verified = False
+            new_user.curp_verified_at = None
 
         db.session.add(new_user)
 
@@ -2037,7 +2121,13 @@ def add_campus_responsable(campus_id):
         db.session.commit()
 
         return jsonify({
-            'message': 'Responsable creado exitosamente',
+            'message': 'Responsable creado exitosamente' + (
+                f'. ADVERTENCIA: la CURP no pasó validación ({curp_invalid_err2}). '
+                f'El perfil queda bloqueado hasta que entregue una CURP correcta.'
+                if curp_invalid_local2 else ''
+            ),
+            'curp_blocked': curp_invalid_local2,
+            'curp_error': curp_invalid_err2,
             'responsable': {
                 'id': new_user.id,
                 'username': new_user.username,
