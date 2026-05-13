@@ -98,6 +98,15 @@ def register():
         if not data.get(field):
             return jsonify({'error': f'{field} es requerido'}), 400
     
+    # B3: el username debe ser exactamente 10 caracteres alfanuméricos (regla de
+    # negocio para mantener consistencia con los usernames autogenerados desde
+    # /user-management y bulk_create). Aceptamos cualquier caja pero la guardamos
+    # en mayúsculas.
+    _u = (data.get('username') or '').strip()
+    if len(_u) != 10 or not _u.isalnum():
+        return jsonify({'error': 'El username debe tener exactamente 10 caracteres alfanuméricos'}), 400
+    data['username'] = _u.upper()
+    
     # AH1: endpoint público - NO se acepta role/campus_id/subsystem_id del cliente.
     # El registro público solo crea candidatos. Otros roles se crean vía /api/user-management.
     if User.query.filter_by(email=data['email']).first():

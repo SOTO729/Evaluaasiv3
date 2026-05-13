@@ -365,6 +365,56 @@ export default function CurpQueueDashboardPage() {
             </div>
           </div>
 
+          {/* Panel de rendimiento (stats derivadas) */}
+          {data.stats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Success rate última hora */}
+              <div className="rounded-xl border bg-white p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <CheckCircle2 className="w-4 h-4" /> Éxito (última hora)
+                </div>
+                <div className="mt-1 text-2xl font-bold text-gray-900">
+                  {data.stats.last_hour.success_rate == null
+                    ? '—'
+                    : `${data.stats.last_hour.success_rate}%`}
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  {data.stats.last_hour.done} de {data.stats.last_hour.total} finalizadas
+                </div>
+              </div>
+              {/* Success rate 24h */}
+              <div className="rounded-xl border bg-white p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <CheckCircle2 className="w-4 h-4" /> Éxito (24h)
+                </div>
+                <div className="mt-1 text-2xl font-bold text-gray-900">
+                  {data.stats.last_24h.success_rate == null
+                    ? '—'
+                    : `${data.stats.last_24h.success_rate}%`}
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  {data.stats.last_24h.done} done · {data.stats.last_24h.rejected} rej ·{' '}
+                  {data.stats.last_24h.failed} fail
+                </div>
+              </div>
+              {/* Latencia procesamiento */}
+              <div className="rounded-xl border bg-white p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Clock className="w-4 h-4" /> Latencia procesamiento
+                </div>
+                <div className="mt-1 text-2xl font-bold text-gray-900">
+                  {formatDuration(data.stats.processing_latency_seconds.median)}
+                  <span className="text-xs font-normal text-gray-500 ml-1">mediana</span>
+                </div>
+                <div className="text-xs text-gray-600 mt-1">
+                  avg {formatDuration(data.stats.processing_latency_seconds.avg)} · max{' '}
+                  {formatDuration(data.stats.processing_latency_seconds.max)} · n=
+                  {data.stats.processing_latency_seconds.sample_size}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Alerta zombies */}
           {data.zombie_locks > 0 && (
             <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-lg p-3 flex items-start gap-2">
@@ -479,20 +529,57 @@ export default function CurpQueueDashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <QueueTable
-                title={`Finalizadas recientemente (${data.recent_finished.length})`}
+                title={`Finalizadas recientemente (${data.recent_finished.length}) — más nuevas primero`}
                 icon={<CheckCircle2 className="w-4 h-4" />}
                 rows={data.recent_finished}
                 emptyMsg="Aún sin filas finalizadas."
                 columns={[
-                  { header: 'ID', accessor: (r) => `#${r.id}` },
                   { header: 'CURP', accessor: (r) => r.curp, className: 'font-mono text-xs' },
                   { header: 'Estado', accessor: (r) => <StatusPill status={r.status} /> },
-                  { header: 'Duración', accessor: (r) => formatDuration(r.duration_seconds) },
-                  { header: 'Finalizó', accessor: (r) => formatRelative(r.finished_at) },
+                  {
+                    header: 'Inició',
+                    accessor: (r) => (
+                      <span className="text-xs text-gray-600" title={r.started_at || ''}>
+                        {formatRelative(r.started_at)}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'Finalizó',
+                    accessor: (r) => (
+                      <span className="text-xs text-gray-700" title={r.finished_at || ''}>
+                        {formatRelative(r.finished_at)}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'Procesamiento',
+                    accessor: (r) => (
+                      <span
+                        className="text-xs font-mono text-gray-700"
+                        title={
+                          r.duration_seconds != null
+                            ? `Total cola+proc: ${formatDuration(r.duration_seconds)}`
+                            : ''
+                        }
+                      >
+                        {formatDuration(r.processing_seconds ?? r.duration_seconds)}
+                      </span>
+                    ),
+                  },
+                  { header: 'Intentos', accessor: (r) => r.attempts },
+                  {
+                    header: 'Worker',
+                    accessor: (r) => (
+                      <span className="text-[10px] font-mono text-gray-500 truncate inline-block max-w-[80px]" title={r.locked_by || ''}>
+                        {r.locked_by || '—'}
+                      </span>
+                    ),
+                  },
                   {
                     header: 'Error',
                     accessor: (r) => (
-                      <span className="text-xs text-gray-500 truncate inline-block max-w-[200px]" title={r.last_error || ''}>
+                      <span className="text-xs text-gray-500 truncate inline-block max-w-[180px]" title={r.last_error || ''}>
                         {r.last_error || '—'}
                       </span>
                     ),

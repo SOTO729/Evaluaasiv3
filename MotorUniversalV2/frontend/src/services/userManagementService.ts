@@ -848,7 +848,32 @@ export interface CurpQueueRow {
   wait_seconds?: number | null;
   finished_at?: string | null;
   created_at?: string | null;
+  started_at?: string | null;
   duration_seconds?: number | null;
+  processing_seconds?: number | null;
+}
+
+export interface CurpQueueStats {
+  last_hour: {
+    done: number;
+    rejected: number;
+    failed: number;
+    total: number;
+    success_rate: number | null;
+  };
+  last_24h: {
+    done: number;
+    rejected: number;
+    failed: number;
+    total: number;
+    success_rate: number | null;
+  };
+  processing_latency_seconds: {
+    avg: number | null;
+    median: number | null;
+    max: number | null;
+    sample_size: number;
+  };
 }
 
 export interface CurpQueueDashboard {
@@ -886,6 +911,7 @@ export interface CurpQueueDashboard {
   last_hour: { done: number; rejected: number; failed: number };
   last_hour_total: number;
   throughput_24h: Array<{ bucket: string; done: number; rejected: number; failed: number }>;
+  stats?: CurpQueueStats;
 }
 
 export async function getCurpQueueDashboard(): Promise<CurpQueueDashboard> {

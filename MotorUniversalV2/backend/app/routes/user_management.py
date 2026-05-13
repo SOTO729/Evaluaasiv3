@@ -204,24 +204,47 @@ def _get_effective_coordinator_id(user):
 
 
 def _verify_coordinator_user_access(current_user, target_user):
-    """Verifica que un coordinador/auxiliar tiene acceso al usuario objetivo.
-    Retorna None si OK, o (response, status_code) si no tiene acceso.
-
-    Reglas:
-    - Candidatos son compartidos entre coordinadores: acceso permitido a cualquier candidato.
-    - Responsables/auxiliares solo si pertenecen al coordinador efectivo.
     """
+    Verifica que el target_user pertenezca al mismo tenant que current_user.
+    Retorna None si OK, o (response, status_code) si error.
+    """
+    if target_user is None:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
     if not _is_coordinator_role(current_user.role):
-        return None
+        return None  # Solo aplica a coordinator/auxiliar
     if target_user.role not in ['candidato', 'responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']:
-        return jsonify({'error': 'No tienes permiso para acceder a este usuario'}), 403
-    # Candidatos son compartidos: cualquier coordinador puede acceder
+        return jsonify({'error': 'Acceso denegado'}), 403
     if target_user.role == 'candidato':
-        return None
+        return None  # candidatos son compartidos entre coordinadores
+
     coord_id = _get_effective_coordinator_id(current_user)
-    if target_user.coordinator_id != coord_id:
-        return jsonify({'error': 'No tienes acceso a este usuario'}), 403
-    return None
+    if target_user.coordinator_id == coord_id:
+        return None
+
+    # UM-M4: también permitir acceso si el responsable está asignado a un
+    # campus del coordinador (caso histórico: responsables creados antes de
+    # implementar coordinator_id, o asignados vía Campus.responsable_id).
+    try:
+        from app.models.partner import Campus
+        if target_user.campus_id:
+            owned = Campus.query.filter(
+                Campus.id == target_user.campus_id,
+                Campus.coordinator_id == coord_id,
+            ).first()
+            if owned:
+                return None
+        # También caso responsable_id directo en Campus.
+        if target_user.id:
+            owned = Campus.query.filter(
+                Campus.responsable_id == target_user.id,
+                Campus.coordinator_id == coord_id,
+            ).first()
+            if owned:
+                return None
+    except Exception:
+        logger.exception('_verify_coordinator_user_access: error consultando Campus')
+
+    return jsonify({'error': 'Acceso denegado'}), 403
 
 
 def management_required(f):
@@ -370,14 +393,30 @@ def list_users():
                 }), 403
 
         # Coordinadores y auxiliares: ven TODOS los candidatos (compartidos) + sus propios responsables/auxiliares
+        # UM-M4: también incluir responsables asignados a campuses del coordinador,
+        # aunque User.coordinator_id no esté seteado (datos históricos o asignados vía Campus).
         if _is_coordinator_role(current_user.role):
+            from app.models.partner import Campus as _Campus
             coord_id = _get_effective_coordinator_id(current_user)
+            # IDs de campuses propiedad del coordinador.
+            owned_campus_ids = db.session.query(_Campus.id).filter(
+                _Campus.coordinator_id == coord_id
+            ).subquery()
+            # IDs de usuarios asignados como responsable_id en algún campus propio.
+            owned_responsable_ids = db.session.query(_Campus.responsable_id).filter(
+                _Campus.coordinator_id == coord_id,
+                _Campus.responsable_id.isnot(None),
+            ).subquery()
             query = query.filter(
                 or_(
                     User.role == 'candidato',
                     and_(
                         User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
-                        User.coordinator_id == coord_id
+                        or_(
+                            User.coordinator_id == coord_id,
+                            User.campus_id.in_(owned_campus_ids),
+                            User.id.in_(owned_responsable_ids),
+                        ),
                     )
                 )
             )
@@ -584,15 +623,28 @@ def _get_cached_user_count(user_role, role_filter='', active_filter='', coordina
     
     query = User.query.filter(User.is_deleted == False)  # noqa: E712
     if _is_coordinator_role(user_role):
-        # Coincidir con la query principal de list_users:
-        # candidatos (compartidos) + responsables/auxiliares del coordinador efectivo
+        # UM-M4: count consistente con list_users (incluye responsables ligados
+        # al coordinador por User.coordinator_id, User.campus_id o
+        # Campus.responsable_id sobre campuses propios).
         if coordinator_id:
+            from app.models.partner import Campus as _Campus
+            owned_campus_ids = db.session.query(_Campus.id).filter(
+                _Campus.coordinator_id == coordinator_id
+            ).subquery()
+            owned_responsable_ids = db.session.query(_Campus.responsable_id).filter(
+                _Campus.coordinator_id == coordinator_id,
+                _Campus.responsable_id.isnot(None),
+            ).subquery()
             query = query.filter(
                 or_(
                     User.role == 'candidato',
                     and_(
                         User.role.in_(['responsable', 'responsable_partner', 'responsable_estatal', 'auxiliar']),
-                        User.coordinator_id == coordinator_id
+                        or_(
+                            User.coordinator_id == coordinator_id,
+                            User.campus_id.in_(owned_campus_ids),
+                            User.id.in_(owned_responsable_ids),
+                        ),
                     )
                 )
             )
@@ -2925,45 +2977,42 @@ def _batch_generate_usernames(rows_to_create):
     """
     Pre-generar usernames únicos sin N+1 queries.
     Retorna dict {row_index: username}.
+
+    Regla de negocio: TODO username debe ser exactamente 10 caracteres
+    alfanuméricos en MAYUSCULAS (excluyendo I, L, O, 0 por ser confusos).
     """
-    from sqlalchemy import func as sf, or_
+    import random
+    import string
+    from sqlalchemy import func as sf
     CHUNK = 500
 
-    # Calcular base usernames (excluir caracteres confusos: I, L, O, 0)
     _CONFUSING = set('ILO0')
-    bases = {}
-    for r in rows_to_create:
-        if r['email']:
-            base = r['email'].split('@')[0].upper()
-        else:
-            base = f"{(r['nombre'] or 'X')[:3]}{(r['primer_apellido'] or 'X')[:3]}".upper()
-        # Limpiar caracteres no alfanuméricos y confusos
-        base = re.sub(r'[^A-Z0-9]', '', base) or 'USER'
-        base = ''.join(c for c in base if c not in _CONFUSING) or 'USER'
-        bases[r['row']] = base
+    _ALPHABET = ''.join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSING)
 
-    # Batch-fetch usernames existentes con esos prefijos
-    unique_bases = list(set(bases.values()))
+    # Pre-cargar todos los usernames existentes activos para evitar colisiones.
+    # Como queremos exactamente 10 chars, leemos sólo los de esa longitud.
     existing_usernames = set()
-    for i in range(0, len(unique_bases), CHUNK):
-        chunk = unique_bases[i:i + CHUNK]
-        conditions = [sf.upper(User.username).like(f"{b}%") for b in chunk]
-        if conditions:
-            users = User.query.filter(or_(*conditions)).with_entities(User.username).all()
-            existing_usernames.update(u.username.upper() for u in users if u.username)
+    existing_rows = User.query.filter(
+        sf.length(User.username) == 10
+    ).with_entities(User.username).all()
+    existing_usernames.update(u.username.upper() for u, in existing_rows if u)
 
-    # Asignar usernames (tracking localmente los ya usados)
     used = set(existing_usernames)
     result = {}
     for r in rows_to_create:
-        base = bases[r['row']]
-        username = base
-        counter = 1
-        while username in used:
-            username = f"{base}{counter}"
-            counter += 1
-        used.add(username)
-        result[r['row']] = username
+        # Intentar hasta 30 veces; suficiente para >34^10 espacio de claves.
+        for _ in range(30):
+            candidate = ''.join(random.choices(_ALPHABET, k=10))
+            if candidate not in used:
+                used.add(candidate)
+                result[r['row']] = candidate
+                break
+        else:
+            # Fallback extremadamente improbable: usar timestamp.
+            import time as _t
+            candidate = (str(int(_t.time() * 1000))[-10:]).rjust(10, 'X')
+            result[r['row']] = candidate
+            used.add(candidate)
     return result
 
 
@@ -5387,31 +5436,48 @@ def curp_queue_dashboard():
             'wait_seconds': int((r.next_retry_at - now).total_seconds()) if r.next_retry_at else None,
         } for r in next_pending]
 
-        # 4) Últimas 50 finalizadas (done/rejected/failed) — orden por finished_at
+        # 4) Últimas 100 finalizadas (done/rejected/failed) — orden por finished_at
         recent_finished = (
             CurpVerificationQueue.query
             .filter(CurpVerificationQueue.status.in_([QUEUE_DONE, QUEUE_REJECTED, QUEUE_FAILED]))
             .filter(CurpVerificationQueue.finished_at.isnot(None))
             .order_by(desc(CurpVerificationQueue.finished_at))
-            .limit(50)
+            .limit(100)
             .all()
         )
-        recent_finished_data = [{
-            'id': r.id,
-            'curp': r.curp,
-            'user_id': r.user_id,
-            'status': r.status,
-            'attempts': r.attempts,
-            'last_error': r.last_error,
-            'source': r.source,
-            'batch_id': r.batch_id,
-            'finished_at': r.finished_at.isoformat() if r.finished_at else None,
-            'created_at': r.created_at.isoformat() if r.created_at else None,
-            'duration_seconds': (
+        recent_finished_data = []
+        # Acumuladores para estadísticas derivadas (procesamiento puro = finished_at - locked_at).
+        _durations_proc = []  # seconds processing
+        for r in recent_finished:
+            # started_at: preferimos locked_at (ícono de "comenzó a procesarse"),
+            # fallback a created_at (cuándo se encoló originalmente).
+            started_at = r.locked_at or r.created_at
+            duration_total = (
                 int((r.finished_at - r.created_at).total_seconds())
                 if r.finished_at and r.created_at else None
-            ),
-        } for r in recent_finished]
+            )
+            processing_seconds = (
+                int((r.finished_at - r.locked_at).total_seconds())
+                if r.finished_at and r.locked_at else None
+            )
+            if processing_seconds is not None and processing_seconds >= 0:
+                _durations_proc.append(processing_seconds)
+            recent_finished_data.append({
+                'id': r.id,
+                'curp': r.curp,
+                'user_id': r.user_id,
+                'status': r.status,
+                'attempts': r.attempts,
+                'last_error': r.last_error,
+                'source': r.source,
+                'batch_id': r.batch_id,
+                'created_at': r.created_at.isoformat() if r.created_at else None,
+                'started_at': started_at.isoformat() if started_at else None,
+                'finished_at': r.finished_at.isoformat() if r.finished_at else None,
+                'duration_seconds': duration_total,
+                'processing_seconds': processing_seconds,
+                'locked_by': r.locked_by,
+            })
 
         # 5) Throughput últimas 24h — done por hora (bucketing en Python para portabilidad)
         since_24h = now - timedelta(hours=24)
@@ -5509,6 +5575,53 @@ def curp_queue_dashboard():
         # 10) Throughput hour-rate (CURPs/hora basado en última hora)
         throughput_rate_per_hour = sum(last_hour_total.values())
 
+        # 11) Stats derivadas: success rate (done / total finalizadas) y latencias.
+        def _success_rate(stats):
+            done = stats.get('done', 0)
+            total_f = done + stats.get('rejected', 0) + stats.get('failed', 0)
+            if total_f == 0:
+                return None
+            return round(done * 100.0 / total_f, 1)
+
+        # 24h aggregate
+        stats_24h_agg = {'done': 0, 'rejected': 0, 'failed': 0}
+        for _b in throughput_24h:
+            stats_24h_agg['done'] += _b['done']
+            stats_24h_agg['rejected'] += _b['rejected']
+            stats_24h_agg['failed'] += _b['failed']
+        stats_24h_total = sum(stats_24h_agg.values())
+
+        # Latencias de procesamiento (segundos entre locked_at y finished_at) sobre
+        # las últimas 100 finalizadas. Más representativo del "trabajo real" del
+        # worker que (finished_at - created_at), que mete cola.
+        avg_proc = None
+        median_proc = None
+        max_proc = None
+        if _durations_proc:
+            avg_proc = round(sum(_durations_proc) / len(_durations_proc), 1)
+            sorted_d = sorted(_durations_proc)
+            median_proc = sorted_d[len(sorted_d) // 2]
+            max_proc = max(sorted_d)
+
+        stats_block = {
+            'last_hour': {
+                **last_hour_total,
+                'total': throughput_rate_per_hour,
+                'success_rate': _success_rate(last_hour_total),
+            },
+            'last_24h': {
+                **stats_24h_agg,
+                'total': stats_24h_total,
+                'success_rate': _success_rate(stats_24h_agg),
+            },
+            'processing_latency_seconds': {
+                'avg': avg_proc,
+                'median': median_proc,
+                'max': max_proc,
+                'sample_size': len(_durations_proc),
+            },
+        }
+
         return jsonify({
             'server_time': now.isoformat(),
             'total': total,
@@ -5525,6 +5638,7 @@ def curp_queue_dashboard():
             'last_hour': last_hour_total,
             'last_hour_total': throughput_rate_per_hour,
             'throughput_24h': throughput_24h,
+            'stats': stats_block,
         }), 200
     except Exception:
         logger.exception('curp_queue_dashboard error')
