@@ -350,6 +350,14 @@ def create_app(config_name='development'):
         except Exception as e:
             print(f"[CURP-RECOVERY] Error checking for orphaned users: {e}")
 
+        # CURP local drain: si CURP_RENAPO_ENABLED=false, valida localmente
+        # los usuarios atascados en curp_pending/curp_verifying/curp_required.
+        try:
+            from app.auto_migrate import drain_curp_queue_with_local_validation
+            drain_curp_queue_with_local_validation()
+        except Exception as e:
+            print(f"[CURP-LOCAL-DRAIN] Error en drain: {e}")
+
         # Tablas curp_renapo_cache y curp_verification_queue (mayo 2026)
         try:
             from app.auto_migrate import check_and_create_curp_verification_tables

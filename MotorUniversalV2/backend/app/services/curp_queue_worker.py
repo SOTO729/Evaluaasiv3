@@ -35,7 +35,21 @@ _worker_lock = threading.Lock()
 
 
 def start_curp_worker(app):
-    """Arranca el thread del worker. Idempotente por proceso."""
+    """Arranca el thread del worker. Idempotente por proceso.
+
+    Si el feature flag CURP_RENAPO_ENABLED no está activo, NO arranca el
+    worker (modo de validación local — ver curp_local_validator.py).
+    """
+    # Feature flag — si RENAPO está deshabilitado, no consumimos red gob.mx.
+    try:
+        from app.services.curp_local_validator import is_renapo_enabled
+        if not is_renapo_enabled():
+            logger.info("[CURP-WORKER] CURP_RENAPO_ENABLED=false — worker desactivado (modo validación local)")
+            return
+    except Exception as flag_err:
+        logger.warning(f"[CURP-WORKER] no se pudo leer flag CURP_RENAPO_ENABLED: {flag_err} — asumiendo OFF")
+        return
+
     global _worker_started
     with _worker_lock:
         if _worker_started:

@@ -6,6 +6,7 @@ Compatible con PostgreSQL y SQL Server
 """
 from app import db
 from sqlalchemy import text, inspect
+from datetime import datetime
 
 def get_db_type():
     """Detectar el tipo de base de datos"""
@@ -2352,6 +2353,104 @@ def check_and_create_curp_verification_tables():
 
     except Exception as e:
         print(f"❌ Error en auto-migración curp_verification: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
+# ---------------------------------------------------------------------------
+# CURP LOCAL DRAIN (abril 2026 — modo standby RENAPO)
+# Cuando CURP_RENAPO_ENABLED=false, drena la cola de verificación pendiente
+# aplicando validación LOCAL (formato + dígito verificador). Idempotente.
+# Solo se ejecuta una vez por proceso.
+# ---------------------------------------------------------------------------
+
+_curp_local_drain_done = False
+
+
+def drain_curp_queue_with_local_validation():
+    """Procesa todos los usuarios con CURP no verificada aplicando validación
+    LOCAL síncrona (formato + dígito). NO hace red. Solo corre si el flag
+    CURP_RENAPO_ENABLED es falso (modo standby).
+
+    Acciones:
+      - Por cada User con curp_verified=False y CURP no genérica:
+          * Si pasa validación local → curp_verified=True, GroupMembers con
+            status en (curp_required, curp_pending, curp_verifying) → active.
+          * Si falla → curp_verified=False, GroupMembers → curp_required.
+      - Filas pendientes/en proceso en curp_verification_queue → 'done' o 'rejected'.
+    """
+    global _curp_local_drain_done
+    if _curp_local_drain_done:
+        return
+    _curp_local_drain_done = True
+
+    try:
+        from app.services.curp_local_validator import is_renapo_enabled, validate_curp_local
+        if is_renapo_enabled():
+            print("[CURP-LOCAL-DRAIN] CURP_RENAPO_ENABLED=true — drain omitido (modo RENAPO)")
+            return
+
+        from app.models.user import User
+        from app.models.partner import GroupMember
+        try:
+            from app.models.curp_verification import (
+                CurpVerificationQueue, QUEUE_PENDING, QUEUE_PROCESSING,
+                QUEUE_DONE, QUEUE_REJECTED,
+            )
+            queue_available = True
+        except Exception:
+            queue_available = False
+
+        GENERIC = ('XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8')
+
+        candidates = (
+            User.query.filter(
+                User.curp_verified == False,  # noqa: E712
+                User.curp.isnot(None),
+                User.curp != '',
+                User.curp.notin_(GENERIC),
+                User.role == 'candidato',
+            ).all()
+        )
+
+        if not candidates:
+            print("[CURP-LOCAL-DRAIN] No hay usuarios con CURP pendiente")
+            return
+
+        verified_count = 0
+        rejected_count = 0
+        for u in candidates:
+            is_v, _err, _is_gf = validate_curp_local(u.curp)
+            if is_v:
+                u.curp_verified = True
+                u.curp_verified_at = datetime.utcnow()
+                for gm in GroupMember.query.filter_by(user_id=u.id).all():
+                    if gm.status in ('curp_required', 'curp_pending', 'curp_verifying'):
+                        gm.status = 'active'
+                if queue_available:
+                    CurpVerificationQueue.query.filter(
+                        CurpVerificationQueue.user_id == u.id,
+                        CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING]),
+                    ).update({CurpVerificationQueue.status: QUEUE_DONE}, synchronize_session=False)
+                verified_count += 1
+            else:
+                for gm in GroupMember.query.filter_by(user_id=u.id).all():
+                    if gm.status in ('curp_pending', 'curp_verifying'):
+                        gm.status = 'curp_required'
+                if queue_available:
+                    CurpVerificationQueue.query.filter(
+                        CurpVerificationQueue.user_id == u.id,
+                        CurpVerificationQueue.status.in_([QUEUE_PENDING, QUEUE_PROCESSING]),
+                    ).update({CurpVerificationQueue.status: QUEUE_REJECTED}, synchronize_session=False)
+                rejected_count += 1
+
+        db.session.commit()
+        print(f"[CURP-LOCAL-DRAIN] Verificados localmente: {verified_count} | "
+              f"Rechazados (formato inválido): {rejected_count}")
+    except Exception as e:
+        print(f"❌ Error en drain_curp_queue_with_local_validation: {e}")
         try:
             db.session.rollback()
         except Exception:

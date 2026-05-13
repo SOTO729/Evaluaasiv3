@@ -1258,39 +1258,52 @@ def create_user():
             if coord_row2:
                 user_coordinator_id = coord_row2[0]
         
-        # ── Validación CURP contra RENAPO ──
-        # Si RENAPO rechaza, NO se bloquea la creación: el usuario queda con
-        # curp_verified=False y deberá validar su CURP al iniciar sesión.
-        # IMPORTANTE: NO hacemos llamada síncrona a RENAPO en este endpoint
-        # (W2 — el coordinador no debe esperar 60s+ por RENAPO). Sólo
-        # consultamos cache. Si hay hit positivo, aplicamos los datos. Si no,
-        # encolamos en `curp_verification_queue` y devolvemos al usuario como
-        # pending. La cola en background hará la validación real.
+        # ── Validación CURP ──
+        # Mientras RENAPO está en standby (feature flag CURP_RENAPO_ENABLED=false),
+        # hacemos validación LOCAL síncrona: formato + dígito verificador.
+        # Si el flag está ON, conservamos el flujo original (cache + encolado).
         renapo_result = None
         renapo_rejected = False
         renapo_error_msg = None
         renapo_unavailable = False  # True si debemos encolar para retry async
+        local_validated = False     # True si pasó validación local (RENAPO OFF)
         skip_renapo = data.get('skip_renapo_validation', False)
+
+        from app.services.curp_local_validator import is_renapo_enabled
+        renapo_on = is_renapo_enabled()
+
         if user_curp and not _is_generic_foreign_curp(user_curp) and not skip_renapo:
-            try:
-                from app.services.renapo_service import (
-                    validate_curp_renapo, apply_renapo_to_user,
-                )
-                # cache_only=True: nunca llama a RENAPO; sólo lee cache.
-                cached = validate_curp_renapo(user_curp, use_cache=True, cache_only=True)
-                if cached.valid:
-                    # Hit positivo en cache — aplicar de inmediato.
-                    renapo_result = cached
-                else:
-                    # Cache miss o negativo: encolar para validación async.
+            if not renapo_on:
+                # ─── Modo LOCAL: validación síncrona de formato ───
+                from app.services.curp_local_validator import validate_curp_local
+                is_valid_local, local_err, _ = validate_curp_local(user_curp)
+                if not is_valid_local:
+                    return jsonify({
+                        'error': f'CURP inválida: {local_err}',
+                        'reason': 'curp_format',
+                    }), 400
+                local_validated = True
+            else:
+                # ─── Modo RENAPO: cache-only + encolado async (legacy) ───
+                try:
+                    from app.services.renapo_service import (
+                        validate_curp_renapo, apply_renapo_to_user,
+                    )
+                    # cache_only=True: nunca llama a RENAPO; sólo lee cache.
+                    cached = validate_curp_renapo(user_curp, use_cache=True, cache_only=True)
+                    if cached.valid:
+                        # Hit positivo en cache — aplicar de inmediato.
+                        renapo_result = cached
+                    else:
+                        # Cache miss o negativo: encolar para validación async.
+                        renapo_unavailable = True
+                        if cached.error and cached.error != 'cache_miss':
+                            renapo_error_msg = cached.error
+                except Exception as renapo_err:
+                    import logging
+                    logging.getLogger(__name__).warning(f'RENAPO no disponible: {renapo_err}')
+                    renapo_result = None
                     renapo_unavailable = True
-                    if cached.error and cached.error != 'cache_miss':
-                        renapo_error_msg = cached.error
-            except Exception as renapo_err:
-                import logging
-                logging.getLogger(__name__).warning(f'RENAPO no disponible: {renapo_err}')
-                renapo_result = None
-                renapo_unavailable = True
 
         # Si el alta es de candidato con grupo destino, derivar campus_id y coordinator_id
         # del grupo (paridad con bulk upload B+C — consistencia y filtros multi-tenant).
@@ -1326,6 +1339,17 @@ def create_user():
         if renapo_result and renapo_result.valid:
             from app.services.renapo_service import apply_renapo_to_user
             apply_renapo_to_user(new_user, renapo_result)
+        elif local_validated:
+            # Modo local: marcar verified=True (sin datos RENAPO porque no
+            # tenemos nombre/apellidos oficiales, solo el formato pasa).
+            from app.services.curp_local_validator import apply_local_validation_to_user
+            apply_local_validation_to_user(new_user, mark_verified=True)
+        elif _is_generic_foreign_curp(user_curp) if user_curp else False:
+            # CURP genérica de extranjero — aceptar sin RENAPO ni local
+            new_user.curp_verified = True
+            if hasattr(new_user, 'curp_verified_at'):
+                from datetime import datetime as _dt_gfc
+                new_user.curp_verified_at = _dt_gfc.utcnow()
         
         db.session.add(new_user)
         db.session.flush()  # Persistir el user para que exista antes de la FK en user_partners
@@ -1361,7 +1385,8 @@ def create_user():
         
         # Encolar verificación CURP si RENAPO no respondió o rechazó.
         # Cubre W1 (alta individual sin retries) + W2 (circuit abierto).
-        if renapo_unavailable and user_curp and not _is_generic_foreign_curp(user_curp):
+        # NOTA: si CURP_RENAPO_ENABLED=false (modo local), NUNCA encolamos.
+        if renapo_on and renapo_unavailable and user_curp and not _is_generic_foreign_curp(user_curp):
             try:
                 from app.services.curp_queue_worker import enqueue_curp_verification
                 enqueue_curp_verification(new_user.id, user_curp, source='individual')
@@ -1401,6 +1426,8 @@ def create_user():
         if renapo_result and renapo_result.valid:
             response_data['renapo_validated'] = True
             response_data['renapo_data'] = renapo_result.to_dict()
+        elif local_validated:
+            response_data['curp_validated_locally'] = True
         elif renapo_rejected:
             response_data['curp_pending_validation'] = True
             response_data['renapo_warning'] = (
@@ -1613,42 +1640,62 @@ def update_user(user_id):
         
         db.session.commit()
         
-        # ── Verificación CURP síncrona contra RENAPO (si se envió CURP y aún no está verificada) ──
-        # Se ejecuta inline para que la respuesta refleje el estado real de curp_verified.
+        # ── Verificación CURP (si se envió CURP y aún no está verificada) ──
+        # Si CURP_RENAPO_ENABLED=false (default): validación LOCAL síncrona.
+        # Si está ON: flujo legacy con RENAPO síncrono.
         curp_msg = ''
         if 'curp' in data and user.curp and not user.curp_verified and not _is_generic_foreign_curp(user.curp):
             import logging
             logger = logging.getLogger(__name__)
-            try:
-                from app.services.renapo_service import (
-                    validate_curp_renapo, apply_renapo_to_user, validate_curp_format,
+            from app.services.curp_local_validator import is_renapo_enabled as _renapo_on_upd
+            if not _renapo_on_upd():
+                # ─── Modo LOCAL ───
+                from app.services.curp_local_validator import (
+                    validate_curp_local, apply_local_validation_to_user,
                 )
-
-                fmt_valid, fmt_error = validate_curp_format(user.curp)
-                if not fmt_valid:
-                    logger.warning(f'[CURP] Formato inválido para CURP {user.curp} de usuario {user.id}: {fmt_error}')
+                is_v, local_err, _gen = validate_curp_local(user.curp)
+                if is_v:
+                    apply_local_validation_to_user(user, mark_verified=True)
+                    db.session.commit()
+                    curp_msg = '. CURP verificada (formato)'
+                else:
+                    logger.warning(f'[CURP-LOCAL] Formato inválido CURP={user.curp} user={user.id}: {local_err}')
                     user.curp = None
                     user.curp_verified = False
                     user.curp_verified_at = None
-                    user.curp_renapo_name = None
-                    user.curp_renapo_first_surname = None
-                    user.curp_renapo_second_surname = None
                     db.session.commit()
-                    curp_msg = '. CURP rechazada: formato inválido'
-                else:
-                    renapo_result = validate_curp_renapo(user.curp)
-                    if renapo_result.valid:
-                        apply_renapo_to_user(user, renapo_result)
+                    curp_msg = f'. CURP rechazada: {local_err}'
+            else:
+                try:
+                    from app.services.renapo_service import (
+                        validate_curp_renapo, apply_renapo_to_user, validate_curp_format,
+                    )
+
+                    fmt_valid, fmt_error = validate_curp_format(user.curp)
+                    if not fmt_valid:
+                        logger.warning(f'[CURP] Formato inválido para CURP {user.curp} de usuario {user.id}: {fmt_error}')
+                        user.curp = None
+                        user.curp_verified = False
+                        user.curp_verified_at = None
+                        user.curp_renapo_name = None
+                        user.curp_renapo_first_surname = None
+                        user.curp_renapo_second_surname = None
                         db.session.commit()
-                        curp_msg = '. CURP verificada contra RENAPO'
+                        curp_msg = '. CURP rechazada: formato inválido'
                     else:
-                        # CURP rechazada por RENAPO: no removemos el dato pero queda como no verificado
-                        logger.warning(f'[CURP] CURP {user.curp} rechazada por RENAPO para usuario {user.id}: {renapo_result.error}')
-                        curp_msg = f'. CURP no pudo verificarse en RENAPO: {renapo_result.error}'
-            except Exception as e:
-                # Si RENAPO está caído, no fallar la actualización; quedará pendiente
-                logger.warning(f'[CURP] RENAPO no disponible al verificar CURP de usuario {user.id}: {e}')
-                curp_msg = '. La CURP quedará pendiente de verificación (RENAPO no disponible)'
+                        renapo_result = validate_curp_renapo(user.curp)
+                        if renapo_result.valid:
+                            apply_renapo_to_user(user, renapo_result)
+                            db.session.commit()
+                            curp_msg = '. CURP verificada contra RENAPO'
+                        else:
+                            # CURP rechazada por RENAPO: no removemos el dato pero queda como no verificado
+                            logger.warning(f'[CURP] CURP {user.curp} rechazada por RENAPO para usuario {user.id}: {renapo_result.error}')
+                            curp_msg = f'. CURP no pudo verificarse en RENAPO: {renapo_result.error}'
+                except Exception as e:
+                    # Si RENAPO está caído, no fallar la actualización; quedará pendiente
+                    logger.warning(f'[CURP] RENAPO no disponible al verificar CURP de usuario {user.id}: {e}')
+                    curp_msg = '. La CURP quedará pendiente de verificación (RENAPO no disponible)'
         
         return jsonify({
             'message': f'Usuario actualizado exitosamente{curp_msg}',
@@ -2904,7 +2951,16 @@ def _parse_bulk_candidates_excel(file_storage):
 
 
 def _validate_rows(parsed_rows):
-    """Validar campos requeridos y formatos. Retorna (valid, errors)."""
+    """Validar campos requeridos y formatos. Retorna (valid, errors).
+
+    En modo LOCAL (CURP_RENAPO_ENABLED=false): valida CURP completa (formato
+    + dígito verificador + entidad) síncronamente. Filas con CURP inválida
+    se rechazan aquí. En modo RENAPO: solo valida longitud (mantiene
+    compatibilidad con el flujo legacy donde el worker valida después).
+    """
+    from app.services.curp_local_validator import is_renapo_enabled, validate_curp_local
+    renapo_on = is_renapo_enabled()
+
     valid = []
     errors = []
     for r in parsed_rows:
@@ -2919,8 +2975,15 @@ def _validate_rows(parsed_rows):
             errs.append('genero vacío')
         if r['email'] and not validate_email(r['email']):
             errs.append('formato de email inválido')
-        if r['curp'] and len(r['curp']) != 18 and not _is_generic_foreign_curp(r['curp']):
-            errs.append(f'CURP debe tener 18 caracteres (tiene {len(r["curp"])})')
+        if r['curp']:
+            if not renapo_on and not _is_generic_foreign_curp(r['curp']):
+                # ─── Modo LOCAL: validación completa síncrona ───
+                is_v_local, local_err, _ = validate_curp_local(r['curp'])
+                if not is_v_local:
+                    errs.append(f'CURP inválida: {local_err}')
+            elif renapo_on and len(r['curp']) != 18 and not _is_generic_foreign_curp(r['curp']):
+                # Modo RENAPO legacy: solo longitud, formato lo valida el worker
+                errs.append(f'CURP debe tener 18 caracteres (tiene {len(r["curp"])})')
         genero = None
         if r['genero_raw']:
             g = r['genero_raw'].upper()[0]
@@ -3389,6 +3452,36 @@ def candidate_validate_own_curp():
                 'error': 'Esta CURP ya está registrada por otro usuario',
                 'reason': 'duplicate'
             }), 409
+
+        # ===== Modo LOCAL (CURP_RENAPO_ENABLED=false) =====
+        # Validación síncrona: formato + dígito verificador OK ⇒ verified.
+        from app.services.curp_local_validator import is_renapo_enabled
+        if not is_renapo_enabled():
+            from app.services.curp_local_validator import apply_local_validation_to_user
+            from app.models.partner import GroupMember
+            try:
+                user.curp = new_curp
+                apply_local_validation_to_user(user, mark_verified=True)
+                for gm in GroupMember.query.filter_by(user_id=user.id).all():
+                    if gm.status in ('curp_required', 'curp_pending', 'curp_verifying'):
+                        gm.status = 'active'
+                db.session.commit()
+                return jsonify({
+                    'valid': True,
+                    'curp': new_curp,
+                    'local_validated': True,
+                    'message': 'CURP validada (formato + dígito verificador)'
+                }), 200
+            except Exception as local_err:
+                db.session.rollback()
+                import logging
+                logging.getLogger(__name__).error(f'[ME-CURP-LOCAL] error: {local_err}')
+                return jsonify({
+                    'valid': False,
+                    'curp': new_curp,
+                    'error': 'No fue posible registrar tu CURP. Intenta de nuevo.',
+                    'reason': 'persist',
+                }), 500
 
         # ===== Encolar para validación ASÍNCRONA contra RENAPO =====
         # No bloqueamos al usuario esperando 25s+. Persistimos la CURP, marcamos
@@ -3895,7 +3988,18 @@ def bulk_upload_candidates():
 
         def _build_user_payload(r):
             """Construye el dict de kwargs + password para un User sin agregarlo
-            todavía a la sesión. Devuelve (payload, password, username)."""
+            todavía a la sesión. Devuelve (payload, password, username).
+
+            En modo local (CURP_RENAPO_ENABLED=false), si la CURP pasó la
+            validación local en _validate_rows, marca curp_verified=True
+            de una vez (sin esperar al worker).
+            """
+            from app.services.curp_local_validator import is_renapo_enabled
+            _renapo_on_bulk = is_renapo_enabled()
+            _curp_val = r['curp'] or None
+            _curp_pre_verified = bool(
+                (not _renapo_on_bulk) and _curp_val  # local mode + CURP presente y ya validada en _validate_rows
+            )
             username = username_map[r['row']]
             password = _gen_pwd()
             _campus_id = None
@@ -3923,6 +4027,10 @@ def bulk_upload_candidates():
                 is_active=True,
                 is_verified=False,
             )
+            # Modo local: marcar verificado de una vez
+            if _curp_pre_verified:
+                payload['curp_verified'] = True
+                payload['curp_verified_at'] = datetime.utcnow()
             return payload, password, username
 
         def _instantiate_and_add(payload, password):
@@ -4438,26 +4546,31 @@ def bulk_upload_candidates():
         # En vez de threads volátiles, encolar en curp_verification_queue.
         # Un worker en background (services/curp_queue_worker.py) procesa
         # con cache + circuit-breaker + reintentos persistentes.
-        curp_users_to_verify = [
-            c for c in created
-            if c.get('curp') and c['curp'] not in GENERIC_FOREIGN_CURPS
-        ]
-        if curp_users_to_verify and batch_record_id:
-            try:
-                from app.services.curp_queue_worker import enqueue_curp_verification
-                import logging as _lg_curp
-                _logger_curp = _lg_curp.getLogger(__name__)
-                enqueued = 0
-                for c in curp_users_to_verify:
-                    uid = c.get('user_id') or c.get('id')
-                    curp_val = c.get('curp')
-                    if uid and curp_val:
-                        if enqueue_curp_verification(uid, curp_val, source='bulk', batch_id=batch_record_id):
-                            enqueued += 1
-                _logger_curp.info(f'[BULK-CURP] {enqueued} CURPs encoladas para validación (batch {batch_record_id})')
-            except Exception as enq_err:
-                import logging as _lg_curp_err
-                _lg_curp_err.getLogger(__name__).error(f'[BULK-CURP] Error encolando verificaciones: {enq_err}')
+        # NOTA: en modo LOCAL (CURP_RENAPO_ENABLED=false) NO encolamos —
+        # ya marcamos curp_verified=True en _build_user_payload tras la
+        # validación local en _validate_rows.
+        from app.services.curp_local_validator import is_renapo_enabled as _renapo_on_bulk_q
+        if _renapo_on_bulk_q():
+            curp_users_to_verify = [
+                c for c in created
+                if c.get('curp') and c['curp'] not in GENERIC_FOREIGN_CURPS
+            ]
+            if curp_users_to_verify and batch_record_id:
+                try:
+                    from app.services.curp_queue_worker import enqueue_curp_verification
+                    import logging as _lg_curp
+                    _logger_curp = _lg_curp.getLogger(__name__)
+                    enqueued = 0
+                    for c in curp_users_to_verify:
+                        uid = c.get('user_id') or c.get('id')
+                        curp_val = c.get('curp')
+                        if uid and curp_val:
+                            if enqueue_curp_verification(uid, curp_val, source='bulk', batch_id=batch_record_id):
+                                enqueued += 1
+                    _logger_curp.info(f'[BULK-CURP] {enqueued} CURPs encoladas para validación (batch {batch_record_id})')
+                except Exception as enq_err:
+                    import logging as _lg_curp_err
+                    _lg_curp_err.getLogger(__name__).error(f'[BULK-CURP] Error encolando verificaciones: {enq_err}')
 
         return jsonify(response_data), 200
 
