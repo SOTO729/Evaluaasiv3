@@ -190,25 +190,13 @@ export default function UsersListPage() {
       }
       
       const data = await getUsers(params);
-      // Filtrado defensivo en frontend para coordinadores:
-      // - Candidatos son COMPARTIDOS entre coordinadores → siempre visibles.
-      // - Responsables/auxiliares solo si pertenecen al coordinador actual.
-      // - El coordinador siempre se ve a sí mismo.
-      let visibleUsers = data.users;
-      let visibleTotal = data.total;
-      if (isCoordinator && currentUser?.id) {
-        const myId = currentUser.id;
-        visibleUsers = data.users.filter(u =>
-          u.id === myId ||
-          u.role === 'candidato' ||
-          (u.coordinator_id && u.coordinator_id === myId)
-        );
-        const removed = data.users.length - visibleUsers.length;
-        visibleTotal = Math.max(0, data.total - removed);
-      }
-      setUsers(visibleUsers);
-      setTotalPages(visibleTotal > 0 ? Math.ceil(visibleTotal / perPage) : 1);
-      setTotal(visibleTotal);
+      // UM-M4: el backend ya aplica el aislamiento multi-tenant correcto
+      // (coordinator_id + campus_id propios + Campus.responsable_id sobre campuses
+      // propios). NO re-filtrar en frontend porque oculta responsables legítimos
+      // ligados solo por campus (datos históricos sin coordinator_id seteado).
+      setUsers(data.users);
+      setTotalPages(data.total > 0 ? Math.ceil(data.total / perPage) : 1);
+      setTotal(data.total);
       
       // Animar tabla en recargas (no en primera carga)
       if (!isFirstLoad.current) {
