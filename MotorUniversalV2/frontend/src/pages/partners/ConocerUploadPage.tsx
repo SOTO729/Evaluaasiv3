@@ -85,6 +85,8 @@ export default function ConocerUploadPage() {
 
   const handleUpload = async () => {
     if (!file) return;
+    // Guard contra doble-click / múltiples submits simultáneos
+    if (phase !== 'idle') return;
     setPhase('uploading');
     setUploadProgress(0);
     setError(null);
@@ -224,7 +226,8 @@ export default function ConocerUploadPage() {
             <div className="fluid-mt-6 flex justify-center">
               <button
                 onClick={handleUpload}
-                className="inline-flex items-center fluid-gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold fluid-px-6 fluid-py-3 rounded-fluid-lg transition-colors shadow-sm"
+                disabled={phase !== 'idle'}
+                className="inline-flex items-center fluid-gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold fluid-px-6 fluid-py-3 rounded-fluid-lg transition-colors shadow-sm"
               >
                 <Upload className="fluid-icon-sm" />
                 Iniciar Procesamiento

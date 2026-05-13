@@ -19,6 +19,7 @@ Flujo:
 import io
 import os
 import time
+import uuid
 import zipfile
 import threading
 from datetime import datetime
@@ -28,6 +29,30 @@ from app.services.conocer_pdf_parser import parse_conocer_pdf, parse_issue_date
 
 # Cuántos logs de failure insertar antes de hacer commit (evita transacciones enormes)
 FAILURE_COMMIT_BATCH_SIZE = 50
+
+
+def _is_unsafe_zip_entry(entry_name: str) -> bool:
+    """Detecta path traversal en una entrada de ZIP.
+    Rechaza nombres con '..', rutas absolutas o separadores invertidos sospechosos.
+    """
+    if not entry_name:
+        return True
+    normalized = entry_name.replace('\\', '/')
+    if normalized.startswith('/') or normalized.startswith('../'):
+        return True
+    parts = normalized.split('/')
+    return any(p == '..' for p in parts)
+
+
+def _truncate(value, max_len: int):
+    """Trunca un string para que quepa en una columna de longitud max_len.
+    Devuelve None/no-string sin tocar.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    return value[:max_len] if len(value) > max_len else value
 
 
 def process_batch_background(app, batch_id: int):
@@ -123,12 +148,13 @@ def _process_batch(batch_id: int):
     # Liberar referencia al zip_bytes crudo (el ZipFile trabaja sobre zip_buffer)
     del zip_bytes
 
-    # Filtrar PDFs (incluye subdirectorios, excluye __MACOSX y ocultos)
+    # Filtrar PDFs (incluye subdirectorios, excluye __MACOSX, ocultos y rutas inseguras)
     pdf_entries = sorted(set(
         entry for entry in zf.namelist()
         if entry.lower().endswith('.pdf')
         and not entry.startswith('__MACOSX')
         and not entry.split('/')[-1].startswith('.')
+        and not _is_unsafe_zip_entry(entry)
     ))
 
     all_files = [
@@ -136,6 +162,7 @@ def _process_batch(batch_id: int):
         if not entry.endswith('/')
         and not entry.startswith('__MACOSX')
         and not entry.split('/')[-1].startswith('.')
+        and not _is_unsafe_zip_entry(entry)
     ]
     non_pdf_files = [f for f in all_files if f not in set(pdf_entries)]
 
@@ -341,14 +368,14 @@ def _process_batch(batch_id: int):
 
         log_data = {
             'batch_id': batch_id,
-            'filename': filename,
-            'extracted_curp': parsed.get('curp'),
-            'extracted_ecm_code': parsed.get('ecm_code'),
-            'extracted_name': parsed.get('name'),
-            'extracted_folio': parsed.get('folio'),
-            'extracted_ecm_name': parsed.get('ecm_name'),
-            'extracted_issue_date': parsed.get('issue_date'),
-            'extracted_certifying_entity': parsed.get('certifying_entity'),
+            'filename': _truncate(filename, 500),
+            'extracted_curp': _truncate(parsed.get('curp'), 18),
+            'extracted_ecm_code': _truncate(parsed.get('ecm_code'), 20),
+            'extracted_name': _truncate(parsed.get('name'), 255),
+            'extracted_folio': _truncate(parsed.get('folio'), 50),
+            'extracted_ecm_name': _truncate(parsed.get('ecm_name'), 500),
+            'extracted_issue_date': _truncate(parsed.get('issue_date'), 100),
+            'extracted_certifying_entity': _truncate(parsed.get('certifying_entity'), 255),
         }
 
         uploaded_blob_name = None
@@ -398,7 +425,9 @@ def _process_batch(batch_id: int):
             # parsed['folio'] siempre se asigna a None cuando no se encuentra,
             # así que dict.get(key, default) NO devuelve el default — hay que
             # usar `or` para caer al placeholder cuando es None/vacío.
-            folio = parsed.get('folio') or f'BATCH{batch_id}_{int(time.time())}'
+            # Usamos uuid4 (no timestamp) para evitar colisiones cuando varios
+            # PDFs sin folio se procesan en la misma fracción de segundo.
+            folio = parsed.get('folio') or f'BATCH{batch_id}_{uuid.uuid4().hex[:8]}'
 
             # === SUBIR PDF A BLOB STORAGE ===
             uploaded_blob_name, file_hash, file_size = blob_svc.upload_certificate(
@@ -569,18 +598,19 @@ def _flush_failures(db, batch, batch_id, failures):
     from app.models.conocer_upload import ConocerUploadLog
 
     for fail in failures:
+        parsed = fail.get('parsed', {}) or {}
         log = ConocerUploadLog(
             batch_id=batch_id,
-            filename=fail['filename'],
-            extracted_curp=fail.get('parsed', {}).get('curp'),
-            extracted_ecm_code=fail.get('parsed', {}).get('ecm_code'),
-            extracted_name=fail.get('parsed', {}).get('name'),
-            extracted_folio=fail.get('parsed', {}).get('folio'),
-            extracted_ecm_name=fail.get('parsed', {}).get('ecm_name'),
-            extracted_issue_date=fail.get('parsed', {}).get('issue_date'),
-            extracted_certifying_entity=fail.get('parsed', {}).get('certifying_entity'),
+            filename=_truncate(fail['filename'], 500),
+            extracted_curp=_truncate(parsed.get('curp'), 18),
+            extracted_ecm_code=_truncate(parsed.get('ecm_code'), 20),
+            extracted_name=_truncate(parsed.get('name'), 255),
+            extracted_folio=_truncate(parsed.get('folio'), 50),
+            extracted_ecm_name=_truncate(parsed.get('ecm_name'), 500),
+            extracted_issue_date=_truncate(parsed.get('issue_date'), 100),
+            extracted_certifying_entity=_truncate(parsed.get('certifying_entity'), 255),
             status=fail['status'],
-            discard_reason=fail.get('discard_reason'),
+            discard_reason=_truncate(fail.get('discard_reason'), 50),
             discard_detail=fail.get('discard_detail'),
         )
         db.session.add(log)

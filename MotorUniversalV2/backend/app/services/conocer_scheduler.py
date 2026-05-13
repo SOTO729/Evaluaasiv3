@@ -112,11 +112,27 @@ def _send_weekly_solicitud(app):
             total_certs = sum(ecm_counts.values())
             ecm_summary = [{'code': code, 'count': count} for code, count in sorted(ecm_counts.items())]
             
-            # 4. Import helper functions from partners routes
-            from app.routes.partners import _generate_renapo_excel_for_pending, _download_cosu_pdf_from_blob
-            
-            excel_base64, excel_filename = _generate_renapo_excel_for_pending(pending_rows)
-            cosu_base64 = _download_cosu_pdf_from_blob()
+            # 4. Import helper functions from partners routes (defensivo:
+            #    si por refactor cambian o se eliminan, el scheduler no debe
+            #    crashar silenciosamente — envía email sin adjuntos).
+            excel_base64 = None
+            excel_filename = None
+            cosu_base64 = None
+            try:
+                from app.routes.partners import (
+                    _generate_renapo_excel_for_pending,
+                    _download_cosu_pdf_from_blob,
+                )
+                try:
+                    excel_base64, excel_filename = _generate_renapo_excel_for_pending(pending_rows)
+                except Exception as exc:
+                    print(f"[SCHEDULER] No se pudo generar Excel RENAPO: {exc}")
+                try:
+                    cosu_base64 = _download_cosu_pdf_from_blob()
+                except Exception as exc:
+                    print(f"[SCHEDULER] No se pudo descargar COSU PDF: {exc}")
+            except (ImportError, AttributeError) as exc:
+                print(f"[SCHEDULER] Helpers de partners no disponibles: {exc}")
             
             # 5. Build email HTML
             table_rows_html = ''

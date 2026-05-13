@@ -9,7 +9,12 @@ from app import db
 from app.models import User
 from app.models.conocer_certificate import ConocerCertificate
 from app.services.conocer_blob_service import get_conocer_blob_service
+from app.utils.rate_limit import rate_limit
 import io
+
+# Tamaño máximo aceptado para uploads de CONOCER (500 MB).
+# Protege contra DoS por archivos enormes en /admin/upload-batch.
+MAX_CONOCER_UPLOAD_BYTES = 500 * 1024 * 1024
 
 # Lazy import para Azure (puede no estar instalado)
 ResourceNotFoundError = None
@@ -517,11 +522,13 @@ def get_user_certificates_admin(user_id):
 
 
 @conocer_bp.route('/verify/<certificate_number>', methods=['GET'])
+@rate_limit(limit=10, window=60, key_prefix='rl_conocer_verify')
 def verify_certificate_public(certificate_number):
     """
     Verificar un certificado públicamente por su número de folio
     
     Este endpoint es público para permitir verificación externa.
+    Rate-limited (10 req/min por IP) para evitar enumeración de folios.
     
     Returns:
         Información básica del certificado si existe
@@ -590,6 +597,12 @@ def upload_batch():
         
         if len(file_content) == 0:
             return jsonify({'error': 'El archivo está vacío'}), 400
+
+        # Límite de tamaño (DoS protection)
+        if len(file_content) > MAX_CONOCER_UPLOAD_BYTES:
+            return jsonify({
+                'error': f'El archivo supera el límite máximo de {MAX_CONOCER_UPLOAD_BYTES // (1024*1024)} MB'
+            }), 413
         
         is_pdf = filename_lower.endswith('.pdf')
         
@@ -713,7 +726,7 @@ def get_upload_batch_detail(batch_id):
         return jsonify({'error': 'Batch no encontrado'}), 404
     # Aislamiento multi-tenant: coordinator solo accede a sus propios batches.
     if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
-        return jsonify({'error': 'No tienes acceso a este batch'}), 403
+        return jsonify({'error': 'Batch no encontrado'}), 404
     
     data = batch.to_dict(include_uploader=True)
     data['progress_percentage'] = batch.progress_percentage
@@ -739,7 +752,7 @@ def get_upload_batch_logs(batch_id):
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
     if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
-        return jsonify({'error': 'No tienes acceso a este batch'}), 403
+        return jsonify({'error': 'Batch no encontrado'}), 404
     
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 50, type=int), 200)
@@ -800,7 +813,7 @@ def export_upload_batch_logs(batch_id):
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
     if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
-        return jsonify({'error': 'No tienes acceso a este batch'}), 403
+        return jsonify({'error': 'Batch no encontrado'}), 404
     
     logs = ConocerUploadLog.query.filter_by(batch_id=batch_id)\
         .order_by(ConocerUploadLog.created_at.asc()).all()
@@ -898,7 +911,7 @@ def cancel_upload_batch(batch_id):
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
     if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
-        return jsonify({'error': 'No tienes acceso a este batch'}), 403
+        return jsonify({'error': 'Batch no encontrado'}), 404
     
     if batch.status not in ('queued', 'processing'):
         return jsonify({'error': f'Solo se pueden cancelar batches en cola o procesando (estado actual: {batch.status})'}), 400
@@ -934,15 +947,20 @@ def retry_upload_batch(batch_id):
     if not batch:
         return jsonify({'error': 'Batch no encontrado'}), 404
     if current_user.role == 'coordinator' and batch.uploaded_by != current_user_id:
-        return jsonify({'error': 'No tienes acceso a este batch'}), 403
+        return jsonify({'error': 'Batch no encontrado'}), 404
     
     if batch.status == 'completed':
         return jsonify({'error': 'Este batch ya fue completado exitosamente'}), 400
     
     if batch.status == 'processing':
-        if batch.started_at:
-            elapsed = (datetime.utcnow() - batch.started_at).total_seconds()
-            if elapsed < 1800:
+        # Heartbeat-based: usar updated_at en vez de started_at. El worker
+        # actualiza contadores cada ~25 archivos y SQLAlchemy onupdate refresca
+        # updated_at automáticamente, así que sirve como heartbeat. Un batch
+        # sin actividad por >10 min se considera zombie y puede reintentarse.
+        last_activity = batch.updated_at or batch.started_at
+        if last_activity:
+            elapsed = (datetime.utcnow() - last_activity).total_seconds()
+            if elapsed < 600:
                 return jsonify({
                     'error': 'Este batch aún está en procesamiento',
                     'elapsed_seconds': int(elapsed)

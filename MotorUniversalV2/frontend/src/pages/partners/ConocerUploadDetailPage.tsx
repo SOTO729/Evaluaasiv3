@@ -88,6 +88,7 @@ const DISCARD_LABELS: Record<string, string> = {
 export default function ConocerUploadDetailPage() {
   const { batchId } = useParams<{ batchId: string }>();
   const id = Number(batchId);
+  const invalidId = !batchId || !Number.isFinite(id) || id <= 0;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,15 +107,20 @@ export default function ConocerUploadDetailPage() {
   });
 
   const loadBatch = useCallback(async () => {
+    if (invalidId) return;
     try {
       const data = await getConocerUploadBatchDetail(id);
       setBatch(data.batch);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Error al cargar el batch');
     }
-  }, [id]);
+  }, [id, invalidId]);
 
   const loadLogs = useCallback(async () => {
+    if (invalidId) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const statusFilter = activeTab === 'all' ? undefined : activeTab;
@@ -132,7 +138,7 @@ export default function ConocerUploadDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, activeTab, currentPage, perPage]);
+  }, [id, invalidId, activeTab, currentPage, perPage]);
 
   useEffect(() => {
     loadBatch();
@@ -222,6 +228,21 @@ export default function ConocerUploadDetailPage() {
       </span>
     );
   };
+
+  if (invalidId) {
+    return (
+      <div className="fluid-px-6 fluid-py-6 max-w-7xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-6 text-center">
+          <XCircle className="fluid-icon-xl text-red-500 mx-auto fluid-mb-3" />
+          <p className="text-red-700 font-medium">Identificador de batch inválido</p>
+          <p className="text-red-600 text-sm fluid-mt-1">El parámetro de la URL no corresponde a un batch válido.</p>
+          <Link to="/tramites-conocer/historial" className="text-emerald-600 hover:underline fluid-mt-3 inline-block">
+            Volver al historial
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!batch && loading) {
     return (
