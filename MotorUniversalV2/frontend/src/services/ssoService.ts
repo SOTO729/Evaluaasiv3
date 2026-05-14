@@ -26,8 +26,14 @@ export const ssoService = {
     return data
   },
 
-  generateApiKey: async (campusId: number): Promise<SsoApiKeyWithSecret> => {
-    const { data } = await api.post<SsoApiKeyWithSecret>(`/sso/campuses/${campusId}/api-key`)
+  generateApiKey: async (
+    campusId: number,
+    currentPassword: string
+  ): Promise<SsoApiKeyWithSecret> => {
+    const { data } = await api.post<SsoApiKeyWithSecret>(
+      `/sso/campuses/${campusId}/api-key`,
+      { current_password: currentPassword }
+    )
     return data
   },
 
@@ -36,8 +42,14 @@ export const ssoService = {
     return data
   },
 
-  revokeApiKey: async (campusId: number): Promise<{ message: string }> => {
-    const { data } = await api.delete<{ message: string }>(`/sso/campuses/${campusId}/api-key`)
+  revokeApiKey: async (
+    campusId: number,
+    currentPassword: string
+  ): Promise<{ message: string }> => {
+    const { data } = await api.delete<{ message: string }>(
+      `/sso/campuses/${campusId}/api-key`,
+      { data: { current_password: currentPassword } }
+    )
     return data
   },
 

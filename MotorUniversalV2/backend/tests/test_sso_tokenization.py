@@ -3,8 +3,9 @@ Tests del módulo SSO Tokenización (API Tokenización Evaluaasi)
 ================================================================
 
 Cubre el flujo completo:
-  A. POST /api/sso/partners/<id>/api-key — generar key (admin / coordinador dueño)
-  B. GET  /api/sso/partners/<id>/api-key — info sin secreto
+  A. POST /api/sso/campuses/<id>/api-key — generar/rotar key (solo admin + step-up password)
+  B. GET  /api/sso/campuses/<id>/api-key — info sin secreto
+     DELETE /api/sso/campuses/<id>/api-key — revocar (solo admin + step-up password)
   C. POST /api/sso/generar_token         — emitir token SSO
   D. POST /api/auth/sso/exchange         — intercambiar token por JWT
   E. Single-use: el mismo token no puede consumirse dos veces.
@@ -29,7 +30,7 @@ if BACKEND_DIR not in sys.path:
 
 from app import create_app, db  # noqa: E402
 from app.models.user import User  # noqa: E402
-from app.models.partner import Partner  # noqa: E402
+from app.models.partner import Partner, Campus  # noqa: E402
 from app.models.sso_token import SsoToken  # noqa: E402
 
 
@@ -109,6 +110,12 @@ def coordinator_other(app):
 
 @pytest.fixture()
 def partner(app, coordinator_owner):
+    """Crea un Partner + un Campus dentro de él y devuelve el id del CAMPUS.
+
+    La API SSO actual opera a nivel plantel, por lo que las pruebas usan
+    siempre `campus_id`. Mantenemos el nombre del fixture (`partner`) por
+    compatibilidad histórica con los tests existentes.
+    """
     with app.app_context():
         p = Partner(
             name='Universidad de Prueba SSO',
@@ -117,8 +124,17 @@ def partner(app, coordinator_owner):
             is_active=True,
         )
         db.session.add(p)
+        db.session.flush()
+        c = Campus(
+            partner_id=p.id,
+            name='Plantel SSO Pruebas',
+            code='PLT-SSO-001',
+            coordinator_id=coordinator_owner,
+            is_active=True,
+        )
+        db.session.add(c)
         db.session.commit()
-        return p.id
+        return c.id
 
 
 def _login(client, username, password):
@@ -131,11 +147,15 @@ def _auth(token):
     return {'Authorization': f'Bearer {token}'}
 
 
-# ─── A. Generar API key ─────────────────────────────────────────────────────
+# ─── A. Generar/rotar API key (solo admin + step-up password) ──────────────
 
 def test_admin_can_generate_api_key(client, admin_user, partner):
     token = _login(client, 'admin_sso', 'admin12345')
-    r = client.post(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
+    r = client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
     assert r.status_code == 201, r.get_json()
     data = r.get_json()
     assert data['api_key'].startswith('evk_')
@@ -143,15 +163,45 @@ def test_admin_can_generate_api_key(client, admin_user, partner):
     assert 'warning' in data
 
 
-def test_owner_coordinator_can_generate_api_key(client, coordinator_owner, partner):
+def test_admin_rotate_without_password_is_blocked(client, admin_user, partner):
+    token = _login(client, 'admin_sso', 'admin12345')
+    r = client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={},
+        headers=_auth(token),
+    )
+    assert r.status_code == 401
+    assert r.get_json().get('error') == 'password_required'
+
+
+def test_admin_rotate_with_wrong_password_is_blocked(client, admin_user, partner):
+    token = _login(client, 'admin_sso', 'admin12345')
+    r = client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'wrong-password'},
+        headers=_auth(token),
+    )
+    assert r.status_code == 401
+    assert r.get_json().get('error') == 'password_incorrect'
+
+
+def test_owner_coordinator_cannot_rotate_api_key(client, coordinator_owner, partner):
     token = _login(client, 'coord_owner', 'coord12345')
-    r = client.post(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
-    assert r.status_code == 201, r.get_json()
+    r = client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'coord12345'},
+        headers=_auth(token),
+    )
+    assert r.status_code == 403
 
 
 def test_other_coordinator_cannot_generate_api_key(client, coordinator_owner, coordinator_other, partner):
     token = _login(client, 'coord_other', 'coord12345')
-    r = client.post(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
+    r = client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'coord12345'},
+        headers=_auth(token),
+    )
     assert r.status_code == 403
 
 
@@ -159,8 +209,12 @@ def test_other_coordinator_cannot_generate_api_key(client, coordinator_owner, co
 
 def test_get_api_key_info_does_not_leak_secret(client, admin_user, partner):
     token = _login(client, 'admin_sso', 'admin12345')
-    client.post(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
-    r = client.get(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
+    client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
+    r = client.get(f'/api/sso/campuses/{partner}/api-key', headers=_auth(token))
     assert r.status_code == 200
     data = r.get_json()
     assert data['has_key'] is True
@@ -170,18 +224,46 @@ def test_get_api_key_info_does_not_leak_secret(client, admin_user, partner):
 
 def test_revoke_api_key(client, admin_user, partner):
     token = _login(client, 'admin_sso', 'admin12345')
-    client.post(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
-    r = client.delete(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
+    client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
+    r = client.delete(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
     assert r.status_code == 200
-    info = client.get(f'/api/sso/partners/{partner}/api-key', headers=_auth(token)).get_json()
+    info = client.get(f'/api/sso/campuses/{partner}/api-key', headers=_auth(token)).get_json()
     assert info['api_key_active'] is False
+
+
+def test_revoke_without_password_is_blocked(client, admin_user, partner):
+    token = _login(client, 'admin_sso', 'admin12345')
+    client.post(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
+    r = client.delete(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={},
+        headers=_auth(token),
+    )
+    assert r.status_code == 401
+    assert r.get_json().get('error') == 'password_required'
 
 
 # ─── C. /generar_token ──────────────────────────────────────────────────────
 
 def _generate_key(client, admin_user, partner_id):
     token = _login(client, 'admin_sso', 'admin12345')
-    r = client.post(f'/api/sso/partners/{partner_id}/api-key', headers=_auth(token))
+    r = client.post(
+        f'/api/sso/campuses/{partner_id}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
     return r.get_json()['api_key']
 
 
@@ -193,8 +275,7 @@ def test_generar_token_success_urlencoded(client, admin_user, partner):
             'apikey': api_key,
             'matricula': 'A001',
             'nombre': 'Diego',
-            'primer_apellido': 'Soto',
-            'segundo_apellido': 'Pérez',
+            'apellido': 'Soto Pérez',
             'programa': 'Ingeniería',
             'email': 'diego.sso@test.local',
         },
@@ -213,25 +294,48 @@ def test_generar_token_success_json(client, admin_user, partner):
         'apikey': api_key,
         'matricula': 'A002',
         'nombre': 'Ana',
-        'primer_apellido': 'López',
-        'segundo_apellido': 'Martínez',
+        'apellido': 'López Martínez',
         'email': 'ana.lopez@test.local',
     })
     assert r.status_code == 200
     assert r.get_json()['error'] is False
 
 
-def test_generar_token_missing_segundo_apellido(client, admin_user, partner):
+def test_generar_token_apellido_single_word(app, client, admin_user, partner):
+    """Si solo viene una palabra en `apellido` debe usarse como primer apellido y dejar el segundo en NULL."""
     api_key = _generate_key(client, admin_user, partner)
     r = client.post('/api/sso/generar_token', json={
         'apikey': api_key,
         'matricula': 'A002b',
         'nombre': 'Ana',
-        'primer_apellido': 'López',
-        'email': 'ana.lopez@test.local',
+        'apellido': 'López',
+        'email': 'ana.unica@test.local',
     })
-    assert r.status_code == 400
-    assert 'segundo_apellido' in r.get_json()['mensajeError']
+    assert r.status_code == 200, r.get_json()
+    # Verifica el split correcto en BD
+    with app.app_context():
+        u = User.query.filter_by(external_id='A002b').first()
+        assert u is not None
+        assert u.first_surname == 'López'
+        assert u.second_surname is None
+
+
+def test_generar_token_apellido_compound_split(app, client, admin_user, partner):
+    """Apellidos con espacios: la última palabra es el materno, el resto el paterno."""
+    api_key = _generate_key(client, admin_user, partner)
+    r = client.post('/api/sso/generar_token', json={
+        'apikey': api_key,
+        'matricula': 'A002c',
+        'nombre': 'María',
+        'apellido': 'De la Cruz Hernández',
+        'email': 'maria.delacruz@test.local',
+    })
+    assert r.status_code == 200, r.get_json()
+    with app.app_context():
+        u = User.query.filter_by(external_id='A002c').first()
+        assert u is not None
+        assert u.first_surname == 'De la Cruz'
+        assert u.second_surname == 'Hernández'
 
 
 def test_generar_token_missing_required(client, admin_user, partner):
@@ -239,26 +343,27 @@ def test_generar_token_missing_required(client, admin_user, partner):
     r = client.post('/api/sso/generar_token', json={
         'apikey': api_key,
         'matricula': 'A003',
-        # falta nombre, primer_apellido y email
+        # falta nombre y apellido
     })
     assert r.status_code == 400
     body = r.get_json()
     assert body['error'] is True
     assert 'mensajeError' in body  # nota: typo intencional del spec
-    # El mensaje debe listar los faltantes (incluido email, que ahora es obligatorio)
-    assert 'email' in body['mensajeError']
+    assert 'nombre' in body['mensajeError']
+    assert 'apellido' in body['mensajeError']
 
 
-def test_generar_token_missing_email(client, admin_user, partner):
+def test_generar_token_email_is_optional(client, admin_user, partner):
+    """El email es opcional: debe poder emitirse token sin enviarlo."""
     api_key = _generate_key(client, admin_user, partner)
     r = client.post('/api/sso/generar_token', json={
         'apikey': api_key,
         'matricula': 'A003b',
         'nombre': 'Sin',
-        'primer_apellido': 'Email',
+        'apellido': 'Email Anonimo',
     })
-    assert r.status_code == 400
-    assert 'email' in r.get_json()['mensajeError']
+    assert r.status_code == 200, r.get_json()
+    assert r.get_json()['error'] is False
 
 
 def test_generar_token_invalid_email_format(client, admin_user, partner):
@@ -267,8 +372,7 @@ def test_generar_token_invalid_email_format(client, admin_user, partner):
         'apikey': api_key,
         'matricula': 'A003c',
         'nombre': 'Mal',
-        'primer_apellido': 'Email',
-        'segundo_apellido': 'Bad',
+        'apellido': 'Email Bad',
         'email': 'no-es-email',
     })
     assert r.status_code == 400
@@ -280,8 +384,7 @@ def test_generar_token_invalid_apikey(client, admin_user, partner):
         'apikey': 'evk_clave_falsa_que_no_existe_xx',
         'matricula': 'A004',
         'nombre': 'X',
-        'primer_apellido': 'Y',
-        'segundo_apellido': 'Z',
+        'apellido': 'Y Z',
         'email': 'x@test.local',
     })
     assert r.status_code == 401
@@ -291,13 +394,16 @@ def test_generar_token_invalid_apikey(client, admin_user, partner):
 def test_generar_token_revoked_apikey(client, admin_user, partner):
     api_key = _generate_key(client, admin_user, partner)
     token = _login(client, 'admin_sso', 'admin12345')
-    client.delete(f'/api/sso/partners/{partner}/api-key', headers=_auth(token))
+    client.delete(
+        f'/api/sso/campuses/{partner}/api-key',
+        json={'current_password': 'admin12345'},
+        headers=_auth(token),
+    )
     r = client.post('/api/sso/generar_token', json={
         'apikey': api_key,
         'matricula': 'A005',
         'nombre': 'X',
-        'primer_apellido': 'Y',
-        'segundo_apellido': 'Z',
+        'apellido': 'Y Z',
         'email': 'x@test.local',
     })
     assert r.status_code == 401
@@ -311,8 +417,7 @@ def test_exchange_success_returns_jwt(app, client, admin_user, partner):
         'apikey': api_key,
         'matricula': 'A100',
         'nombre': 'Juan',
-        'primer_apellido': 'García',
-        'segundo_apellido': 'Mendoza',
+        'apellido': 'García Mendoza',
         'email': 'juan.garcia@test.local',
     })
     sso_token = r.get_json()['token']
@@ -336,8 +441,7 @@ def test_exchange_token_is_single_use(client, admin_user, partner):
         'apikey': api_key,
         'matricula': 'A101',
         'nombre': 'Single',
-        'primer_apellido': 'Use',
-        'segundo_apellido': 'Once',
+        'apellido': 'Use Once',
         'email': 'single.use@test.local',
     }).get_json()['token']
 
@@ -368,8 +472,7 @@ def test_upsert_same_matricula_returns_same_user(app, client, admin_user, partne
         'apikey': api_key,
         'matricula': 'REPEAT-1',
         'nombre': 'Pedro',
-        'primer_apellido': 'Ruiz',
-        'segundo_apellido': 'Hernández',
+        'apellido': 'Ruiz Hernández',
         'email': 'pedro.ruiz@test.local',
     }).get_json()['token']
     user1 = client.post('/api/auth/sso/exchange', json={'token': t1}).get_json()['user']
@@ -379,8 +482,7 @@ def test_upsert_same_matricula_returns_same_user(app, client, admin_user, partne
         'apikey': api_key,
         'matricula': 'REPEAT-1',
         'nombre': 'Pedro Actualizado',
-        'primer_apellido': 'Ruiz',
-        'segundo_apellido': 'Hernández',
+        'apellido': 'Ruiz Hernández',
         'programa': 'Nuevo Programa',
         'email': 'pedro.ruiz@test.local',
     }).get_json()['token']
@@ -393,7 +495,7 @@ def test_upsert_same_matricula_returns_same_user(app, client, admin_user, partne
         u = User.query.get(user2['id'])
         assert u.external_program == 'Nuevo Programa'
         assert u.external_id == 'REPEAT-1'
-        assert u.external_partner_id == partner
+        assert u.external_campus_id == partner
 
 
 def test_sso_token_row_marked_consumed(app, client, admin_user, partner):
@@ -402,8 +504,7 @@ def test_sso_token_row_marked_consumed(app, client, admin_user, partner):
         'apikey': api_key,
         'matricula': 'A200',
         'nombre': 'Mark',
-        'primer_apellido': 'Consumed',
-        'segundo_apellido': 'Once',
+        'apellido': 'Consumed Once',
         'email': 'mark.consumed@test.local',
     }).get_json()['token']
 

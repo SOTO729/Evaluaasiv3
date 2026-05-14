@@ -3,10 +3,10 @@ Blueprint /api/sso — API de Tokenización SSO de Evaluaasi (a nivel PLANTEL).
 
 Endpoints:
   POST   /api/sso/generar_token                   — público, autenticado por API key del plantel
-  GET    /api/sso/campuses/<id>/api-key           — info pública (prefix, fechas, share flag)
-  POST   /api/sso/campuses/<id>/api-key           — generar/rotar (admin/coord)
+  GET    /api/sso/campuses/<id>/api-key           — info pública (prefix, fechas, share flag) (admin/coord/responsable)
+  POST   /api/sso/campuses/<id>/api-key           — generar/rotar (SOLO admin/developer, requiere current_password)
   POST   /api/sso/campuses/<id>/api-key/reveal    — revela secreto (admin/coord siempre; responsable si share)
-  DELETE /api/sso/campuses/<id>/api-key           — revoca (admin/coord)
+  DELETE /api/sso/campuses/<id>/api-key           — revoca (SOLO admin/developer, requiere current_password)
   PATCH  /api/sso/campuses/<id>/share-api-key     — toggle share_api_key_with_responsable (admin/coord)
 """
 from datetime import datetime
@@ -25,6 +25,7 @@ from app.services.sso_service import (
     SSO_TOKEN_TTL_MINUTES,
 )
 from app.utils.rate_limit import rate_limit, get_client_ip
+from app.models.activity_log import log_activity
 
 
 bp = Blueprint('sso', __name__)
@@ -52,8 +53,7 @@ def generar_token():
     apikey = (payload.get('apikey') or '').strip()
     matricula = (payload.get('matricula') or '').strip()
     nombre = (payload.get('nombre') or '').strip()
-    primer_apellido = (payload.get('primer_apellido') or '').strip()
-    segundo_apellido = (payload.get('segundo_apellido') or '').strip()
+    apellido = (payload.get('apellido') or '').strip()
     programa = (payload.get('programa') or '').strip() or None
     email = (payload.get('email') or '').strip().lower() or None
     grupo_codigo = (payload.get('grupo_codigo') or '').strip() or None
@@ -65,21 +65,18 @@ def generar_token():
         missing.append('matricula')
     if not nombre:
         missing.append('nombre')
-    if not primer_apellido:
-        missing.append('primer_apellido')
-    if not segundo_apellido:
-        missing.append('segundo_apellido')
-    if not email:
-        missing.append('email')
+    if not apellido:
+        missing.append('apellido')
     if missing:
         return jsonify({
             'error': True,
             'mensajeError': f"Parámetros incompletos, favor de enviar por lo menos: {', '.join(missing)}",
         }), 400
 
-    import re as _re
-    if not _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
-        return jsonify({'error': True, 'mensajeError': 'email con formato inválido'}), 400
+    if email is not None:
+        import re as _re
+        if not _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            return jsonify({'error': True, 'mensajeError': 'email con formato inválido'}), 400
 
     campus = find_campus_by_api_key(apikey)
     if campus is None:
@@ -89,8 +86,8 @@ def generar_token():
 
     if len(matricula) > 80:
         return jsonify({'error': True, 'mensajeError': 'matricula excede 80 caracteres'}), 400
-    if len(nombre) > 100 or len(primer_apellido) > 100 or len(segundo_apellido) > 100:
-        return jsonify({'error': True, 'mensajeError': 'nombre/primer_apellido/segundo_apellido exceden 100 caracteres'}), 400
+    if len(nombre) > 100 or len(apellido) > 200:
+        return jsonify({'error': True, 'mensajeError': 'nombre o apellido exceden el largo permitido (nombre 100, apellido 200)'}), 400
     if grupo_codigo and len(grupo_codigo) > 50:
         return jsonify({'error': True, 'mensajeError': 'grupo_codigo excede 50 caracteres'}), 400
 
@@ -99,8 +96,7 @@ def generar_token():
             campus=campus,
             matricula=matricula,
             nombre=nombre,
-            primer_apellido=primer_apellido,
-            segundo_apellido=segundo_apellido,
+            apellido=apellido,
             programa=programa,
             email=email,
             grupo_codigo=grupo_codigo,
@@ -136,8 +132,19 @@ def generar_token():
 # 2) Gestión de la API key del plantel
 # ════════════════════════════════════════════════════════════════════════════
 
-def _can_manage_campus(user: User, campus: Campus) -> bool:
-    """Generar/rotar/revocar/togglear share. Reservado a admin / coordinador del plantel."""
+def _can_rotate_api_key(user: User) -> bool:
+    """Generar/rotar/revocar la API key. RESERVADO a admin / developer.
+
+    Política de seguridad: la rotación/revocación de credenciales SSO está
+    restringida al equipo de administración del producto. Los coordinadores
+    pueden revelar la llave, configurar el share flag y solicitar rotación,
+    pero no ejecutar la rotación directamente.
+    """
+    return bool(user and user.role in ('admin', 'developer'))
+
+
+def _can_configure_share(user: User, campus: Campus) -> bool:
+    """Toggle share_api_key_with_responsable. admin / coordinador del plantel."""
     if not user:
         return False
     if user.role in ('admin', 'developer'):
@@ -148,15 +155,13 @@ def _can_manage_campus(user: User, campus: Campus) -> bool:
 
 
 def _can_view_api_key_metadata(user: User, campus: Campus) -> bool:
-    """Ver metadata (prefix, fecha, share flag). admin/coord siempre,
-    responsable del plantel siempre, auxiliar del coordinador también."""
+    """Ver metadata (prefix, fecha, share flag). admin, coordinador del plantel
+    y responsable del plantel."""
     if not user:
         return False
     if user.role in ('admin', 'developer'):
         return True
     if user.role == 'coordinator' and campus.coordinator_id == user.id:
-        return True
-    if user.role == 'auxiliar' and campus.coordinator_id and user.coordinator_id == campus.coordinator_id:
         return True
     if user.role in ('responsable', 'responsable_partner', 'responsable_estatal') and campus.responsable_id == user.id:
         return True
@@ -165,15 +170,12 @@ def _can_view_api_key_metadata(user: User, campus: Campus) -> bool:
 
 def _can_reveal_api_key(user: User, campus: Campus) -> bool:
     """Revelar el secreto. admin/coord siempre. Responsable del plantel solo
-    si campus.share_api_key_with_responsable está en True. Auxiliar siempre
-    que sea del mismo coordinador."""
+    si campus.share_api_key_with_responsable está en True."""
     if not user:
         return False
     if user.role in ('admin', 'developer'):
         return True
     if user.role == 'coordinator' and campus.coordinator_id == user.id:
-        return True
-    if user.role == 'auxiliar' and campus.coordinator_id and user.coordinator_id == campus.coordinator_id:
         return True
     if (
         user.role in ('responsable', 'responsable_partner', 'responsable_estatal')
@@ -209,14 +211,57 @@ def get_campus_api_key_info(campus_id: int):
 
 @bp.route('/campuses/<int:campus_id>/api-key', methods=['POST'])
 @jwt_required()
+@rate_limit(limit=5, window=60, key_prefix='rl_sso_rotate')
 def create_campus_api_key(campus_id: int):
-    """Genera (o rota) la API key del plantel. Devuelve el secreto en claro."""
+    """Genera (o rota) la API key del plantel. Devuelve el secreto en claro.
+
+    Requiere step-up auth: el admin debe reenviar su contraseña en el body
+    como `current_password`. Solo admin / developer pueden ejecutar esta acción.
+    """
     current_user = User.query.get(get_jwt_identity())
     campus = Campus.query.get_or_404(campus_id)
-    if not _can_manage_campus(current_user, campus):
-        return jsonify({'error': 'No autorizado'}), 403
+    if not _can_rotate_api_key(current_user):
+        return jsonify({
+            'error': 'No autorizado',
+            'detail': 'Solo un administrador puede generar o rotar la API key del plantel.',
+        }), 403
+
+    payload = request.get_json(silent=True) or {}
+    current_password = (payload.get('current_password') or '').strip()
+    if not current_password:
+        return jsonify({
+            'error': 'password_required',
+            'detail': 'Debes confirmar tu contraseña para rotar la API key.',
+        }), 401
+    if not current_user.check_password(current_password):
+        log_activity(
+            user=current_user,
+            action_type='sso_api_key_rotate_denied',
+            entity_type='campus',
+            entity_id=campus.id,
+            entity_name=campus.name,
+            details={'reason': 'invalid_password'},
+            ip_address=get_client_ip(),
+            success=False,
+            error_message='Contraseña incorrecta',
+        )
+        db.session.commit()
+        return jsonify({
+            'error': 'password_incorrect',
+            'detail': 'La contraseña no es correcta.',
+        }), 401
 
     raw_key = campus.generate_api_key(created_by_user_id=current_user.id)
+    log_activity(
+        user=current_user,
+        action_type='sso_api_key_rotated',
+        entity_type='campus',
+        entity_id=campus.id,
+        entity_name=campus.name,
+        details={'api_key_prefix': campus.api_key_prefix},
+        ip_address=get_client_ip(),
+        success=True,
+    )
     db.session.commit()
 
     info = _api_key_info(campus)
@@ -248,12 +293,55 @@ def reveal_campus_api_key(campus_id: int):
 
 @bp.route('/campuses/<int:campus_id>/api-key', methods=['DELETE'])
 @jwt_required()
+@rate_limit(limit=5, window=60, key_prefix='rl_sso_revoke')
 def revoke_campus_api_key(campus_id: int):
+    """Revoca la API key del plantel. Solo admin / developer.
+
+    Requiere step-up auth: reenviar `current_password` en el body JSON.
+    """
     current_user = User.query.get(get_jwt_identity())
     campus = Campus.query.get_or_404(campus_id)
-    if not _can_manage_campus(current_user, campus):
-        return jsonify({'error': 'No autorizado'}), 403
+    if not _can_rotate_api_key(current_user):
+        return jsonify({
+            'error': 'No autorizado',
+            'detail': 'Solo un administrador puede revocar la API key del plantel.',
+        }), 403
+
+    payload = request.get_json(silent=True) or {}
+    current_password = (payload.get('current_password') or '').strip()
+    if not current_password:
+        return jsonify({
+            'error': 'password_required',
+            'detail': 'Debes confirmar tu contraseña para revocar la API key.',
+        }), 401
+    if not current_user.check_password(current_password):
+        log_activity(
+            user=current_user,
+            action_type='sso_api_key_revoke_denied',
+            entity_type='campus',
+            entity_id=campus.id,
+            entity_name=campus.name,
+            details={'reason': 'invalid_password'},
+            ip_address=get_client_ip(),
+            success=False,
+            error_message='Contraseña incorrecta',
+        )
+        db.session.commit()
+        return jsonify({
+            'error': 'password_incorrect',
+            'detail': 'La contraseña no es correcta.',
+        }), 401
+
     campus.revoke_api_key()
+    log_activity(
+        user=current_user,
+        action_type='sso_api_key_revoked',
+        entity_type='campus',
+        entity_id=campus.id,
+        entity_name=campus.name,
+        ip_address=get_client_ip(),
+        success=True,
+    )
     db.session.commit()
     return jsonify({'message': 'API key revocada', 'campus_id': campus.id}), 200
 
@@ -264,7 +352,7 @@ def toggle_share_api_key(campus_id: int):
     """Alterna si el responsable del plantel puede revelar la API key."""
     current_user = User.query.get(get_jwt_identity())
     campus = Campus.query.get_or_404(campus_id)
-    if not _can_manage_campus(current_user, campus):
+    if not _can_configure_share(current_user, campus):
         return jsonify({'error': 'No autorizado'}), 403
     payload = request.get_json(silent=True) or {}
     share = bool(payload.get('share'))

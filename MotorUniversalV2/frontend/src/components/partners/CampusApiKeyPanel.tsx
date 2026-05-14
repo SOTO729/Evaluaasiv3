@@ -1,8 +1,10 @@
 /**
  * Panel para gestionar la API Key SSO de un plantel.
  *
- * - admin / coordinador del plantel: ver, generar/rotar, revelar, revocar,
- *   y togglear si el responsable puede ver la llave.
+ * - admin / developer: ver, generar/rotar, revelar, revocar, togglear share.
+ *   La rotación y revocación exigen reconfirmar la contraseña (step-up auth).
+ * - coordinador del plantel: ver, revelar, togglear share. NO puede rotar ni
+ *   revocar (debe pedirle al admin).
  * - responsable del plantel: solo ver/copiar (si share_api_key_with_responsable
  *   está en true).
  *
@@ -11,7 +13,7 @@
  * pierde foco.
  */
 import { useEffect, useState } from 'react'
-import { Copy, Eye, EyeOff, Key, RefreshCw, Trash2, AlertTriangle, Check, Share2 } from 'lucide-react'
+import { Copy, Eye, EyeOff, Key, RefreshCw, Trash2, AlertTriangle, Check, Share2, ShieldAlert } from 'lucide-react'
 import { ssoService, SsoApiKeyInfo } from '../../services/ssoService'
 import { useAuthStore } from '../../store/authStore'
 
@@ -28,7 +30,7 @@ function isAdminLike(role: Role): boolean {
   return role === 'admin' || role === 'developer'
 }
 
-function canManage(role: Role): boolean {
+function canConfigureShare(role: Role): boolean {
   return isAdminLike(role) || role === 'coordinator'
 }
 
@@ -41,9 +43,15 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
   const [revealed, setRevealed] = useState<string | null>(null)
   const [working, setWorking] = useState<string | null>(null)
   const [copiedAt, setCopiedAt] = useState<number | null>(null)
-  const [confirmRevoke, setConfirmRevoke] = useState(false)
 
-  const showManagement = !responsableMode && canManage(role)
+  // Step-up auth: modal de contraseña para rotar / revocar.
+  type PendingAction = 'generate' | 'revoke' | null
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  const isAdmin = isAdminLike(role) && !responsableMode
+  const showShareToggle = !responsableMode && canConfigureShare(role)
 
   useEffect(() => {
     let cancelled = false
@@ -72,11 +80,12 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
     setInfo(data)
   }
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (currentPassword: string) => {
     setWorking('generate')
     setError(null)
+    setPasswordError(null)
     try {
-      const data = await ssoService.generateApiKey(campusId)
+      const data = await ssoService.generateApiKey(campusId, currentPassword)
       setInfo({
         campus_id: data.campus_id,
         has_key: data.has_key,
@@ -88,8 +97,17 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
         token_ttl_minutes: data.token_ttl_minutes,
       })
       setRevealed(data.api_key)
+      setPendingAction(null)
+      setPasswordInput('')
     } catch (e: any) {
-      setError(e?.response?.data?.error || 'Error al generar API key')
+      const code = e?.response?.data?.error
+      const detail = e?.response?.data?.detail || e?.response?.data?.error
+      if (code === 'password_required' || code === 'password_incorrect') {
+        setPasswordError(detail || 'Contraseña incorrecta.')
+      } else {
+        setError(detail || 'Error al generar API key')
+        setPendingAction(null)
+      }
     } finally {
       setWorking(null)
     }
@@ -112,16 +130,25 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
     }
   }
 
-  const handleRevoke = async () => {
+  const handleRevoke = async (currentPassword: string) => {
     setWorking('revoke')
     setError(null)
+    setPasswordError(null)
     try {
-      await ssoService.revokeApiKey(campusId)
+      await ssoService.revokeApiKey(campusId, currentPassword)
       setRevealed(null)
-      setConfirmRevoke(false)
+      setPendingAction(null)
+      setPasswordInput('')
       await refresh()
     } catch (e: any) {
-      setError(e?.response?.data?.error || 'Error al revocar')
+      const code = e?.response?.data?.error
+      const detail = e?.response?.data?.detail || e?.response?.data?.error
+      if (code === 'password_required' || code === 'password_incorrect') {
+        setPasswordError(detail || 'Contraseña incorrecta.')
+      } else {
+        setError(detail || 'Error al revocar')
+        setPendingAction(null)
+      }
     } finally {
       setWorking(null)
     }
@@ -224,11 +251,15 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
         </div>
       )}
 
-      {/* Acciones (solo coord/admin) */}
-      {showManagement && (
+      {/* Acciones de rotación / revocación: SOLO admin / developer */}
+      {isAdmin && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
-            onClick={handleGenerate}
+            onClick={() => {
+              setPasswordInput('')
+              setPasswordError(null)
+              setPendingAction('generate')
+            }}
             disabled={working === 'generate'}
             className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50"
           >
@@ -237,7 +268,11 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
           </button>
           {info?.has_key && (
             <button
-              onClick={() => setConfirmRevoke(true)}
+              onClick={() => {
+                setPasswordInput('')
+                setPasswordError(null)
+                setPendingAction('revoke')
+              }}
               disabled={working === 'revoke'}
               className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-red-300 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-50 disabled:opacity-50"
             >
@@ -248,8 +283,19 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
         </div>
       )}
 
-      {/* Toggle compartir con responsable */}
-      {showManagement && info?.has_key && (
+      {/* Aviso a coord/responsable: la rotación queda reservada al admin */}
+      {!responsableMode && !isAdmin && canConfigureShare(role) && (
+        <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <ShieldAlert className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-amber-800">
+            Por seguridad, solo un administrador de Evaluaasi puede generar, rotar o revocar la API key del plantel.
+            Si necesitas una llave nueva, contacta a soporte.
+          </p>
+        </div>
+      )}
+
+      {/* Toggle compartir con responsable (admin + coordinador) */}
+      {showShareToggle && info?.has_key && (
         <div className="mt-4 flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3">
           <Share2 className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
@@ -266,29 +312,65 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
               </span>
             </label>
             <p className="text-xs text-gray-600 mt-1">
-              Cuando está activo, el responsable puede revelarla y compartirla con sus candidatos. Solo el coordinador puede rotarla o revocarla.
+              Cuando está activo, el responsable puede revelarla y compartirla con sus candidatos. Solo un administrador puede rotarla o revocarla.
             </p>
           </div>
         </div>
       )}
 
-      {/* Confirmar revoke */}
-      {confirmRevoke && (
+      {/* Modal de confirmación con password (rotar / revocar) */}
+      {pendingAction && (
         <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700 font-semibold mb-2">¿Revocar la API key?</p>
-          <p className="text-xs text-red-600 mb-3">
-            Las integraciones que usen esta llave dejarán de funcionar inmediatamente. Esta acción no se puede deshacer.
+          <p className="text-sm text-red-700 font-semibold mb-1 flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4" />
+            {pendingAction === 'generate'
+              ? info?.has_key
+                ? '¿Rotar la API key?'
+                : '¿Generar una API key?'
+              : '¿Revocar la API key?'}
           </p>
+          <p className="text-xs text-red-600 mb-3">
+            {pendingAction === 'generate'
+              ? 'Al rotarla, la API key actual dejará de funcionar inmediatamente y deberás entregar la nueva a las integraciones del plantel.'
+              : 'Las integraciones que usen esta llave dejarán de funcionar inmediatamente. Esta acción no se puede deshacer.'}
+          </p>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">
+            Confirma tu contraseña de administrador
+          </label>
+          <input
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            autoFocus
+            placeholder="••••••••"
+            className="w-full px-3 py-2 mb-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && passwordInput.trim() && working === null) {
+                if (pendingAction === 'generate') handleGenerate(passwordInput)
+                else handleRevoke(passwordInput)
+              }
+            }}
+          />
+          {passwordError && (
+            <p className="text-xs text-red-600 mb-2">{passwordError}</p>
+          )}
           <div className="flex gap-2">
             <button
-              onClick={handleRevoke}
-              disabled={working === 'revoke'}
+              onClick={() => {
+                if (pendingAction === 'generate') handleGenerate(passwordInput)
+                else handleRevoke(passwordInput)
+              }}
+              disabled={!passwordInput.trim() || working !== null}
               className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-50"
             >
-              Sí, revocar
+              {pendingAction === 'generate' ? 'Sí, generar' : 'Sí, revocar'}
             </button>
             <button
-              onClick={() => setConfirmRevoke(false)}
+              onClick={() => {
+                setPendingAction(null)
+                setPasswordInput('')
+                setPasswordError(null)
+              }}
               className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-semibold rounded hover:bg-gray-50"
             >
               Cancelar

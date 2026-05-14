@@ -75,21 +75,39 @@ def _attach_to_group_if_any(user: User, campus: Campus, grupo_codigo: Optional[s
     return group
 
 
+def _split_apellido(apellido: Optional[str]):
+    """Convierte un apellido completo (cadena única) en (paterno, materno).
+
+    Regla: la última palabra es el apellido materno; el resto (puede contener
+    espacios) es el apellido paterno. Una sola palabra → todo a paterno y
+    materno = None.
+    """
+    cleaned = ' '.join((apellido or '').split())
+    if not cleaned:
+        return '', None
+    partes = cleaned.rsplit(' ', 1)
+    if len(partes) == 2:
+        return partes[0].strip(), (partes[1].strip() or None)
+    return cleaned, None
+
+
 def upsert_candidate_from_sso(
     campus: Campus,
     matricula: str,
     nombre: str,
-    primer_apellido: str,
-    segundo_apellido: Optional[str] = None,
+    apellido: str,
     programa: Optional[str] = None,
     email: Optional[str] = None,
     grupo_codigo: Optional[str] = None,
 ) -> User:
-    """Crea o actualiza un candidato por (external_campus_id, external_id)."""
+    """Crea o actualiza un candidato por (external_campus_id, external_id).
+
+    El campo `apellido` es una cadena única: se separa internamente en
+    `first_surname` (apellido paterno) y `second_surname` (apellido materno).
+    """
     matricula = (matricula or '').strip()
     nombre = (nombre or '').strip()
-    primer_apellido = (primer_apellido or '').strip()
-    segundo_apellido = (segundo_apellido or '').strip() or None
+    primer_apellido, segundo_apellido = _split_apellido(apellido)
     programa = (programa or '').strip() or None
     email = (email or '').strip().lower() or None
 
