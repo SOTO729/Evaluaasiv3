@@ -3086,11 +3086,13 @@ def _batch_generate_usernames(rows_to_create):
 
     # Pre-cargar todos los usernames existentes activos para evitar colisiones.
     # Como queremos exactamente 10 chars, leemos sólo los de esa longitud.
+    # with_entities(User.username) devuelve filas (Row) con UN solo campo string;
+    # al desempaquetar `for u, in existing_rows`, `u` es directamente el string.
     existing_usernames = set()
     existing_rows = User.query.filter(
         sf.length(User.username) == 10
     ).with_entities(User.username).all()
-    existing_usernames.update(u.username.upper() for u, in existing_rows if u)
+    existing_usernames.update(u.upper() for u, in existing_rows if u)
 
     used = set(existing_usernames)
     result = {}
