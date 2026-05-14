@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, AlertCircle, Loader2, CheckCircle2, XCircle, Lock } from 'lucide-react'
+import { ShieldCheck, AlertCircle, Loader2, CheckCircle2, XCircle, Lock, BadgeCheck } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { submitOwnCurp, getOwnCurpStatus } from '../../services/curpValidationService'
+import { validateCurpLocal } from '../../utils/curp'
 
 export default function MiCurpPage() {
   const navigate = useNavigate()
@@ -19,9 +20,14 @@ export default function MiCurpPage() {
     second_surname?: string
     gender?: string
   } | null>(null)
+  /** Confirma que el usuario aceptó que los datos de la CURP son suyos. */
+  const [accepted, setAccepted] = useState(false)
   const pollTimerRef = useRef<number | null>(null)
 
   const alreadyVerified = !!user?.curp_verified
+
+  // Validación local en vivo (formato + dígito verificador)
+  const localValidation = useMemo(() => validateCurpLocal(curp), [curp])
 
   // Limpieza del timer al desmontar
   useEffect(() => {
@@ -122,8 +128,14 @@ export default function MiCurpPage() {
     setRenapoData(null)
 
     const trimmed = curp.trim().toUpperCase()
-    if (trimmed.length !== 18) {
-      setError('La CURP debe tener exactamente 18 caracteres.')
+    // Validación local antes de tocar al backend
+    const local = validateCurpLocal(trimmed)
+    if (!local.valid) {
+      setError(local.message || 'La CURP no es válida.')
+      return
+    }
+    if (!accepted) {
+      setError('Antes de continuar, confirma que esta CURP corresponde a tus datos personales.')
       return
     }
 
@@ -230,23 +242,60 @@ export default function MiCurpPage() {
                   <input
                     type="text"
                     value={curp}
-                    onChange={(e) => setCurp(e.target.value.toUpperCase().slice(0, 18))}
+                    onChange={(e) => {
+                      setCurp(e.target.value.toUpperCase().slice(0, 18))
+                      // Si cambia la CURP el usuario debe volver a aceptar
+                      setAccepted(false)
+                      if (error) setError(null)
+                    }}
                     maxLength={18}
                     autoComplete="off"
                     spellCheck={false}
                     placeholder="XXXX000000HDFXXX00"
                     disabled={submitting}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg font-mono uppercase tracking-wider focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                    className={`w-full px-4 py-2 border rounded-lg font-mono uppercase tracking-wider focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 ${
+                      curp.length === 0
+                        ? 'border-gray-300'
+                        : localValidation.valid
+                          ? 'border-green-500 ring-1 ring-green-200'
+                          : 'border-amber-400'
+                    }`}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {curp.length}/18 caracteres
-                  </p>
-                  {curp.length === 18 && !/^[A-Z]{4}[0-9]{6}[HM][A-Z]{5}[A-Z0-9][0-9]$/.test(curp) && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      ⚠️ El formato no parece correcto (revisa letras/dígitos antes de enviar).
-                    </p>
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-gray-500">{curp.length}/18 caracteres</p>
+                    {curp.length === 18 && localValidation.valid && (
+                      <span className="text-xs text-green-700 inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Formato y dígito verificador correctos
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Retroalimentación de validación local */}
+                  {curp.length > 0 && !localValidation.valid && (
+                    <div className="mt-2 text-xs rounded-md border border-amber-200 bg-amber-50 text-amber-800 p-2 flex gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{localValidation.message}</span>
+                    </div>
                   )}
                 </div>
+
+                {/* Casilla de aceptación: sólo si formato + dígito son válidos */}
+                {localValidation.valid && (
+                  <label className="flex items-start gap-2 p-3 border border-blue-200 bg-blue-50 rounded-lg cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={accepted}
+                      onChange={(e) => setAccepted(e.target.checked)}
+                      disabled={submitting}
+                      className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-blue-900">
+                      <strong>Acepto que estos son mis datos personales.</strong>{' '}
+                      Confirmo que la CURP <span className="font-mono">{localValidation.normalized}</span>{' '}
+                      es mía y autorizo su uso para mi identificación en la plataforma.
+                    </span>
+                  </label>
+                )}
 
                 {error && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
@@ -296,7 +345,12 @@ export default function MiCurpPage() {
 
                 <button
                   type="submit"
-                  disabled={submitting || curp.length !== 18 || !!success}
+                  disabled={
+                    submitting ||
+                    !localValidation.valid ||
+                    !accepted ||
+                    !!success
+                  }
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   {submitting ? (
@@ -309,10 +363,20 @@ export default function MiCurpPage() {
                       <Lock className="w-5 h-5" />
                       Validar con esta CURP
                     </>
+                  ) : localValidation.valid && accepted ? (
+                    <>
+                      <BadgeCheck className="w-5 h-5" />
+                      Acepto, estos son mis datos personales — Desbloquear mi cuenta
+                    </>
+                  ) : localValidation.valid ? (
+                    <>
+                      <Lock className="w-5 h-5" />
+                      Confirma la casilla para continuar
+                    </>
                   ) : (
                     <>
                       <Lock className="w-5 h-5" />
-                      Validar CURP
+                      Ingresa una CURP válida
                     </>
                   )}
                 </button>
