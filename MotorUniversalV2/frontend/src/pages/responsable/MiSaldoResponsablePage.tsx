@@ -1,7 +1,8 @@
 ﻿/**
- * Página de Mis Vouchers - Responsable de Plantel
+ * Página de Mis Certificados - Responsable de Plantel
  *
- * Muestra los vouchers del plantel en UNIDADES + historial de solicitudes integrado.
+ * Muestra los certificados disponibles del plantel en UNIDADES + historial
+ * de solicitudes integrado.
  */
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -84,7 +85,7 @@ export default function MiSaldoResponsablePage() {
       const result = await getMyCampusBalance();
       setData(result);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Error al cargar los vouchers');
+      setError(err.response?.data?.error || 'Error al cargar los certificados');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -163,10 +164,10 @@ export default function MiSaldoResponsablePage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
             <Award className="w-8 h-8 text-primary-600" />
-            Mis Vouchers
+            Mis Certificados
           </h1>
           <p className="text-gray-600 mt-1">
-            Vouchers disponibles — {campus.name}
+            Certificados disponibles — {campus.name}
           </p>
         </div>
         <button
@@ -183,12 +184,12 @@ export default function MiSaldoResponsablePage() {
       <div className="bg-gradient-to-br from-primary-600 to-primary-700 rounded-2xl p-8 text-white mb-8 shadow-xl animate-fadeInUp hover-lift">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-primary-100 text-sm font-medium mb-2">Vouchers Disponibles</p>
+            <p className="text-primary-100 text-sm font-medium mb-2">Certificados Disponibles</p>
             <p className="text-5xl font-bold">
               {units.current_balance}
             </p>
             <p className="text-primary-100 mt-2 text-lg">
-              vouchers
+              certificados
             </p>
           </div>
           <div className="mt-6 md:mt-0 flex flex-col sm:flex-row gap-3">
@@ -197,7 +198,7 @@ export default function MiSaldoResponsablePage() {
               className="flex items-center gap-2 px-5 py-3 bg-white/20 text-white border border-white/40 rounded-xl font-medium hover:bg-white/30 transition-colors"
             >
               <Award className="w-5 h-5" />
-              Solicitar Vouchers
+              Solicitar Certificados
             </Link>
           </div>
         </div>
@@ -206,7 +207,7 @@ export default function MiSaldoResponsablePage() {
         {units.total_received > 0 && (
           <div className="mt-8">
             <div className="flex items-center justify-between text-sm text-primary-100 mb-2">
-              <span>Uso de vouchers</span>
+              <span>Uso de certificados</span>
               <span>{usagePercent}% consumido</span>
             </div>
             <div className="h-3 bg-white/20 rounded-full overflow-hidden">
@@ -231,7 +232,7 @@ export default function MiSaldoResponsablePage() {
           <p className="text-2xl font-bold text-gray-800">
             {units.total_received - units.total_scholarships}
           </p>
-          <p className="text-xs text-gray-500 mt-1">vouchers comprados</p>
+          <p className="text-xs text-gray-500 mt-1">certificados comprados</p>
         </div>
 
         <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-200 hover-lift card-transition">
@@ -244,7 +245,7 @@ export default function MiSaldoResponsablePage() {
           <p className="text-2xl font-bold text-purple-700">
             {units.total_scholarships}
           </p>
-          <p className="text-xs text-gray-500 mt-1">vouchers de beca</p>
+          <p className="text-xs text-gray-500 mt-1">certificados de beca</p>
         </div>
 
         <div className="bg-white rounded-xl p-5 border shadow-sm animate-fadeInUp delay-300 hover-lift card-transition">
@@ -257,7 +258,7 @@ export default function MiSaldoResponsablePage() {
           <p className="text-2xl font-bold text-amber-700">
             {units.total_spent}
           </p>
-          <p className="text-xs text-gray-500 mt-1">vouchers utilizados</p>
+          <p className="text-xs text-gray-500 mt-1">certificados utilizados</p>
         </div>
 
         <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-5 border border-primary-200 shadow-sm animate-fadeInUp delay-400 hover-lift card-transition">
@@ -270,7 +271,7 @@ export default function MiSaldoResponsablePage() {
           <p className="text-2xl font-bold text-primary-700">
             {units.total_received}
           </p>
-          <p className="text-xs text-gray-500 mt-1">vouchers en total</p>
+          <p className="text-xs text-gray-500 mt-1">certificados en total</p>
         </div>
       </div>
 

@@ -151,10 +151,16 @@ export default function ExamAssignmentReviewPage() {
       } else if (errorType === 'insufficient_balance') {
         if (isResponsable && costPreview && costPreview.unit_cost > 0) {
           const needed = Math.ceil((err.response?.data?.required || 0) / costPreview.unit_cost);
-          const available = Math.floor((err.response?.data?.current_balance || 0) / costPreview.unit_cost);
-          setError(`Vouchers insuficientes. Necesitas ${needed} voucher${needed !== 1 ? 's' : ''} pero solo tienes ${available} disponible${available !== 1 ? 's' : ''}.`);
+          const available = Math.floor((err.response?.data?.available || 0) / costPreview.unit_cost);
+          const deficit = Math.max(0, needed - available);
+          // Responsable con permiso de gestión de grupos: ofrecer CTA para
+          // solicitar más certificados al coordinador.
+          setResponsableMustRequest(
+            `Certificados insuficientes. Necesitas ${needed} certificado${needed !== 1 ? 's' : ''} pero solo tienes ${available} disponible${available !== 1 ? 's' : ''}. Solicita ${deficit} certificado${deficit !== 1 ? 's' : ''} más al coordinador para continuar.`
+          );
+          setError(null);
         } else {
-          setError(`Saldo insuficiente. Necesitas ${formatCurrency(err.response?.data?.required || 0)} pero solo tienes ${formatCurrency(err.response?.data?.current_balance || 0)}.`);
+          setError(`Saldo insuficiente. Necesitas ${formatCurrency(err.response?.data?.required || 0)} pero solo tienes ${formatCurrency(err.response?.data?.available || 0)}.`);
         }
       } else {
         setError(err.response?.data?.error || 'Error al asignar el examen');

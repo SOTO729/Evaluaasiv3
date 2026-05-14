@@ -388,8 +388,11 @@ def _resolve_billing_coordinator_id(group, current_user):
     - admin/developer: bypass.
     - coordinator: cobra a su propio balance.
     - auxiliar: comparte el balance del coordinator dueño del campus.
-    - responsable: BLOQUEADO. Debe solicitar certificados al coordinador
-      vía /api/balance/certificate-requests. No accede al saldo total.
+    - responsable CON can_manage_groups=True: comparte el balance del
+      coordinator dueño del campus (igual que auxiliar). Si el saldo no
+      alcanza, el frontend redirige al flujo de solicitud de certificados.
+    - responsable SIN can_manage_groups: BLOQUEADO. Debe solicitar
+      certificados al coordinador vía /api/balance/certificate-requests.
     - soporte / responsable_partner / responsable_estatal: BLOQUEADO.
     """
     from app.models.partner import Campus, Partner
@@ -398,7 +401,9 @@ def _resolve_billing_coordinator_id(group, current_user):
         return None, None  # bypass
     if role == 'coordinator':
         return current_user.id, None
-    if role == 'auxiliar':
+    if role in ('auxiliar',) or (
+        role == 'responsable' and bool(getattr(current_user, 'can_manage_groups', False))
+    ):
         # Comparte saldo con el coordinator dueño del campus
         if not group or not group.campus_id:
             return None, (jsonify({
@@ -417,6 +422,8 @@ def _resolve_billing_coordinator_id(group, current_user):
             'error_type': 'no_coordinator'
         }), 400)
     if role == 'responsable':
+        # Responsable sin permiso de gestión de grupos: debe ir por el flujo
+        # de solicitud de certificados.
         return None, (jsonify({
             'error': 'Como responsable de plantel no puedes consumir el saldo directamente. Debes solicitar los certificados al coordinador desde "Solicitar certificados".',
             'error_type': 'responsable_must_request'

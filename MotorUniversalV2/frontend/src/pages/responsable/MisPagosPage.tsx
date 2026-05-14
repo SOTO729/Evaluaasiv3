@@ -145,7 +145,7 @@ export default function MisPagosPage() {
               className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium hover:bg-primary-700 transition-colors shadow-lg"
             >
               <ShoppingCart className="w-5 h-5" />
-              Comprar Vouchers
+              Comprar Certificados
             </button>
           )}
         </div>
@@ -156,7 +156,7 @@ export default function MisPagosPage() {
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center justify-between animate-fadeInUp">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <p className="text-sm text-green-800 font-medium">Pago procesado correctamente. Los vouchers se acreditarán en breve.</p>
+            <p className="text-sm text-green-800 font-medium">Pago procesado correctamente. Los certificados se acreditarán en breve.</p>
           </div>
           <button onClick={() => setPaymentStatus(null)} className="p-1 hover:bg-green-100 rounded-lg"><X className="w-4 h-4 text-green-600" /></button>
         </div>
@@ -165,7 +165,7 @@ export default function MisPagosPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 flex items-center justify-between animate-fadeInUp">
           <div className="flex items-center gap-3">
             <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-800 font-medium">Tu pago está pendiente de confirmación. Los vouchers se acreditarán cuando se confirme.</p>
+            <p className="text-sm text-amber-800 font-medium">Tu pago está pendiente de confirmación. Los certificados se acreditarán cuando se confirme.</p>
           </div>
           <button onClick={() => setPaymentStatus(null)} className="p-1 hover:bg-amber-100 rounded-lg"><X className="w-4 h-4 text-amber-600" /></button>
         </div>
@@ -246,7 +246,7 @@ export default function MisPagosPage() {
               onClick={() => setShowCheckout(true)}
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium text-sm hover:bg-primary-700"
             >
-              <ShoppingCart className="w-4 h-4" /> Comprar Vouchers
+              <ShoppingCart className="w-4 h-4" /> Comprar Certificados
             </button>
           )}
         </div>
@@ -275,7 +275,7 @@ export default function MisPagosPage() {
                     <div className="flex items-center gap-6">
                       <div>
                         <span className="text-2xl font-bold text-gray-800">{p.units}</span>
-                        <span className="text-sm text-gray-500 ml-1">voucher{p.units !== 1 ? 's' : ''}</span>
+                        <span className="text-sm text-gray-500 ml-1">certificado{p.units !== 1 ? 's' : ''}</span>
                       </div>
                       <div className="text-sm text-gray-500">
                         <span className="font-medium text-gray-700">${p.total_amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span> MXN
