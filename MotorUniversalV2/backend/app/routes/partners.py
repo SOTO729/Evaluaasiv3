@@ -19006,9 +19006,47 @@ def send_conocer_solicitud():
         primary_to = recipient_emails[0]
         cc_list = recipient_emails[1:] if len(recipient_emails) > 1 else None
 
+        # Metadata reutilizable para el log (snapshot del correo enviado)
+        email_subject = '[Evaluaasi] Solicitud de línea de captura'
+        attachments_meta = [
+            {
+                'name': a.get('name'),
+                'content_type': a.get('content_type'),
+                'size_bytes': (
+                    (len(a.get('content_base64') or '') * 3) // 4
+                    if a.get('content_base64') else None
+                ),
+            }
+            for a in attachments
+        ]
+        # Snapshot resumido de las asignaciones incluidas (sin datos sensibles
+        # masivos, pero suficiente para reconstruir el contenido del envío).
+        assignments_snapshot = [
+            {
+                'eca_id': row.eca_id,
+                'assignment_number': row.assignment_number,
+                'curp': row.curp,
+                'name': ' '.join(
+                    filter(None, [row.user_name, row.first_surname, row.second_surname])
+                ).strip(),
+                'ecm_code': row.ecm_code,
+                'ecm_name': row.ecm_name,
+                'competency_level': row.competency_level,
+            }
+            for row in pending_rows
+        ]
+        log_email_fields = {
+            'email_subject': email_subject,
+            'email_body_html': email_body,
+            'email_to': primary_to,
+            'email_cc': json.dumps(cc_list or []),
+            'email_attachments_meta': json.dumps(attachments_meta),
+            'email_assignments_snapshot': json.dumps(assignments_snapshot),
+        }
+
         success = send_email_fn(
             to=primary_to,
-            subject='[Evaluaasi] Solicitud de línea de captura',
+            subject=email_subject,
             html=email_body,
             attachments=attachments,
             cc=cc_list,
@@ -19024,6 +19062,7 @@ def send_conocer_solicitud():
                 status='failed',
                 error_message='Error al enviar el correo',
                 assignment_ids=json.dumps(eca_ids),
+                **log_email_fields,
             )
             db.session.add(log)
             db.session.commit()
@@ -19048,6 +19087,7 @@ def send_conocer_solicitud():
             attachment_names=', '.join([a['name'] for a in attachments]),
             status='sent',
             assignment_ids=json.dumps(eca_ids),
+            **log_email_fields,
         )
         db.session.add(log)
         db.session.commit()
@@ -19079,6 +19119,17 @@ def get_conocer_solicitud_logs():
     from app.models.partner import ConocerSolicitudLog
     logs = ConocerSolicitudLog.query.order_by(ConocerSolicitudLog.sent_at.desc()).limit(50).all()
     return jsonify({'logs': [l.to_dict() for l in logs]})
+
+
+@bp.route('/conocer-solicitud-logs/<int:log_id>', methods=['GET'])
+@jwt_required()
+@coordinator_required
+def get_conocer_solicitud_log_detail(log_id):
+    """Reporte completo de un envío al CONOCER: asunto, cuerpo HTML,
+    destinatarios To/Cc, adjuntos y snapshot de asignaciones."""
+    from app.models.partner import ConocerSolicitudLog
+    log = ConocerSolicitudLog.query.get_or_404(log_id)
+    return jsonify({'log': log.to_dict(include_body=True)})
 
 
 def _generate_renapo_excel_for_pending(pending_rows):

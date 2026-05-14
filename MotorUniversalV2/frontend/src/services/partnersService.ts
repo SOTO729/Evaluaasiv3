@@ -3777,6 +3777,22 @@ export interface ConocerEmailContact {
   created_by_name: string | null;
 }
 
+export interface ConocerSolicitudLogAttachment {
+  name: string;
+  content_type?: string | null;
+  size_bytes?: number | null;
+}
+
+export interface ConocerSolicitudLogAssignment {
+  eca_id: number;
+  assignment_number: string | null;
+  curp: string | null;
+  name: string | null;
+  ecm_code: string | null;
+  ecm_name: string | null;
+  competency_level: string | null;
+}
+
 export interface ConocerSolicitudLog {
   id: number;
   sent_at: string;
@@ -3788,6 +3804,13 @@ export interface ConocerSolicitudLog {
   attachment_names: string;
   status: string;
   error_message: string | null;
+  email_subject?: string | null;
+  email_to?: string | null;
+  email_cc?: string[];
+  email_attachments?: ConocerSolicitudLogAttachment[];
+  // Solo presentes en el detalle (include_body=true)
+  email_body_html?: string | null;
+  assignments_snapshot?: ConocerSolicitudLogAssignment[];
 }
 
 export async function getConocerContacts(): Promise<{ contacts: ConocerEmailContact[] }> {
@@ -3822,6 +3845,11 @@ export async function sendConocerSolicitud(): Promise<{
 
 export async function getConocerSolicitudLogs(): Promise<{ logs: ConocerSolicitudLog[] }> {
   const response = await api.get('/partners/conocer-solicitud-logs');
+  return response.data;
+}
+
+export async function getConocerSolicitudLogDetail(id: number): Promise<{ log: ConocerSolicitudLog }> {
+  const response = await api.get(`/partners/conocer-solicitud-logs/${id}`);
   return response.data;
 }
 

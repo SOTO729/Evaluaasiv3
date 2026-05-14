@@ -1528,19 +1528,27 @@ class ConocerSolicitudLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     sent_by_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=True, index=True)
-    recipients = db.Column(db.Text, nullable=False)  # JSON array of email addresses
+    recipients = db.Column(db.Text, nullable=False)  # JSON array of email addresses (To + Cc)
     total_certificates = db.Column(db.Integer, default=0, nullable=False)
     ecm_summary = db.Column(db.Text, nullable=True)  # JSON: [{code, count}]
     attachment_names = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='sent', nullable=False)
     error_message = db.Column(db.Text, nullable=True)
     assignment_ids = db.Column(db.Text, nullable=True)  # JSON array of ECA ids
-    
+
+    # ---- Snapshot completo del correo enviado (para reporte/auditoría) ----
+    email_subject = db.Column(db.String(500), nullable=True)
+    email_body_html = db.Column(db.Text, nullable=True)
+    email_to = db.Column(db.String(500), nullable=True)  # destinatario principal
+    email_cc = db.Column(db.Text, nullable=True)  # JSON array de CC
+    email_attachments_meta = db.Column(db.Text, nullable=True)  # JSON: [{name, content_type, size_bytes}]
+    email_assignments_snapshot = db.Column(db.Text, nullable=True)  # JSON con detalle de cada candidato/asignación incluido
+
     sent_by = db.relationship('User', foreign_keys=[sent_by_id])
-    
-    def to_dict(self):
+
+    def to_dict(self, include_body: bool = False):
         import json
-        return {
+        data = {
             'id': self.id,
             'sent_at': self.sent_at.isoformat() if self.sent_at else None,
             'sent_by_id': self.sent_by_id,
@@ -1551,7 +1559,17 @@ class ConocerSolicitudLog(db.Model):
             'attachment_names': self.attachment_names,
             'status': self.status,
             'error_message': self.error_message,
+            'email_subject': self.email_subject,
+            'email_to': self.email_to,
+            'email_cc': json.loads(self.email_cc) if self.email_cc else [],
+            'email_attachments': json.loads(self.email_attachments_meta) if self.email_attachments_meta else [],
         }
+        if include_body:
+            data['email_body_html'] = self.email_body_html
+            data['assignments_snapshot'] = (
+                json.loads(self.email_assignments_snapshot) if self.email_assignments_snapshot else []
+            )
+        return data
 
 
 class EcmRetake(db.Model):

@@ -269,6 +269,13 @@ export default function ConocerTramitesPage() {
               Historial
             </Link>
             <Link
+              to="/tramites-conocer/historial-envios"
+              className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all"
+            >
+              <Send className="fluid-icon-sm" />
+              Envíos
+            </Link>
+            <Link
               to="/tramites-conocer/contactos"
               className="fluid-px-4 fluid-py-2 bg-white/10 hover:bg-white/20 rounded-fluid-xl flex items-center fluid-gap-2 fluid-text-sm transition-all"
             >

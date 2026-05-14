@@ -1711,6 +1711,56 @@ def check_and_add_curp_giveup_column():
             pass
 
 
+def check_and_add_conocer_solicitud_email_columns():
+    """Agregar columnas de snapshot del correo a conocer_solicitud_logs.
+
+    Necesario para que el reporte del historial CONOCER pueda mostrar el
+    asunto, cuerpo HTML, destinatarios To/Cc, adjuntos y snapshot de
+    asignaciones que se enviaron a CONOCER.
+    """
+    print("🔍 Verificando columnas snapshot de correo en conocer_solicitud_logs...")
+    db_type = get_db_type()
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'conocer_solicitud_logs' not in tables:
+            print("  ⚠️  Tabla conocer_solicitud_logs no existe aún (se creará por SQLAlchemy)")
+            return
+        existing = {col['name'] for col in inspector.get_columns('conocer_solicitud_logs')}
+        # Mapeo columna -> definición SQL para MSSQL / otros
+        columns = [
+            ('email_subject', 'NVARCHAR(500) NULL' if db_type == 'mssql' else 'VARCHAR(500) NULL'),
+            ('email_body_html', 'NVARCHAR(MAX) NULL' if db_type == 'mssql' else 'TEXT NULL'),
+            ('email_to', 'NVARCHAR(500) NULL' if db_type == 'mssql' else 'VARCHAR(500) NULL'),
+            ('email_cc', 'NVARCHAR(MAX) NULL' if db_type == 'mssql' else 'TEXT NULL'),
+            ('email_attachments_meta', 'NVARCHAR(MAX) NULL' if db_type == 'mssql' else 'TEXT NULL'),
+            ('email_assignments_snapshot', 'NVARCHAR(MAX) NULL' if db_type == 'mssql' else 'TEXT NULL'),
+        ]
+        for name, definition in columns:
+            if name in existing:
+                continue
+            try:
+                db.session.execute(text(f"ALTER TABLE conocer_solicitud_logs ADD {name} {definition}"))
+                db.session.commit()
+                print(f"  ✓ Columna {name} agregada")
+            except Exception as e:
+                msg = str(e).lower()
+                if 'already exists' in msg or 'duplicate' in msg:
+                    print(f"  ⚠️  Columna {name} ya existe")
+                else:
+                    print(f"  ❌ Error agregando {name}: {e}")
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"  ❌ Error en check_and_add_conocer_solicitud_email_columns: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def check_and_add_result_mode_column():
     """Agregar columna mode a results para distinguir exam vs simulator"""
     print("🔍 Verificando columna mode en results...")

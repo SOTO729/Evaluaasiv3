@@ -197,10 +197,45 @@ def _send_weekly_solicitud(app):
             recipient_emails = [c.email for c in contacts]
             primary_to = recipient_emails[0]
             cc_list = recipient_emails[1:] if len(recipient_emails) > 1 else None
-            
+
+            email_subject = '[Evaluaasi] Solicitud de línea de captura'
+            attachments_meta = [
+                {
+                    'name': a.get('name'),
+                    'content_type': a.get('content_type'),
+                    'size_bytes': (
+                        (len(a.get('content_base64') or '') * 3) // 4
+                        if a.get('content_base64') else None
+                    ),
+                }
+                for a in attachments
+            ]
+            assignments_snapshot = [
+                {
+                    'eca_id': row.eca_id,
+                    'assignment_number': row.assignment_number,
+                    'curp': row.curp,
+                    'name': ' '.join(
+                        filter(None, [row.user_name, row.first_surname, row.second_surname])
+                    ).strip(),
+                    'ecm_code': row.ecm_code,
+                    'ecm_name': row.ecm_name,
+                    'competency_level': row.competency_level,
+                }
+                for row in pending_rows
+            ]
+            log_email_fields = {
+                'email_subject': email_subject,
+                'email_body_html': email_body,
+                'email_to': primary_to,
+                'email_cc': json.dumps(cc_list or []),
+                'email_attachments_meta': json.dumps(attachments_meta),
+                'email_assignments_snapshot': json.dumps(assignments_snapshot),
+            }
+
             success = send_email(
                 to=primary_to,
-                subject='[Evaluaasi] Solicitud de línea de captura',
+                subject=email_subject,
                 html=email_body,
                 attachments=attachments,
                 cc=cc_list,
@@ -216,6 +251,7 @@ def _send_weekly_solicitud(app):
                     status='failed',
                     error_message='Error al enviar el correo automático',
                     assignment_ids=json.dumps(eca_ids),
+                    **log_email_fields,
                 )
                 db.session.add(log)
                 db.session.commit()
@@ -240,6 +276,7 @@ def _send_weekly_solicitud(app):
                 attachment_names=', '.join([a['name'] for a in attachments]),
                 status='sent',
                 assignment_ids=json.dumps(eca_ids),
+                **log_email_fields,
             )
             db.session.add(log)
             db.session.commit()

@@ -214,6 +214,7 @@ const ConocerUploadPage = lazy(() => import('./pages/partners/ConocerUploadPage'
 const ConocerUploadHistoryPage = lazy(() => import('./pages/partners/ConocerUploadHistoryPage'))
 const ConocerUploadDetailPage = lazy(() => import('./pages/partners/ConocerUploadDetailPage'))
 const ConocerContactsPage = lazy(() => import('./pages/partners/ConocerContactsPage'))
+const ConocerSolicitudHistoryPage = lazy(() => import('./pages/partners/ConocerSolicitudHistoryPage'))
 
 // Responsable de Plantel
 const MiPlantelPage = lazy(() => import('./pages/responsable/MiPlantelPage'))
@@ -481,6 +482,7 @@ function App() {
               <Route path="/tramites-conocer/historial" element={<ConocerUploadHistoryPage />} />
               <Route path="/tramites-conocer/historial/:batchId" element={<ConocerUploadDetailPage />} />
               <Route path="/tramites-conocer/contactos" element={<ConocerContactsPage />} />
+              <Route path="/tramites-conocer/historial-envios" element={<ConocerSolicitudHistoryPage />} />
               
               {/* Responsable de Plantel */}
               <Route path="/mi-plantel" element={<MiPlantelPage />} />
