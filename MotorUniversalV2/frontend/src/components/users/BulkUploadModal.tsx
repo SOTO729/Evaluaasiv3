@@ -85,6 +85,9 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
   // Estado para copiar contraseñas
   const [copiedRow, setCopiedRow] = useState<number | null>(null);
 
+  // Confirmación de carga masiva sin grupo seleccionado
+  const [showNoGroupConfirm, setShowNoGroupConfirm] = useState(false);
+
   // Estado para selector de grupo (opcional)
   const [selectedPartnerId, setSelectedPartnerId] = useState<number | ''>('');
   const [selectedCampusId, setSelectedCampusId] = useState<number | ''>('');
@@ -242,8 +245,17 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = async (skipNoGroupCheck: boolean = false) => {
     if (!file) return;
+
+    // Si no hay grupo seleccionado, pedir confirmación explícita antes de
+    // continuar. Si el usuario confirma, se vuelve a llamar con
+    // skipNoGroupCheck=true para saltarse esta verificación.
+    if (!skipNoGroupCheck && !selectedGroupId) {
+      setShowNoGroupConfirm(true);
+      return;
+    }
+    setShowNoGroupConfirm(false);
 
     // Siempre procesar en segundo plano
     const hasCurps = preview?.preview.some(r => r.status === 'ready' && r.curp);
@@ -803,6 +815,21 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
                     </span>
                   )}
                 </div>
+
+                {/* Aviso: no se seleccionó grupo antes de previsualizar */}
+                {!selectedGroupId && (
+                  <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 text-sm text-amber-900">
+                      <p className="font-semibold mb-0.5">No seleccionaste un grupo</p>
+                      <p className="text-amber-800">
+                        Los candidatos se crearán sin asignarse a ningún grupo. Si deseas asignarlos,
+                        elige un grupo arriba antes de continuar; de lo contrario, al pulsar
+                        <strong> Confirmar Carga </strong> se te pedirá una confirmación adicional.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Summary badges */}
                 <div className={`grid gap-2 ${preview.summary.name_matches > 0 ? 'grid-cols-6' : 'grid-cols-5'}`}>
@@ -1470,6 +1497,50 @@ export default function BulkUploadModal({ isOpen, onClose, onSuccess }: BulkUplo
             {result ? 'Cerrar' : 'Cancelar'}
           </button>
         </div>
+
+        {/* Confirmación: cargar sin grupo seleccionado */}
+        {showNoGroupConfirm && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setShowNoGroupConfirm(false)}
+          >
+            <div
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Carga sin grupo asignado
+                </h3>
+              </div>
+              <div className="p-5 text-sm text-gray-700 space-y-2">
+                <p>
+                  No has seleccionado un grupo. Los candidatos se crearán pero
+                  <strong> no quedarán asignados a ningún grupo</strong>.
+                </p>
+                <p>¿Deseas continuar con la carga masiva de todos modos?</p>
+              </div>
+              <div className="p-4 bg-gray-50 flex justify-end gap-2 border-t border-gray-100">
+                <button
+                  onClick={() => setShowNoGroupConfirm(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => handleUpload(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Upload className="h-4 w-4" />
+                  Sí, cargar sin grupo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
