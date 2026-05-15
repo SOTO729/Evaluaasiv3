@@ -79,12 +79,22 @@ def generar_token():
         if not _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
             return jsonify({'error': True, 'mensajeError': 'email con formato inválido'}), 400
 
+    # CURP: si viene, validamos formato + entidad + dígito verificador. Si NO
+    # pasa la validación, lo descartamos en silencio (no rompemos el alta) y
+    # el candidato será solicitado a capturar su CURP por el flujo normal de
+    # `requires_curp_validation`. Si la CURP es válida, se persiste y entra al
+    # flujo RENAPO habitual.
+    curp_invalid_reason: Optional[str] = None
     if curp is not None:
-        import re as _re
-        # CURP mexicana: 4 letras + 6 dígitos + 6 letras + 1 alfanumérico + 1 dígito = 18 chars.
-        # Validamos solo formato; el dígito verificador y el match contra RENAPO se hacen en el flujo posterior.
-        if not _re.match(r'^[A-Z]{4}\d{6}[A-Z]{6}[A-Z0-9]\d$', curp):
-            return jsonify({'error': True, 'mensajeError': 'curp con formato inválido (deben ser 18 caracteres)'}), 400
+        from app.services.renapo_service import validate_curp_format, is_generic_foreign_curp
+        if is_generic_foreign_curp(curp):
+            # CURP genérica de extranjero — válida sin validación de checksum
+            pass
+        else:
+            fmt_valid, fmt_error = validate_curp_format(curp)
+            if not fmt_valid:
+                curp_invalid_reason = fmt_error or 'CURP inválida'
+                curp = None  # descartar y dejar que el candidato la capture luego
 
     campus = find_campus_by_api_key(apikey)
     if campus is None:
@@ -98,6 +108,12 @@ def generar_token():
         return jsonify({'error': True, 'mensajeError': 'nombre o apellido exceden el largo permitido (nombre 100, apellido 200)'}), 400
     if grupo_codigo and len(grupo_codigo) > 50:
         return jsonify({'error': True, 'mensajeError': 'grupo_codigo excede 50 caracteres'}), 400
+
+    if curp_invalid_reason:
+        import logging
+        logging.getLogger(__name__).warning(
+            f'[SSO-GEN] CURP descartada para matricula={matricula} campus_id={campus.id}: {curp_invalid_reason}'
+        )
 
     try:
         user = upsert_candidate_from_sso(
@@ -130,11 +146,16 @@ def generar_token():
             'mensajeError': 'No fue posible emitir el token SSO. Intenta de nuevo.',
         }), 500
 
-    return jsonify({
+    response_body = {
         'error': False,
         'mensaje_error': '',
         'token': raw_token,
-    }), 200
+    }
+    if curp_invalid_reason:
+        # Indicador no bloqueante para la integración de tercero: la CURP
+        # enviada fue ignorada y se solicitará al candidato en plataforma.
+        response_body['curp_warning'] = f'CURP ignorada: {curp_invalid_reason}. Será solicitada al candidato.'
+    return jsonify(response_body), 200
 
 
 # ════════════════════════════════════════════════════════════════════════════
