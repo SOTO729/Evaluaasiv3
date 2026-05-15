@@ -38,8 +38,14 @@ export const ssoService = {
     return data
   },
 
-  revealApiKey: async (campusId: number): Promise<SsoApiKeyWithSecret> => {
-    const { data } = await api.post<SsoApiKeyWithSecret>(`/sso/campuses/${campusId}/api-key/reveal`)
+  revealApiKey: async (
+    campusId: number,
+    currentPassword: string
+  ): Promise<SsoApiKeyWithSecret> => {
+    const { data } = await api.post<SsoApiKeyWithSecret>(
+      `/sso/campuses/${campusId}/api-key/reveal`,
+      { current_password: currentPassword }
+    )
     return data
   },
 

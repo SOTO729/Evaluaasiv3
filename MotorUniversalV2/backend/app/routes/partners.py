@@ -2380,7 +2380,26 @@ def configure_campus(campus_id):
         # Máquinas virtuales
         if 'enable_virtual_machines' in data:
             campus.enable_virtual_machines = bool(data['enable_virtual_machines'])
-        
+
+        # Módulo SSO API (tokenización SSO por plantel).
+        # Al ACTIVAR: si no existe llave, se auto-genera silenciosamente y se
+        # devuelve UNA sola vez en `sso_api_key`. Si ya existe, solo se prende
+        # el flag y la llave previa sigue siendo válida.
+        # Al DESACTIVAR: solo se apaga el flag (la llave se conserva).
+        sso_api_key_generated: str | None = None
+        if 'enable_sso_api' in data:
+            enable_sso = bool(data['enable_sso_api'])
+            if enable_sso:
+                if not campus.api_key_hash:
+                    sso_api_key_generated = campus.generate_api_key(
+                        created_by_user_id=g.current_user.id
+                    )
+                else:
+                    campus.api_key_active = True
+                campus.enable_sso_api = True
+            else:
+                campus.enable_sso_api = False
+
         # Pagos en línea
         if 'enable_online_payments' in data:
             campus.enable_online_payments = bool(data['enable_online_payments'])
@@ -2489,10 +2508,16 @@ def configure_campus(campus_id):
         
         db.session.commit()
         
-        return jsonify({
+        response_body = {
             'message': 'Configuración guardada exitosamente',
             'campus': campus.to_dict(include_config=True, include_responsable=True)
-        })
+        }
+        if sso_api_key_generated:
+            response_body['sso_api_key'] = sso_api_key_generated
+            response_body['sso_api_key_warning'] = (
+                'Guarda esta API key. Después solo podrás revelarla mientras el módulo SSO esté activo.'
+            )
+        return jsonify(response_body)
         
     except ValueError as e:
         db.session.rollback()
@@ -2548,6 +2573,9 @@ def get_campus_config(campus_id):
                 'max_retakes': campus.max_retakes if campus.max_retakes is not None else 0,
                 'configuration_completed': campus.configuration_completed or False,
                 'configuration_completed_at': campus.configuration_completed_at.isoformat() if campus.configuration_completed_at else None,
+                'enable_sso_api': bool(getattr(campus, 'enable_sso_api', False)),
+                'has_api_key': bool(campus.api_key_hash),
+                'api_key_prefix': campus.api_key_prefix,
             }
         })
         

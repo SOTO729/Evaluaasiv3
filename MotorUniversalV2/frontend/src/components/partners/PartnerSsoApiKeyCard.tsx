@@ -23,7 +23,7 @@ import {
   EyeOff,
   Info,
 } from 'lucide-react'
-import { ssoService, type SsoApiKeyInfo, type SsoApiKeyCreated } from '../../services/ssoService'
+import { ssoService, type SsoApiKeyInfo, type SsoApiKeyWithSecret as SsoApiKeyCreated } from '../../services/ssoService'
 
 interface PartnerSsoApiKeyCardProps {
   partnerId: number

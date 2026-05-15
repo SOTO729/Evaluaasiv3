@@ -47,7 +47,7 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
   const [copiedAt, setCopiedAt] = useState<number | null>(null)
 
   // Step-up auth: modal de contraseña para rotar / revocar.
-  type PendingAction = 'generate' | 'revoke' | null
+  type PendingAction = 'generate' | 'revoke' | 'reveal' | null
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [passwordInput, setPasswordInput] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -116,21 +116,35 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
     }
   }
 
-  const handleReveal = async () => {
+  const handleReveal = async (currentPassword: string) => {
+    setWorking('reveal')
+    setError(null)
+    setPasswordError(null)
+    try {
+      const data = await ssoService.revealApiKey(campusId, currentPassword)
+      setRevealed(data.api_key ?? null)
+      setPendingAction(null)
+      setPasswordInput('')
+    } catch (e: any) {
+      const code = e?.response?.data?.error
+      const detail = e?.response?.data?.detail || e?.response?.data?.error
+      if (code === 'password_required' || code === 'password_incorrect') {
+        setPasswordError(detail || 'Contraseña incorrecta.')
+      } else {
+        setError(detail || 'No autorizado o sin API key activa')
+        setPendingAction(null)
+      }
+    } finally {
+      setWorking(null)
+    }
+  }
+
+  const handleToggleRevealClick = () => {
     if (revealed) {
       setRevealed(null)
       return
     }
-    setWorking('reveal')
-    setError(null)
-    try {
-      const data = await ssoService.revealApiKey(campusId)
-      setRevealed(data.api_key ?? null)
-    } catch (e: any) {
-      setError(e?.response?.data?.error || 'No autorizado o sin API key activa')
-    } finally {
-      setWorking(null)
-    }
+    setPendingAction('reveal')
   }
 
   const handleRevoke = async (currentPassword: string) => {
@@ -284,7 +298,7 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
               {revealed ?? `${info.api_key_prefix ?? ''}${'•'.repeat(32)}`}
             </code>
             <button
-              onClick={handleReveal}
+              onClick={handleToggleRevealClick}
               disabled={working === 'reveal'}
               title={revealed ? 'Ocultar' : 'Revelar'}
               className="p-2 bg-white border border-purple-200 rounded-lg hover:bg-purple-50 disabled:opacity-50"
@@ -389,12 +403,16 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
               ? info?.has_key
                 ? '¿Rotar la API key?'
                 : '¿Generar una API key?'
-              : '¿Revocar la API key?'}
+              : pendingAction === 'revoke'
+                ? '¿Revocar la API key?'
+                : '¿Revelar la API key?'}
           </p>
           <p className="text-xs text-red-600 mb-3">
             {pendingAction === 'generate'
               ? 'Al rotarla, la API key actual dejará de funcionar inmediatamente y deberás entregar la nueva a las integraciones del plantel.'
-              : 'Las integraciones que usen esta llave dejarán de funcionar inmediatamente. Esta acción no se puede deshacer.'}
+              : pendingAction === 'revoke'
+                ? 'Las integraciones que usen esta llave dejarán de funcionar inmediatamente. Esta acción no se puede deshacer.'
+                : 'Vas a mostrar el secreto SSO de este plantel. Confirma tu contraseña para registrar la acción en la bitácora.'}
           </p>
           <label className="block text-xs font-semibold text-gray-700 mb-1">
             Confirma tu contraseña de administrador
@@ -409,7 +427,8 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
             onKeyDown={(e) => {
               if (e.key === 'Enter' && passwordInput.trim() && working === null) {
                 if (pendingAction === 'generate') handleGenerate(passwordInput)
-                else handleRevoke(passwordInput)
+                else if (pendingAction === 'revoke') handleRevoke(passwordInput)
+                else handleReveal(passwordInput)
               }
             }}
           />
@@ -420,12 +439,13 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
             <button
               onClick={() => {
                 if (pendingAction === 'generate') handleGenerate(passwordInput)
-                else handleRevoke(passwordInput)
+                else if (pendingAction === 'revoke') handleRevoke(passwordInput)
+                else handleReveal(passwordInput)
               }}
               disabled={!passwordInput.trim() || working !== null}
               className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 disabled:opacity-50"
             >
-              {pendingAction === 'generate' ? 'Sí, generar' : 'Sí, revocar'}
+              {pendingAction === 'generate' ? 'Sí, generar' : pendingAction === 'revoke' ? 'Sí, revocar' : 'Sí, revelar'}
             </button>
             <button
               onClick={() => {

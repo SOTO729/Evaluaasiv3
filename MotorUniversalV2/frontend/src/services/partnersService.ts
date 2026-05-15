@@ -116,6 +116,7 @@ export interface Campus {
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
   enable_candidate_certificates?: boolean;
+  enable_sso_api?: boolean;
   require_exam_pin?: boolean;
   daily_exam_pin?: string | null;
   enable_session_calendar?: boolean;
@@ -696,6 +697,7 @@ export interface ConfigureCampusRequest {
   enable_virtual_machines?: boolean;
   enable_online_payments?: boolean;
   enable_candidate_certificates?: boolean;
+  enable_sso_api?: boolean;
   require_exam_pin?: boolean;
   enable_session_calendar?: boolean;
   session_scheduling_mode?: 'leader_only' | 'candidate_self';
@@ -726,7 +728,9 @@ export async function getCampusConfiguration(campusId: number): Promise<{
 export async function configureCampus(campusId: number, data: ConfigureCampusRequest): Promise<{
   message: string;
   campus: Campus;
-  configuration: CampusConfiguration;
+  configuration?: CampusConfiguration;
+  sso_api_key?: string;
+  sso_api_key_warning?: string;
 }> {
   const response = await api.post(`/partners/campuses/${campusId}/configure`, data);
   return response.data;

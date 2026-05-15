@@ -137,6 +137,9 @@ export default function CampusActivationPage() {
   const [configError, setConfigError] = useState<string | null>(null);
   const [isConfiguringCampus, setIsConfiguringCampus] = useState(false);
   const [activeStep, setActiveStep] = useState<number | null>(null); // Para navegación manual entre pasos
+  // Modal para mostrar la API key SSO autogenerada al activar el módulo
+  const [newSsoApiKey, setNewSsoApiKey] = useState<string | null>(null);
+  const [ssoApiKeyCopied, setSsoApiKeyCopied] = useState(false);
   const [configData, setConfigData] = useState<ConfigureCampusRequest>({
     office_version: 'office_365',
     office_exam_level: 'intermedio' as 'intermedio' | 'avanzado',
@@ -149,6 +152,7 @@ export default function CampusActivationPage() {
     enable_virtual_machines: false,
     enable_online_payments: false,
     enable_candidate_certificates: true,
+    enable_sso_api: false,
     require_exam_pin: false,
     enable_session_calendar: false,
     session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
@@ -211,6 +215,7 @@ export default function CampusActivationPage() {
         enable_virtual_machines: campus.enable_virtual_machines ?? prev.enable_virtual_machines,
         enable_online_payments: campus.enable_online_payments ?? prev.enable_online_payments,
         enable_candidate_certificates: campus.enable_candidate_certificates ?? prev.enable_candidate_certificates,
+        enable_sso_api: (campus as any).enable_sso_api ?? prev.enable_sso_api,
         require_exam_pin: campus.require_exam_pin ?? prev.require_exam_pin,
         enable_session_calendar: campus.enable_session_calendar ?? prev.enable_session_calendar,
         session_scheduling_mode: campus.session_scheduling_mode ?? prev.session_scheduling_mode,
@@ -223,6 +228,18 @@ export default function CampusActivationPage() {
       setRetakeCostInput(String(campus.retake_cost ?? 0));
     }
   }, [campus?.configuration_completed]);
+
+  // Sincronizar el flag enable_sso_api siempre que el campus cambie, incluso
+  // si la configuración global aún no se ha completado. De este modo, si el
+  // módulo se prendió desde otro flujo, el toggle refleja el estado real.
+  useEffect(() => {
+    if (campus) {
+      setConfigData(prev => ({
+        ...prev,
+        enable_sso_api: (campus as any).enable_sso_api ?? prev.enable_sso_api,
+      }));
+    }
+  }, [campus?.id, (campus as any)?.enable_sso_api]);
 
   // Auto-fill CURP del responsable principal para planteles extranjeros
   const isForeign = campus?.country !== 'México';
@@ -602,6 +619,12 @@ export default function CampusActivationPage() {
       });
       
       setCampus(result.campus);
+      // Si el backend autogeneró una API key SSO al activar el módulo,
+      // mostrarla UNA sola vez al usuario para que la guarde.
+      if (result.sso_api_key) {
+        setNewSsoApiKey(result.sso_api_key);
+        setSsoApiKeyCopied(false);
+      }
       
     } catch (err: any) {
       console.error('Error configuring campus:', err);
@@ -2009,6 +2032,27 @@ export default function CampusActivationPage() {
                         />
                       </div>
 
+                      {/* Módulo SSO API (tokenización por plantel) */}
+                      <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
+                        configData.enable_sso_api ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <Shield className="w-5 h-5 text-indigo-600" />
+                          <div>
+                            <span className="font-medium text-gray-800">Módulo SSO (API de tokenización)</span>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Permite que un sistema externo genere tokens de inicio de sesión para sus alumnos
+                              usando una API key propia del plantel. Al activar se generará la llave automáticamente.
+                            </p>
+                          </div>
+                        </div>
+                        <ToggleSwitch
+                          checked={!!configData.enable_sso_api}
+                          onChange={(v) => setConfigData(prev => ({ ...prev, enable_sso_api: v }))}
+                          colorScheme="indigo"
+                        />
+                      </div>
+
                       {/* Visibilidad de certificados para candidatos */}
                       <div className={`flex items-center justify-between p-4 border-2 rounded-xl transition-all ${
                         configData.enable_candidate_certificates ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
@@ -2350,6 +2394,13 @@ export default function CampusActivationPage() {
                     </div>
                   )}
 
+                  {(campus as any).enable_sso_api && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <p className="text-gray-500 text-xs mb-1">Módulo SSO API</p>
+                      <p className="font-medium text-indigo-600">Activo</p>
+                    </div>
+                  )}
+
                   {campus.enable_candidate_certificates && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-gray-500 text-xs mb-1">Certificados Visibles</p>
@@ -2427,6 +2478,65 @@ export default function CampusActivationPage() {
           )}
         </div>
       </div>
+
+      {/* Modal: API key SSO autogenerada al activar el módulo SSO */}
+      {newSsoApiKey && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-fade-in-up">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                <Shield className="w-5 h-5 text-indigo-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">API Key SSO generada</h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  Esta llave es el secreto que tu sistema externo usará para llamar a
+                  <code className="mx-1 px-1 py-0.5 bg-gray-100 rounded text-[11px]">POST /api/sso/generar_token</code>.
+                  Guárdala en un lugar seguro: <strong>solo se muestra ahora</strong>. Después podrás revelarla desde
+                  la configuración del plantel (admin/coordinador/auxiliar) mientras el módulo SSO esté activo.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-gray-900 text-emerald-300 font-mono text-xs rounded-lg p-3 break-all select-all mb-3">
+              {newSsoApiKey}
+            </div>
+
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(newSsoApiKey);
+                    setSsoApiKeyCopied(true);
+                    setTimeout(() => setSsoApiKeyCopied(false), 2000);
+                  } catch {
+                    // ignore
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <Copy className="w-4 h-4" />
+                {ssoApiKeyCopied ? 'Copiado' : 'Copiar API key'}
+              </button>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 mb-4">
+              <strong>Importante:</strong> la rotación o revocación de esta llave a futuro
+              solo la puede realizar un administrador y requerirá confirmar su contraseña.
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setNewSsoApiKey(null)}
+              className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-medium transition-colors"
+            >
+              Ya la guardé, cerrar
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
