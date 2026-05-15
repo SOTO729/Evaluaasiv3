@@ -12,11 +12,12 @@ export interface SsoApiKeyInfo {
   api_key_created_at: string | null
   api_key_created_by: string | null
   share_api_key_with_responsable: boolean
+  enable_sso_api: boolean
   token_ttl_minutes: number
 }
 
 export interface SsoApiKeyWithSecret extends SsoApiKeyInfo {
-  api_key: string // visible solo en /api-key (POST) y /api-key/reveal (POST)
+  api_key?: string // visible solo en /api-key (POST), /api-key/reveal (POST) y al activar el módulo si se auto-generó
   warning?: string
 }
 
@@ -60,6 +61,22 @@ export const ssoService = {
     const { data } = await api.patch<SsoApiKeyInfo>(
       `/sso/campuses/${campusId}/share-api-key`,
       { share }
+    )
+    return data
+  },
+
+  /**
+   * Activa o desactiva el módulo SSO API a nivel plantel. Si al activarlo
+   * el plantel aún no tenía llave, el backend la auto-genera y la incluye
+   * UNA sola vez en `api_key`.
+   */
+  setEnableSsoApi: async (
+    campusId: number,
+    enabled: boolean
+  ): Promise<SsoApiKeyWithSecret> => {
+    const { data } = await api.patch<SsoApiKeyWithSecret>(
+      `/sso/campuses/${campusId}/enable-sso-api`,
+      { enabled }
     )
     return data
   },

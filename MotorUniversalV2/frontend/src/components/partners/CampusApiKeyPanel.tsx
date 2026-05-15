@@ -96,9 +96,10 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
         api_key_created_at: data.api_key_created_at,
         api_key_created_by: data.api_key_created_by,
         share_api_key_with_responsable: data.share_api_key_with_responsable,
+        enable_sso_api: data.enable_sso_api,
         token_ttl_minutes: data.token_ttl_minutes,
       })
-      setRevealed(data.api_key)
+      setRevealed(data.api_key ?? null)
       setPendingAction(null)
       setPasswordInput('')
     } catch (e: any) {
@@ -124,7 +125,7 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
     setError(null)
     try {
       const data = await ssoService.revealApiKey(campusId)
-      setRevealed(data.api_key)
+      setRevealed(data.api_key ?? null)
     } catch (e: any) {
       setError(e?.response?.data?.error || 'No autorizado o sin API key activa')
     } finally {
@@ -169,6 +170,32 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
     }
   }
 
+  const handleToggleModule = async (next: boolean) => {
+    setWorking('module')
+    setError(null)
+    try {
+      const data = await ssoService.setEnableSsoApi(campusId, next)
+      setInfo({
+        campus_id: data.campus_id,
+        has_key: data.has_key,
+        api_key_prefix: data.api_key_prefix,
+        api_key_active: data.api_key_active,
+        api_key_created_at: data.api_key_created_at,
+        api_key_created_by: data.api_key_created_by,
+        share_api_key_with_responsable: data.share_api_key_with_responsable,
+        enable_sso_api: data.enable_sso_api,
+        token_ttl_minutes: data.token_ttl_minutes,
+      })
+      // Si el backend acaba de auto-generar la llave, mostrarla una vez.
+      if (data.api_key) setRevealed(data.api_key)
+      else if (!next) setRevealed(null)
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || e?.response?.data?.error || 'No se pudo cambiar el estado del módulo')
+    } finally {
+      setWorking(null)
+    }
+  }
+
   const copyToClipboard = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value)
@@ -202,6 +229,39 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
         candidatos automáticamente vía <code className="bg-gray-100 px-1 rounded">POST /api/sso/generar_token</code>.
         El responsable y sus candidatos pueden usarla {info?.share_api_key_with_responsable ? 'según la política activa' : 'cuando el coordinador la comparta'}.
       </p>
+
+      {/* Toggle del MÓDULO SSO. Disponible para admin/coord/aux/responsable.
+          Si está apagado, el plantel no acepta llamadas a /generar_token,
+          aunque la llave exista. Al encenderlo, si no había llave se
+          auto-genera y se muestra una sola vez. */}
+      <div
+        className={`mb-4 flex items-start gap-3 rounded-lg p-3 border ${
+          info?.enable_sso_api
+            ? 'bg-emerald-50 border-emerald-200'
+            : 'bg-gray-50 border-gray-200'
+        }`}
+      >
+        <Key className={`w-4 h-4 mt-0.5 flex-shrink-0 ${info?.enable_sso_api ? 'text-emerald-600' : 'text-gray-400'}`} />
+        <div className="flex-1">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!info?.enable_sso_api}
+              onChange={(e) => handleToggleModule(e.target.checked)}
+              disabled={working === 'module'}
+              className="w-4 h-4"
+            />
+            <span className="text-sm font-semibold text-gray-800">
+              Módulo SSO API {info?.enable_sso_api ? 'activo' : 'inactivo'}
+            </span>
+          </label>
+          <p className="text-xs text-gray-600 mt-1">
+            {info?.enable_sso_api
+              ? 'El plantel acepta llamadas externas a /api/sso/generar_token con su API key.'
+              : 'Las llamadas externas están bloqueadas. Al activar el módulo, se generará automáticamente una API key si aún no existe.'}
+          </p>
+        </div>
+      </div>
 
       {error && (
         <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">

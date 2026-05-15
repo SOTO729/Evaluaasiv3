@@ -294,6 +294,12 @@ class Campus(db.Model):
     # Si está en True, el responsable del plantel también puede revelar la
     # llave (no rotarla ni revocarla). Default False.
     share_api_key_with_responsable = db.Column(db.Boolean, default=False, nullable=False)
+    # Flag de módulo SSO API a nivel plantel. Default False (apagado).
+    # Independiente de api_key_active: si está en False, NUNCA se aceptan
+    # llamadas a /api/sso/generar_token, sin importar si la llave existe o
+    # está activa internamente. Al encenderlo, si no existe llave, se
+    # auto-genera silenciosamente. Al apagarlo, la llave se conserva en BD.
+    enable_sso_api = db.Column(db.Boolean, default=False, nullable=False)
     # ========== FIN SSO TOKENIZACIÓN ==========
 
     # ========== FIN CONFIGURACIÓN ==========
@@ -378,6 +384,7 @@ class Campus(db.Model):
             'api_key_prefix': self.api_key_prefix if self.api_key_active else None,
             'api_key_created_at': self.api_key_created_at.isoformat() if self.api_key_created_at else None,
             'share_api_key_with_responsable': bool(self.share_api_key_with_responsable),
+            'enable_sso_api': bool(self.enable_sso_api),
         }
         
         # Incluir configuración del plantel

@@ -8,6 +8,7 @@ Endpoints:
   POST   /api/sso/campuses/<id>/api-key/reveal    — revela secreto (admin/coord/auxiliar; responsable si share)
   DELETE /api/sso/campuses/<id>/api-key           — revoca (SOLO admin/developer, requiere current_password)
   PATCH  /api/sso/campuses/<id>/share-api-key     — toggle share_api_key_with_responsable (admin/coord)
+  PATCH  /api/sso/campuses/<id>/enable-sso-api    — toggle enable_sso_api (admin/coord/aux/responsable). Auto-genera la llave si no existe.
 """
 from datetime import datetime
 from typing import Optional
@@ -101,6 +102,10 @@ def generar_token():
         return jsonify({'error': True, 'mensajeError': 'API key inválida o inactiva'}), 401
     if not campus.is_active:
         return jsonify({'error': True, 'mensajeError': 'Plantel inactivo'}), 403
+    if not bool(getattr(campus, 'enable_sso_api', False)):
+        # Módulo SSO apagado a nivel plantel: la llave existe pero no acepta
+        # llamadas hasta que se vuelva a encender el flag desde el panel.
+        return jsonify({'error': True, 'mensajeError': 'Módulo SSO deshabilitado para este plantel'}), 403
 
     if len(matricula) > 80:
         return jsonify({'error': True, 'mensajeError': 'matricula excede 80 caracteres'}), 400
@@ -238,8 +243,34 @@ def _api_key_info(campus: Campus) -> dict:
         'api_key_created_at': campus.api_key_created_at.isoformat() if campus.api_key_created_at else None,
         'api_key_created_by': campus.api_key_created_by,
         'share_api_key_with_responsable': bool(campus.share_api_key_with_responsable),
+        'enable_sso_api': bool(getattr(campus, 'enable_sso_api', False)),
         'token_ttl_minutes': SSO_TOKEN_TTL_MINUTES,
     }
+
+
+def _can_toggle_sso_api(user: User, campus: Campus) -> bool:
+    """Activar/desactivar el módulo SSO API del plantel. admin/dev,
+    coordinador del plantel, auxiliar del coordinador y responsable del
+    plantel pueden hacerlo. Al activar, si no existe llave se auto-genera.
+    """
+    if not user:
+        return False
+    if user.role in ('admin', 'developer'):
+        return True
+    if user.role == 'coordinator' and campus.coordinator_id == user.id:
+        return True
+    if (
+        user.role == 'auxiliar'
+        and campus.coordinator_id
+        and user.coordinator_id == campus.coordinator_id
+    ):
+        return True
+    if (
+        user.role in ('responsable', 'responsable_partner', 'responsable_estatal')
+        and campus.responsable_id == user.id
+    ):
+        return True
+    return False
 
 
 @bp.route('/campuses/<int:campus_id>/api-key', methods=['GET'])
@@ -324,6 +355,8 @@ def reveal_campus_api_key(campus_id: int):
         return jsonify({'error': 'No autorizado'}), 403
     if not campus.api_key_active or not campus.api_key_encrypted:
         return jsonify({'error': 'Este plantel no tiene API key activa'}), 404
+    if not bool(getattr(campus, 'enable_sso_api', False)):
+        return jsonify({'error': 'Módulo SSO deshabilitado para este plantel'}), 403
 
     raw = campus.reveal_api_key()
     if not raw:
@@ -402,3 +435,71 @@ def toggle_share_api_key(campus_id: int):
     campus.share_api_key_with_responsable = share
     db.session.commit()
     return jsonify(_api_key_info(campus)), 200
+
+
+@bp.route('/campuses/<int:campus_id>/enable-sso-api', methods=['PATCH'])
+@jwt_required()
+@rate_limit(limit=20, window=60, key_prefix='rl_sso_toggle')
+def toggle_enable_sso_api(campus_id: int):
+    """Activa o desactiva el módulo SSO API para el plantel.
+
+    - Permitido: admin/developer, coordinador del plantel, auxiliar del
+      coordinador y responsable del plantel.
+    - Al ACTIVAR: si no existe llave, se auto-genera silenciosamente y se
+      devuelve UNA sola vez en el campo `api_key`. Si ya existe, solo se
+      enciende el flag y la llave previa sigue siendo válida.
+    - Al DESACTIVAR: solo se apaga el flag. La llave se conserva en BD,
+      pero `/api/sso/generar_token` y `/reveal` rechazarán las llamadas
+      hasta que se vuelva a activar.
+
+    Body JSON: { "enabled": true | false }
+    """
+    current_user = User.query.get(get_jwt_identity())
+    campus = Campus.query.get_or_404(campus_id)
+    if not _can_toggle_sso_api(current_user, campus):
+        return jsonify({
+            'error': 'No autorizado',
+            'detail': 'Solo admin, coordinador, auxiliar o responsable del plantel pueden cambiar este flag.',
+        }), 403
+
+    payload = request.get_json(silent=True) or {}
+    if 'enabled' not in payload:
+        return jsonify({'error': 'enabled requerido (true|false)'}), 400
+    enabled = bool(payload.get('enabled'))
+
+    raw_key: Optional[str] = None
+    auto_generated = False
+
+    if enabled:
+        # Activar el módulo. Si no hay llave, autogenerar.
+        if not campus.api_key_hash:
+            raw_key = campus.generate_api_key(created_by_user_id=current_user.id)
+            auto_generated = True
+        else:
+            # Asegurar que la llave esté activa (puede haber sido revocada
+            # internamente). Si fue revocada con DELETE explícito, los
+            # campos están en None y entrará al branch anterior.
+            campus.api_key_active = True
+        campus.enable_sso_api = True
+        action = 'sso_api_enabled'
+    else:
+        campus.enable_sso_api = False
+        action = 'sso_api_disabled'
+
+    log_activity(
+        user=current_user,
+        action_type=action,
+        entity_type='campus',
+        entity_id=campus.id,
+        entity_name=campus.name,
+        details={'auto_generated_api_key': auto_generated},
+        ip_address=get_client_ip(),
+        success=True,
+    )
+    db.session.commit()
+
+    info = _api_key_info(campus)
+    if raw_key:
+        info['api_key'] = raw_key
+        info['warning'] = 'Guarda esta API key. Después solo podrás revelarla mientras el módulo esté activo.'
+    return jsonify(info), 200

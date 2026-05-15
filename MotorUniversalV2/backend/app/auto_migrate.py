@@ -2536,6 +2536,7 @@ def check_and_create_sso_tokenization():
                 ('api_key_created_at',              'DATETIME2 NULL',         'TIMESTAMP NULL'),
                 ('api_key_created_by',              'NVARCHAR(36) NULL',      'VARCHAR(36) NULL'),
                 ('share_api_key_with_responsable',  'BIT NOT NULL DEFAULT 0', 'BOOLEAN NOT NULL DEFAULT FALSE'),
+                ('enable_sso_api',                  'BIT NOT NULL DEFAULT 0', 'BOOLEAN NOT NULL DEFAULT FALSE'),
             ]
             for name, mssql_def, generic_def in campus_cols:
                 if name in cols:
