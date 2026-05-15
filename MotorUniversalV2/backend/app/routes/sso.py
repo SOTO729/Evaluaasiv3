@@ -3,9 +3,9 @@ Blueprint /api/sso — API de Tokenización SSO de Evaluaasi (a nivel PLANTEL).
 
 Endpoints:
   POST   /api/sso/generar_token                   — público, autenticado por API key del plantel
-  GET    /api/sso/campuses/<id>/api-key           — info pública (prefix, fechas, share flag) (admin/coord/responsable)
+  GET    /api/sso/campuses/<id>/api-key           — info pública (prefix, fechas, share flag) (admin/coord/auxiliar/responsable)
   POST   /api/sso/campuses/<id>/api-key           — generar/rotar (SOLO admin/developer, requiere current_password)
-  POST   /api/sso/campuses/<id>/api-key/reveal    — revela secreto (admin/coord siempre; responsable si share)
+  POST   /api/sso/campuses/<id>/api-key/reveal    — revela secreto (admin/coord/auxiliar; responsable si share)
   DELETE /api/sso/campuses/<id>/api-key           — revoca (SOLO admin/developer, requiere current_password)
   PATCH  /api/sso/campuses/<id>/share-api-key     — toggle share_api_key_with_responsable (admin/coord)
 """
@@ -57,6 +57,7 @@ def generar_token():
     programa = (payload.get('programa') or '').strip() or None
     email = (payload.get('email') or '').strip().lower() or None
     grupo_codigo = (payload.get('grupo_codigo') or '').strip() or None
+    curp = (payload.get('curp') or '').strip().upper() or None
 
     missing = []
     if not apikey:
@@ -77,6 +78,13 @@ def generar_token():
         import re as _re
         if not _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
             return jsonify({'error': True, 'mensajeError': 'email con formato inválido'}), 400
+
+    if curp is not None:
+        import re as _re
+        # CURP mexicana: 4 letras + 6 dígitos + 6 letras + 1 alfanumérico + 1 dígito = 18 chars.
+        # Validamos solo formato; el dígito verificador y el match contra RENAPO se hacen en el flujo posterior.
+        if not _re.match(r'^[A-Z]{4}\d{6}[A-Z]{6}[A-Z0-9]\d$', curp):
+            return jsonify({'error': True, 'mensajeError': 'curp con formato inválido (deben ser 18 caracteres)'}), 400
 
     campus = find_campus_by_api_key(apikey)
     if campus is None:
@@ -100,6 +108,7 @@ def generar_token():
             programa=programa,
             email=email,
             grupo_codigo=grupo_codigo,
+            curp=curp,
         )
     except Exception as e:
         db.session.rollback()
@@ -155,13 +164,19 @@ def _can_configure_share(user: User, campus: Campus) -> bool:
 
 
 def _can_view_api_key_metadata(user: User, campus: Campus) -> bool:
-    """Ver metadata (prefix, fecha, share flag). admin, coordinador del plantel
-    y responsable del plantel."""
+    """Ver metadata (prefix, fecha, share flag). admin, coordinador del plantel,
+    auxiliar del coordinador y responsable del plantel."""
     if not user:
         return False
     if user.role in ('admin', 'developer'):
         return True
     if user.role == 'coordinator' and campus.coordinator_id == user.id:
+        return True
+    if (
+        user.role == 'auxiliar'
+        and campus.coordinator_id
+        and user.coordinator_id == campus.coordinator_id
+    ):
         return True
     if user.role in ('responsable', 'responsable_partner', 'responsable_estatal') and campus.responsable_id == user.id:
         return True
@@ -169,13 +184,20 @@ def _can_view_api_key_metadata(user: User, campus: Campus) -> bool:
 
 
 def _can_reveal_api_key(user: User, campus: Campus) -> bool:
-    """Revelar el secreto. admin/coord siempre. Responsable del plantel solo
-    si campus.share_api_key_with_responsable está en True."""
+    """Revelar el secreto. admin/coord siempre. Auxiliar del coordinador del
+    plantel también (igual que el coord). Responsable del plantel solo si
+    campus.share_api_key_with_responsable está en True."""
     if not user:
         return False
     if user.role in ('admin', 'developer'):
         return True
     if user.role == 'coordinator' and campus.coordinator_id == user.id:
+        return True
+    if (
+        user.role == 'auxiliar'
+        and campus.coordinator_id
+        and user.coordinator_id == campus.coordinator_id
+    ):
         return True
     if (
         user.role in ('responsable', 'responsable_partner', 'responsable_estatal')

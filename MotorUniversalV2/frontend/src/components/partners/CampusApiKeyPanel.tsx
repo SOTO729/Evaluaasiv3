@@ -5,6 +5,8 @@
  *   La rotación y revocación exigen reconfirmar la contraseña (step-up auth).
  * - coordinador del plantel: ver, revelar, togglear share. NO puede rotar ni
  *   revocar (debe pedirle al admin).
+ * - auxiliar del coordinador: ver y revelar (mismos permisos que el coord
+ *   salvo rotar/revocar y togglear share).
  * - responsable del plantel: solo ver/copiar (si share_api_key_with_responsable
  *   está en true).
  *

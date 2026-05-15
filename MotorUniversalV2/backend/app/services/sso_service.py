@@ -99,17 +99,23 @@ def upsert_candidate_from_sso(
     programa: Optional[str] = None,
     email: Optional[str] = None,
     grupo_codigo: Optional[str] = None,
+    curp: Optional[str] = None,
 ) -> User:
     """Crea o actualiza un candidato por (external_campus_id, external_id).
 
     El campo `apellido` es una cadena única: se separa internamente en
     `first_surname` (apellido paterno) y `second_surname` (apellido materno).
+
+    Si se envía `curp` (opcional), se guarda en el usuario en mayúsculas. La
+    validación contra RENAPO la realiza el flujo asincrónico habitual; aquí
+    solo se persiste el valor provisto.
     """
     matricula = (matricula or '').strip()
     nombre = (nombre or '').strip()
     primer_apellido, segundo_apellido = _split_apellido(apellido)
     programa = (programa or '').strip() or None
     email = (email or '').strip().lower() or None
+    curp = (curp or '').strip().upper() or None
 
     user: Optional[User] = (
         User.query
@@ -134,6 +140,7 @@ def upsert_candidate_from_sso(
             external_program=programa,
             campus_id=campus.id,
             coordinator_id=campus.coordinator_id,
+            curp=curp,
         )
         user.set_password(secrets.token_urlsafe(32))
         db.session.add(user)
@@ -165,6 +172,11 @@ def upsert_candidate_from_sso(
             ).first()
             if other is None:
                 user.email = email
+        if curp and curp != (user.curp or '').upper():
+            # Solo sobreescribimos si aún no está verificado contra RENAPO,
+            # para no pisar un CURP ya validado por un valor de tercero.
+            if not bool(getattr(user, 'curp_verified', False)):
+                user.curp = curp
         if user.campus_id != campus.id:
             user.campus_id = campus.id
         if campus.coordinator_id and user.coordinator_id != campus.coordinator_id:
