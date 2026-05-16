@@ -308,6 +308,15 @@ export const cloneMaterial = async (
   return response.data.material;
 };
 
+// Crear material copiando la estructura de un examen (categorías → sesiones, temas → temas)
+export const createMaterialFromExam = async (
+  examId: number,
+  payload: { title?: string; description?: string; image_url?: string; is_published?: boolean; additional_exam_ids?: number[] } = {}
+): Promise<StudyMaterial> => {
+  const response = await api.post(`/study-contents/from-exam/${examId}`, payload);
+  return response.data.material;
+};
+
 // Subir imagen de portada para material de estudio
 export const uploadMaterialCoverImage = async (file: File): Promise<string> => {
   const formData = new FormData();

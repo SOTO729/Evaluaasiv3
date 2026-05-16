@@ -358,6 +358,105 @@ def get_material(material_id):
         return jsonify({'error': str(e)}), 500
 
 
+@study_contents_bp.route('/from-exam/<int:exam_id>', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_material_from_exam(exam_id):
+    """
+    Crear un Material de Estudio copiando la estructura (categorías → temas) de un examen.
+
+    Body opcional:
+      - title (str): título del material (default: nombre del examen)
+      - description (str): descripción del material (default: descripción del examen)
+      - image_url (str): URL de imagen (default: imagen del examen)
+      - is_published (bool): default False
+      - additional_exam_ids (list[int]): otros exámenes a vincular además del de origen
+    """
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+
+    data = request.get_json() or {}
+    user = get_current_user()
+
+    try:
+        # Heredar image_url solo si no es un data URI (que puede ser enorme y exceder la columna)
+        inherited_image = exam.image_url
+        if inherited_image and isinstance(inherited_image, str) and inherited_image.startswith('data:'):
+            inherited_image = None
+        chosen_image = data.get('image_url') if data.get('image_url') is not None else inherited_image
+        if chosen_image and isinstance(chosen_image, str) and (chosen_image.startswith('data:') or len(chosen_image) > 1900):
+            chosen_image = None
+
+        # Crear material con valores precargados del examen (overridables)
+        new_material = StudyMaterial(
+            title=(data.get('title') or exam.name or 'Material de estudio').strip(),
+            description=data.get('description') if data.get('description') is not None else exam.description,
+            image_url=chosen_image,
+            is_published=bool(data.get('is_published', False)),
+            order=0,
+            created_by=user.id,
+        )
+        db.session.add(new_material)
+        db.session.flush()
+
+        # Vincular examen de origen (y opcionalmente otros) vía N:M
+        ensure_study_material_exams_table()
+        exam_ids_to_link = {exam_id}
+        for extra_id in (data.get('additional_exam_ids') or []):
+            try:
+                exam_ids_to_link.add(int(extra_id))
+            except (TypeError, ValueError):
+                continue
+        linked_exams = Exam.query.filter(Exam.id.in_(exam_ids_to_link)).all()
+        for ex in linked_exams:
+            new_material.exams.append(ex)
+
+        # Copiar estructura: Category → StudySession, Topic → StudyTopic
+        categories = exam.categories.order_by(None).all()
+        # Ordenar por `order` ascendente; fallback al id si dos comparten orden
+        categories.sort(key=lambda c: (c.order if c.order is not None else 0, c.id))
+
+        for idx, category in enumerate(categories, start=1):
+            new_session = StudySession(
+                material_id=new_material.id,
+                session_number=idx,
+                title=category.name,
+                description=category.description,
+            )
+            db.session.add(new_session)
+            db.session.flush()
+
+            topics = list(category.topics)
+            topics.sort(key=lambda t: (t.order if t.order is not None else 0, t.id))
+            for t_idx, topic in enumerate(topics, start=1):
+                new_topic = StudyTopic(
+                    session_id=new_session.id,
+                    title=topic.name,
+                    description=topic.description,
+                    order=topic.order if topic.order is not None else t_idx,
+                    estimated_time_minutes=0,
+                    allow_reading=True,
+                    allow_video=True,
+                    allow_downloadable=True,
+                    allow_interactive=True,
+                )
+                db.session.add(new_topic)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Material de estudio creado a partir del examen',
+            'material': new_material.to_dict(include_sessions=True),
+        }), 201
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al crear material desde examen: {str(e)}'}), 500
+
+
 @study_contents_bp.route('/<int:material_id>/clone', methods=['POST'])
 @jwt_required()
 @admin_or_editor_required

@@ -15,6 +15,7 @@ import {
   updateMaterial,
   uploadMaterialCoverImage,
   cloneMaterial,
+  createMaterialFromExam,
   CreateMaterialData,
   StudyMaterial
 } from '../../services/studyContentService';
@@ -28,11 +29,12 @@ import {
   CheckCircle2,
   Search,
   Plus,
-  Copy
+  Copy,
+  FileText
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
-type CreationMode = 'scratch' | 'copy';
+type CreationMode = 'scratch' | 'copy' | 'from-exam';
 
 interface ExamListItem {
   id: number;
@@ -43,6 +45,15 @@ interface ExamListItem {
   total_exercises: number;
   total_categories: number;
   image_url?: string;
+  description?: string;
+}
+
+interface ExamCategoryPreview {
+  id: number;
+  name: string;
+  order: number;
+  topics?: { id: number; name: string; order: number }[];
+  total_topics?: number;
 }
 
 // Configuración del editor de texto
@@ -76,6 +87,9 @@ const StudyContentCreatePage = () => {
   const [creationMode, setCreationMode] = useState<CreationMode>('scratch');
   const [selectedMaterialToCopy, setSelectedMaterialToCopy] = useState<StudyMaterial | null>(null);
   const [searchMaterial, setSearchMaterial] = useState('');
+  // Modo "copiar estructura de examen"
+  const [selectedExamToCopyFrom, setSelectedExamToCopyFrom] = useState<ExamListItem | null>(null);
+  const [searchExamToCopy, setSearchExamToCopy] = useState('');
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -108,6 +122,24 @@ const StudyContentCreatePage = () => {
     queryKey: ['exams-for-link'],
     queryFn: () => examService.getExams(),
   });
+
+  // Preview de estructura del examen elegido para copiar (categorías + temas)
+  const { data: examPreview, isLoading: loadingExamPreview } = useQuery<{ categories: ExamCategoryPreview[] }>({
+    queryKey: ['exam-structure-preview', selectedExamToCopyFrom?.id],
+    queryFn: async () => {
+      if (!selectedExamToCopyFrom) return { categories: [] };
+      // include_details=true devuelve categorías con sus temas anidados
+      const res = await examService.getCategories(selectedExamToCopyFrom.id);
+      return res as unknown as { categories: ExamCategoryPreview[] };
+    },
+    enabled: !!selectedExamToCopyFrom && creationMode === 'from-exam',
+  });
+
+  // Filtrar exámenes para el selector "copiar estructura"
+  const filteredExamsToCopyFrom = examsData?.exams?.filter((exam: ExamListItem) =>
+    exam.name.toLowerCase().includes(searchExamToCopy.toLowerCase()) ||
+    exam.version.toLowerCase().includes(searchExamToCopy.toLowerCase())
+  ) || [];
 
   // Filtrar materiales por búsqueda (excluir el actual si está editando)
   const filteredMaterials = materialsData?.materials?.filter((material: StudyMaterial) =>
@@ -173,6 +205,11 @@ const StudyContentCreatePage = () => {
     if (creationMode === 'copy' && !selectedMaterialToCopy && !isEditing) {
       newErrors.material = 'Debe seleccionar un material para copiar';
     }
+
+    // En modo from-exam, validar que se haya seleccionado un examen
+    if (creationMode === 'from-exam' && !selectedExamToCopyFrom && !isEditing) {
+      newErrors.examToCopy = 'Debe seleccionar un examen para copiar su estructura';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -182,6 +219,7 @@ const StudyContentCreatePage = () => {
   const handleModeChange = (mode: CreationMode) => {
     setCreationMode(mode);
     setSelectedMaterialToCopy(null);
+    setSelectedExamToCopyFrom(null);
     setErrors({});
   };
 
@@ -193,6 +231,27 @@ const StudyContentCreatePage = () => {
       title: `${material.title} (Copia)`
     }));
     setErrors({});
+  };
+
+  const handleSelectExamToCopyFrom = (exam: ExamListItem) => {
+    setSelectedExamToCopyFrom(exam);
+    // Pre-llenar título, imagen y descripción con los del examen (el editor puede modificar).
+    // Evitar precargar imágenes data: URI (pueden exceder el largo permitido por la columna).
+    const safeImage = exam.image_url && !exam.image_url.startsWith('data:') && exam.image_url.length <= 1900
+      ? exam.image_url
+      : undefined;
+    setFormData(prev => ({
+      ...prev,
+      title: exam.name,
+      image_url: safeImage || prev.image_url,
+      description: exam.description || prev.description,
+    }));
+    // Pre-seleccionar el examen en la sección "Ligar exámenes"
+    setSelectedExams(prev => {
+      if (prev.some(e => e.id === exam.id)) return prev;
+      return [...prev, exam];
+    });
+    setErrors(prev => ({ ...prev, examToCopy: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -209,6 +268,22 @@ const StudyContentCreatePage = () => {
           formData.title
         );
         // Redirigir a la lista y scroll a borradores
+        window.location.href = '/study-contents?scrollTo=drafts';
+        return;
+      }
+
+      // Modo from-exam: crear material copiando estructura del examen
+      if (creationMode === 'from-exam' && selectedExamToCopyFrom && !isEditing) {
+        const additionalExamIds = selectedExams
+          .map(e => e.id)
+          .filter(eid => eid !== selectedExamToCopyFrom.id);
+        await createMaterialFromExam(selectedExamToCopyFrom.id, {
+          title: formData.title,
+          description: formData.description,
+          image_url: formData.image_url,
+          is_published: formData.is_published,
+          additional_exam_ids: additionalExamIds,
+        });
         window.location.href = '/study-contents?scrollTo=drafts';
         return;
       }
@@ -370,7 +445,11 @@ const StudyContentCreatePage = () => {
           <div className="text-center fluid-p-12">
             <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-primary-600"></div>
             <p className="fluid-mt-6 fluid-text-xl font-medium text-gray-700">
-              {creationMode === 'copy' ? 'Copiando material...' : (isEditing ? 'Guardando cambios...' : 'Creando material...')}
+              {creationMode === 'copy'
+                ? 'Copiando material...'
+                : creationMode === 'from-exam'
+                  ? 'Creando material desde el examen...'
+                  : (isEditing ? 'Guardando cambios...' : 'Creando material...')}
             </p>
             <p className="fluid-mt-2 fluid-text-base text-gray-500">Por favor espere</p>
           </div>
@@ -404,7 +483,13 @@ const StudyContentCreatePage = () => {
         <div className="fluid-mb-6 bg-green-50 border border-green-200 text-green-700 fluid-px-4 fluid-py-3 rounded-fluid-lg flex items-center fluid-gap-3">
           <CheckCircle2 className="fluid-icon-sm text-green-600 flex-shrink-0" />
           <span className="font-medium">
-            Material {isEditing ? 'actualizado' : (creationMode === 'copy' ? 'copiado' : 'creado')} exitosamente. Redirigiendo...
+            Material {isEditing
+              ? 'actualizado'
+              : creationMode === 'copy'
+                ? 'copiado'
+                : creationMode === 'from-exam'
+                  ? 'creado desde el examen'
+                  : 'creado'} exitosamente. Redirigiendo...
           </span>
         </div>
       )}
@@ -413,7 +498,7 @@ const StudyContentCreatePage = () => {
       {!isEditing && (
         <div className="card fluid-mb-6">
           <h2 className="fluid-text-xl font-semibold fluid-mb-4">Modo de Creación</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4">
             {/* Opción: Desde cero */}
             <div
               onClick={() => handleModeChange('scratch')}
@@ -470,6 +555,37 @@ const StudyContentCreatePage = () => {
                 </div>
                 {creationMode === 'copy' && (
                   <svg className="w-6 h-6 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            {/* Opción: Copiar estructura de un examen */}
+            <div
+              onClick={() => handleModeChange('from-exam')}
+              className={`cursor-pointer border-2 rounded-fluid-lg fluid-p-4 transition-all ${
+                creationMode === 'from-exam'
+                  ? 'border-purple-600 bg-purple-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-start fluid-gap-3">
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  creationMode === 'from-exam' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  <FileText className="fluid-icon-sm" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-semibold ${creationMode === 'from-exam' ? 'text-purple-900' : 'text-gray-900'}`}>
+                    Copiar estructura de un examen
+                  </h3>
+                  <p className="fluid-text-sm text-gray-600 fluid-mt-1">
+                    Replicar categorías y temas de un examen como sesiones y temas del material (vacíos, listos para llenar)
+                  </p>
+                </div>
+                {creationMode === 'from-exam' && (
+                  <svg className="w-6 h-6 text-purple-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 )}
@@ -574,12 +690,124 @@ const StudyContentCreatePage = () => {
               )}
             </div>
           )}
+
+          {/* Lista de exámenes para copiar estructura */}
+          {creationMode === 'from-exam' && (
+            <div className="fluid-mt-4">
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Seleccionar examen <span className="text-red-600">*</span>
+              </label>
+
+              {/* Buscador */}
+              <div className="fluid-mb-3 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-xs text-gray-400" />
+                <input
+                  type="text"
+                  value={searchExamToCopy}
+                  onChange={(e) => setSearchExamToCopy(e.target.value)}
+                  placeholder="Buscar examen por nombre o versión..."
+                  className="input pl-10"
+                />
+              </div>
+
+              <div className="border border-gray-300 rounded-fluid-lg max-h-64 overflow-y-auto">
+                {filteredExamsToCopyFrom.length > 0 ? (
+                  filteredExamsToCopyFrom.map((exam: ExamListItem) => (
+                    <div
+                      key={exam.id}
+                      onClick={() => handleSelectExamToCopyFrom(exam)}
+                      className={`fluid-p-3 cursor-pointer border-b last:border-b-0 transition-colors ${
+                        selectedExamToCopyFrom?.id === exam.id
+                          ? 'bg-purple-50 border-l-4 border-l-purple-500'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{exam.name}</p>
+                          <p className="fluid-text-xs text-gray-500 fluid-mt-1">Versión {exam.version}</p>
+                        </div>
+                        <div className="flex items-center fluid-gap-2">
+                          <span className={`fluid-px-2 py-0.5 fluid-text-xs rounded-full ${
+                            exam.is_published ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {exam.is_published ? 'Publicado' : 'Borrador'}
+                          </span>
+                          {selectedExamToCopyFrom?.id === exam.id && (
+                            <svg className="fluid-icon-sm text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex fluid-gap-3 fluid-mt-1 fluid-text-xs text-gray-500">
+                        <span>{exam.total_categories || 0} categorías</span>
+                        <span>{exam.total_questions || 0} preguntas</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="fluid-p-4 text-center text-gray-500">
+                    {searchExamToCopy
+                      ? 'No se encontraron exámenes con ese criterio'
+                      : 'No hay exámenes disponibles'}
+                  </div>
+                )}
+              </div>
+
+              {errors.examToCopy && (
+                <p className="text-red-600 fluid-text-xs fluid-mt-2 font-medium flex items-center fluid-gap-1">
+                  <AlertCircle className="fluid-icon-xs" />
+                  {errors.examToCopy}
+                </p>
+              )}
+
+              {/* Preview del examen elegido */}
+              {selectedExamToCopyFrom && (
+                <div className="fluid-mt-3 bg-purple-50 border-l-4 border-purple-500 fluid-p-4 rounded-r-fluid-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <FileText className="fluid-icon-sm text-purple-400" />
+                    </div>
+                    <div className="fluid-ml-3 flex-1">
+                      <p className="fluid-text-sm text-purple-700">
+                        <span className="font-medium">Se copiará la estructura de:</span> {selectedExamToCopyFrom.name}
+                      </p>
+                      {loadingExamPreview ? (
+                        <p className="fluid-text-xs text-purple-600 fluid-mt-1 flex items-center fluid-gap-1">
+                          <Loader2 className="fluid-icon-xs animate-spin" />
+                          Cargando estructura del examen...
+                        </p>
+                      ) : examPreview?.categories ? (
+                        <>
+                          <p className="fluid-text-xs text-purple-600 fluid-mt-1">
+                            Se crearán <strong>{examPreview.categories.length}</strong> sesiones y{' '}
+                            <strong>
+                              {examPreview.categories.reduce(
+                                (acc, c) => acc + (c.total_topics ?? c.topics?.length ?? 0),
+                                0
+                              )}
+                            </strong>{' '}
+                            temas (vacíos, listos para llenar con lecturas, videos o ejercicios).
+                          </p>
+                          <p className="fluid-text-xs text-purple-600 fluid-mt-1">
+                            El examen quedará pre-vinculado en la sección «Exámenes Relacionados».
+                            El título e imagen se precargaron del examen — puedes editarlos abajo.
+                          </p>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
-        {/* Información General - Solo mostrar si es modo scratch o si está editando */}
-        {(creationMode === 'scratch' || isEditing) && (
+        {/* Información General - Solo mostrar si NO es modo "copiar material existente" */}
+        {(creationMode === 'scratch' || creationMode === 'from-exam' || isEditing) && (
         <div className="card">
           <h2 className="fluid-text-xl font-semibold fluid-mb-4">Información General</h2>
           
@@ -714,8 +942,8 @@ const StudyContentCreatePage = () => {
         </div>
         )}
 
-        {/* Vincular con Exámenes - Solo mostrar si es modo scratch o si está editando */}
-        {(creationMode === 'scratch' || isEditing) && (
+        {/* Vincular con Exámenes - Solo mostrar si NO es modo "copiar material existente" */}
+        {(creationMode === 'scratch' || creationMode === 'from-exam' || isEditing) && (
         <div className="card">
           <div className="fluid-mb-4">
             <h2 className="fluid-text-xl font-semibold flex items-center fluid-gap-2">
