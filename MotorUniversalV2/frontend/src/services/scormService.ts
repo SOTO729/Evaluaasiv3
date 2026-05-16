@@ -111,6 +111,42 @@ export async function finalizeScormUpload(params: {
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// Importación jerárquica (Material → Sesión → Tema desde un SCORM)
+// ---------------------------------------------------------------------------
+
+export interface ScormManifestNode {
+  title: string;
+  type: 'container' | 'sco' | 'asset';
+  entry_point: string | null;
+  children?: ScormManifestNode[];
+}
+
+export interface ScormImportPreview {
+  prefix: string;
+  base_url: string;
+  manifest_path: string;
+  default_entry_point: string | null;
+  version: string;
+  title: string | null;
+  size_bytes: number;
+  file_count: number;
+  tree: ScormManifestNode[];
+}
+
+/**
+ * Extrae un ZIP SCORM ya subido al blob y devuelve la jerarquía completa
+ * del manifest. NO crea registros en DB; el siguiente paso es llamar a
+ * `createMaterialFromScorm` (en studyContentService) con el árbol editado.
+ */
+export async function extractScormForImport(params: {
+  upload_id: string;
+  blob_name: string;
+}): Promise<ScormImportPreview> {
+  const { data } = await api.post('/scorm/import/extract', params);
+  return data;
+}
+
 export async function getScormPackage(id: number): Promise<ScormPackage> {
   const { data } = await api.get(`/scorm/packages/${id}`);
   return data;

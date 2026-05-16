@@ -457,6 +457,161 @@ def create_material_from_exam(exam_id):
         return jsonify({'error': f'Error al crear material desde examen: {str(e)}'}), 500
 
 
+@study_contents_bp.route('/from-scorm', methods=['POST'])
+@jwt_required()
+@admin_or_editor_required
+def create_material_from_scorm():
+    """
+    Crear un Material de Estudio a partir de un paquete SCORM previamente
+    extraído mediante `POST /api/scorm/import/extract`.
+
+    Body:
+      - prefix (str, requerido): prefix del blob donde están los assets.
+      - base_url (str, requerido): URL base pública (sin slash final).
+      - manifest_path (str): default 'imsmanifest.xml'.
+      - version (str): SCORM version (default '1.2').
+      - title (str): título del material (requerido).
+      - description (str): opcional.
+      - image_url (str): opcional.
+      - is_published (bool): default False.
+      - tree (list): árbol editado por el usuario. Cada nodo:
+          { title: str, type: 'container'|'sco'|'asset',
+            entry_point: str|None, children: [...] }
+
+    Reglas de mapeo (MVP):
+      - Cada nodo de nivel 0 se convierte en una StudySession.
+        * Si el nodo de nivel 0 es hoja (sin children) y tiene entry_point,
+          se crea una sesión + un único StudyTopic con un StudyScormPackage.
+      - Cada nodo de nivel 1+ se aplana a un StudyTopic dentro de su sesión.
+      - Si un topic-nodo tiene entry_point, se crea un StudyScormPackage que
+        comparte blob_prefix/blob_base_url pero usa su propio entry_point.
+      - Los nodos type='container' sin entry_point siguen creando topic
+        contenedor (vacío).
+    """
+    from app.models.study_scorm import StudyScormPackage
+
+    data = request.get_json() or {}
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'No autorizado'}), 401
+
+    prefix = (data.get('prefix') or '').strip()
+    base_url = (data.get('base_url') or '').strip().rstrip('/')
+    manifest_path = (data.get('manifest_path') or 'imsmanifest.xml').strip()
+    version = (data.get('version') or '1.2').strip()[:10]
+    title = (data.get('title') or '').strip()
+    tree = data.get('tree') or []
+
+    if not prefix or not base_url:
+        return jsonify({'error': 'prefix y base_url son requeridos'}), 400
+    if not title:
+        return jsonify({'error': 'title es requerido'}), 400
+    if not isinstance(tree, list) or not tree:
+        return jsonify({'error': 'tree (lista no vacía) es requerido'}), 400
+
+    # Sanitizar image_url (data URIs / exceso de longitud)
+    image_url = data.get('image_url')
+    if image_url and isinstance(image_url, str) and (image_url.startswith('data:') or len(image_url) > 1900):
+        image_url = None
+
+    try:
+        material = StudyMaterial(
+            title=title,
+            description=data.get('description'),
+            image_url=image_url,
+            is_published=bool(data.get('is_published', False)),
+            order=0,
+            created_by=user.id,
+        )
+        db.session.add(material)
+        db.session.flush()
+
+        def _make_pkg(topic_id: int, node_title: str, entry_point: str) -> StudyScormPackage:
+            return StudyScormPackage(
+                topic_id=topic_id,
+                version=version,
+                title=(node_title or 'Paquete SCORM')[:255],
+                blob_prefix=prefix,
+                blob_base_url=base_url,
+                manifest_path=manifest_path,
+                entry_point=entry_point.lstrip('/')[:500],
+                uploaded_by=user.id,
+            )
+
+        for s_idx, session_node in enumerate(tree, start=1):
+            session_title = (session_node.get('title') or f'Sesión {s_idx}').strip()[:255]
+            session = StudySession(
+                material_id=material.id,
+                session_number=s_idx,
+                title=session_title,
+                description=None,
+            )
+            db.session.add(session)
+            db.session.flush()
+
+            children = session_node.get('children') or []
+            session_entry = session_node.get('entry_point')
+
+            if not children and session_entry:
+                # Sesión-hoja: crear 1 topic con el SCO
+                topic = StudyTopic(
+                    session_id=session.id,
+                    title=session_title,
+                    order=1,
+                    estimated_time_minutes=0,
+                    allow_reading=False,
+                    allow_video=False,
+                    allow_downloadable=False,
+                    allow_interactive=False,
+                    allow_scorm=True,
+                )
+                db.session.add(topic)
+                db.session.flush()
+                db.session.add(_make_pkg(topic.id, session_title, session_entry))
+                continue
+
+            # Aplanar todos los descendientes en topics
+            def _flatten(nodes, acc):
+                for n in nodes:
+                    acc.append(n)
+                    sub = n.get('children') or []
+                    if sub:
+                        _flatten(sub, acc)
+                return acc
+
+            leaves = _flatten(children, [])
+            for t_idx, t_node in enumerate(leaves, start=1):
+                t_title = (t_node.get('title') or f'Tema {t_idx}').strip()[:255]
+                t_entry = t_node.get('entry_point')
+                topic = StudyTopic(
+                    session_id=session.id,
+                    title=t_title,
+                    order=t_idx,
+                    estimated_time_minutes=0,
+                    allow_reading=False,
+                    allow_video=False,
+                    allow_downloadable=False,
+                    allow_interactive=False,
+                    allow_scorm=True,
+                )
+                db.session.add(topic)
+                db.session.flush()
+                if t_entry:
+                    db.session.add(_make_pkg(topic.id, t_title, t_entry))
+
+        db.session.commit()
+        return jsonify({
+            'message': 'Material de estudio creado desde SCORM',
+            'material': material.to_dict(include_sessions=True),
+        }), 201
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al crear material desde SCORM: {str(e)}'}), 500
+
+
 @study_contents_bp.route('/<int:material_id>/clone', methods=['POST'])
 @jwt_required()
 @admin_or_editor_required

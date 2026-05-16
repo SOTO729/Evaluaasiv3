@@ -30,11 +30,13 @@ import {
   Search,
   Plus,
   Copy,
-  FileText
+  FileText,
+  Package
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import ScormImportWizard from '../../components/scorm/ScormImportWizard';
 
-type CreationMode = 'scratch' | 'copy' | 'from-exam';
+type CreationMode = 'scratch' | 'copy' | 'from-exam' | 'from-scorm';
 
 interface ExamListItem {
   id: number;
@@ -498,7 +500,7 @@ const StudyContentCreatePage = () => {
       {!isEditing && (
         <div className="card fluid-mb-6">
           <h2 className="fluid-text-xl font-semibold fluid-mb-4">Modo de Creación</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 fluid-gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 fluid-gap-4">
             {/* Opción: Desde cero */}
             <div
               onClick={() => handleModeChange('scratch')}
@@ -586,6 +588,37 @@ const StudyContentCreatePage = () => {
                 </div>
                 {creationMode === 'from-exam' && (
                   <svg className="w-6 h-6 text-purple-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            {/* Opción: Importar desde paquete SCORM */}
+            <div
+              onClick={() => handleModeChange('from-scorm')}
+              className={`cursor-pointer border-2 rounded-fluid-lg fluid-p-4 transition-all ${
+                creationMode === 'from-scorm'
+                  ? 'border-amber-600 bg-amber-50'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-start fluid-gap-3">
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                  creationMode === 'from-scorm' ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  <Package className="fluid-icon-sm" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-semibold ${creationMode === 'from-scorm' ? 'text-amber-900' : 'text-gray-900'}`}>
+                    Importar desde SCORM
+                  </h3>
+                  <p className="fluid-text-sm text-gray-600 fluid-mt-1">
+                    Sube un paquete SCORM 1.2 y genera el material completo (sesiones y temas) desde su manifest
+                  </p>
+                </div>
+                {creationMode === 'from-scorm' && (
+                  <svg className="w-6 h-6 text-amber-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 )}
@@ -805,6 +838,22 @@ const StudyContentCreatePage = () => {
         </div>
       )}
 
+      {/* Modo: Importar desde SCORM — wizard dedicado (sin formulario tradicional) */}
+      {!isEditing && creationMode === 'from-scorm' ? (
+        <div className="card">
+          <h2 className="fluid-text-xl font-semibold fluid-mb-1">Importar desde paquete SCORM</h2>
+          <p className="fluid-text-sm text-gray-600 fluid-mb-4">
+            Sube el .zip SCORM 1.2. Analizaremos su <code>imsmanifest.xml</code> para proponerte la
+            estructura de sesiones y temas; podrás editar los títulos y eliminar lo que no quieras importar
+            antes de confirmar.
+          </p>
+          <ScormImportWizard
+            onCreated={() => {
+              window.location.href = '/study-contents?scrollTo=drafts';
+            }}
+          />
+        </div>
+      ) : (
       <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-6">
         {/* Información General - Solo mostrar si NO es modo "copiar material existente" */}
         {(creationMode === 'scratch' || creationMode === 'from-exam' || isEditing) && (
@@ -1134,6 +1183,7 @@ const StudyContentCreatePage = () => {
           </button>
         </div>
       </form>
+      )}
 
       {/* Modal de Error */}
       {errorModal.show && (

@@ -158,6 +158,128 @@ def parse_manifest(manifest_bytes: bytes) -> Tuple[str, str, Optional[str], Opti
     return href, (schema_version or 'unknown'), title, org_id_attr
 
 
+def parse_manifest_tree(manifest_bytes: bytes) -> dict:
+    """Parsea imsmanifest.xml y devuelve la jerarquía completa de organización.
+
+    Estructura devuelta:
+    {
+      "version": "1.2",
+      "title": "Curso",
+      "default_entry_point": "index.html",
+      "tree": [
+        {"title": "Sesión 1", "type": "container"|"sco"|"asset",
+         "entry_point": "page.html" | None,
+         "children": [ ... ]},
+        ...
+      ]
+    }
+
+    Una hoja con resource asociado se considera contenido (sco/asset). Un nodo sin
+    identifierref pero con children se considera contenedor (sesión/grupo).
+    """
+    try:
+        root = ET.fromstring(manifest_bytes)
+    except ET.ParseError as e:
+        raise ValueError(f"imsmanifest.xml inválido: {e}")
+
+    schema_version = None
+    metadata = root.find('.//{*}metadata/{*}schemaversion')
+    if metadata is not None and metadata.text:
+        schema_version = metadata.text.strip()
+
+    resources = root.findall('.//{*}resource')
+    res_by_id: dict[str, dict] = {}
+    for r in resources:
+        rid = r.get('identifier')
+        if not rid:
+            continue
+        href = r.get('href')
+        stype = (
+            r.get('{http://www.adlnet.org/xsd/adlcp_rootv1p2}scormtype')
+            or r.get('{http://www.adlnet.org/xsd/adlcp_v1p3}scormType')
+            or ''
+        ).lower() or None
+        res_by_id[rid] = {'href': href, 'scormtype': stype}
+
+    # default_entry_point: el primer item con identifierref válido
+    default_ep = None
+
+    def _strip_ns(tag: str) -> str:
+        return tag.split('}', 1)[1] if '}' in tag else tag
+
+    def _walk(node, depth: int) -> list[dict]:
+        nodes: list[dict] = []
+        for child in list(node):
+            if _strip_ns(child.tag) != 'item':
+                continue
+            title_el = None
+            for sub in list(child):
+                if _strip_ns(sub.tag) == 'title':
+                    title_el = sub
+                    break
+            title_text = (title_el.text or '').strip() if title_el is not None else ''
+            ref = child.get('identifierref')
+            res = res_by_id.get(ref) if ref else None
+            children = _walk(child, depth + 1)
+
+            if res and res.get('href'):
+                node_type = res.get('scormtype') or 'sco'
+                entry = _normalize_member_name(res['href'])
+                nonlocal default_ep
+                if default_ep is None:
+                    default_ep = entry
+            else:
+                node_type = 'container'
+                entry = None
+
+            nodes.append({
+                'title': title_text or f'Sin título {depth + 1}',
+                'type': node_type,
+                'entry_point': entry,
+                'children': children,
+            })
+        return nodes
+
+    organizations = root.find('.//{*}organizations')
+    default_org_id = organizations.get('default') if organizations is not None else None
+    organization = None
+    if organizations is not None:
+        if default_org_id:
+            for o in list(organizations):
+                if _strip_ns(o.tag) == 'organization' and o.get('identifier') == default_org_id:
+                    organization = o
+                    break
+        if organization is None:
+            for o in list(organizations):
+                if _strip_ns(o.tag) == 'organization':
+                    organization = o
+                    break
+
+    org_title = None
+    tree: list[dict] = []
+    if organization is not None:
+        for sub in list(organization):
+            if _strip_ns(sub.tag) == 'title' and sub.text:
+                org_title = sub.text.strip()
+                break
+        tree = _walk(organization, 0)
+
+    if not default_ep:
+        # fallback: primer resource con href
+        for r in resources:
+            h = r.get('href')
+            if h:
+                default_ep = _normalize_member_name(h)
+                break
+
+    return {
+        'version': schema_version or '1.2',
+        'title': org_title,
+        'default_entry_point': default_ep,
+        'tree': tree,
+    }
+
+
 def extract_and_upload(
     zip_bytes: bytes,
     package_uuid: Optional[str] = None,
@@ -210,6 +332,11 @@ def extract_and_upload(
     manifest_bytes = zf.read(manifest_member)
     entry_point_raw, version, title, _org = parse_manifest(manifest_bytes)
     entry_point = _normalize_member_name(entry_point_raw)
+    # Árbol completo para flujo de import jerárquico (sesiones/temas)
+    try:
+        tree_info = parse_manifest_tree(manifest_bytes)
+    except Exception:
+        tree_info = {'version': version, 'title': title, 'default_entry_point': entry_point, 'tree': []}
 
     # 2) Subir archivos
     file_count = 0
@@ -264,6 +391,7 @@ def extract_and_upload(
         'size_bytes': total_bytes,
         'file_count': file_count,
         'rejected_count': len(rejected),
+        'tree': tree_info.get('tree') or [],
     }
 
 

@@ -317,6 +317,23 @@ export const createMaterialFromExam = async (
   return response.data.material;
 };
 
+// Crear material desde un paquete SCORM ya extraído (sesiones/temas derivados del manifest)
+import type { ScormManifestNode } from './scormService';
+export const createMaterialFromScorm = async (payload: {
+  prefix: string;
+  base_url: string;
+  manifest_path: string;
+  version?: string;
+  title: string;
+  description?: string;
+  image_url?: string;
+  is_published?: boolean;
+  tree: ScormManifestNode[];
+}): Promise<StudyMaterial> => {
+  const response = await api.post('/study-contents/from-scorm', payload);
+  return response.data.material;
+};
+
 // Subir imagen de portada para material de estudio
 export const uploadMaterialCoverImage = async (file: File): Promise<string> => {
   const formData = new FormData();

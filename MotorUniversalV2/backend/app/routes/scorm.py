@@ -128,6 +128,68 @@ def finalize_upload():
     return jsonify(pkg.to_dict()), 201
 
 
+@scorm_bp.route('/import/extract', methods=['POST'])
+@jwt_required()
+@editor_required
+def import_extract():
+    """Extrae un ZIP SCORM subido al blob y devuelve el árbol del manifest
+    junto con el prefix/base_url donde quedaron los assets.
+
+    NO crea registros en la base de datos: deja todo listo para que
+    `/api/study-contents/from-scorm` decida cuántos `StudyScormPackage`
+    crear y cómo armar la jerarquía Material → Sesión → Tema.
+
+    Body: { upload_id: str, blob_name: str }
+
+    Response: {
+      prefix, base_url, manifest_path, default_entry_point, version, title,
+      size_bytes, file_count, tree: [...]
+    }
+    """
+    from app.services.scorm_service import extract_and_upload
+
+    payload = request.get_json(silent=True) or {}
+    upload_id = (payload.get('upload_id') or '').strip()
+    blob_name = (payload.get('blob_name') or '').strip()
+    if not upload_id or not blob_name:
+        return jsonify({'error': 'upload_id y blob_name son requeridos'}), 400
+
+    blob_client = azure_storage.get_scorm_blob_client(blob_name)
+    if not blob_client:
+        return jsonify({'error': 'Storage no disponible'}), 500
+    try:
+        if not blob_client.exists():
+            return jsonify({'error': 'El upload no se encontró en el blob'}), 404
+        zip_bytes = blob_client.download_blob().readall()
+    except Exception as e:
+        return jsonify({'error': f'No se pudo leer el ZIP: {e}'}), 400
+
+    try:
+        result = extract_and_upload(zip_bytes, package_uuid=upload_id)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error procesando paquete: {e}'}), 500
+
+    # Borrar el ZIP temporal
+    try:
+        blob_client.delete_blob()
+    except Exception:
+        pass
+
+    return jsonify({
+        'prefix': result['prefix'],
+        'base_url': result['base_url'],
+        'manifest_path': result.get('manifest_path') or 'imsmanifest.xml',
+        'default_entry_point': result.get('entry_point'),
+        'version': result.get('version'),
+        'title': result.get('title'),
+        'size_bytes': result.get('size_bytes'),
+        'file_count': result.get('file_count'),
+        'tree': result.get('tree') or [],
+    }), 200
+
+
 @scorm_bp.route('/packages/<int:package_id>', methods=['GET'])
 @jwt_required()
 def get_package(package_id: int):
