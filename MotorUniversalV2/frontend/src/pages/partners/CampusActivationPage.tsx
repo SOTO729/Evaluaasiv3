@@ -215,7 +215,7 @@ export default function CampusActivationPage() {
         enable_virtual_machines: campus.enable_virtual_machines ?? prev.enable_virtual_machines,
         enable_online_payments: campus.enable_online_payments ?? prev.enable_online_payments,
         enable_candidate_certificates: campus.enable_candidate_certificates ?? prev.enable_candidate_certificates,
-        enable_sso_api: (campus as any).enable_sso_api ?? prev.enable_sso_api,
+        enable_sso_api: campus.enable_sso_api ?? prev.enable_sso_api,
         require_exam_pin: campus.require_exam_pin ?? prev.require_exam_pin,
         enable_session_calendar: campus.enable_session_calendar ?? prev.enable_session_calendar,
         session_scheduling_mode: campus.session_scheduling_mode ?? prev.session_scheduling_mode,
@@ -236,10 +236,10 @@ export default function CampusActivationPage() {
     if (campus) {
       setConfigData(prev => ({
         ...prev,
-        enable_sso_api: (campus as any).enable_sso_api ?? prev.enable_sso_api,
+        enable_sso_api: campus.enable_sso_api ?? prev.enable_sso_api,
       }));
     }
-  }, [campus?.id, (campus as any)?.enable_sso_api]);
+  }, [campus?.id, campus?.enable_sso_api]);
 
   // Auto-fill CURP del responsable principal para planteles extranjeros
   const isForeign = campus?.country !== 'México';
@@ -2394,7 +2394,7 @@ export default function CampusActivationPage() {
                     </div>
                   )}
 
-                  {(campus as any).enable_sso_api && (
+                  {campus.enable_sso_api && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-gray-500 text-xs mb-1">Módulo SSO API</p>
                       <p className="font-medium text-indigo-600">Activo</p>

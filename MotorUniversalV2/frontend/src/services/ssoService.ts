@@ -17,7 +17,7 @@ export interface SsoApiKeyInfo {
 }
 
 export interface SsoApiKeyWithSecret extends SsoApiKeyInfo {
-  api_key?: string // visible solo en /api-key (POST), /api-key/reveal (POST) y al activar el módulo si se auto-generó
+  api_key?: string // visible al generar/rotar, al revelar y al activar el módulo si se auto-generó
   warning?: string
 }
 
@@ -38,13 +38,9 @@ export const ssoService = {
     return data
   },
 
-  revealApiKey: async (
-    campusId: number,
-    currentPassword: string
-  ): Promise<SsoApiKeyWithSecret> => {
+  revealApiKey: async (campusId: number): Promise<SsoApiKeyWithSecret> => {
     const { data } = await api.post<SsoApiKeyWithSecret>(
-      `/sso/campuses/${campusId}/api-key/reveal`,
-      { current_password: currentPassword }
+      `/sso/campuses/${campusId}/api-key/reveal`
     )
     return data
   },

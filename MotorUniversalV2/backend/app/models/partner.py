@@ -539,6 +539,34 @@ class Campus(db.Model):
         self.api_key_prefix = None
         self.api_key_active = False
 
+    def set_sso_module_enabled(
+        self,
+        enabled: bool,
+        user_id: str | None = None,
+    ) -> str | None:
+        """Activa o desactiva el módulo SSO API a nivel plantel.
+
+        - Al ACTIVAR: si no existe llave, la auto-genera y devuelve el raw
+          UNA sola vez. Si ya había llave (aunque estuviera marcada inactiva),
+          la reactiva sin rotar el secreto.
+        - Al DESACTIVAR: solo apaga el flag. La llave se conserva en BD.
+
+        El caller es responsable de hacer `db.session.commit()` y de loggear
+        la actividad en bitácora.
+
+        Returns: el raw key recién generado (solo si auto-generó), o None.
+        """
+        if enabled:
+            raw_key: str | None = None
+            if not self.api_key_hash:
+                raw_key = self.generate_api_key(created_by_user_id=user_id)
+            else:
+                self.api_key_active = True
+            self.enable_sso_api = True
+            return raw_key
+        self.enable_sso_api = False
+        return None
+
 
 class CampusCompetencyStandard(db.Model):
     """

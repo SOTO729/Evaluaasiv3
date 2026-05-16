@@ -2388,17 +2388,10 @@ def configure_campus(campus_id):
         # Al DESACTIVAR: solo se apaga el flag (la llave se conserva).
         sso_api_key_generated: str | None = None
         if 'enable_sso_api' in data:
-            enable_sso = bool(data['enable_sso_api'])
-            if enable_sso:
-                if not campus.api_key_hash:
-                    sso_api_key_generated = campus.generate_api_key(
-                        created_by_user_id=g.current_user.id
-                    )
-                else:
-                    campus.api_key_active = True
-                campus.enable_sso_api = True
-            else:
-                campus.enable_sso_api = False
+            sso_api_key_generated = campus.set_sso_module_enabled(
+                bool(data['enable_sso_api']),
+                user_id=g.current_user.id,
+            )
 
         # Pagos en línea
         if 'enable_online_payments' in data:

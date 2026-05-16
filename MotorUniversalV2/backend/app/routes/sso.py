@@ -350,7 +350,9 @@ def create_campus_api_key(campus_id: int):
 def reveal_campus_api_key(campus_id: int):
     """Revela el secreto. admin/coord siempre; responsable solo si share flag.
 
-    Requiere step-up auth: reenviar `current_password` en el body JSON.
+    No requiere step-up: el usuario ya está autenticado vía JWT y este endpoint
+    solo MUESTRA el secreto (no muta nada). La acción se registra en la
+    bitácora para auditoría.
     """
     current_user = User.query.get(get_jwt_identity())
     campus = Campus.query.get_or_404(campus_id)
@@ -360,31 +362,6 @@ def reveal_campus_api_key(campus_id: int):
         return jsonify({'error': 'Este plantel no tiene API key activa'}), 404
     if not bool(getattr(campus, 'enable_sso_api', False)):
         return jsonify({'error': 'Módulo SSO deshabilitado para este plantel'}), 403
-
-    payload = request.get_json(silent=True) or {}
-    current_password = (payload.get('current_password') or '').strip()
-    if not current_password:
-        return jsonify({
-            'error': 'password_required',
-            'detail': 'Debes confirmar tu contraseña para revelar la API key.',
-        }), 401
-    if not current_user.check_password(current_password):
-        log_activity(
-            user=current_user,
-            action_type='sso_api_key_reveal_denied',
-            entity_type='campus',
-            entity_id=campus.id,
-            entity_name=campus.name,
-            details={'reason': 'invalid_password'},
-            ip_address=get_client_ip(),
-            success=False,
-            error_message='Contraseña incorrecta',
-        )
-        db.session.commit()
-        return jsonify({
-            'error': 'password_incorrect',
-            'detail': 'La contraseña no es correcta.',
-        }), 401
 
     raw = campus.reveal_api_key()
     if not raw:
@@ -507,24 +484,9 @@ def toggle_enable_sso_api(campus_id: int):
         return jsonify({'error': 'enabled requerido (true|false)'}), 400
     enabled = bool(payload.get('enabled'))
 
-    raw_key: Optional[str] = None
-    auto_generated = False
-
-    if enabled:
-        # Activar el módulo. Si no hay llave, autogenerar.
-        if not campus.api_key_hash:
-            raw_key = campus.generate_api_key(created_by_user_id=current_user.id)
-            auto_generated = True
-        else:
-            # Asegurar que la llave esté activa (puede haber sido revocada
-            # internamente). Si fue revocada con DELETE explícito, los
-            # campos están en None y entrará al branch anterior.
-            campus.api_key_active = True
-        campus.enable_sso_api = True
-        action = 'sso_api_enabled'
-    else:
-        campus.enable_sso_api = False
-        action = 'sso_api_disabled'
+    raw_key = campus.set_sso_module_enabled(enabled, user_id=current_user.id)
+    auto_generated = raw_key is not None
+    action = 'sso_api_enabled' if enabled else 'sso_api_disabled'
 
     log_activity(
         user=current_user,
