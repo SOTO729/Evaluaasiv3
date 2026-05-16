@@ -967,7 +967,7 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       </div>
 
       {/* SECCIÓN INTERMEDIA: API Key SSO del plantel */}
-      {(!isResponsable || campus.share_api_key_with_responsable) && (
+      {(!isResponsable || user?.can_manage_groups) && (
         <div className="fluid-mb-6">
           <CampusApiKeyPanel
             campusId={campus.id}

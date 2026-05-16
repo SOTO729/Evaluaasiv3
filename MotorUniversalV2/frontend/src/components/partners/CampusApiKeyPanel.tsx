@@ -1,21 +1,21 @@
 /**
  * Panel para gestionar la API Key SSO de un plantel.
  *
- * - admin / developer: ver, generar/rotar, revelar, revocar, togglear share.
+ * - admin / developer: ver, generar/rotar, revelar, revocar.
  *   La rotación y revocación exigen reconfirmar la contraseña (step-up auth).
- * - coordinador del plantel: ver, revelar, togglear share. NO puede rotar ni
+ * - coordinador del plantel: ver, revelar. NO puede rotar ni
  *   revocar (debe pedirle al admin).
  * - auxiliar del coordinador: ver y revelar (mismos permisos que el coord
- *   salvo rotar/revocar y togglear share).
- * - responsable del plantel: solo ver/copiar (si share_api_key_with_responsable
- *   está en true).
+ *   salvo rotar/revocar).
+ * - responsable del plantel: solo ver/copiar si tiene el permiso
+ *   "Gestión de grupos" (can_manage_groups).
  *
  * El secreto NUNCA se queda guardado en estado más de lo estrictamente
  * necesario: aparece al generar o al revelar y desaparece cuando el panel
  * pierde foco.
  */
 import { useEffect, useState } from 'react'
-import { Copy, Eye, EyeOff, Key, RefreshCw, Trash2, AlertTriangle, Check, Share2, ShieldAlert } from 'lucide-react'
+import { Copy, Eye, EyeOff, Key, RefreshCw, Trash2, AlertTriangle, Check, Users, ShieldAlert } from 'lucide-react'
 import { ssoService, SsoApiKeyInfo } from '../../services/ssoService'
 import { useAuthStore } from '../../store/authStore'
 
@@ -32,7 +32,7 @@ function isAdminLike(role: Role): boolean {
   return role === 'admin' || role === 'developer'
 }
 
-function canConfigureShare(role: Role): boolean {
+function canSeeResponsableInfo(role: Role): boolean {
   return isAdminLike(role) || role === 'coordinator'
 }
 
@@ -53,7 +53,7 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
   const [passwordError, setPasswordError] = useState<string | null>(null)
 
   const isAdmin = isAdminLike(role) && !responsableMode
-  const showShareToggle = !responsableMode && canConfigureShare(role)
+  const showResponsableInfo = !responsableMode && canSeeResponsableInfo(role)
 
   useEffect(() => {
     let cancelled = false
@@ -157,19 +157,6 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
     }
   }
 
-  const handleToggleShare = async (next: boolean) => {
-    setWorking('share')
-    setError(null)
-    try {
-      const data = await ssoService.setShareWithResponsable(campusId, next)
-      setInfo(data)
-    } catch (e: any) {
-      setError(e?.response?.data?.error || 'No se pudo actualizar')
-    } finally {
-      setWorking(null)
-    }
-  }
-
   const handleToggleModule = async (next: boolean) => {
     setWorking('module')
     setError(null)
@@ -227,7 +214,7 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
       <p className="text-xs text-gray-500 mb-3">
         Permite a sistemas externos del plantel <strong>{campusName || ''}</strong> registrar y loguear
         candidatos automáticamente vía <code className="bg-gray-100 px-1 rounded">POST /api/sso/generar_token</code>.
-        El responsable y sus candidatos pueden usarla {info?.share_api_key_with_responsable ? 'según la política activa' : 'cuando el coordinador la comparta'}.
+        El responsable y sus candidatos pueden usarla cuando el responsable tenga el permiso "Gestión de grupos".
       </p>
 
       {/* Toggle del MÓDULO SSO. Disponible para admin/coord/aux/responsable.
@@ -346,7 +333,7 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
       )}
 
       {/* Aviso a coord/responsable: la rotación queda reservada al admin */}
-      {!responsableMode && !isAdmin && canConfigureShare(role) && (
+      {!responsableMode && !isAdmin && canSeeResponsableInfo(role) && (
         <div className="mt-4 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
           <ShieldAlert className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-amber-800">
@@ -356,25 +343,21 @@ export default function CampusApiKeyPanel({ campusId, campusName, responsableMod
         </div>
       )}
 
-      {/* Toggle compartir con responsable (admin + coordinador) */}
-      {showShareToggle && info?.has_key && (
+      {/* Nota informativa: el acceso del responsable a la API key
+          depende del permiso "Gestión de grupos" del usuario, no de un
+          flag por plantel. */}
+      {showResponsableInfo && info?.has_key && (
         <div className="mt-4 flex items-start gap-3 bg-blue-50 border border-blue-100 rounded-lg p-3">
-          <Share2 className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+          <Users className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!info.share_api_key_with_responsable}
-                onChange={(e) => handleToggleShare(e.target.checked)}
-                disabled={working === 'share'}
-                className="w-4 h-4"
-              />
-              <span className="text-sm font-semibold text-gray-800">
-                Permitir que el responsable del plantel vea la API key
-              </span>
-            </label>
+            <p className="text-sm font-semibold text-gray-800">
+              Acceso del responsable a la API key
+            </p>
             <p className="text-xs text-gray-600 mt-1">
-              Cuando está activo, el responsable puede revelarla y compartirla con sus candidatos. Solo un administrador puede rotarla o revocarla.
+              El responsable del plantel verá y podrá copiar la API key automáticamente cuando
+              tenga habilitado el permiso <strong>"Gestión de grupos"</strong> en su perfil
+              (configurable al activar el plantel o desde el módulo de usuarios). Solo un
+              administrador puede rotarla o revocarla.
             </p>
           </div>
         </div>

@@ -316,7 +316,8 @@ export default function CampusActivationModal({
                     <div>
                       <span className="font-medium text-gray-800">Gestión de grupos</span>
                       <p className="text-sm text-gray-500">
-                        Puede crear grupos de alumnos y asignar exámenes o materiales de estudio
+                        Puede crear grupos de alumnos y asignar exámenes o materiales de estudio.
+                        Incluye acceso para revelar y compartir la <strong>API key SSO</strong> del plantel.
                       </p>
                     </div>
                     <ToggleSwitch

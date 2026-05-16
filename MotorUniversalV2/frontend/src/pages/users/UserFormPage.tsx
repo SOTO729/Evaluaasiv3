@@ -1394,7 +1394,7 @@ export default function UserFormPage() {
                         />
                         <span className="fluid-text-sm text-blue-700">Altas masivas de candidatos</span>
                       </label>
-                      <label className="flex items-center fluid-gap-2 cursor-pointer">
+                      <label className="flex items-center fluid-gap-2 cursor-pointer" title="Incluye acceso a la API key SSO del plantel">
                         <input
                           type="checkbox"
                           name="can_manage_groups"
@@ -1402,7 +1402,7 @@ export default function UserFormPage() {
                           onChange={handleChange}
                           className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="fluid-text-sm text-blue-700">Gestión de grupos</span>
+                        <span className="fluid-text-sm text-blue-700">Gestión de grupos <span className="text-blue-500 font-normal">(incluye API key SSO del plantel)</span></span>
                       </label>
                       <label className="flex items-center fluid-gap-2 cursor-pointer">
                         <input

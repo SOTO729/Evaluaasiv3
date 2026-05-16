@@ -212,7 +212,8 @@ def _can_view_api_key_metadata(user: User, campus: Campus) -> bool:
 def _can_reveal_api_key(user: User, campus: Campus) -> bool:
     """Revelar el secreto. admin/coord siempre. Auxiliar del coordinador del
     plantel también (igual que el coord). Responsable del plantel solo si
-    campus.share_api_key_with_responsable está en True."""
+    tiene el permiso `can_manage_groups` (mismo permiso que habilita la
+    gestión de grupos del plantel — incluye acceso a la API key SSO)."""
     if not user:
         return False
     if user.role in ('admin', 'developer'):
@@ -228,7 +229,7 @@ def _can_reveal_api_key(user: User, campus: Campus) -> bool:
     if (
         user.role in ('responsable', 'responsable_partner', 'responsable_estatal')
         and campus.responsable_id == user.id
-        and bool(campus.share_api_key_with_responsable)
+        and bool(getattr(user, 'can_manage_groups', False))
     ):
         return True
     return False
