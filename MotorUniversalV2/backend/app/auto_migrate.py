@@ -2774,3 +2774,99 @@ def check_and_create_sso_tokenization():
         except Exception:
             pass
 
+
+
+def check_and_create_study_export_requests_table():
+    """Crea la tabla study_export_requests (solicitudes de exportación SCORM)."""
+    print("🔍 Verificando tabla study_export_requests...")
+    try:
+        from app.models.study_export import StudyExportRequest  # noqa: F401
+
+        inspector = inspect(db.engine)
+        existing = set(inspector.get_table_names())
+        if 'study_export_requests' in existing:
+            print("  ✓ Tabla study_export_requests ya existe")
+            return
+
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = """
+                CREATE TABLE study_export_requests (
+                    id INT IDENTITY(1,1) PRIMARY KEY,
+                    material_id INT NOT NULL,
+                    requested_by VARCHAR(36) NULL,
+                    reason NVARCHAR(MAX) NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    reviewed_by VARCHAR(36) NULL,
+                    reviewed_at DATETIME2 NULL,
+                    review_notes NVARCHAR(MAX) NULL,
+                    consumed_at DATETIME2 NULL,
+                    consumed_filename NVARCHAR(500) NULL,
+                    size_bytes BIGINT NULL,
+                    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                    updated_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                    CONSTRAINT fk_ser_material FOREIGN KEY (material_id)
+                        REFERENCES study_contents(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_ser_requester FOREIGN KEY (requested_by)
+                        REFERENCES users(id) ON DELETE SET NULL,
+                    CONSTRAINT fk_ser_reviewer FOREIGN KEY (reviewed_by)
+                        REFERENCES users(id) ON DELETE NO ACTION
+                )
+            """
+        elif db_type == 'postgresql':
+            sql = """
+                CREATE TABLE study_export_requests (
+                    id SERIAL PRIMARY KEY,
+                    material_id INT NOT NULL REFERENCES study_contents(id) ON DELETE CASCADE,
+                    requested_by VARCHAR(36) NULL REFERENCES users(id) ON DELETE SET NULL,
+                    reason TEXT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    reviewed_by VARCHAR(36) NULL REFERENCES users(id) ON DELETE SET NULL,
+                    reviewed_at TIMESTAMP NULL,
+                    review_notes TEXT NULL,
+                    consumed_at TIMESTAMP NULL,
+                    consumed_filename VARCHAR(500) NULL,
+                    size_bytes BIGINT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+                )
+            """
+        else:
+            # SQLite
+            sql = """
+                CREATE TABLE study_export_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    material_id INTEGER NOT NULL,
+                    requested_by VARCHAR(36) NULL,
+                    reason TEXT NULL,
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    reviewed_by VARCHAR(36) NULL,
+                    reviewed_at DATETIME NULL,
+                    review_notes TEXT NULL,
+                    consumed_at DATETIME NULL,
+                    consumed_filename VARCHAR(500) NULL,
+                    size_bytes BIGINT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (material_id) REFERENCES study_contents(id) ON DELETE CASCADE
+                )
+            """
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✅ Tabla study_export_requests creada")
+        for idx_sql in [
+            "CREATE INDEX ix_ser_material ON study_export_requests (material_id)",
+            "CREATE INDEX ix_ser_status   ON study_export_requests (status)",
+            "CREATE INDEX ix_ser_requester ON study_export_requests (requested_by)",
+        ]:
+            try:
+                db.session.execute(text(idx_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+    except Exception as e:
+        print(f"❌ Error creando study_export_requests: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass

@@ -76,6 +76,7 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ScormUploader from '../../components/scorm/ScormUploader';
+import StudyExportButton from '../../components/study-contents/StudyExportButton';
 import { attachScormToTopic, deleteScormPackage, ScormPackage } from '../../services/scormService';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -1394,6 +1395,16 @@ const StudyContentDetailPage = () => {
           )}
         </div>
         <div className="flex items-center fluid-gap-2 flex-wrap">
+          {/* Exportar a SCORM (solicita autorización a admin / gerente) */}
+          {['admin', 'developer', 'editor', 'editor_invitado'].includes(user?.role || '') && (
+            <div className="flex flex-col items-start">
+              <StudyExportButton
+                materialId={Number(materialId)}
+                materialTitle={material.title}
+                onNotify={(message, type) => setToast({ message, type })}
+              />
+            </div>
+          )}
           <button
             onClick={() => {
               if (material.is_published) {

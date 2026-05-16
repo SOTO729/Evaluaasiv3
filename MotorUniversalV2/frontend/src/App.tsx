@@ -50,6 +50,7 @@ const PendingExamsPage = lazy(() => import('./pages/exams/PendingExamsPage'))
 const OfficeDownloadsPage = lazy(() => import('./pages/downloads/OfficeDownloadsPage'))
 const OfficeAppsAdminPage = lazy(() => import('./pages/admin/OfficeAppsAdminPage'))
 const OfficeResultsAuditPage = lazy(() => import('./pages/admin/OfficeResultsAuditPage'))
+const StudyExportRequestsPage = lazy(() => import('./pages/admin/StudyExportRequestsPage'))
 const MisExamenesOfficePage = lazy(() => import('./pages/candidato/MisExamenesOfficePage'))
 const MiSesionOfficePage = lazy(() => import('./pages/candidato/MiSesionOfficePage'))
 const MiCurpPage = lazy(() => import('./pages/candidato/MiCurpPage'))
@@ -536,6 +537,8 @@ function App() {
               <Route path="/gerente/monitoreo" element={<GerenteMonitoreoPage />} />
               <Route path="/gerente/certificados" element={<GerenteCertificadosPage />} />
               <Route path="/gerente/chat-audit" element={<ChatAuditPage />} />
+              <Route path="/admin/study-exports" element={<StudyExportRequestsPage />} />
+              <Route path="/gerente/study-exports" element={<StudyExportRequestsPage />} />
               {/* Coordinador - Auditoría de chats (acceso desde /support/communication) */}
               <Route path="/chat-audit" element={<ChatAuditPage />} />
               

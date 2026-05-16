@@ -781,6 +781,18 @@ const Layout = ({ children }: LayoutProps) => {
                     Auditoría Chat
                   </Link>
                 )}
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/admin/study-exports"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.includes('/study-exports')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Exportaciones SCORM
+                  </Link>
+                )}
                 {(user?.role === 'admin' || user?.role === 'developer') && (
                   <Link 
                     to="/grupos" 

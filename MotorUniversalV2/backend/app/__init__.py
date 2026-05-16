@@ -177,6 +177,14 @@ def create_app(config_name='development'):
         print("[INIT] ✅ scorm registrado (SCORM 1.2 packages + attempts)")
     except Exception as e:
         print(f"[INIT] ❌ Error importando scorm_bp: {e}")
+
+    # Exportación SCORM de materiales (solicitudes + aprobación + descarga)
+    try:
+        from app.routes.study_export import bp as study_export_bp
+        app.register_blueprint(study_export_bp, url_prefix='/api')
+        print("[INIT] ✅ study_export registrado (exportación SCORM con aprobación)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando study_export_bp: {e}")
     
     from app.routes.badges import short_share_bp
     app.register_blueprint(short_share_bp)
