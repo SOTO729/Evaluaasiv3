@@ -48,6 +48,8 @@ export interface Exam {
   default_exam_exercises_count?: number | null
   default_simulator_questions_count?: number | null
   default_simulator_exercises_count?: number | null
+  default_duration_minutes?: number | null
+  default_passing_score?: number | null
   linked_material_ids?: number[]
   is_active: boolean
   is_published: boolean

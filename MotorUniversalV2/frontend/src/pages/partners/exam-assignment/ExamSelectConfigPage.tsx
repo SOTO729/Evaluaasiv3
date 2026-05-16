@@ -153,11 +153,13 @@ export default function ExamSelectConfigPage() {
 
     // Responsable skips configuration — auto-accept editor defaults and go to members
     if (isResponsable) {
+      const editorDuration = selectedExam.default_duration_minutes ?? null;
+      const editorPassing = selectedExam.default_passing_score ?? null;
       const config: ExamConfig = {
-        timeLimitMinutes: null,
-        useExamDefaultTime: true,
-        passingScore: selectedExam.passing_score,
-        useExamDefaultScore: true,
+        timeLimitMinutes: editorDuration,
+        useExamDefaultTime: editorDuration == null,
+        passingScore: editorPassing ?? selectedExam.passing_score,
+        useExamDefaultScore: editorPassing == null,
         maxAttempts: selectedExam.default_max_attempts ?? 2,
         maxDisconnections: selectedExam.default_max_disconnections ?? 3,
         examContentType: (selectedExam.default_exam_content_type || 'mixed') as ExamContentType,
@@ -176,8 +178,8 @@ export default function ExamSelectConfigPage() {
       return;
     }
 
-    if (selectedExam.duration_minutes) setTimeLimitMinutes(selectedExam.duration_minutes);
-    if (selectedExam.passing_score) setPassingScore(selectedExam.passing_score);
+    if (selectedExam.duration_minutes) setTimeLimitMinutes(selectedExam.default_duration_minutes ?? selectedExam.duration_minutes);
+    if (selectedExam.passing_score) setPassingScore(selectedExam.default_passing_score ?? selectedExam.passing_score);
     setStep('accept-or-customize');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -185,11 +187,13 @@ export default function ExamSelectConfigPage() {
   /** Aceptar configuración del editor: usar defaults del examen + materiales ligados → saltar a candidatos (paso 3) */
   const handleAcceptEditorConfig = () => {
     if (!selectedExam) return;
+    const editorDuration = selectedExam.default_duration_minutes ?? null;
+    const editorPassing = selectedExam.default_passing_score ?? null;
     const config: ExamConfig = {
-      timeLimitMinutes: null, // usar default del examen
-      useExamDefaultTime: true,
-      passingScore: selectedExam.passing_score,
-      useExamDefaultScore: true,
+      timeLimitMinutes: editorDuration,
+      useExamDefaultTime: editorDuration == null,
+      passingScore: editorPassing ?? selectedExam.passing_score,
+      useExamDefaultScore: editorPassing == null,
       maxAttempts: selectedExam.default_max_attempts ?? 2,
       maxDisconnections: selectedExam.default_max_disconnections ?? 3,
       examContentType: (selectedExam.default_exam_content_type || 'mixed') as ExamContentType,
@@ -215,6 +219,14 @@ export default function ExamSelectConfigPage() {
     setMaxAttempts(selectedExam.default_max_attempts ?? 2);
     setMaxDisconnections(selectedExam.default_max_disconnections ?? 3);
     setExamContentType((selectedExam.default_exam_content_type || 'mixed') as ExamContentType);
+    if (selectedExam.default_duration_minutes != null) {
+      setUseExamDefaultTime(false);
+      setTimeLimitMinutes(selectedExam.default_duration_minutes);
+    }
+    if (selectedExam.default_passing_score != null) {
+      setUseExamDefaultScore(false);
+      setPassingScore(selectedExam.default_passing_score);
+    }
     if (selectedExam.default_exam_questions_count != null) {
       setUseAllExamQuestions(false);
       setExamQuestionsCount(selectedExam.default_exam_questions_count);

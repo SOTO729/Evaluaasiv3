@@ -37,6 +37,8 @@ class Exam(db.Model):
     default_exam_exercises_count = db.Column(db.Integer, nullable=True)
     default_simulator_questions_count = db.Column(db.Integer, nullable=True)
     default_simulator_exercises_count = db.Column(db.Integer, nullable=True)
+    default_duration_minutes = db.Column(db.Integer, nullable=True)  # null = usar duration_minutes
+    default_passing_score = db.Column(db.Integer, nullable=True)  # null = usar passing_score
     
     # Relación con Estándar de Competencia (ECM)
     competency_standard_id = db.Column(db.Integer, db.ForeignKey('competency_standards.id'), nullable=True, index=True)
@@ -157,6 +159,8 @@ class Exam(db.Model):
             'default_exam_exercises_count': self.default_exam_exercises_count,
             'default_simulator_questions_count': self.default_simulator_questions_count,
             'default_simulator_exercises_count': self.default_simulator_exercises_count,
+            'default_duration_minutes': self.default_duration_minutes,
+            'default_passing_score': self.default_passing_score,
             'is_active': self.is_active,
             'is_published': self.is_published,
             'total_questions': self.get_total_questions(),

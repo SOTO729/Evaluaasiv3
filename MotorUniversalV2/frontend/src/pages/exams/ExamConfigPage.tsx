@@ -22,6 +22,10 @@ const ExamConfigPage = () => {
   const [useAllExamExercises, setUseAllExamExercises] = useState(true)
   const [useAllSimulatorQuestions, setUseAllSimulatorQuestions] = useState(true)
   const [useAllSimulatorExercises, setUseAllSimulatorExercises] = useState(true)
+  const [defaultDurationMinutes, setDefaultDurationMinutes] = useState<number | null>(null)
+  const [useExamDuration, setUseExamDuration] = useState(true)
+  const [defaultPassingScore, setDefaultPassingScore] = useState<number | null>(null)
+  const [useExamPassingScore, setUseExamPassingScore] = useState(true)
 
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -53,6 +57,13 @@ const ExamConfigPage = () => {
       setUseAllExamExercises(eec === null)
       setUseAllSimulatorQuestions(sqc === null)
       setUseAllSimulatorExercises(sec === null)
+
+      const ddm = (exam as any).default_duration_minutes ?? null
+      const dps = (exam as any).default_passing_score ?? null
+      setDefaultDurationMinutes(ddm)
+      setDefaultPassingScore(dps)
+      setUseExamDuration(ddm === null)
+      setUseExamPassingScore(dps === null)
     }
   }, [exam])
 
@@ -68,6 +79,8 @@ const ExamConfigPage = () => {
         default_exam_exercises_count: examExercisesCount,
         default_simulator_questions_count: simulatorQuestionsCount,
         default_simulator_exercises_count: simulatorExercisesCount,
+        default_duration_minutes: useExamDuration ? null : defaultDurationMinutes,
+        default_passing_score: useExamPassingScore ? null : defaultPassingScore,
       } as any)
       await queryClient.invalidateQueries({ queryKey: ['exam', id] })
       setToast({ message: 'Configuración guardada correctamente', type: 'success' })
@@ -191,8 +204,103 @@ const ExamConfigPage = () => {
       {/* Configuration form */}
       <div className="bg-white rounded-fluid-2xl shadow-sm border border-gray-200 fluid-p-6 fluid-mb-8">
 
-        {/* Reintentos y Desconexiones */}
+        {/* Tiempo y Puntaje de Aprobación */}
         <div className="fluid-mb-8">
+          <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-5 flex items-center fluid-gap-2">
+            <svg className="fluid-icon-base text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Tiempo y Aprobación
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 fluid-gap-6">
+            {/* Duración */}
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Duración por defecto
+                <span className="text-gray-400 font-normal ml-2">
+                  (Examen: {exam.duration_minutes || '∞'} min)
+                </span>
+              </label>
+              <label className="flex items-center fluid-gap-2 fluid-mb-2">
+                <input
+                  type="checkbox"
+                  checked={useExamDuration}
+                  onChange={e => {
+                    setUseExamDuration(e.target.checked)
+                    if (e.target.checked) {
+                      setDefaultDurationMinutes(null)
+                    } else {
+                      setDefaultDurationMinutes(exam.duration_minutes || 60)
+                    }
+                  }}
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="fluid-text-sm text-gray-700">Usar duración del examen ({exam.duration_minutes || '∞'} min)</span>
+              </label>
+              {!useExamDuration && (
+                <div className="flex items-center fluid-gap-2 fluid-mt-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={600}
+                    value={defaultDurationMinutes || ''}
+                    onChange={e => setDefaultDurationMinutes(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-emerald-500 fluid-text-sm"
+                  />
+                  <span className="fluid-text-sm text-gray-500">minutos</span>
+                </div>
+              )}
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
+                Tiempo límite que se aplicará al asignar este examen
+              </p>
+            </div>
+
+            {/* Puntaje mínimo */}
+            <div>
+              <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+                Puntaje mínimo de aprobación
+                <span className="text-gray-400 font-normal ml-2">
+                  (Examen: {exam.passing_score ?? 70}%)
+                </span>
+              </label>
+              <label className="flex items-center fluid-gap-2 fluid-mb-2">
+                <input
+                  type="checkbox"
+                  checked={useExamPassingScore}
+                  onChange={e => {
+                    setUseExamPassingScore(e.target.checked)
+                    if (e.target.checked) {
+                      setDefaultPassingScore(null)
+                    } else {
+                      setDefaultPassingScore(exam.passing_score ?? 70)
+                    }
+                  }}
+                  className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="fluid-text-sm text-gray-700">Usar puntaje del examen ({exam.passing_score ?? 70}%)</span>
+              </label>
+              {!useExamPassingScore && (
+                <div className="flex items-center fluid-gap-2 fluid-mt-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={defaultPassingScore ?? ''}
+                    onChange={e => setDefaultPassingScore(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-24 fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-emerald-500 fluid-text-sm"
+                  />
+                  <span className="fluid-text-sm text-gray-500">%</span>
+                </div>
+              )}
+              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
+                Porcentaje mínimo requerido para aprobar
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Reintentos y Desconexiones */}
+        <div className="fluid-mb-8 border-t border-gray-100 fluid-pt-8">
           <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-5 flex items-center fluid-gap-2">
             <svg className="fluid-icon-base text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

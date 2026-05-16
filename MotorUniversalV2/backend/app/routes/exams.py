@@ -770,6 +770,7 @@ def update_exam(exam_id):
         'default_max_attempts', 'default_max_disconnections', 'default_exam_content_type',
         'default_exam_questions_count', 'default_exam_exercises_count',
         'default_simulator_questions_count', 'default_simulator_exercises_count',
+        'default_duration_minutes', 'default_passing_score',
     ]
     
     for field in updatable_fields:

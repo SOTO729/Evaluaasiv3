@@ -1201,6 +1201,8 @@ def check_and_add_exam_default_config_columns():
             'default_exam_exercises_count': 'INT NULL',
             'default_simulator_questions_count': 'INT NULL',
             'default_simulator_exercises_count': 'INT NULL',
+            'default_duration_minutes': 'INT NULL',
+            'default_passing_score': 'INT NULL',
         }
         
         for col_name, col_def in exam_config_columns.items():

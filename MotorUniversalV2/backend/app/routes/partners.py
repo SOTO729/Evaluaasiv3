@@ -9661,6 +9661,8 @@ def get_available_exams():
                 'default_exam_exercises_count': exam.default_exam_exercises_count,
                 'default_simulator_questions_count': exam.default_simulator_questions_count,
                 'default_simulator_exercises_count': exam.default_simulator_exercises_count,
+                'default_duration_minutes': exam.default_duration_minutes,
+                'default_passing_score': exam.default_passing_score,
                 # IDs de materiales vinculados para aceptación rápida
                 'linked_material_ids': linked_material_ids,
             })
