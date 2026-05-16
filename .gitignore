@@ -60,3 +60,12 @@ __pycache__/
 # XAE artefacto local
 MotorUniversalV2/clients/EvaluaasiOfficeV2/test_*.xae
 MotorUniversalV2/clients/EvaluaasiOfficeV2/*.xae
+
+# SSO smoke / debug locales (mayo 2026)
+MotorUniversalV2/backend/retest_sso.ps1
+debug_*.ps1
+dev_logs_preview.txt
+logs.txt
+bulk_template.xlsx
+bulk_test.xlsx
+
