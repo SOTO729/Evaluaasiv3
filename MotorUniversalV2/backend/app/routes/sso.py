@@ -1,6 +1,18 @@
 """
 Blueprint /api/sso — API de Tokenización SSO de Evaluaasi (a nivel PLANTEL).
 
+Contrato POST /api/sso/generar_token (mayo 2026):
+  Obligatorios: apikey, matricula, nombre, apellido
+  Opcionales:   email, curp, grupo
+
+  - `grupo` (opcional, ≤50): si se envía y existe un CandidateGroup con ese
+    código dentro del plantel, liga al alumno. Si no existe, el grupo se
+    crea automáticamente. Si no se envía, se liga al grupo más reciente del
+    plantel; si el plantel no tiene grupos, se crea uno por defecto
+    `"Grupo <nombre_plantel>"` y se liga.
+  - Campos legacy `programa` y `grupo_codigo` ya no se aceptan: si llegan
+    se responde 400 para forzar la migración del integrador.
+
 Endpoints:
   POST   /api/sso/generar_token                   — público, autenticado por API key del plantel
   GET    /api/sso/campuses/<id>/api-key           — info pública (prefix, fechas, share flag) (admin/coord/auxiliar/responsable)
@@ -51,13 +63,26 @@ def generar_token():
     """
     payload = request.form if request.form else (request.get_json(silent=True) or {})
 
+    # Campos legacy ya removidos del contrato público. Si llegan, rechazamos
+    # para que el integrador detecte la migración (estamos en fase de
+    # desarrollo, sin terceros productivos aún).
+    legacy_fields = [k for k in ('programa', 'grupo_codigo') if k in payload]
+    if legacy_fields:
+        return jsonify({
+            'error': True,
+            'mensajeError': (
+                f"Campos no soportados: {', '.join(legacy_fields)}. "
+                "Usa 'grupo' (opcional) en lugar de 'grupo_codigo'. El campo "
+                "'programa' fue eliminado del contrato SSO."
+            ),
+        }), 400
+
     apikey = (payload.get('apikey') or '').strip()
     matricula = (payload.get('matricula') or '').strip()
     nombre = (payload.get('nombre') or '').strip()
     apellido = (payload.get('apellido') or '').strip()
-    programa = (payload.get('programa') or '').strip() or None
     email = (payload.get('email') or '').strip().lower() or None
-    grupo_codigo = (payload.get('grupo_codigo') or '').strip() or None
+    grupo = (payload.get('grupo') or '').strip() or None
     curp = (payload.get('curp') or '').strip().upper() or None
 
     missing = []
@@ -111,8 +136,8 @@ def generar_token():
         return jsonify({'error': True, 'mensajeError': 'matricula excede 80 caracteres'}), 400
     if len(nombre) > 100 or len(apellido) > 200:
         return jsonify({'error': True, 'mensajeError': 'nombre o apellido exceden el largo permitido (nombre 100, apellido 200)'}), 400
-    if grupo_codigo and len(grupo_codigo) > 50:
-        return jsonify({'error': True, 'mensajeError': 'grupo_codigo excede 50 caracteres'}), 400
+    if grupo and len(grupo) > 50:
+        return jsonify({'error': True, 'mensajeError': 'grupo excede 50 caracteres'}), 400
 
     if curp_invalid_reason:
         import logging
@@ -126,9 +151,8 @@ def generar_token():
             matricula=matricula,
             nombre=nombre,
             apellido=apellido,
-            programa=programa,
             email=email,
-            grupo_codigo=grupo_codigo,
+            grupo=grupo,
             curp=curp,
         )
     except Exception as e:
