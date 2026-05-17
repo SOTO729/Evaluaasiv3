@@ -433,7 +433,7 @@ const StudyContentCreatePage = () => {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto fluid-p-6 flex items-center justify-center min-h-[60vh]">
+      <div className="w-full fluid-p-6 flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner message="Cargando material..." />
       </div>
     );
@@ -458,7 +458,7 @@ const StudyContentCreatePage = () => {
         </div>
       )}
 
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full fluid-px-6">
         {/* Header */}
         <div className="fluid-mb-6">
           <button
