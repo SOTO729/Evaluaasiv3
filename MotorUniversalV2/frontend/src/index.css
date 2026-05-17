@@ -562,6 +562,7 @@ input[type="password"]::-webkit-password-viewable-toggle-button {
   .fluid-icon-xs { width: var(--icon-xs); height: var(--icon-xs); }
   .fluid-icon-sm { width: var(--icon-sm); height: var(--icon-sm); }
   .fluid-icon-md { width: var(--icon-base); height: var(--icon-base); }
+  .fluid-icon-base { width: var(--icon-base); height: var(--icon-base); }
   .fluid-icon { width: var(--icon-base); height: var(--icon-base); }
   .fluid-icon-lg { width: var(--icon-lg); height: var(--icon-lg); }
   .fluid-icon-xl { width: var(--icon-xl); height: var(--icon-xl); }

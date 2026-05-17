@@ -207,7 +207,7 @@ const ExamConfigPage = () => {
         {/* Tiempo y Puntaje de Aprobación */}
         <div className="fluid-mb-8">
           <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-5 flex items-center fluid-gap-2">
-            <svg className="fluid-icon-base text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-md text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             Tiempo y Aprobación
@@ -302,7 +302,7 @@ const ExamConfigPage = () => {
         {/* Reintentos y Desconexiones */}
         <div className="fluid-mb-8 border-t border-gray-100 fluid-pt-8">
           <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-5 flex items-center fluid-gap-2">
-            <svg className="fluid-icon-base text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-md text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Intentos y Desconexiones
@@ -355,7 +355,7 @@ const ExamConfigPage = () => {
         {/* Tipo de contenido */}
         <div className="fluid-mb-8 border-t border-gray-100 fluid-pt-8">
           <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-5 flex items-center fluid-gap-2">
-            <svg className="fluid-icon-base text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-md text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
             </svg>
             Tipo de Contenido
@@ -404,7 +404,7 @@ const ExamConfigPage = () => {
         {/* Cantidades de contenido */}
         <div className="border-t border-gray-100 fluid-pt-8">
           <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-2 flex items-center fluid-gap-2">
-            <svg className="fluid-icon-base text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="fluid-icon-md text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
             </svg>
             Cantidad de Contenido
