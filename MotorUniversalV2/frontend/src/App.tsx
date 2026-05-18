@@ -303,9 +303,9 @@ function App() {
           <InactivityWatcher>
             <Suspense fallback={<LoadingSpinner message="Cargando..." fullScreen />}>
               <Routes>
-            {/* Landing Page - Public */}
+            {/* Landing Page deshabilitada: redirige directo a /login */}
             <Route path="/" element={
-              isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />
+              isAuthenticated ? <Navigate to="/dashboard" /> : <Navigate to="/login" replace />
             } />
           
           {/* Privacy Policy - Public */}
