@@ -371,6 +371,217 @@ def find_campus_and_api_key(raw_key: str) -> tuple[Optional[Campus], Optional[Ca
     return None, None
 
 
+def _charge_assignment_to_user(
+    api_key: CampusApiKey,
+    user: User,
+    group: CandidateGroup,
+    group_exam: GroupExam,
+) -> bool:
+    """Aplica el cobro por una asignación SSO al saldo del coordinador.
+
+    Reglas:
+      - Permite saldo negativo (no bloquea). Si cruza a negativo se intenta
+        notificar al coordinador por email.
+      - Para exámenes con ECM (competency_standard) solo se cobra si el
+        candidato NO tiene ya un EcmCandidateAssignment para ese ECM.
+      - Si se cobra un ECM, también se crea el EcmCandidateAssignment
+        (registro histórico) para que la regla anti-doble-cobro funcione
+        en próximas entradas SSO del mismo candidato.
+      - unit_cost = group.certification_cost_override (si use_custom_config)
+        → campus.certification_cost → 0. Si es 0 no se crea transacción.
+      - Coordinador = campus.coordinator_id (fallback partner.coordinator_id).
+
+    Devuelve True si se cobró (transacción creada), False si no.
+    """
+    from decimal import Decimal
+    from flask import current_app
+    from app.models import Campus, Partner
+    from app.models.exam import Exam
+    from app.models.partner import EcmCandidateAssignment
+    from app.models.balance import (
+        CoordinatorBalance,
+        BalanceTransaction,
+        create_balance_transaction,
+    )
+
+    try:
+        campus = group.campus or Campus.query.get(group.campus_id)
+        if not campus:
+            return False
+
+        # Resolver coordinador
+        coordinator_id = getattr(campus, 'coordinator_id', None)
+        if not coordinator_id and getattr(campus, 'partner_id', None):
+            partner = Partner.query.get(campus.partner_id)
+            if partner:
+                coordinator_id = getattr(partner, 'coordinator_id', None)
+        if not coordinator_id:
+            current_app.logger.warning(
+                f"[SSO BILLING] No se pudo resolver coordinador para "
+                f"campus={campus.id} (api_key={api_key.id}). No se cobra."
+            )
+            return False
+
+        # Calcular unit_cost
+        unit_cost = 0.0
+        try:
+            if (
+                getattr(group, 'use_custom_config', False)
+                and getattr(group, 'certification_cost_override', None) is not None
+            ):
+                unit_cost = float(group.certification_cost_override)
+            elif getattr(campus, 'certification_cost', None) is not None:
+                unit_cost = float(campus.certification_cost or 0)
+        except Exception:
+            unit_cost = 0.0
+
+        if unit_cost <= 0:
+            return False
+
+        # Regla ECM
+        exam = Exam.query.get(group_exam.exam_id)
+        exam_name = exam.name if exam else f'exam_{group_exam.exam_id}'
+        ecm_id = getattr(exam, 'competency_standard_id', None) if exam else None
+        if ecm_id:
+            existing_ecm = EcmCandidateAssignment.query.filter_by(
+                user_id=user.id,
+                competency_standard_id=ecm_id,
+            ).first()
+            if existing_ecm:
+                return False  # ya tenía ECM, no se cobra
+
+        # Snapshot saldo antes
+        balance = CoordinatorBalance.query.filter_by(
+            coordinator_id=coordinator_id,
+            campus_id=campus.id,
+        ).first()
+        balance_before = float(balance.current_balance) if balance and balance.current_balance is not None else 0.0
+
+        # Cobro (permite negativo: no validamos has_sufficient_balance)
+        notes = (
+            f'SSO API key #{api_key.id}: "{exam_name}" a candidato '
+            f'{user.external_id or user.username} '
+            f'(grupo "{group.name}") - 1 unidad x ${unit_cost:,.2f}'
+        )
+        try:
+            create_balance_transaction(
+                coordinator_id=coordinator_id,
+                campus_id=campus.id,
+                transaction_type='debit',
+                concept='asignacion_certificacion',
+                amount=unit_cost,
+                group_id=group.id,
+                reference_type='group_exam',
+                reference_id=group_exam.id,
+                notes=notes,
+                created_by_id=api_key.created_by_id,
+            )
+        except Exception as e:
+            current_app.logger.error(
+                f"[SSO BILLING] Error al crear transacción: {e}"
+            )
+            return False
+
+        # Histórico ECM (si aplica)
+        if ecm_id:
+            try:
+                validity_months = (
+                    group_exam.validity_months
+                    if getattr(group_exam, 'validity_months', None)
+                    else 12
+                )
+                expires_at = group_exam.expires_at if getattr(group_exam, 'expires_at', None) else None
+                new_ecm = EcmCandidateAssignment(
+                    assignment_number=EcmCandidateAssignment.generate_assignment_number(),
+                    user_id=user.id,
+                    competency_standard_id=ecm_id,
+                    exam_id=group_exam.exam_id,
+                    campus_id=campus.id,
+                    group_id=group.id,
+                    group_name=group.name,
+                    group_exam_id=group_exam.id,
+                    assigned_by_id=api_key.created_by_id,
+                    assignment_source='sso_apikey',
+                    validity_months=validity_months,
+                    expires_at=expires_at,
+                )
+                db.session.add(new_ecm)
+            except Exception as e:
+                current_app.logger.error(
+                    f"[SSO BILLING] Error creando EcmCandidateAssignment: {e}"
+                )
+
+        # Notificación si cruzó a negativo
+        balance_after = balance_before - unit_cost
+        if balance_before >= 0 and balance_after < 0:
+            try:
+                _notify_negative_balance(coordinator_id, campus, balance_after)
+            except Exception as e:
+                current_app.logger.warning(
+                    f"[SSO BILLING] No se pudo notificar saldo negativo: {e}"
+                )
+
+        log_activity(
+            user=None,
+            action_type='sso_apikey_charge',
+            entity_type='group_exam',
+            entity_id=group_exam.id,
+            entity_name=f"Cobro SSO {exam_name}",
+            details={
+                'api_key_id': api_key.id,
+                'campus_id': campus.id,
+                'coordinator_id': coordinator_id,
+                'user_id': user.id,
+                'external_id': user.external_id,
+                'exam_id': group_exam.exam_id,
+                'unit_cost': unit_cost,
+                'balance_before': balance_before,
+                'balance_after': balance_after,
+                'ecm_id': ecm_id,
+            },
+            success=True,
+        )
+        return True
+
+    except Exception as e:
+        current_app.logger.error(f"[SSO BILLING] Fallo inesperado: {e}")
+        return False
+
+
+def _notify_negative_balance(coordinator_id: str, campus: 'Campus', new_balance: float) -> None:
+    """Envía email al coordinador avisando que su saldo cruzó a negativo
+    por uso del SSO API. No interrumpe el flujo si falla."""
+    from app.services.email_service import send_email
+
+    coordinator = User.query.get(coordinator_id)
+    if not coordinator or not coordinator.email:
+        return
+
+    subject = f'⚠️ Saldo negativo en plantel "{campus.name}"'
+    full_name = getattr(coordinator, 'full_name', None) or coordinator.email
+    html = f"""
+    <p style="margin:0 0 16px;color:#1e293b;font-size:15px;">Hola <strong>{full_name}</strong>,</p>
+    <p style="margin:0 0 16px;color:#334155;font-size:14px;line-height:1.6;">
+      Te informamos que el saldo del plantel <strong>{campus.name}</strong> ha cruzado
+      a <strong style="color:#dc2626;">${new_balance:,.2f}</strong> debido a asignaciones
+      automáticas generadas por una API key SSO.
+    </p>
+    <p style="margin:0 0 16px;color:#334155;font-size:14px;line-height:1.6;">
+      Por favor, solicita un abono de saldo desde tu portal de coordinador para
+      saldar el saldo negativo y mantener disponibilidad continua del servicio.
+    </p>
+    <p style="margin:0;color:#64748b;font-size:13px;">— Sistema Evaluaasi</p>
+    """
+    try:
+        send_email(
+            to=coordinator.email,
+            subject=subject,
+            html=html,
+        )
+    except Exception:
+        pass
+
+
 def apply_api_key_assignments(
     api_key: CampusApiKey,
     user: User,
@@ -490,18 +701,31 @@ def apply_api_key_assignments(
                 success=True,
             )
 
-        # ── Agregar al candidato actual si la asignación es selected ──
-        if (ge.assignment_type or 'all') == 'selected':
-            existing = GroupExamMember.query.filter_by(
-                group_exam_id=ge.id, user_id=user.id
-            ).first()
-            if existing is None:
-                try:
-                    db.session.add(GroupExamMember(
-                        group_exam_id=ge.id, user_id=user.id
-                    ))
-                except Exception:
-                    pass
+        # ── Ledger por candidato + cobro ──────────────────────────────
+        # Aseguramos GroupExamMember para el `user` actual (sin importar
+        # assignment_type). Sirve como ledger: si ya existe → no recobramos.
+        # Si no existe → 1) cobramos al saldo del coordinador, 2) creamos
+        # el GroupExamMember.
+        existing_gem = GroupExamMember.query.filter_by(
+            group_exam_id=ge.id, user_id=user.id
+        ).first()
+        if existing_gem is None:
+            # Cobro PRIMERO (sigue regla ECM; permite saldo negativo)
+            try:
+                _charge_assignment_to_user(api_key, user, group, ge)
+            except Exception as e:
+                from flask import current_app
+                current_app.logger.error(
+                    f"[SSO BILLING] error invocando cobro: {e}"
+                )
+            # Ledger
+            try:
+                db.session.add(GroupExamMember(
+                    group_exam_id=ge.id, user_id=user.id
+                ))
+                db.session.flush()
+            except Exception:
+                pass
 
         materialized.append(ge)
 
