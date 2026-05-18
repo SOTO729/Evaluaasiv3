@@ -31,6 +31,8 @@ from typing import Optional
 from app import db
 from app.models.user import User
 from app.models.partner import Partner, Campus, CandidateGroup, GroupMember, user_partners
+from app.models.partner import GroupExam, GroupExamMaterial, GroupExamMember
+from app.models.campus_api_key import CampusApiKey, CampusApiKeyAssignment
 from app.models.sso_token import SsoToken
 from app.models.activity_log import log_activity
 
@@ -186,8 +188,12 @@ def upsert_candidate_from_sso(
     email: Optional[str] = None,
     grupo: Optional[str] = None,
     curp: Optional[str] = None,
-) -> User:
+) -> tuple[User, Optional[CandidateGroup]]:
     """Crea o actualiza un candidato por (external_campus_id, external_id).
+
+    Devuelve `(user, resolved_group)`: el grupo es el `CandidateGroup` al que
+    se ligó al alumno (find-or-create) y se usa para materializar las
+    plantillas de asignación de la api key.
 
     El campo `apellido` es una cadena única: se separa internamente en
     `first_surname` (apellido paterno) y `second_surname` (apellido materno).
@@ -244,7 +250,7 @@ def upsert_candidate_from_sso(
             ).first()
             if user is None:
                 raise
-        _resolve_and_attach_group(user, campus, grupo)
+        resolved_group = _resolve_and_attach_group(user, campus, grupo)
     else:
         if nombre and nombre != user.name:
             user.name = nombre
@@ -279,10 +285,10 @@ def upsert_candidate_from_sso(
             db.session.execute(
                 user_partners.insert().values(user_id=user.id, partner_id=campus.partner_id)
             )
-        _resolve_and_attach_group(user, campus, grupo)
+        resolved_group = _resolve_and_attach_group(user, campus, grupo)
 
     db.session.commit()
-    return user
+    return user, resolved_group
 
 
 def issue_sso_token(user: User, campus: Campus, issuer_ip: Optional[str] = None) -> str:
@@ -316,19 +322,188 @@ def consume_sso_token(raw_token: str) -> Optional[User]:
 
 
 def find_campus_by_api_key(raw_key: str) -> Optional[Campus]:
-    """Busca el plantel cuya api_key_prefix matchea y verifica argon2 hash."""
+    """Resuelve el plantel cuya api key matchea el raw secreto.
+
+    Busca primero en la tabla nueva `campus_api_keys` (multi-key). Si no
+    encuentra, hace fallback al esquema legacy 1:1 en `campuses` para
+    seguir aceptando llaves que aún no se han migrado vía auto-migrate.
+    """
+    campus, _ = find_campus_and_api_key(raw_key)
+    return campus
+
+
+def find_campus_and_api_key(raw_key: str) -> tuple[Optional[Campus], Optional[CampusApiKey]]:
+    """Igual que find_campus_by_api_key, pero devuelve también la fila
+    `CampusApiKey` (o None si vino de la columna legacy del plantel).
+    """
     if not raw_key or not raw_key.startswith('evk_') or len(raw_key) < 16:
-        return None
+        return None, None
     prefix = raw_key[:12]
-    candidates = (
+
+    # 1) Nueva tabla multi-key
+    api_candidates = (
+        CampusApiKey.query
+        .filter_by(api_key_prefix=prefix, is_active=True)
+        .all()
+    )
+    for ak in api_candidates:
+        try:
+            if ak.verify(raw_key):
+                campus = Campus.query.get(ak.campus_id)
+                if campus is not None:
+                    return campus, ak
+        except Exception:
+            continue
+
+    # 2) Fallback legacy: columnas api_key_* en campuses
+    legacy_candidates = (
         Campus.query
         .filter_by(api_key_prefix=prefix, api_key_active=True)
         .all()
     )
-    for campus in candidates:
+    for campus in legacy_candidates:
         try:
             if campus.verify_api_key(raw_key):
-                return campus
+                return campus, None
         except Exception:
             continue
-    return None
+
+    return None, None
+
+
+def apply_api_key_assignments(
+    api_key: CampusApiKey,
+    user: User,
+    group: CandidateGroup,
+) -> list[GroupExam]:
+    """Materializa las plantillas de la api key en GroupExams para el grupo
+    resuelto del candidato.
+
+    Para cada `CampusApiKeyAssignment`:
+      1. Busca un GroupExam(group_id=group.id, exam_id=plantilla.exam_id).
+         - Si no existe → lo crea clonando la config del snapshot.
+         - Si existe → respeta la asignación existente (no la sobreescribe).
+      2. Si `assignment_type='selected'`:
+         - Agrega como GroupExamMember al `user` actual.
+         - Y a cada user_id en `members_snapshot` (one-shot, solo al crearse).
+      3. Si `materials_snapshot` tiene materiales y el GroupExam acaba de
+         crearse, los registra como `GroupExamMaterial`.
+
+    Devuelve la lista de GroupExam materializados (creados o ya existentes).
+    Comitea cambios solo al final.
+    """
+    if api_key is None or not api_key.is_active:
+        return []
+    if api_key.is_legacy:
+        # Legacy = sin asignaciones, comportamiento clásico
+        return []
+
+    from dateutil.relativedelta import relativedelta
+
+    materialized: list[GroupExam] = []
+    assignments = api_key.assignments.all()
+    if not assignments:
+        return []
+
+    for plantilla in assignments:
+        ge: Optional[GroupExam] = (
+            GroupExam.query
+            .filter_by(group_id=group.id, exam_id=plantilla.exam_id)
+            .first()
+        )
+        just_created = False
+
+        if ge is None:
+            # ── Crear GroupExam con la config del snapshot ─────────────
+            validity_months = plantilla.validity_months
+            if validity_months is None:
+                campus = group.campus if group.campus else Campus.query.get(group.campus_id)
+                validity_months = (campus.assignment_validity_months if campus else None) or 12
+            now = datetime.utcnow()
+            ge = GroupExam(
+                group_id=group.id,
+                exam_id=plantilla.exam_id,
+                assigned_at=now,
+                assigned_by_id=api_key.created_by_id,
+                available_from=plantilla.available_from,
+                available_until=plantilla.available_until,
+                assignment_type=plantilla.assignment_type or 'all',
+                time_limit_minutes=plantilla.time_limit_minutes,
+                passing_score=plantilla.passing_score,
+                max_attempts=plantilla.max_attempts or 1,
+                max_disconnections=plantilla.max_disconnections or 3,
+                exam_content_type=plantilla.exam_content_type or 'questions_only',
+                exam_questions_count=plantilla.exam_questions_count,
+                exam_exercises_count=plantilla.exam_exercises_count,
+                simulator_questions_count=plantilla.simulator_questions_count,
+                simulator_exercises_count=plantilla.simulator_exercises_count,
+                security_pin=plantilla.security_pin,
+                require_security_pin=bool(plantilla.require_security_pin),
+                is_active=True,
+                validity_months=validity_months,
+                expires_at=now + relativedelta(months=validity_months),
+                extended_months=0,
+            )
+            db.session.add(ge)
+            db.session.flush()
+            just_created = True
+
+            # Materiales personalizados snapshot (solo al crear)
+            materials = plantilla.materials or []
+            for mid in materials:
+                try:
+                    db.session.add(GroupExamMaterial(
+                        group_exam_id=ge.id,
+                        study_material_id=int(mid),
+                        is_included=True,
+                    ))
+                except Exception:
+                    continue
+
+            # Miembros fijos del snapshot (solo al crear)
+            if (plantilla.assignment_type or 'all') == 'selected':
+                for uid in (plantilla.members or []):
+                    if not uid:
+                        continue
+                    if GroupExamMember.query.filter_by(
+                        group_exam_id=ge.id, user_id=uid
+                    ).first():
+                        continue
+                    try:
+                        db.session.add(GroupExamMember(
+                            group_exam_id=ge.id, user_id=uid
+                        ))
+                    except Exception:
+                        continue
+
+            log_activity(
+                user=None,
+                action_type='sso_apikey_assignment_materialized',
+                entity_type='group_exam',
+                entity_id=ge.id,
+                entity_name=f"GroupExam exam={plantilla.exam_id} group={group.id}",
+                details={
+                    'api_key_id': api_key.id,
+                    'campus_id': api_key.campus_id,
+                    'plantilla_id': plantilla.id,
+                },
+                success=True,
+            )
+
+        # ── Agregar al candidato actual si la asignación es selected ──
+        if (ge.assignment_type or 'all') == 'selected':
+            existing = GroupExamMember.query.filter_by(
+                group_exam_id=ge.id, user_id=user.id
+            ).first()
+            if existing is None:
+                try:
+                    db.session.add(GroupExamMember(
+                        group_exam_id=ge.id, user_id=user.id
+                    ))
+                except Exception:
+                    pass
+
+        materialized.append(ge)
+
+    db.session.commit()
+    return materialized

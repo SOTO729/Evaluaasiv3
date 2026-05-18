@@ -36,6 +36,7 @@ from app.models.certificate_template import CertificateTemplate
 from app.models.brand import Brand
 from app.models.vm_session import VmSession
 from app.models.badge import BadgeTemplate, IssuedBadge
+from app.models.campus_api_key import CampusApiKey, CampusApiKeyAssignment
 from app.models.partner import (
     Partner,
     PartnerStatePresence,

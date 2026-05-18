@@ -9332,16 +9332,22 @@ def get_available_ecms():
         from sqlalchemy.orm import joinedload
         
         group_id = request.args.get('group_id', type=int)
+        campus_id_param = request.args.get('campus_id', type=int)
         search = request.args.get('search', '')
-        
-        if not group_id:
-            return jsonify({'error': 'group_id es requerido'}), 400
-        
-        group = CandidateGroup.query.get(group_id)
-        if not group:
-            return jsonify({'error': 'Grupo no encontrado'}), 404
-        
-        campus_id = group.campus_id
+
+        if not group_id and not campus_id_param:
+            return jsonify({'error': 'group_id o campus_id es requerido'}), 400
+
+        if group_id:
+            group = CandidateGroup.query.get(group_id)
+            if not group:
+                return jsonify({'error': 'Grupo no encontrado'}), 404
+            campus_id = group.campus_id
+        else:
+            campus = Campus.query.get(campus_id_param)
+            if not campus:
+                return jsonify({'error': 'Plantel no encontrado'}), 404
+            campus_id = campus.id
         
         # Obtener IDs de ECMs asignados al campus
         campus_ecm_relations = CampusCompetencyStandard.query.filter_by(campus_id=campus_id).all()

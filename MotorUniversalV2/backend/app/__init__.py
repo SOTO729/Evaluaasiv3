@@ -380,6 +380,13 @@ def create_app(config_name='development'):
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando SSO Tokenización: {e}")
 
+        # Multi-API-keys por plantel + plantillas de asignación
+        try:
+            from app.auto_migrate import check_and_create_campus_api_keys_multi
+            check_and_create_campus_api_keys_multi()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando multi-API-keys: {e}")
+
     # Arrancar worker de cola de verificación CURP (background thread)
     try:
         from app.services.curp_queue_worker import start_curp_worker

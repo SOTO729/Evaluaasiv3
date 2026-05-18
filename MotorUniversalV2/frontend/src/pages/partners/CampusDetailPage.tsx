@@ -41,7 +41,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import DatePickerInput from '../../components/DatePickerInput';
-import CampusApiKeyPanel from '../../components/partners/CampusApiKeyPanel';
+import CampusApiKeysMultiPanel from '../../components/partners/CampusApiKeysMultiPanel';
 import {
   getCampus,
   getSchoolCycles,
@@ -969,10 +969,11 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
       {/* SECCIÓN INTERMEDIA: API Key SSO del plantel */}
       {(!isResponsable || user?.can_manage_groups) && (
         <div className="fluid-mb-6">
-          <CampusApiKeyPanel
+          <CampusApiKeysMultiPanel
             campusId={campus.id}
             campusName={campus.name}
             responsableMode={!!isResponsable}
+            canManageGroups={user?.can_manage_groups}
           />
         </div>
       )}

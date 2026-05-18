@@ -2872,3 +2872,226 @@ def check_and_create_study_export_requests_table():
             db.session.rollback()
         except Exception:
             pass
+
+
+# ---------------------------------------------------------------------------
+# Multi API Keys por plantel + plantillas de asignación (mayo 2026, rev3)
+# ---------------------------------------------------------------------------
+
+def check_and_create_campus_api_keys_multi():
+    """Migración para api keys 1:N por plantel + plantillas de asignación.
+
+    Crea las tablas `campus_api_keys` y `campus_api_key_assignments`.
+    Migra la api key legacy (columnas en `campuses`) como una fila en la
+    nueva tabla con `is_legacy=True` y la borra de `campuses` para evitar
+    duplicación de credenciales.
+    """
+    print("🔍 Verificando esquema multi-API-keys por plantel...")
+    try:
+        db_type = get_db_type()
+        inspector = inspect(db.engine)
+        tables = set(inspector.get_table_names())
+
+        # ── tabla campus_api_keys ─────────────────────────────────────────
+        if 'campus_api_keys' not in tables:
+            print("  📝 Creando tabla campus_api_keys...")
+            if db_type == 'mssql':
+                users_id_type = 'VARCHAR(36)'
+                try:
+                    row = db.session.execute(text(
+                        "SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS "
+                        "WHERE TABLE_NAME='users' AND COLUMN_NAME='id'"
+                    )).fetchone()
+                    if row:
+                        users_id_type = f"{str(row[0]).upper()}({int(row[1]) if row[1] else 36})"
+                except Exception:
+                    pass
+                sql = f"""
+                    CREATE TABLE campus_api_keys (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        campus_id INT NOT NULL,
+                        description NVARCHAR(500) NULL,
+                        name NVARCHAR(200) NULL,
+                        api_key_hash NVARCHAR(255) NOT NULL,
+                        api_key_encrypted NVARCHAR(MAX) NOT NULL,
+                        api_key_prefix NVARCHAR(16) NOT NULL,
+                        is_active BIT NOT NULL DEFAULT 1,
+                        is_legacy BIT NOT NULL DEFAULT 0,
+                        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                        created_by_id {users_id_type} NULL,
+                        updated_at DATETIME2 NULL,
+                        last_used_at DATETIME2 NULL,
+                        last_used_ip NVARCHAR(45) NULL,
+                        usage_count INT NOT NULL DEFAULT 0,
+                        CONSTRAINT fk_capi_campus FOREIGN KEY (campus_id) REFERENCES campuses(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_capi_creator FOREIGN KEY (created_by_id) REFERENCES users(id)
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE campus_api_keys (
+                        id SERIAL PRIMARY KEY,
+                        campus_id INTEGER NOT NULL REFERENCES campuses(id) ON DELETE CASCADE,
+                        description VARCHAR(500) NULL,
+                        name VARCHAR(200) NULL,
+                        api_key_hash VARCHAR(255) NOT NULL,
+                        api_key_encrypted TEXT NOT NULL,
+                        api_key_prefix VARCHAR(16) NOT NULL,
+                        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                        is_legacy BOOLEAN NOT NULL DEFAULT FALSE,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        created_by_id VARCHAR(36) NULL REFERENCES users(id),
+                        updated_at TIMESTAMP NULL,
+                        last_used_at TIMESTAMP NULL,
+                        last_used_ip VARCHAR(45) NULL,
+                        usage_count INTEGER NOT NULL DEFAULT 0
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✅ Tabla campus_api_keys creada")
+            for idx_sql in (
+                "CREATE INDEX ix_capi_campus ON campus_api_keys(campus_id)",
+                "CREATE INDEX ix_capi_prefix ON campus_api_keys(api_key_prefix)",
+            ):
+                try:
+                    db.session.execute(text(idx_sql))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
+        else:
+            print("  ✓ Tabla campus_api_keys ya existe")
+
+        # ── tabla campus_api_key_assignments ─────────────────────────────
+        inspector = inspect(db.engine)
+        tables = set(inspector.get_table_names())
+        if 'campus_api_key_assignments' not in tables:
+            print("  📝 Creando tabla campus_api_key_assignments...")
+            if db_type == 'mssql':
+                sql = """
+                    CREATE TABLE campus_api_key_assignments (
+                        id INT IDENTITY(1,1) PRIMARY KEY,
+                        api_key_id INT NOT NULL,
+                        exam_id INT NOT NULL,
+                        assignment_type NVARCHAR(20) NOT NULL DEFAULT 'all',
+                        available_from DATETIME2 NULL,
+                        available_until DATETIME2 NULL,
+                        time_limit_minutes INT NULL,
+                        passing_score INT NULL,
+                        max_attempts INT NOT NULL DEFAULT 1,
+                        max_disconnections INT NOT NULL DEFAULT 3,
+                        exam_content_type NVARCHAR(30) NOT NULL DEFAULT 'questions_only',
+                        exam_questions_count INT NULL,
+                        exam_exercises_count INT NULL,
+                        simulator_questions_count INT NULL,
+                        simulator_exercises_count INT NULL,
+                        security_pin NVARCHAR(10) NULL,
+                        require_security_pin BIT NOT NULL DEFAULT 0,
+                        validity_months INT NULL,
+                        members_snapshot NVARCHAR(MAX) NULL,
+                        materials_snapshot NVARCHAR(MAX) NULL,
+                        created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+                        updated_at DATETIME2 NULL,
+                        CONSTRAINT fk_capia_key FOREIGN KEY (api_key_id) REFERENCES campus_api_keys(id) ON DELETE CASCADE,
+                        CONSTRAINT fk_capia_exam FOREIGN KEY (exam_id) REFERENCES exams(id),
+                        CONSTRAINT uq_api_key_exam UNIQUE (api_key_id, exam_id)
+                    )
+                """
+            else:
+                sql = """
+                    CREATE TABLE campus_api_key_assignments (
+                        id SERIAL PRIMARY KEY,
+                        api_key_id INTEGER NOT NULL REFERENCES campus_api_keys(id) ON DELETE CASCADE,
+                        exam_id INTEGER NOT NULL REFERENCES exams(id),
+                        assignment_type VARCHAR(20) NOT NULL DEFAULT 'all',
+                        available_from TIMESTAMP NULL,
+                        available_until TIMESTAMP NULL,
+                        time_limit_minutes INTEGER NULL,
+                        passing_score INTEGER NULL,
+                        max_attempts INTEGER NOT NULL DEFAULT 1,
+                        max_disconnections INTEGER NOT NULL DEFAULT 3,
+                        exam_content_type VARCHAR(30) NOT NULL DEFAULT 'questions_only',
+                        exam_questions_count INTEGER NULL,
+                        exam_exercises_count INTEGER NULL,
+                        simulator_questions_count INTEGER NULL,
+                        simulator_exercises_count INTEGER NULL,
+                        security_pin VARCHAR(10) NULL,
+                        require_security_pin BOOLEAN NOT NULL DEFAULT FALSE,
+                        validity_months INTEGER NULL,
+                        members_snapshot TEXT NULL,
+                        materials_snapshot TEXT NULL,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP NULL,
+                        CONSTRAINT uq_api_key_exam UNIQUE (api_key_id, exam_id)
+                    )
+                """
+            db.session.execute(text(sql))
+            db.session.commit()
+            print("  ✅ Tabla campus_api_key_assignments creada")
+            try:
+                db.session.execute(text(
+                    "CREATE INDEX ix_capia_api_key ON campus_api_key_assignments(api_key_id)"
+                ))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        else:
+            print("  ✓ Tabla campus_api_key_assignments ya existe")
+
+        # ── Migrar api key legacy 1:1 desde campuses ─────────────────────
+        # Estrategia: para cada plantel con api_key_hash + encrypted, crear
+        # una fila en campus_api_keys con is_legacy=True (si aún no existe).
+        # Luego NO borramos las columnas viejas en esta migración (lo haremos
+        # en una migración posterior cuando estemos seguros que nadie depende
+        # de ellas). Mantenemos enable_sso_api como master switch.
+        try:
+            legacy_rows = db.session.execute(text("""
+                SELECT id, api_key_hash, api_key_encrypted, api_key_prefix,
+                       api_key_active, api_key_created_at, api_key_created_by
+                FROM campuses
+                WHERE api_key_hash IS NOT NULL AND api_key_encrypted IS NOT NULL
+            """)).fetchall()
+            migrated = 0
+            for row in legacy_rows:
+                campus_id = row[0]
+                # ¿Ya existe una fila legacy para este plantel?
+                existing = db.session.execute(text(
+                    "SELECT id FROM campus_api_keys WHERE campus_id = :cid AND is_legacy = :flag"
+                ), {'cid': campus_id, 'flag': True if db_type != 'mssql' else 1}).fetchone()
+                if existing:
+                    continue
+                db.session.execute(text("""
+                    INSERT INTO campus_api_keys
+                        (campus_id, description, name, api_key_hash, api_key_encrypted,
+                         api_key_prefix, is_active, is_legacy, created_at, created_by_id, usage_count)
+                    VALUES
+                        (:campus_id, :description, :name, :hash, :enc,
+                         :prefix, :active, :legacy, :created_at, :created_by, 0)
+                """), {
+                    'campus_id': campus_id,
+                    'description': 'API key legacy migrada del esquema 1:1',
+                    'name': 'Legacy',
+                    'hash': row[1],
+                    'enc': row[2],
+                    'prefix': row[3] or 'evk_legacy',
+                    'active': True if (row[4] is None or row[4]) else False,
+                    'legacy': True,
+                    'created_at': row[5] or datetime.utcnow(),
+                    'created_by': row[6],
+                })
+                migrated += 1
+            if migrated:
+                db.session.commit()
+                print(f"  ✅ {migrated} api keys legacy migradas a campus_api_keys")
+            else:
+                print("  ✓ No hay api keys legacy pendientes de migrar")
+        except Exception as e:
+            db.session.rollback()
+            print(f"  ⚠️ no se pudo migrar api keys legacy: {e}")
+
+    except Exception as e:
+        print(f"❌ Error en migración multi-API-keys: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
