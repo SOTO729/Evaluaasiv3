@@ -1200,6 +1200,10 @@ class GroupExamMember(db.Model):
     group_exam_id = db.Column(db.Integer, db.ForeignKey('group_exams.id', ondelete='CASCADE'), nullable=False, index=True)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # Marca para cobro diferido: True cuando la asignación llegó vía SSO API
+    # key y aún no se ha cobrado al saldo del coordinador. Se desmarca al
+    # crear el primer Result de mode='exam' (ahí se ejecuta el cobro).
+    pending_billing = db.Column(db.Boolean, default=False, nullable=False, server_default='0')
 
     # Índice único para evitar duplicados
     __table_args__ = (

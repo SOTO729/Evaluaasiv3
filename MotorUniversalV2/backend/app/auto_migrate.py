@@ -3095,3 +3095,37 @@ def check_and_create_campus_api_keys_multi():
             db.session.rollback()
         except Exception:
             pass
+
+
+def check_and_add_pending_billing_column():
+    """Agrega columna pending_billing a group_exam_members (cobro diferido SSO).
+
+    Cuando una asignación se crea vía SSO API key, la fila se marca con
+    pending_billing=True. El cobro real al saldo del coordinador se ejecuta
+    en el primer Result mode='exam' del candidato, momento en que se
+    desmarca. Para asignaciones manuales (creadas por coordinador) el flag
+    queda en False (cobro ya hecho al asignar).
+    """
+    print("🔍 Verificando columna pending_billing en group_exam_members...")
+    try:
+        inspector = inspect(db.engine)
+        if 'group_exam_members' not in inspector.get_table_names():
+            print("  ⚠️  Tabla group_exam_members no existe, saltando")
+            return
+        existing = [c['name'] for c in inspector.get_columns('group_exam_members')]
+        if 'pending_billing' in existing:
+            print("  ✓ pending_billing ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = "ALTER TABLE group_exam_members ADD pending_billing BIT NOT NULL CONSTRAINT df_gem_pending_billing DEFAULT 0"
+        elif db_type == 'postgresql':
+            sql = "ALTER TABLE group_exam_members ADD COLUMN pending_billing BOOLEAN NOT NULL DEFAULT FALSE"
+        else:
+            sql = "ALTER TABLE group_exam_members ADD COLUMN pending_billing BOOLEAN NOT NULL DEFAULT 0"
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✅ Columna pending_billing agregada a group_exam_members")
+    except Exception as e:
+        db.session.rollback()
+        print(f"  ❌ error agregando pending_billing: {e}")

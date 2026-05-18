@@ -371,45 +371,41 @@ def find_campus_and_api_key(raw_key: str) -> tuple[Optional[Campus], Optional[Ca
     return None, None
 
 
-def _charge_assignment_to_user(
+def _mark_pending_billing(
     api_key: CampusApiKey,
     user: User,
     group: CandidateGroup,
     group_exam: GroupExam,
+    group_exam_member: 'GroupExamMember',
 ) -> bool:
-    """Aplica el cobro por una asignación SSO al saldo del coordinador.
+    """Marca una asignación SSO como pendiente de cobro (cobro diferido).
+
+    No debita saldo: solo evalúa las reglas y, si aplicarían, deja la fila
+    `GroupExamMember.pending_billing=True`. El cobro real se ejecuta en
+    `consume_pending_billing_for_exam()` cuando el candidato aplica un
+    examen real (mode='exam'). Simulador y materiales NO cobran.
 
     Reglas:
-      - Permite saldo negativo (no bloquea). Si cruza a negativo se intenta
-        notificar al coordinador por email.
-      - Para exámenes con ECM (competency_standard) solo se cobra si el
-        candidato NO tiene ya un EcmCandidateAssignment para ese ECM.
-      - Si se cobra un ECM, también se crea el EcmCandidateAssignment
-        (registro histórico) para que la regla anti-doble-cobro funcione
-        en próximas entradas SSO del mismo candidato.
-      - unit_cost = group.certification_cost_override (si use_custom_config)
-        → campus.certification_cost → 0. Si es 0 no se crea transacción.
-      - Coordinador = campus.coordinator_id (fallback partner.coordinator_id).
+      - Para exámenes con ECM solo se marca si el candidato NO tiene ya un
+        EcmCandidateAssignment para ese ECM.
+      - Si aplica ECM y no estaba asignado, se crea el EcmCandidateAssignment
+        en este mismo momento (registro histórico, regla anti-duplicado).
+      - unit_cost > 0 (group_override → campus.certification_cost). Si es 0
+        no se marca (no se cobrará nada).
+      - Coordinador resoluble (campus → partner). Si no, no se marca.
 
-    Devuelve True si se cobró (transacción creada), False si no.
+    Devuelve True si se marcó (cobro pendiente), False si quedó libre.
     """
-    from decimal import Decimal
     from flask import current_app
     from app.models import Campus, Partner
     from app.models.exam import Exam
     from app.models.partner import EcmCandidateAssignment
-    from app.models.balance import (
-        CoordinatorBalance,
-        BalanceTransaction,
-        create_balance_transaction,
-    )
 
     try:
         campus = group.campus or Campus.query.get(group.campus_id)
         if not campus:
             return False
 
-        # Resolver coordinador
         coordinator_id = getattr(campus, 'coordinator_id', None)
         if not coordinator_id and getattr(campus, 'partner_id', None):
             partner = Partner.query.get(campus.partner_id)
@@ -418,11 +414,10 @@ def _charge_assignment_to_user(
         if not coordinator_id:
             current_app.logger.warning(
                 f"[SSO BILLING] No se pudo resolver coordinador para "
-                f"campus={campus.id} (api_key={api_key.id}). No se cobra."
+                f"campus={campus.id} (api_key={api_key.id}). No se marca."
             )
             return False
 
-        # Calcular unit_cost
         unit_cost = 0.0
         try:
             if (
@@ -434,11 +429,9 @@ def _charge_assignment_to_user(
                 unit_cost = float(campus.certification_cost or 0)
         except Exception:
             unit_cost = 0.0
-
         if unit_cost <= 0:
             return False
 
-        # Regla ECM
         exam = Exam.query.get(group_exam.exam_id)
         exam_name = exam.name if exam else f'exam_{group_exam.exam_id}'
         ecm_id = getattr(exam, 'competency_standard_id', None) if exam else None
@@ -448,42 +441,10 @@ def _charge_assignment_to_user(
                 competency_standard_id=ecm_id,
             ).first()
             if existing_ecm:
-                return False  # ya tenía ECM, no se cobra
+                return False  # ya tenía ECM, no se cobrará
 
-        # Snapshot saldo antes
-        balance = CoordinatorBalance.query.filter_by(
-            coordinator_id=coordinator_id,
-            campus_id=campus.id,
-        ).first()
-        balance_before = float(balance.current_balance) if balance and balance.current_balance is not None else 0.0
-
-        # Cobro (permite negativo: no validamos has_sufficient_balance)
-        notes = (
-            f'SSO API key #{api_key.id}: "{exam_name}" a candidato '
-            f'{user.external_id or user.username} '
-            f'(grupo "{group.name}") - 1 unidad x ${unit_cost:,.2f}'
-        )
-        try:
-            create_balance_transaction(
-                coordinator_id=coordinator_id,
-                campus_id=campus.id,
-                transaction_type='debit',
-                concept='asignacion_certificacion',
-                amount=unit_cost,
-                group_id=group.id,
-                reference_type='group_exam',
-                reference_id=group_exam.id,
-                notes=notes,
-                created_by_id=api_key.created_by_id,
-            )
-        except Exception as e:
-            current_app.logger.error(
-                f"[SSO BILLING] Error al crear transacción: {e}"
-            )
-            return False
-
-        # Histórico ECM (si aplica)
-        if ecm_id:
+            # Crear histórico ECM ahora para que próximas entradas SSO
+            # no vuelvan a marcar el mismo estándar.
             try:
                 validity_months = (
                     group_exam.validity_months
@@ -491,7 +452,7 @@ def _charge_assignment_to_user(
                     else 12
                 )
                 expires_at = group_exam.expires_at if getattr(group_exam, 'expires_at', None) else None
-                new_ecm = EcmCandidateAssignment(
+                db.session.add(EcmCandidateAssignment(
                     assignment_number=EcmCandidateAssignment.generate_assignment_number(),
                     user_id=user.id,
                     competency_standard_id=ecm_id,
@@ -504,29 +465,21 @@ def _charge_assignment_to_user(
                     assignment_source='sso_apikey',
                     validity_months=validity_months,
                     expires_at=expires_at,
-                )
-                db.session.add(new_ecm)
+                ))
             except Exception as e:
                 current_app.logger.error(
                     f"[SSO BILLING] Error creando EcmCandidateAssignment: {e}"
                 )
 
-        # Notificación si cruzó a negativo
-        balance_after = balance_before - unit_cost
-        if balance_before >= 0 and balance_after < 0:
-            try:
-                _notify_negative_balance(coordinator_id, campus, balance_after)
-            except Exception as e:
-                current_app.logger.warning(
-                    f"[SSO BILLING] No se pudo notificar saldo negativo: {e}"
-                )
+        # Marcar pendiente de cobro (cobro real al aplicar el examen)
+        group_exam_member.pending_billing = True
 
         log_activity(
             user=None,
-            action_type='sso_apikey_charge',
+            action_type='sso_apikey_pending_billing',
             entity_type='group_exam',
             entity_id=group_exam.id,
-            entity_name=f"Cobro SSO {exam_name}",
+            entity_name=f"Marca pendiente SSO {exam_name}",
             details={
                 'api_key_id': api_key.id,
                 'campus_id': campus.id,
@@ -535,8 +488,6 @@ def _charge_assignment_to_user(
                 'external_id': user.external_id,
                 'exam_id': group_exam.exam_id,
                 'unit_cost': unit_cost,
-                'balance_before': balance_before,
-                'balance_after': balance_after,
                 'ecm_id': ecm_id,
             },
             success=True,
@@ -544,7 +495,150 @@ def _charge_assignment_to_user(
         return True
 
     except Exception as e:
-        current_app.logger.error(f"[SSO BILLING] Fallo inesperado: {e}")
+        from flask import current_app
+        current_app.logger.error(f"[SSO BILLING] Fallo inesperado al marcar: {e}")
+        return False
+
+
+def consume_pending_billing_for_exam(user_id: str, group_exam_id: int) -> bool:
+    """Ejecuta el cobro diferido cuando el candidato aplica un examen real.
+
+    Idempotente: si el `GroupExamMember(user_id, group_exam_id)` no existe
+    o no tiene `pending_billing=True`, no hace nada. Si sí lo tiene, debita
+    al saldo del coordinador (permite negativo, notifica por email al cruzar
+    a negativo) y desmarca el flag.
+
+    Diseñado para invocarse desde `save_exam_result` cuando `mode='exam'`.
+    Nunca debe interrumpir el flujo de guardado: capturar excepciones en el
+    sitio que lo invoca.
+
+    Devuelve True si se cobró efectivamente, False si no había nada que
+    cobrar o si falló.
+    """
+    from flask import current_app
+    from app.models import Campus, Partner
+    from app.models.exam import Exam
+    from app.models.partner import GroupExamMember, GroupExam, CandidateGroup
+    from app.models.balance import (
+        CoordinatorBalance,
+        create_balance_transaction,
+    )
+
+    try:
+        gem = GroupExamMember.query.filter_by(
+            group_exam_id=group_exam_id, user_id=user_id
+        ).first()
+        if not gem or not getattr(gem, 'pending_billing', False):
+            return False
+
+        group_exam = GroupExam.query.get(group_exam_id)
+        if not group_exam:
+            return False
+        group = CandidateGroup.query.get(group_exam.group_id)
+        if not group:
+            return False
+        campus = group.campus or Campus.query.get(group.campus_id)
+        if not campus:
+            return False
+
+        coordinator_id = getattr(campus, 'coordinator_id', None)
+        if not coordinator_id and getattr(campus, 'partner_id', None):
+            partner = Partner.query.get(campus.partner_id)
+            if partner:
+                coordinator_id = getattr(partner, 'coordinator_id', None)
+        if not coordinator_id:
+            current_app.logger.warning(
+                f"[SSO BILLING] consume: sin coordinador para campus={campus.id}"
+            )
+            return False
+
+        unit_cost = 0.0
+        try:
+            if (
+                getattr(group, 'use_custom_config', False)
+                and getattr(group, 'certification_cost_override', None) is not None
+            ):
+                unit_cost = float(group.certification_cost_override)
+            elif getattr(campus, 'certification_cost', None) is not None:
+                unit_cost = float(campus.certification_cost or 0)
+        except Exception:
+            unit_cost = 0.0
+        if unit_cost <= 0:
+            # Nada que cobrar; desmarcar para no reintentar.
+            gem.pending_billing = False
+            db.session.commit()
+            return False
+
+        exam = Exam.query.get(group_exam.exam_id)
+        exam_name = exam.name if exam else f'exam_{group_exam.exam_id}'
+
+        balance = CoordinatorBalance.query.filter_by(
+            coordinator_id=coordinator_id,
+            campus_id=campus.id,
+        ).first()
+        balance_before = float(balance.current_balance) if balance and balance.current_balance is not None else 0.0
+
+        notes = (
+            f'SSO (cobro al aplicar): "{exam_name}" - candidato {user_id} '
+            f'(grupo "{group.name}") - 1 x ${unit_cost:,.2f}'
+        )
+        try:
+            create_balance_transaction(
+                coordinator_id=coordinator_id,
+                campus_id=campus.id,
+                transaction_type='debit',
+                concept='asignacion_certificacion',
+                amount=unit_cost,
+                group_id=group.id,
+                reference_type='group_exam',
+                reference_id=group_exam.id,
+                notes=notes,
+                created_by_id=coordinator_id,
+            )
+        except Exception as e:
+            current_app.logger.error(
+                f"[SSO BILLING] consume: error creando transacción: {e}"
+            )
+            return False
+
+        gem.pending_billing = False
+        db.session.commit()
+
+        balance_after = balance_before - unit_cost
+        if balance_before >= 0 and balance_after < 0:
+            try:
+                _notify_negative_balance(coordinator_id, campus, balance_after)
+            except Exception as e:
+                current_app.logger.warning(
+                    f"[SSO BILLING] consume: no se pudo notificar negativo: {e}"
+                )
+
+        log_activity(
+            user=None,
+            action_type='sso_apikey_charge_consumed',
+            entity_type='group_exam',
+            entity_id=group_exam.id,
+            entity_name=f"Cobro SSO consumido {exam_name}",
+            details={
+                'campus_id': campus.id,
+                'coordinator_id': coordinator_id,
+                'user_id': user_id,
+                'exam_id': group_exam.exam_id,
+                'unit_cost': unit_cost,
+                'balance_before': balance_before,
+                'balance_after': balance_after,
+            },
+            success=True,
+        )
+        return True
+
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.error(f"[SSO BILLING] consume: fallo inesperado: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
         return False
 
 
@@ -701,29 +795,30 @@ def apply_api_key_assignments(
                 success=True,
             )
 
-        # ── Ledger por candidato + cobro ──────────────────────────────
+        # ── Ledger por candidato + marca de cobro diferido ─────────────
         # Aseguramos GroupExamMember para el `user` actual (sin importar
-        # assignment_type). Sirve como ledger: si ya existe → no recobramos.
-        # Si no existe → 1) cobramos al saldo del coordinador, 2) creamos
-        # el GroupExamMember.
+        # assignment_type). Sirve como ledger anti-duplicado. Si ya existe
+        # no marcamos pendiente (asumimos que ya pasó por este flujo).
+        # Si no existe → 1) creamos el GEM, 2) lo marcamos como
+        # pending_billing si corresponde (cobro al aplicar el examen real).
         existing_gem = GroupExamMember.query.filter_by(
             group_exam_id=ge.id, user_id=user.id
         ).first()
         if existing_gem is None:
-            # Cobro PRIMERO (sigue regla ECM; permite saldo negativo)
             try:
-                _charge_assignment_to_user(api_key, user, group, ge)
-            except Exception as e:
-                from flask import current_app
-                current_app.logger.error(
-                    f"[SSO BILLING] error invocando cobro: {e}"
-                )
-            # Ledger
-            try:
-                db.session.add(GroupExamMember(
+                new_gem = GroupExamMember(
                     group_exam_id=ge.id, user_id=user.id
-                ))
+                )
+                db.session.add(new_gem)
                 db.session.flush()
+                # Marca de cobro diferido (no debita ahora; al aplicar examen)
+                try:
+                    _mark_pending_billing(api_key, user, group, ge, new_gem)
+                except Exception as e:
+                    from flask import current_app
+                    current_app.logger.error(
+                        f"[SSO BILLING] error marcando pending: {e}"
+                    )
             except Exception:
                 pass
 

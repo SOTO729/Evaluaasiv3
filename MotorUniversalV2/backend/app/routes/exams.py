@@ -3692,7 +3692,22 @@ def save_exam_result(exam_id):
         
         # Invalidar cache del dashboard del usuario para que vea los resultados actualizados
         invalidate_on_exam_complete(str(user_id), exam_id, exam.competency_standard_id)
-        
+
+        # ── Cobro diferido SSO API: solo en exámenes reales (mode='exam') ──
+        # Si la asignación llegó vía SSO API key, el GroupExamMember tiene
+        # pending_billing=True. Aquí ejecutamos el cobro al saldo del
+        # coordinador. Simulador (mode='simulator') y materiales NO cobran.
+        # Idempotente: el helper desmarca el flag, así que reintentar el
+        # examen no genera doble cobro.
+        if mode == 'exam' and group_exam_id:
+            try:
+                from app.services.sso_service import consume_pending_billing_for_exam
+                consume_pending_billing_for_exam(str(user_id), int(group_exam_id))
+            except Exception as billing_err:
+                current_app.logger.warning(
+                    f'save_exam_result: deferred billing failed: {billing_err}'
+                )
+
         # Enviar email de resultado al candidato
         try:
             from app.services.email_service import send_exam_result_email
