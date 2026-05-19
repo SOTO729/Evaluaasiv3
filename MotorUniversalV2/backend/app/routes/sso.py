@@ -577,6 +577,48 @@ def _can_manage_api_keys(user: User, campus: Campus) -> bool:
     return False
 
 
+def _resolve_campus_coordinator_id(campus: Campus):
+    """Resuelve el coordinador efectivo de un plantel.
+
+    1) `campus.coordinator_id` directo, si existe.
+    2) Caso contrario, hereda del `partner.coordinator_id` del plantel.
+    Devuelve None si no se puede resolver.
+    """
+    coord_id = getattr(campus, 'coordinator_id', None)
+    if coord_id:
+        return coord_id
+    partner_id = getattr(campus, 'partner_id', None)
+    if partner_id:
+        from app.models.partner import Partner
+        partner = Partner.query.get(partner_id)
+        if partner:
+            return getattr(partner, 'coordinator_id', None)
+    return None
+
+
+def _can_create_api_key(user: User, campus: Campus) -> bool:
+    """Permiso específico para CREAR una api key del plantel.
+
+    Más permisivo que `_can_manage_api_keys`: además del coordinador
+    asignado directamente al campus, también acepta al coordinador del
+    partner padre (campus que heredan coord vía partner). También
+    incluye al auxiliar de cualquiera de esos coordinadores. NO afecta
+    rotate / revoke / configure (esos siguen usando `_can_manage_api_keys`).
+    """
+    if not user:
+        return False
+    if user.role in ('admin', 'developer'):
+        return True
+    resolved_coord_id = _resolve_campus_coordinator_id(campus)
+    if not resolved_coord_id:
+        return False
+    if user.role == 'coordinator' and resolved_coord_id == user.id:
+        return True
+    if user.role == 'auxiliar' and user.coordinator_id == resolved_coord_id:
+        return True
+    return False
+
+
 def _can_read_api_keys(user: User, campus: Campus) -> bool:
     """Listar api keys: misma regla que ver metadata (incluye responsable)."""
     return _can_view_api_key_metadata(user, campus)
@@ -670,9 +712,33 @@ def _parse_assignment_payload(data: dict) -> dict:
         'security_pin': (data.get('security_pin') or None),
         'require_security_pin': bool(data.get('require_security_pin')),
         'validity_months': _opt_int(data.get('validity_months')),
+        'certificate_type': _normalize_cert_type(data.get('certificate_type')),
         '_members': [str(m) for m in members if m],
         '_materials': [int(m) for m in materials if str(m).isdigit()],
     }
+
+
+def _normalize_cert_type(value) -> str:
+    """Normaliza certificate_type. Default 'eduit' (no requiere CURP).
+
+    Valores aceptados: 'conocer', 'eduit', 'badge', 'none'. Solo 'conocer'
+    fuerza la validación de CURP del candidato al entrar por SSO.
+    """
+    v = (str(value or '').strip().lower())
+    if v in ('conocer', 'eduit', 'badge', 'none'):
+        return v
+    return 'eduit'
+
+
+def _sanitize_pin_for_campus(parsed: dict, campus) -> dict:
+    """Si el plantel no tiene `require_exam_pin` activado, anula los campos
+    de PIN en la plantilla. El PIN diario lo emite el plantel; cuando está
+    deshabilitado, no tiene sentido aceptarlo en la api key.
+    """
+    if not getattr(campus, 'require_exam_pin', False):
+        parsed['security_pin'] = None
+        parsed['require_security_pin'] = False
+    return parsed
 
 
 # ── Listado / detalle ──────────────────────────────────────────────────
@@ -728,10 +794,10 @@ def create_campus_api_key_v2(campus_id: int):
     """
     current_user = User.query.get(get_jwt_identity())
     campus = Campus.query.get_or_404(campus_id)
-    if not _can_manage_api_keys(current_user, campus):
+    if not _can_create_api_key(current_user, campus):
         return jsonify({
             'error': 'No autorizado',
-            'detail': 'Solo admin, coordinador del plantel o auxiliar pueden crear api keys.',
+            'detail': 'Solo admin, coordinador del plantel/partner o auxiliar pueden crear api keys.',
         }), 403
 
     payload = request.get_json(silent=True) or {}
@@ -751,6 +817,7 @@ def create_campus_api_key_v2(campus_id: int):
             parsed = _parse_assignment_payload(assignment_data)
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
+        _sanitize_pin_for_campus(parsed, campus)
         # Validar que el exam existe
         if not Exam.query.get(parsed['exam_id']):
             return jsonify({'error': f"Examen {parsed['exam_id']} no encontrado"}), 404
@@ -930,6 +997,7 @@ def add_api_key_assignment(key_id: int):
         parsed = _parse_assignment_payload(payload)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    _sanitize_pin_for_campus(parsed, campus)
     if not Exam.query.get(parsed['exam_id']):
         return jsonify({'error': f"Examen {parsed['exam_id']} no encontrado"}), 404
     existing = CampusApiKeyAssignment.query.filter_by(
@@ -967,6 +1035,7 @@ def update_api_key_assignment(key_id: int, assignment_id: int):
         parsed = _parse_assignment_payload(payload)
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+    _sanitize_pin_for_campus(parsed, campus)
     members = parsed.pop('_members', [])
     materials = parsed.pop('_materials', [])
     parsed.pop('exam_id', None)

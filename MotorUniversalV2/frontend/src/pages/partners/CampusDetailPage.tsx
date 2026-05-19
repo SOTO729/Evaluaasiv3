@@ -787,14 +787,22 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
-                      <p className="text-2xl font-black text-emerald-700 leading-tight">
-                        {(campus.certification_cost || 0) > 0 && balanceSummary
-                          ? Math.floor(balanceSummary.totals.current_balance / (campus.certification_cost || 1))
-                          : 0}
-                      </p>
-                      <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Disponibles</p>
-                    </div>
+                    {(() => {
+                      const cost = campus.certification_cost || 0
+                      const cb = balanceSummary?.totals.current_balance ?? 0
+                      const available = cost > 0 ? Math.floor(cb / cost) : 0
+                      const isNeg = available < 0
+                      return (
+                        <div className={`rounded-fluid-lg p-3 text-center border ${isNeg ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200' : 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200'}`}>
+                          <p className={`text-2xl font-black leading-tight ${isNeg ? 'text-red-700' : 'text-emerald-700'}`}>
+                            {available}
+                          </p>
+                          <p className={`text-[11px] font-semibold mt-0.5 ${isNeg ? 'text-red-600' : 'text-emerald-600'}`}>
+                            {isNeg ? 'Saldo negativo' : 'Disponibles'}
+                          </p>
+                        </div>
+                      )
+                    })()}
                     <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-fluid-lg p-3 text-center border border-amber-200">
                       <p className="text-2xl font-black text-amber-700 leading-tight">
                         {(campus.certification_cost || 0) > 0 && balanceSummary
@@ -879,20 +887,38 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                   </div>
                 ) : balanceSummary ? (
                   <div className="space-y-2">
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-fluid-lg p-3 text-center border border-emerald-200">
+                    {(() => {
+                      const cb = balanceSummary.totals.current_balance
+                      const isNeg = cb < 0
+                      return (
+                    <div className={`rounded-fluid-lg p-3 text-center border ${isNeg ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-300' : 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200'}`}>
                       <div className="flex items-center justify-center gap-1.5 mb-1">
-                        <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                        <p className="text-[11px] text-emerald-700 font-bold uppercase tracking-wide">Saldo del Plantel</p>
+                        <CreditCard className={`w-3.5 h-3.5 ${isNeg ? 'text-red-600' : 'text-emerald-600'}`} />
+                        <p className={`text-[11px] font-bold uppercase tracking-wide ${isNeg ? 'text-red-700' : 'text-emerald-700'}`}>Saldo del Plantel</p>
                       </div>
-                      <p className={`text-xl font-black leading-tight ${balanceSummary.totals.current_balance > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
-                        ${balanceSummary.totals.current_balance.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <p className={`text-xl font-black leading-tight ${isNeg ? 'text-red-700' : cb > 0 ? 'text-emerald-700' : 'text-gray-500'}`}>
+                        {isNeg ? '-' : ''}${Math.abs(cb).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
-                      {balanceSummary.coordinators_count > 0 && (
+                      {isNeg && (
+                        <p className="text-[10px] text-red-600 font-semibold mt-1">⚠ Saldo en negativo — solicita abono
+                        </p>
+                      )}
+                      {!isNeg && balanceSummary.coordinators_count > 0 && (
                         <p className="text-[10px] text-emerald-600 mt-1">
                           {balanceSummary.coordinators_count} coordinador{balanceSummary.coordinators_count !== 1 ? 'es' : ''}
                         </p>
                       )}
                     </div>
+                      )
+                    })()}
+                    {balanceSummary.coordinators_count === 0 && (
+                      <div className="rounded-fluid-lg p-3 border border-amber-300 bg-amber-50">
+                        <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide">⚠ Sin coordinador asignado</p>
+                        <p className="text-[11px] text-amber-700 mt-1 leading-snug">
+                          Este plantel no tiene saldo registrado ni coordinador resuelto. Los cobros automáticos (SSO / API Keys) se omiten silenciosamente hasta que se asigne un coordinador al plantel o a su partner.
+                        </p>
+                      </div>
+                    )}
                     {(balanceSummary.totals.total_received > 0 || balanceSummary.totals.total_spent > 0) && (
                       <div className="grid grid-cols-2 gap-1.5">
                         <div className="bg-primary-50/60 rounded-lg p-2 text-center border border-primary-100/60">
