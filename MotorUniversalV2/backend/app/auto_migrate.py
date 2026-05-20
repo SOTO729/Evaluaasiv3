@@ -3129,3 +3129,74 @@ def check_and_add_pending_billing_column():
     except Exception as e:
         db.session.rollback()
         print(f"  ❌ error agregando pending_billing: {e}")
+
+
+def check_and_add_certificate_type_column():
+    """Agrega columna certificate_type a campus_api_key_assignments.
+
+    Indica qué tipo de certificado se emite por cada plantilla SSO:
+    'conocer' (único que exige CURP del candidato), 'eduit', 'badge' o 'none'.
+    """
+    print("🔍 Verificando columna certificate_type en campus_api_key_assignments...")
+    try:
+        inspector = inspect(db.engine)
+        if 'campus_api_key_assignments' not in inspector.get_table_names():
+            print("  ⚠️  Tabla campus_api_key_assignments no existe, saltando")
+            return
+        existing = [c['name'] for c in inspector.get_columns('campus_api_key_assignments')]
+        if 'certificate_type' in existing:
+            print("  ✓ certificate_type ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = (
+                "ALTER TABLE campus_api_key_assignments "
+                "ADD certificate_type NVARCHAR(20) NOT NULL "
+                "CONSTRAINT df_capka_certtype DEFAULT 'eduit'"
+            )
+        else:
+            sql = (
+                "ALTER TABLE campus_api_key_assignments "
+                "ADD COLUMN certificate_type VARCHAR(20) NOT NULL DEFAULT 'eduit'"
+            )
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✅ Columna certificate_type agregada")
+    except Exception as e:
+        db.session.rollback()
+        print(f"  ❌ error agregando certificate_type: {e}")
+
+
+def check_and_add_skip_curp_validation_column():
+    """Agrega columna skip_curp_validation a users.
+
+    Cuando es True, el candidato NO ve el modal forzado de validación de CURP.
+    Se usa para candidatos creados vía SSO cuyas plantillas no emiten
+    certificado CONOCER (los demás flujos siguen igual).
+    """
+    print("🔍 Verificando columna skip_curp_validation en users...")
+    try:
+        inspector = inspect(db.engine)
+        if 'users' not in inspector.get_table_names():
+            print("  ⚠️  Tabla users no existe, saltando")
+            return
+        existing = [c['name'] for c in inspector.get_columns('users')]
+        if 'skip_curp_validation' in existing:
+            print("  ✓ skip_curp_validation ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = (
+                "ALTER TABLE users ADD skip_curp_validation BIT NOT NULL "
+                "CONSTRAINT df_users_skip_curp DEFAULT 0"
+            )
+        elif db_type == 'postgresql':
+            sql = "ALTER TABLE users ADD COLUMN skip_curp_validation BOOLEAN NOT NULL DEFAULT FALSE"
+        else:
+            sql = "ALTER TABLE users ADD COLUMN skip_curp_validation BOOLEAN NOT NULL DEFAULT 0"
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✅ Columna skip_curp_validation agregada a users")
+    except Exception as e:
+        db.session.rollback()
+        print(f"  ❌ error agregando skip_curp_validation: {e}")

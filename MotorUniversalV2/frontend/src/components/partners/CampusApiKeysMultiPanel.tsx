@@ -26,6 +26,14 @@ import {
   ShieldAlert,
   Loader2,
   Power,
+  Clock,
+  Target,
+  FileText,
+  Activity,
+  ShieldCheck,
+  BookOpen,
+  Pencil,
+  CalendarDays,
 } from 'lucide-react'
 import {
   ssoApiKeysService,
@@ -225,64 +233,131 @@ export default function CampusApiKeysMultiPanel({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border p-6 flex items-center justify-center text-sm text-gray-500">
-        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Cargando API Keys...
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 flex items-center justify-center text-sm text-gray-500">
+        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Cargando API Keys SSO...
       </div>
     )
   }
 
+  const totalAssignments = keys.reduce((acc, k) => acc + (k.assignment_count || 0), 0)
+  const activeKeys = keys.filter((k) => k.is_active).length
+  const legacyKeys = keys.filter((k) => k.is_legacy).length
+
+  const contentTypeLabel = (t?: string | null) => {
+    switch (t) {
+      case 'questions_only':
+        return 'Reactivos'
+      case 'exercises_only':
+        return 'Ejercicios'
+      case 'mixed':
+        return 'Mixto'
+      default:
+        return t || 'Reactivos'
+    }
+  }
+
   return (
-    <div className="bg-white rounded-lg border">
-      {/* Header */}
-      <div className="px-6 py-4 border-b flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Key className="w-5 h-5 text-blue-600" />
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">API Keys SSO</h3>
-            <p className="text-xs text-gray-500">
-              {keys.length} {keys.length === 1 ? 'llave' : 'llaves'} ·{' '}
-              {meta?.enable_sso_api ? (
-                <span className="text-green-700">SSO activo</span>
-              ) : (
-                <span className="text-gray-500">SSO inactivo</span>
-              )}{' '}
-              · TTL token: {meta?.token_ttl_minutes ?? 5} min
-            </p>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header con gradiente */}
+      <div className="px-6 py-5 bg-gradient-to-r from-indigo-50 via-white to-blue-50 border-b border-gray-200">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-sm">
+              <Key className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">API Keys SSO</h3>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Acceso de sistemas externos a este plantel mediante llaves seguras.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdminLike(role) && meta && (
+              <button
+                onClick={() => handleToggleEnableSso(!meta.enable_sso_api)}
+                disabled={working === 'enable_sso'}
+                className={`px-3 py-2 text-xs font-medium rounded-lg border flex items-center gap-1.5 transition ${
+                  meta.enable_sso_api
+                    ? 'border-red-200 text-red-700 bg-white hover:bg-red-50'
+                    : 'border-green-200 text-green-700 bg-white hover:bg-green-50'
+                }`}
+              >
+                <Power className="w-3.5 h-3.5" />
+                {meta.enable_sso_api ? 'Desactivar SSO' : 'Activar SSO'}
+              </button>
+            )}
+            {isManager && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 rounded-lg flex items-center gap-1.5 shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Nueva API Key
+              </button>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {isAdminLike(role) && meta && (
-            <button
-              onClick={() => handleToggleEnableSso(!meta.enable_sso_api)}
-              disabled={working === 'enable_sso'}
-              className={`px-3 py-1.5 text-xs font-medium rounded border flex items-center gap-1.5 ${
-                meta.enable_sso_api
-                  ? 'border-red-200 text-red-700 hover:bg-red-50'
-                  : 'border-green-200 text-green-700 hover:bg-green-50'
-              }`}
-            >
-              <Power className="w-3.5 h-3.5" />
-              {meta.enable_sso_api ? 'Desactivar SSO' : 'Activar SSO'}
-            </button>
-          )}
-          {isManager && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Nueva API Key
-            </button>
-          )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+          <div className="px-3 py-2.5 bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide font-medium text-gray-500">
+              <Activity className="w-3.5 h-3.5" />
+              Estado
+            </div>
+            <div className="mt-1 text-sm font-semibold">
+              {meta?.enable_sso_api ? (
+                <span className="text-green-700 inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Activo
+                </span>
+              ) : (
+                <span className="text-gray-500 inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400" /> Inactivo
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="px-3 py-2.5 bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide font-medium text-gray-500">
+              <Key className="w-3.5 h-3.5" />
+              Llaves
+            </div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">
+              {activeKeys}
+              <span className="text-gray-400 font-normal"> / {keys.length}</span>
+              {legacyKeys > 0 && (
+                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">
+                  {legacyKeys} legacy
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="px-3 py-2.5 bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide font-medium text-gray-500">
+              <FileText className="w-3.5 h-3.5" />
+              Plantillas
+            </div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">{totalAssignments}</div>
+          </div>
+          <div className="px-3 py-2.5 bg-white rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide font-medium text-gray-500">
+              <Clock className="w-3.5 h-3.5" />
+              TTL token
+            </div>
+            <div className="mt-1 text-sm font-semibold text-gray-900">
+              {meta?.token_ttl_minutes ?? 5} min
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Errors */}
       {error && (
-        <div className="m-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-800 flex gap-2">
+        <div className="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800 flex gap-2">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div className="flex-1">{error}</div>
-          <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800">
+          <button onClick={() => setError(null)} className="text-red-600 hover:text-red-800 font-bold">
             ×
           </button>
         </div>
@@ -290,21 +365,41 @@ export default function CampusApiKeysMultiPanel({
 
       {/* Lista */}
       {keys.length === 0 ? (
-        <div className="p-8 text-center text-sm text-gray-500">
-          No hay API keys configuradas para este plantel.
-          {isManager && ' Crea la primera para habilitar SSO desde sistemas externos.'}
+        <div className="p-10 text-center">
+          <div className="w-14 h-14 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <Key className="w-6 h-6 text-gray-400" />
+          </div>
+          <div className="text-sm font-medium text-gray-700">
+            No hay API keys configuradas
+          </div>
+          {isManager && (
+            <div className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+              Crea la primera para habilitar SSO desde sistemas externos. Cada llave puede tener
+              su propio conjunto de exámenes y configuración.
+            </div>
+          )}
         </div>
       ) : (
-        <div className="divide-y">
+        <div className="p-4 space-y-3">
           {keys.map((k) => {
             const isOpen = expanded.has(k.id)
             const revealedSecret = revealedSecrets[k.id]
+            const stateColor = !k.is_active
+              ? 'border-l-gray-300'
+              : k.is_legacy
+              ? 'border-l-amber-400'
+              : 'border-l-emerald-500'
             return (
-              <div key={k.id} className="px-6 py-4">
-                <div className="flex items-start gap-3">
+              <div
+                key={k.id}
+                className={`bg-white rounded-lg border border-gray-200 border-l-4 ${stateColor} hover:shadow-sm transition`}
+              >
+                {/* Encabezado de la llave */}
+                <div className="px-4 py-3 flex items-start gap-3">
                   <button
                     onClick={() => toggleExpand(k.id)}
-                    className="mt-1 text-gray-400 hover:text-gray-700"
+                    className="mt-0.5 p-1 -ml-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition"
+                    aria-label={isOpen ? 'Colapsar' : 'Expandir'}
                   >
                     {isOpen ? (
                       <ChevronDown className="w-4 h-4" />
@@ -314,60 +409,82 @@ export default function CampusApiKeysMultiPanel({
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-gray-900">{k.description}</span>
+                      <span className="font-semibold text-gray-900 text-sm">{k.description}</span>
                       {k.name && (
-                        <span className="text-xs text-gray-500">({k.name})</span>
+                        <span className="text-xs text-gray-500">· {k.name}</span>
                       )}
                       {k.is_legacy && (
-                        <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-800 rounded">
+                        <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-amber-100 text-amber-800 rounded">
                           Legacy
                         </span>
                       )}
-                      {!k.is_active && (
-                        <span className="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded">
+                      {!k.is_active ? (
+                        <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-gray-200 text-gray-700 rounded">
                           Inactiva
                         </span>
-                      )}
+                      ) : !k.is_legacy ? (
+                        <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-emerald-100 text-emerald-800 rounded inline-flex items-center gap-1">
+                          <span className="w-1 h-1 rounded-full bg-emerald-600" />
+                          Activa
+                        </span>
+                      ) : null}
                     </div>
-                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-600 font-mono">
-                      <span>{k.api_key_prefix}…</span>
+
+                    {/* Secreto / prefijo */}
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                      <code className="font-mono text-xs px-2 py-0.5 bg-gray-100 rounded text-gray-700">
+                        {k.api_key_prefix}…
+                      </code>
                       {revealedSecret && (
                         <>
-                          <span className="text-gray-400">·</span>
-                          <code className="bg-blue-50 px-2 py-0.5 rounded text-blue-900">
+                          <code className="font-mono text-xs px-2 py-0.5 bg-indigo-50 rounded text-indigo-900 border border-indigo-100 break-all">
                             {revealedSecret}
                           </code>
                           <button
                             onClick={() => copyToClipboard(revealedSecret)}
-                            className="text-gray-500 hover:text-gray-700"
+                            className="text-gray-500 hover:text-indigo-600 p-1 rounded hover:bg-gray-100"
                             title="Copiar"
                           >
-                            <Copy className="w-3 h-3" />
+                            <Copy className="w-3.5 h-3.5" />
                           </button>
                         </>
                       )}
                     </div>
-                    <div className="mt-1 text-xs text-gray-500 flex flex-wrap gap-x-4">
-                      <span>Usos: {k.usage_count}</span>
-                      <span>Última conexión: {formatDate(k.last_used_at)}</span>
-                      {k.last_used_ip && <span>IP: {k.last_used_ip}</span>}
-                      <span>Plantillas: {k.assignment_count}</span>
-                      <span>Creada: {formatDate(k.created_at)}</span>
+
+                    {/* Metadata */}
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                      <span className="inline-flex items-center gap-1">
+                        <Activity className="w-3 h-3" /> {k.usage_count} usos
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {k.last_used_at ? `Última: ${formatDate(k.last_used_at)}` : 'Nunca usada'}
+                      </span>
+                      {k.last_used_ip && (
+                        <span className="font-mono">IP: {k.last_used_ip}</span>
+                      )}
+                      <span className="inline-flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> {k.assignment_count} plantillas
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDays className="w-3 h-3" /> Creada {formatDate(k.created_at)}
+                      </span>
                       {k.created_by && (
                         <span>
-                          Por:{' '}
-                          {k.created_by.full_name || k.created_by.username || k.created_by_id}
+                          por {k.created_by.full_name || k.created_by.username || k.created_by_id}
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+
+                  {/* Acciones */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     {canReveal && (
                       <button
                         onClick={() => handleReveal(k.id)}
                         disabled={working === `reveal_${k.id}`}
-                        className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                        title={revealedSecret ? 'Ocultar' : 'Revelar'}
+                        className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
+                        title={revealedSecret ? 'Ocultar secreto' : 'Revelar secreto'}
                       >
                         {revealedSecret ? (
                           <EyeOff className="w-4 h-4" />
@@ -381,21 +498,25 @@ export default function CampusApiKeysMultiPanel({
                         <button
                           onClick={() => handleToggleActive(k)}
                           disabled={working === `toggle_${k.id}`}
-                          className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                          className={`p-1.5 rounded transition ${
+                            k.is_active
+                              ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                              : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                          }`}
                           title={k.is_active ? 'Desactivar' : 'Activar'}
                         >
                           <Power className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setPendingAction({ kind: 'rotate', keyId: k.id })}
-                          className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded"
+                          className="p-1.5 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded transition"
                           title="Rotar secreto"
                         >
                           <RefreshCw className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setPendingAction({ kind: 'revoke', keyId: k.id })}
-                          className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                          className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition"
                           title="Revocar"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -407,61 +528,107 @@ export default function CampusApiKeysMultiPanel({
 
                 {/* Asignaciones */}
                 {isOpen && (
-                  <div className="mt-3 pl-7 space-y-2">
-                    {(k.assignments?.length ?? 0) === 0 && (
-                      <div className="text-xs text-gray-500 italic">
-                        Sin plantillas configuradas. Al consumir esta api no se asignará ningún
+                  <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/40">
+                    <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 mt-3 mb-2 flex items-center gap-1.5">
+                      <BookOpen className="w-3 h-3" />
+                      Plantillas de examen ({k.assignments?.length ?? 0})
+                    </div>
+                    {(k.assignments?.length ?? 0) === 0 ? (
+                      <div className="px-3 py-3 text-xs text-gray-500 italic bg-white rounded-lg border border-dashed border-gray-200">
+                        Sin plantillas configuradas. Al consumir esta API no se asignará ningún
                         examen automáticamente.
                       </div>
-                    )}
-                    {k.assignments?.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex items-start gap-2 p-2 bg-gray-50 rounded text-xs"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900">
-                            {a.exam?.name || `Examen #${a.exam_id}`}
+                    ) : (
+                      <div className="space-y-2">
+                        {k.assignments?.map((a) => (
+                          <div
+                            key={a.id}
+                            className="p-3 bg-white rounded-lg border border-gray-200"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                                  <FileText className="w-3.5 h-3.5 text-indigo-500" />
+                                  {a.exam?.name || `Examen #${a.exam_id}`}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                    <BookOpen className="w-3 h-3" />
+                                    {contentTypeLabel(a.exam_content_type)}
+                                  </span>
+                                  {a.time_limit_minutes != null && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-sky-50 text-sky-700 border border-sky-100">
+                                      <Clock className="w-3 h-3" />
+                                      {a.time_limit_minutes} min
+                                    </span>
+                                  )}
+                                  {a.passing_score != null && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                      <Target className="w-3 h-3" />
+                                      {a.passing_score}% aprob.
+                                    </span>
+                                  )}
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                    <RefreshCw className="w-3 h-3" />
+                                    {a.max_attempts ?? 1} intento{(a.max_attempts ?? 1) === 1 ? '' : 's'}
+                                  </span>
+                                  {a.validity_months && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-purple-50 text-purple-700 border border-purple-100">
+                                      <CalendarDays className="w-3 h-3" />
+                                      Vigencia {a.validity_months} {a.validity_months === 1 ? 'mes' : 'meses'}
+                                    </span>
+                                  )}
+                                  {a.require_security_pin && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                                      <ShieldCheck className="w-3 h-3" />
+                                      PIN requerido
+                                    </span>
+                                  )}
+                                  {(() => {
+                                    const ct = (a as any).certificate_type || 'eduit'
+                                    const map: Record<string, { label: string; cls: string }> = {
+                                      conocer: { label: 'Cert. CONOCER', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                                      eduit: { label: 'Cert. EDUIT', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                                      badge: { label: 'Insignia digital', cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+                                      none: { label: 'Sin certificado', cls: 'bg-gray-50 text-gray-600 border-gray-200' },
+                                    }
+                                    const m = map[ct] || map.eduit
+                                    return (
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border ${m.cls}`}>
+                                        {m.label}
+                                      </span>
+                                    )
+                                  })()}
+                                </div>
+                              </div>
+                              {isManager && !k.is_legacy && (
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <button
+                                    onClick={() => setEditingAssignment({ keyId: k.id, assignment: a })}
+                                    className="px-2.5 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-50 rounded inline-flex items-center gap-1"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteAssignment(k.id, a.id)}
+                                    className="px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 rounded inline-flex items-center gap-1"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-gray-500 mt-0.5 flex flex-wrap gap-x-3">
-                            <span>Tipo: {a.assignment_type}</span>
-                            <span>Contenido: {a.exam_content_type || 'questions_only'}</span>
-                            {a.passing_score != null && (
-                              <span>Aprobatoria: {a.passing_score}%</span>
-                            )}
-                            {a.time_limit_minutes != null && (
-                              <span>Tiempo: {a.time_limit_minutes} min</span>
-                            )}
-                            <span>Intentos: {a.max_attempts ?? 1}</span>
-                            {a.validity_months && (
-                              <span>Vigencia: {a.validity_months} meses</span>
-                            )}
-                          </div>
-                        </div>
-                        {isManager && !k.is_legacy && (
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => setEditingAssignment({ keyId: k.id, assignment: a })}
-                              className="px-2 py-1 text-xs text-blue-700 hover:bg-blue-50 rounded"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAssignment(k.id, a.id)}
-                              className="px-2 py-1 text-xs text-red-700 hover:bg-red-50 rounded"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        )}
+                        ))}
                       </div>
-                    ))}
+                    )}
                     {isManager && !k.is_legacy && (
                       <button
                         onClick={() => setAddingToKey(k.id)}
-                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        className="mt-3 text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 px-2.5 py-1.5 rounded hover:bg-indigo-50 transition"
                       >
-                        <Plus className="w-3 h-3" />
+                        <Plus className="w-3.5 h-3.5" />
                         Agregar examen a esta API key
                       </button>
                     )}

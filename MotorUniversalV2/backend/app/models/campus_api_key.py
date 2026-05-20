@@ -196,6 +196,17 @@ class CampusApiKeyAssignment(db.Model):
     require_security_pin = db.Column(db.Boolean, default=False, nullable=False)
     validity_months = db.Column(db.Integer, nullable=True)
 
+    # Tipo de certificado a emitir cuando el candidato apruebe este examen.
+    # Decide si el sistema debe forzar la validación de CURP del candidato:
+    #   - 'conocer' → obligatorio validar CURP (cert. oficial CONOCER).
+    #   - 'eduit'   → certificado EDUIT (no requiere CURP).
+    #   - 'badge'   → solo insignia digital (no requiere CURP).
+    #   - 'none'    → sin certificado (no requiere CURP).
+    # Default 'eduit' para que las plantillas existentes no fuercen CURP.
+    certificate_type = db.Column(
+        db.String(20), default='eduit', nullable=False, server_default='eduit'
+    )
+
     # Listas JSON. Sin FK porque son snapshots: si el material/usuario se
     # borra, simplemente se ignora al materializar.
     # - members_snapshot: lista fija de user_ids que SIEMPRE se agregan al
@@ -262,6 +273,7 @@ class CampusApiKeyAssignment(db.Model):
             'security_pin': self.security_pin,
             'require_security_pin': self.require_security_pin,
             'validity_months': self.validity_months,
+            'certificate_type': (self.certificate_type or 'eduit'),
             'members': self.members,
             'materials': self.materials,
             'created_at': self.created_at.isoformat() if self.created_at else None,

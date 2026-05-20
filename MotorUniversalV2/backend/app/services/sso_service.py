@@ -824,5 +824,26 @@ def apply_api_key_assignments(
 
         materialized.append(ge)
 
+    # ── Decisión CURP según tipo de certificado de las plantillas ──────
+    # Si NINGUNA plantilla emite certificado CONOCER, el candidato creado
+    # por SSO no se ve obligado a validar su CURP en sitio. Si al menos
+    # una es CONOCER, se restablece el flujo normal de CURP.
+    try:
+        has_conocer = any(
+            (getattr(p, 'certificate_type', 'eduit') or 'eduit').lower() == 'conocer'
+            for p in assignments
+        )
+        if has_conocer:
+            if getattr(user, 'skip_curp_validation', False):
+                user.skip_curp_validation = False
+        else:
+            # Solo aplicamos el skip a candidatos llegados vía SSO (external_id
+            # presente). No tocamos candidatos creados manualmente.
+            if user.external_id and not getattr(user, 'skip_curp_validation', False):
+                user.skip_curp_validation = True
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.warning(f'[SSO] error setting skip_curp_validation: {e}')
+
     db.session.commit()
     return materialized

@@ -84,6 +84,14 @@ class User(db.Model):
     curp_renapo_first_surname = db.Column(db.String(100), nullable=True)  # Primer apellido RENAPO
     curp_renapo_second_surname = db.Column(db.String(100), nullable=True)  # Segundo apellido RENAPO
     curp_renapo_giveup_at = db.Column(db.DateTime, nullable=True)  # Fin de reintentos automáticos diarios (30d o N rechazos)
+    # Si True, el candidato NO se ve obligado a validar su CURP en sitio.
+    # Lo usan los candidatos creados vía API key SSO cuyas plantillas NO
+    # emiten certificado CONOCER. Se recalcula en `apply_api_key_assignments`
+    # cada vez que el integrador genera un token: si alguna plantilla tiene
+    # `certificate_type='conocer'` el flag pasa a False.
+    skip_curp_validation = db.Column(
+        db.Boolean, default=False, nullable=False, server_default='0'
+    )
     phone = db.Column(db.String(20))
     
     # Institucional
@@ -217,6 +225,7 @@ class User(db.Model):
         requires_curp_validation = bool(
             self.role == 'candidato'
             and not self.curp_verified
+            and not bool(getattr(self, 'skip_curp_validation', False))
             and (self.curp or '').upper().strip() not in _GENERIC_FOREIGN
         )
         data = {

@@ -10,6 +10,7 @@ import { api } from './api'
 
 export type SsoAssignmentType = 'all' | 'selected'
 export type SsoExamContentType = 'mixed' | 'questions_only' | 'exercises_only'
+export type SsoCertificateType = 'conocer' | 'eduit' | 'badge' | 'none'
 
 export interface ApiKeyAssignmentPayload {
   exam_id: number
@@ -28,6 +29,7 @@ export interface ApiKeyAssignmentPayload {
   security_pin?: string | null
   require_security_pin?: boolean
   validity_months?: number | null
+  certificate_type?: SsoCertificateType
   member_ids?: string[]
   material_ids?: number[]
 }

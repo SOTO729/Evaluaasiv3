@@ -387,6 +387,24 @@ def create_app(config_name='development'):
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando multi-API-keys: {e}")
 
+        # Columna pending_billing en group_exam_members (cobro diferido SSO)
+        try:
+            from app.auto_migrate import check_and_add_pending_billing_column
+            check_and_add_pending_billing_column()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando pending_billing: {e}")
+
+        # certificate_type en plantillas SSO + skip_curp_validation en users
+        try:
+            from app.auto_migrate import (
+                check_and_add_certificate_type_column,
+                check_and_add_skip_curp_validation_column,
+            )
+            check_and_add_certificate_type_column()
+            check_and_add_skip_curp_validation_column()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando certificate_type/skip_curp: {e}")
+
     # Arrancar worker de cola de verificación CURP (background thread)
     try:
         from app.services.curp_queue_worker import start_curp_worker
