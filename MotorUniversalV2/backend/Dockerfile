@@ -57,6 +57,10 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.cache/ms-playwright
 # Exponer puerto
 EXPOSE 8000
 
+# Healthcheck (usado por docker/docker-compose; Azure Container Apps usa sus propios probes)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD python -c "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/api/health', timeout=5); sys.exit(0 if r.status==200 else 1)" || exit 1
+
 # Comando de inicio
 # --preload: carga la app UNA vez (migraciones no se repiten por worker)
 # --worker-tmp-dir /dev/shm: heartbeat en RAM (evita falsos timeouts en containers)

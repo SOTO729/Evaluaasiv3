@@ -240,9 +240,9 @@ src/
 
 ### Credenciales de Prueba
 
-- **Admin**: `admin` / `admin123`
-- **Editor**: `editor` / `editor123`
-- **Alumno**: `alumno` / `alumno123`
+> Las credenciales reales NO se guardan en el repo. Pídelas al administrador del proyecto o consulta el secret store del entorno.
+>
+> Cuentas estándar disponibles: `admin`, `editor`, `alumno` (con sus contraseñas correspondientes fuera del repositorio).
 
 ---
 
