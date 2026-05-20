@@ -156,7 +156,7 @@ export default function SolicitarCertificadosPage() {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Solicitud enviada</h2>
             <p className="text-sm text-gray-600 mb-6">
-              Tu solicitud de <strong>{units} certificado{units !== 1 ? 's' : ''}</strong> ha sido enviada al coordinador.
+              Tu solicitud de <strong>{units} voucher{units !== 1 ? 's' : ''}</strong> ha sido enviada al coordinador.
               Recibirás una notificación cuando sea procesada.
             </p>
             <div className="flex gap-3 justify-center">
@@ -164,7 +164,7 @@ export default function SolicitarCertificadosPage() {
                 to="/mi-plantel/vouchers"
                 className="px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium text-sm hover:bg-primary-700 transition-colors"
               >
-                Ver mis certificados
+                Ver mis vouchers
               </Link>
               <Link
                 to="/mi-plantel"
@@ -192,7 +192,7 @@ export default function SolicitarCertificadosPage() {
             <Ticket className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Solicitar Certificados</h1>
+            <h1 className="text-2xl font-bold">Solicitar Vouchers</h1>
             <p className="text-sm text-white/80">{campusInfo?.campus.name || 'Mi Plantel'}</p>
           </div>
         </div>
@@ -205,7 +205,7 @@ export default function SolicitarCertificadosPage() {
             <Award className="w-5 h-5 text-primary-600" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-primary-900">Certificados disponibles actualmente</p>
+            <p className="text-sm font-medium text-primary-900">Vouchers disponibles actualmente</p>
             <p className="text-xs text-primary-600">Se descontarán al asignar exámenes a candidatos</p>
           </div>
           <span className="text-2xl font-bold text-primary-700">{currentCerts}</span>
@@ -227,7 +227,7 @@ export default function SolicitarCertificadosPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
               <Hash className="w-4 h-4 text-primary-500" />
-              Cantidad de certificados <span className="text-red-500">*</span>
+              Cantidad de vouchers <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
               <button
@@ -253,7 +253,7 @@ export default function SolicitarCertificadosPage() {
                 +
               </button>
             </div>
-            <p className="text-xs text-gray-400 mt-2">certificado{units !== 1 ? 's' : ''} solicitado{units !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-400 mt-2">voucher{units !== 1 ? 's' : ''} solicitado{units !== 1 ? 's' : ''}</p>
           </div>
 
           {/* Grupo (opcional) */}
@@ -295,7 +295,7 @@ export default function SolicitarCertificadosPage() {
             value={justification}
             onChange={(e) => setJustification(e.target.value)}
             rows={4}
-            placeholder="Explica brevemente por qué necesitas estos certificados..."
+            placeholder="Explica brevemente por qué necesitas estos vouchers..."
             className="w-full py-2.5 px-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none"
             maxLength={1000}
           />

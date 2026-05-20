@@ -1420,7 +1420,8 @@ def preview_certificate_template(standard_id):
         # QR de ejemplo
         qr_cfg = config['qr_field']
         qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=3, border=1)
-        preview_base = 'https://app.evaluaasi.com' if os.environ.get('FLASK_ENV') == 'production' else 'https://dev.evaluaasi.com'
+        from app.utils.pdf_generator import get_base_url as _get_swa_base
+        preview_base = _get_swa_base()
         qr.add_data(f'{preview_base}/verify/EC-PREVIEW-123')
         qr.make(fit=True)
         

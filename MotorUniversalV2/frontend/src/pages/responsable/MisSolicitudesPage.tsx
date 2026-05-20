@@ -98,7 +98,7 @@ export default function MisSolicitudesPage() {
             <ClipboardList className="w-8 h-8 text-primary-600" />
             Mis Solicitudes
           </h1>
-          <p className="text-gray-600 mt-1">Historial de solicitudes de saldo enviadas</p>
+          <p className="text-gray-600 mt-1">Historial de solicitudes de vouchers enviadas</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -149,7 +149,7 @@ export default function MisSolicitudesPage() {
         <div className="bg-white rounded-2xl shadow-sm border p-12 text-center">
           <ClipboardList className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-600 mb-2">Sin solicitudes</h3>
-          <p className="text-gray-400 mb-6">No has enviado ninguna solicitud de saldo aún.</p>
+          <p className="text-gray-400 mb-6">No has enviado ninguna solicitud de vouchers aún.</p>
           <Link
             to="/solicitar-certificados"
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-xl font-medium text-sm hover:bg-primary-700"

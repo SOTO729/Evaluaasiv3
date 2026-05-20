@@ -21,7 +21,19 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
 
 
 def get_base_url():
-    """Retorna la URL base según el entorno (PROD vs DEV)."""
+    """Retorna la URL base p\u00fablica (SWA) seg\u00fan el entorno.
+
+    Orden de resoluci\u00f3n:
+    1. Variable expl\u00edcita SWA_BASE_URL (preferida, igual que badge.verify_url).
+    2. Heur\u00edstica sobre API_BASE_URL (detecta '-dev.' o 'api-dev' o 'dev.evaluaasi.com').
+    3. Fallback por FLASK_ENV (production -> app, otro -> dev).
+    """
+    explicit = (os.environ.get('SWA_BASE_URL') or '').strip()
+    if explicit:
+        return explicit.rstrip('/')
+    api_base = (os.environ.get('API_BASE_URL') or '').strip().lower()
+    if '-dev.' in api_base or 'api-dev' in api_base or 'dev.evaluaasi.com' in api_base:
+        return 'https://dev.evaluaasi.com'
     if os.getenv('FLASK_ENV') == 'production':
         return 'https://app.evaluaasi.com'
     return 'https://dev.evaluaasi.com'
