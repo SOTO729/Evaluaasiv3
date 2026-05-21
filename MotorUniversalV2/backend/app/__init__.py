@@ -263,8 +263,11 @@ def create_app(config_name='development'):
     # SOAP-compatible layer for VB6 legacy apps (same XML format as srvcsvls7-1)
     try:
         from app.routes.soap_compat import bp as soap_compat_bp
-        app.register_blueprint(soap_compat_bp)  # sin prefix — EXEs llaman a /AdminTools.asmx directo
-        print("[INIT] ✅ soap_compat registrado (capa SOAP para VB6)")
+        # Raíz: EXEs antiguos / pruebas directas (/AdminTools.asmx)
+        app.register_blueprint(soap_compat_bp)
+        # /soap/: nuevas builds VB6 recompiladas (cuyos .bas apuntan a /soap/AdminTools.asmx)
+        app.register_blueprint(soap_compat_bp, name='soap_compat_prefixed', url_prefix='/soap')
+        print("[INIT] ✅ soap_compat registrado en raíz y en /soap (capa SOAP para VB6)")
     except Exception as e:
         print(f"[INIT] ❌ Error importando soap_compat_bp: {e}")
         raise
