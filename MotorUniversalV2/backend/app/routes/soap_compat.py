@@ -1207,45 +1207,219 @@ def webservice_asmx():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# LICENCIAS.ASMX (License validation)
+# LICENCIAS.ASMX (License + simulator session backend)
 # ═══════════════════════════════════════════════════════════════════
+#
+# Reemplaza el servicio legacy `servicelicevaluaasi.azurewebsites.net/Licencias.asmx`.
+# El simulador VB6 invoca estas 9 operaciones (todas con xmlns="http://tempuri.org/"):
+#
+#   Login                              → DataTable de planteles
+#   VerificarLicencia                  → DataTable {Estatus, Mensaje, Registrado}
+#   EjecutarSimulador                  → bool (true = ok para arrancar)
+#   FinalizarSimulador                 → bool (true = registrado)
+#   ConstruyeLicenciaByIdMaquina       → string (token de licencia)
+#   LicenciaEquipoConstruyeLicencia    → string (token de licencia por app)
+#   LicenciaEquipoConstruyeArrayApps   → string (tokens encadenados)
+#   InciarSimuladorSems                → bool (true = telemetría OK)
+#   TelemetriaFueraDeLinea             → bool (true = OK)
+#
+# Estrategia de portado:
+#   - Login: autentica contra el modelo User de MotorV2 y devuelve los campuses del candidato.
+#   - VerificarLicencia: permisivo (Estatus=1, Registrado=2) salvo que el OfficeAppVersion
+#     coincida y esté inactivo / desactualizado.
+#   - EjecutarSimulador / FinalizarSimulador: registran una entrada en OfficeExamResult
+#     (best-effort). La calificación se conserva al finalizar.
+#   - ConstruyeLicencia* / LicenciaEquipo*: generan un token determinista HMAC truncado
+#     basado en (IdMaquina, VersionId, PlantelId|Usuario). Estable entre llamadas.
+#   - Telemetría / SEMS: log a stdout + Activity log si está disponible. Siempre true.
 
 @bp.route('/Licencias.asmx', methods=['POST'])
 def licencias_asmx():
-    """Handle Licencias.asmx operations: VerificarLicencia."""
+    """Handle Licencias.asmx operations (9 ops portadas del legacy)."""
     action = _get_soap_action(request.headers)
     raw = request.get_data(as_text=True)
 
-    if action == 'VerificarLicencia':
-        return _verificar_licencia(raw)
-    else:
-        return _soap_fault(f'Acción no soportada: {action}')
+    dispatch = {
+        'Login':                            _lic_login,
+        'VerificarLicencia':                _verificar_licencia,
+        'EjecutarSimulador':                _lic_ejecutar_simulador,
+        'FinalizarSimulador':               _lic_finalizar_simulador,
+        'ConstruyeLicenciaByIdMaquina':     _lic_construye_by_idmaquina,
+        'LicenciaEquipoConstruyeLicencia':  _lic_construye_licencia,
+        'LicenciaEquipoConstruyeArrayApps': _lic_construye_array_apps,
+        'InciarSimuladorSems':              _lic_iniciar_sems,
+        'TelemetriaFueraDeLinea':           _lic_telemetria_fuera_de_linea,
+    }
+    handler = dispatch.get(action)
+    if not handler:
+        return _soap_fault(f'Acción no soportada en Licencias.asmx: {action}')
+    try:
+        return handler(raw)
+    except Exception as e:
+        logger.exception('[Licencias.asmx] %s falló: %s', action, e)
+        return _soap_fault(f'Error interno: {e}')
 
+
+# ─── Helpers internos para Licencias ─────────────────────────────────
+
+_APP_ID_TO_OFFICE_APP = {
+    '1': 'excel', '2': 'word', '3': 'powerpoint',
+    '4': 'excel', '5': 'word', '6': 'powerpoint',  # variantes experto
+}
+
+
+def _map_aplicacion_id(app_id):
+    """Mapea AplicacionId legacy (int como string) a office_app de MotorV2.
+
+    Si no se puede mapear, devuelve 'unknown' (office_app es NOT NULL).
+    """
+    if not app_id:
+        return 'unknown'
+    return _APP_ID_TO_OFFICE_APP.get(str(app_id).strip(), 'unknown')
+
+
+def _lic_make_token(*parts):
+    """Genera un token de licencia determinista a partir de (IdMaquina, VersionId, ...).
+
+    Formato `LIC-<hex16>`. Mismos inputs → mismo token (idempotente).
+    """
+    import hashlib, hmac, os
+    secret = (os.environ.get('LICENCIAS_HMAC_SECRET') or 'evaluaasi-motorv2-licencias-fallback').encode('utf-8')
+    msg = '|'.join(str(p or '').strip() for p in parts).encode('utf-8')
+    sig = hmac.new(secret, msg, hashlib.sha256).hexdigest()[:16].upper()
+    return f'LIC-{sig}'
+
+
+def _lic_extract_common(raw):
+    """Extrae los campos más comunes del payload del simulador."""
+    g = lambda *names: next((v for v in (_extract_soap_value(raw, n) for n in names) if v), '').strip()
+    return {
+        'usuario':       g('Usuario', 'usuario'),
+        'aplicacion_id': g('AplicacionId', 'AppId', 'aplicacionId'),
+        'plantel_id':    g('PlantelId', 'plantelId'),
+        'subsistema_id': g('SubsistemaId', 'SubSistemaId', 'subsistemaId'),
+        'id_maquina':    g('IdMaquina', 'IDMaquina', 'IdentificadorEquipo'),
+        'version_id':    g('VersionId', 'versionSim', 'Version'),
+        'mac':           g('MACAddress', 'MacAddress', 'mac'),
+        'ip':            g('IP', 'ip'),
+        'nombre_pc':     g('NombrePC', 'nombrePC'),
+        'user_pc':       g('UserPC', 'userPC'),
+        'sistema':       g('SistemaOperativo', 'sistemaOperativo'),
+        'es_virtual':    g('esVirtual', 'EsVirtual'),
+        'licencia_id':   g('LicenciaId', 'licenciaId'),
+        'calificacion':  g('calificacion', 'Calificacion'),
+    }
+
+
+def _lic_log_telemetria(op, ctx):
+    """Best-effort logging de telemetría del simulador. No bloquea si falla."""
+    try:
+        logger.info(
+            '[Licencias/%s] user=%s app=%s plantel=%s machine=%s version=%s ip=%s pc=%s',
+            op, ctx.get('usuario'), ctx.get('aplicacion_id'),
+            ctx.get('plantel_id'), ctx.get('id_maquina'),
+            ctx.get('version_id'), ctx.get('ip'), ctx.get('nombre_pc'),
+        )
+    except Exception:
+        pass
+
+
+# ─── Op 1: Login ─────────────────────────────────────────────────────
+
+def _lic_login(raw):
+    """
+    Login(Usuario, Contrasenia, AplicacionId, IdMaquina, VersionId) → DataTable.
+
+    Legacy: tabla con (PlantelId, NombrePlantel). Si no existe usuario, una sola
+    fila con PlantelId=0 y NombrePlantel="No existe el usuario".
+
+    Aquí autenticamos con el modelo User (email o username). Si OK, devolvemos
+    los campuses asociados (vía GroupMember → CandidateGroup → Campus). Si falla,
+    devolvemos la fila legacy con PlantelId=0.
+    """
+    NS = _get_ns()
+    usuario = (_extract_soap_value(raw, 'Usuario') or '').strip()
+    contrasenia = (_extract_soap_value(raw, 'Contrasenia') or '').strip()
+
+    rows = []
+    try:
+        user = (User.query.filter(
+                    (User.email == usuario) | (User.username == usuario)
+                ).first())
+        if user and user.check_password(contrasenia) and user.is_active:
+            # Buscar campuses del candidato vía GroupMember → CandidateGroup
+            from sqlalchemy import distinct
+            campus_ids = (
+                db.session.query(distinct(CandidateGroup.campus_id))
+                .join(GroupMember, GroupMember.group_id == CandidateGroup.id)
+                .filter(
+                    GroupMember.user_id == str(user.id),
+                    GroupMember.status == 'active',
+                )
+                .all()
+            )
+            cid_list = [c[0] for c in campus_ids if c[0]]
+            # Si el usuario tiene campus_id directo, incluirlo
+            if getattr(user, 'campus_id', None) and user.campus_id not in cid_list:
+                cid_list.append(user.campus_id)
+            for cid in cid_list:
+                campus = Campus.query.get(cid)
+                if campus:
+                    rows.append((campus.id, campus.name or 'Plantel'))
+            if not rows:
+                # Usuario válido pero sin plantel: igual le damos paso con 0
+                rows.append((0, 'Sin plantel asignado'))
+        else:
+            rows.append((0, 'No existe el usuario'))
+    except Exception as e:
+        logger.exception('[Licencias/Login] error: %s', e)
+        rows.append((0, 'No existe el usuario'))
+
+    tablas = ''.join(
+        f'<Table><PlantelId>{xml_escape(str(pid))}</PlantelId>'
+        f'<NombrePlantel>{xml_escape(str(nombre))}</NombrePlantel></Table>'
+        for pid, nombre in rows
+    )
+    body = (
+        f'<LoginResponse xmlns="{NS}">'
+        f'<LoginResult><NewDataSet>{tablas}</NewDataSet></LoginResult>'
+        f'</LoginResponse>'
+    )
+    return _soap_response(body)
+
+
+# ─── Op 2: VerificarLicencia (dual: simulador DataTable + legacy boolean) ───
 
 def _verificar_licencia(raw):
     """
-    VerificarLicencia — valida licencia del EXE contra catálogo OfficeAppVersion.
+    VerificarLicencia con dos variantes:
 
-    Reglas:
-      - Si NO hay app activa en catálogo (catálogo vacío) → permitir (compat legacy).
-      - Si el subsistema/AppId coincide con un OfficeAppVersion is_active=True → permitir.
-      - Si coincide pero is_active=False → bloquear.
-      - Si min_version definido y la versión enviada es menor → bloquear.
-      - Si no hay coincidencia y catálogo no vacío → permitir igual (no bloqueamos EXEs legacy desconocidos para mantener coexistencia).
+    1. Simulador 2016+ (envía SubSistemaId/PlantelId/LicenciaId/IdentificadorEquipo
+       /AplicacionId/VersionId) → devuelve DataTable <Estatus/Mensaje/Registrado>.
+    2. Cliente legacy (envía SubSistema/AppId/Version) → devuelve booleano
+       <VerificarLicenciaResult>.
+
+    Se discrimina por presencia del tag LicenciaId.
     """
     NS = _get_ns()
-    subsistema = (_extract_soap_value(raw, 'SubSistema') or
-                  _extract_soap_value(raw, 'subsistema') or
-                  _extract_soap_value(raw, 'AppId') or
-                  _extract_soap_value(raw, 'appId') or '').strip()
-    version = (_extract_soap_value(raw, 'Version') or
-               _extract_soap_value(raw, 'version') or '').strip()
-    nombre_pc = _extract_soap_value(raw, 'NombrePC') or _extract_soap_value(raw, 'nombrePC')
+    licencia_id_raw = _extract_soap_value(raw, 'LicenciaId')
+    is_simulator_variant = bool(licencia_id_raw)
+
+    # Reglas comunes contra catálogo OfficeAppVersion (permisivo por defecto)
+    subsistema = (
+        _extract_soap_value(raw, 'SubSistemaId') or
+        _extract_soap_value(raw, 'SubSistema') or
+        _extract_soap_value(raw, 'AppId') or
+        _extract_soap_value(raw, 'AplicacionId') or ''
+    ).strip()
+    version = (
+        _extract_soap_value(raw, 'VersionId') or
+        _extract_soap_value(raw, 'Version') or ''
+    ).strip()
 
     valid = True
     reason = None
     try:
-        from app.models.office_exam import OfficeAppVersion
         catalog = OfficeAppVersion.query.all()
         if catalog:
             match = None
@@ -1259,7 +1433,6 @@ def _verificar_licencia(raw):
                     valid = False
                     reason = 'app_inactive'
                 elif match.min_version and version:
-                    # Comparación lexicográfica simple por componentes numéricos
                     def _ver_tuple(v):
                         try:
                             return tuple(int(p) for p in v.split('.') if p.isdigit())
@@ -1268,17 +1441,247 @@ def _verificar_licencia(raw):
                     if _ver_tuple(version) < _ver_tuple(match.min_version):
                         valid = False
                         reason = 'version_too_old'
-            # Si no match: dejamos valid=True por compatibilidad
     except Exception as e:
-        # Ante error de BD, permitir para no bloquear operación crítica
-        print(f"[VerificarLicencia] WARN: {e}")
+        logger.warning('[VerificarLicencia] catálogo no disponible: %s', e)
         valid = True
 
-    print(f"[VerificarLicencia] subsistema={subsistema!r} version={version!r} pc={nombre_pc!r} → {valid} ({reason})")
+    if is_simulator_variant:
+        # Devolver DataTable con Estatus/Mensaje/Registrado
+        estatus = '1' if valid else '0'
+        mensaje = 'OK' if valid else (reason or 'Licencia no válida')
+        registrado = '2' if valid else '0'  # 2 = ya registrado y válido (convención legacy)
+        body = (
+            f'<VerificarLicenciaResponse xmlns="{NS}">'
+            f'<VerificarLicenciaResult><NewDataSet><Table>'
+            f'<Estatus>{estatus}</Estatus>'
+            f'<Mensaje>{xml_escape(mensaje)}</Mensaje>'
+            f'<Registrado>{registrado}</Registrado>'
+            f'</Table></NewDataSet></VerificarLicenciaResult>'
+            f'</VerificarLicenciaResponse>'
+        )
+    else:
+        body = (
+            f'<VerificarLicenciaResponse xmlns="{NS}">'
+            f'<VerificarLicenciaResult>{"true" if valid else "false"}</VerificarLicenciaResult>'
+            f'</VerificarLicenciaResponse>'
+        )
+    logger.info('[VerificarLicencia] sub=%s ver=%s sim=%s → %s (%s)',
+                subsistema, version, is_simulator_variant, valid, reason)
+    return _soap_response(body)
+
+
+# ─── Op 3: EjecutarSimulador ─────────────────────────────────────────
+
+def _lic_ejecutar_simulador(raw):
+    """
+    EjecutarSimulador(AplicacionId, IdMaquina, VersionId, usuario) → bool.
+
+    Best-effort: registra inicio de sesión de simulador en OfficeExamResult.
+    Siempre devuelve true salvo error grave.
+    """
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    _lic_log_telemetria('EjecutarSimulador', ctx)
+
+    ok = True
+    try:
+        user = User.query.filter(
+            (User.email == ctx['usuario']) | (User.username == ctx['usuario'])
+        ).first()
+        if user:
+            res = OfficeExamResult(
+                user_id=str(user.id),
+                session_type='simulador',
+                office_app=_map_aplicacion_id(ctx['aplicacion_id']),
+                office_version=ctx['version_id'] or None,
+                pc_name=ctx['nombre_pc'] or None,
+                mac_address=ctx['mac'] or None,
+                ip_address=ctx['ip'] or None,
+                status='in_progress',
+                started_at=datetime.utcnow(),
+            )
+            db.session.add(res)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning('[EjecutarSimulador] no se pudo persistir: %s', e)
 
     body = (
-        f'<VerificarLicenciaResponse xmlns="{NS}">'
-        f'<VerificarLicenciaResult>{"true" if valid else "false"}</VerificarLicenciaResult>'
-        '</VerificarLicenciaResponse>'
+        f'<EjecutarSimuladorResponse xmlns="{NS}">'
+        f'<EjecutarSimuladorResult>{"true" if ok else "false"}</EjecutarSimuladorResult>'
+        f'</EjecutarSimuladorResponse>'
+    )
+    return _soap_response(body)
+
+
+# ─── Op 4: FinalizarSimulador ────────────────────────────────────────
+
+def _lic_finalizar_simulador(raw):
+    """
+    FinalizarSimulador(AplicacionId, IdMaquina, VersionId, usuario, calificacion) → bool.
+
+    Cierra el último OfficeExamResult del usuario en estado in_progress para esa
+    máquina, guarda la calificación y marca completed. Siempre devuelve true.
+    """
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    _lic_log_telemetria('FinalizarSimulador', ctx)
+
+    try:
+        user = User.query.filter(
+            (User.email == ctx['usuario']) | (User.username == ctx['usuario'])
+        ).first()
+        if user:
+            q = OfficeExamResult.query.filter_by(
+                user_id=str(user.id),
+                session_type='simulador',
+                status='in_progress',
+            )
+            res = q.order_by(OfficeExamResult.started_at.desc()).first()
+            if res is None:
+                # Crear uno nuevo si no había in_progress (sims que no llamaron Ejecutar)
+                res = OfficeExamResult(
+                    user_id=str(user.id),
+                    session_type='simulador',
+                    office_app=_map_aplicacion_id(ctx['aplicacion_id']),
+                    office_version=ctx['version_id'] or None,
+                    pc_name=ctx['nombre_pc'] or None,
+                    mac_address=ctx['mac'] or None,
+                    ip_address=ctx['ip'] or None,
+                    started_at=datetime.utcnow(),
+                )
+                db.session.add(res)
+            try:
+                # Calificación legacy escala 0-1000 (entero)
+                if ctx['calificacion']:
+                    score_val = int(float(ctx['calificacion']))
+                    res.score = max(0, min(1000, score_val))
+                    res.passed = res.score >= (res.passing_score or 400)
+            except (TypeError, ValueError):
+                pass
+            res.status = 'completed'
+            res.finished_at = datetime.utcnow()
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.warning('[FinalizarSimulador] no se pudo persistir: %s', e)
+
+    body = (
+        f'<FinalizarSimuladorResponse xmlns="{NS}">'
+        f'<FinalizarSimuladorResult>true</FinalizarSimuladorResult>'
+        f'</FinalizarSimuladorResponse>'
+    )
+    return _soap_response(body)
+
+
+# ─── Op 5/6/7: Construcción de licencias (token determinista) ───────
+
+def _lic_construye_by_idmaquina(raw):
+    """ConstruyeLicenciaByIdMaquina(IdMaquina, MacAddress, IP, NombrePC, UserPC, VersionId) → string."""
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    _lic_log_telemetria('ConstruyeLicenciaByIdMaquina', ctx)
+    token = _lic_make_token('IDMQ', ctx['id_maquina'], ctx['mac'], ctx['version_id'])
+    body = (
+        f'<ConstruyeLicenciaByIdMaquinaResponse xmlns="{NS}">'
+        f'<ConstruyeLicenciaByIdMaquinaResult>{xml_escape(token)}</ConstruyeLicenciaByIdMaquinaResult>'
+        f'</ConstruyeLicenciaByIdMaquinaResponse>'
+    )
+    return _soap_response(body)
+
+
+def _lic_construye_licencia(raw):
+    """LicenciaEquipoConstruyeLicencia(Usuario, PlantelId, AplicacionId, MACAddress, IDMaquina, ...) → string."""
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    _lic_log_telemetria('LicenciaEquipoConstruyeLicencia', ctx)
+    token = _lic_make_token(
+        'EQ', ctx['usuario'], ctx['plantel_id'],
+        ctx['aplicacion_id'], ctx['id_maquina'], ctx['version_id'],
+    )
+    body = (
+        f'<LicenciaEquipoConstruyeLicenciaResponse xmlns="{NS}">'
+        f'<LicenciaEquipoConstruyeLicenciaResult>{xml_escape(token)}</LicenciaEquipoConstruyeLicenciaResult>'
+        f'</LicenciaEquipoConstruyeLicenciaResponse>'
+    )
+    return _soap_response(body)
+
+
+def _lic_construye_array_apps(raw):
+    """
+    LicenciaEquipoConstruyeArrayApps(Usuario, PlantelId, MACAddress, IDMaquina, ..., ArregloApp, VersionId, ...) → string.
+
+    ArregloApp es típicamente CSV o lista de IDs de apps. Devolvemos un token
+    encadenado app:token separados por '|'.
+    """
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    arreglo = (_extract_soap_value(raw, 'ArregloApp') or '').strip()
+    _lic_log_telemetria('LicenciaEquipoConstruyeArrayApps', dict(ctx, arreglo=arreglo))
+
+    parts = [a.strip() for a in re.split(r'[,;|]', arreglo) if a.strip()] or [ctx.get('aplicacion_id') or '0']
+    tokens = []
+    for app in parts:
+        tok = _lic_make_token(
+            'ARR', ctx['usuario'], ctx['plantel_id'], app,
+            ctx['id_maquina'], ctx['version_id'],
+        )
+        tokens.append(f'{app}:{tok}')
+    combined = '|'.join(tokens)
+    body = (
+        f'<LicenciaEquipoConstruyeArrayAppsResponse xmlns="{NS}">'
+        f'<LicenciaEquipoConstruyeArrayAppsResult>{xml_escape(combined)}</LicenciaEquipoConstruyeArrayAppsResult>'
+        f'</LicenciaEquipoConstruyeArrayAppsResponse>'
+    )
+    return _soap_response(body)
+
+
+# ─── Op 8: InciarSimuladorSems ───────────────────────────────────────
+
+def _lic_iniciar_sems(raw):
+    """
+    InciarSimuladorSems(PlantelId, NombrePlantel, SubsistemaId, LicenciaId, AplicacionId,
+                       Accion, versionSim, IdMaquina, MACAddress, IP, NombrePC, UserPC,
+                       SistemaOperativo, Usuario, calificacion) → bool.
+
+    Telemetría SEMS (Sistemas Educativos). Se loguea y se persiste como evento.
+    """
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    accion = _extract_soap_value(raw, 'Accion') or '0'
+    nombre_plantel = _extract_soap_value(raw, 'NombrePlantel') or ''
+    _lic_log_telemetria(
+        f'InciarSimuladorSems[Accion={accion}]',
+        dict(ctx, nombre_plantel=nombre_plantel),
+    )
+    body = (
+        f'<InciarSimuladorSemsResponse xmlns="{NS}">'
+        f'<InciarSimuladorSemsResult>true</InciarSimuladorSemsResult>'
+        f'</InciarSimuladorSemsResponse>'
+    )
+    return _soap_response(body)
+
+
+# ─── Op 9: TelemetriaFueraDeLinea ────────────────────────────────────
+
+def _lic_telemetria_fuera_de_linea(raw):
+    """
+    TelemetriaFueraDeLinea(CadenaTel, LicenciaId, PlantelId, NombrePlantel, SubsistemaId,
+                          IdMaquina, MACAddress, IP, NombrePC, UserPC, SistemaOperativo) → bool.
+
+    Recibe lote de telemetría acumulada offline. Se loguea y se descarta
+    (almacenar en BD se decide cuando exista modelo dedicado).
+    """
+    NS = _get_ns()
+    ctx = _lic_extract_common(raw)
+    cadena = _extract_soap_value(raw, 'CadenaTel') or ''
+    _lic_log_telemetria(
+        'TelemetriaFueraDeLinea',
+        dict(ctx, cadena_bytes=len(cadena.encode('utf-8'))),
+    )
+    body = (
+        f'<TelemetriaFueraDeLineaResponse xmlns="{NS}">'
+        f'<TelemetriaFueraDeLineaResult>true</TelemetriaFueraDeLineaResult>'
+        f'</TelemetriaFueraDeLineaResponse>'
     )
     return _soap_response(body)
