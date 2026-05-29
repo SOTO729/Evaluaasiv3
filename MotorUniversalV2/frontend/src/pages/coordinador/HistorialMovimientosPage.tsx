@@ -366,6 +366,15 @@ export default function HistorialMovimientosPage() {
                           {transaction.transaction_type === 'credit' ? '+' : '-'}
                           {formatCurrency(transaction.amount)}
                         </p>
+                        {(transaction.scholarship_amount ?? 0) > 0 && (
+                          <p className="text-xs text-purple-600 font-medium flex items-center justify-end gap-1">
+                            <Gift className="w-3 h-3" />
+                            Beca: {formatCurrency(transaction.scholarship_amount ?? 0)}
+                            {((transaction.paid_amount ?? (transaction.amount - (transaction.scholarship_amount ?? 0))) > 0) && (
+                              <span className="text-gray-500"> · Pagado: {formatCurrency(transaction.paid_amount ?? (transaction.amount - (transaction.scholarship_amount ?? 0)))}</span>
+                            )}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-500">
                           Saldo: {formatCurrency(transaction.balance_after)}
                         </p>

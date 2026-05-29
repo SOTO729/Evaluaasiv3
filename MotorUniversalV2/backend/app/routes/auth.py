@@ -63,14 +63,11 @@ def register():
           type: object
           required:
             - email
-            - username
             - password
             - name
             - first_surname
           properties:
             email:
-              type: string
-            username:
               type: string
             password:
               type: string
@@ -82,6 +79,13 @@ def register():
               type: string
             gender:
               type: string
+              description: "M, F u O"
+            curp:
+              type: string
+              description: "18 caracteres alfanuméricos (opcional)"
+            date_of_birth:
+              type: string
+              description: "YYYY-MM-DD (opcional)"
             phone:
               type: string
     responses:
@@ -90,46 +94,85 @@ def register():
       400:
         description: Datos inválidos
     """
-    data = request.get_json()
-    
-    # Validaciones
-    required_fields = ['email', 'username', 'password', 'name', 'first_surname']
-    for field in required_fields:
-        if not data.get(field):
-            return jsonify({'error': f'{field} es requerido'}), 400
-    
-    # B3: el username debe ser exactamente 10 caracteres alfanuméricos (regla de
-    # negocio para mantener consistencia con los usernames autogenerados desde
-    # /user-management y bulk_create). Aceptamos cualquier caja pero la guardamos
-    # en mayúsculas.
-    _u = (data.get('username') or '').strip()
-    if len(_u) != 10 or not _u.isalnum():
-        return jsonify({'error': 'El username debe tener exactamente 10 caracteres alfanuméricos'}), 400
-    data['username'] = _u.upper()
-    
-    # AH1: endpoint público - NO se acepta role/campus_id/subsystem_id del cliente.
-    # El registro público solo crea candidatos. Otros roles se crean vía /api/user-management.
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'error': 'El email ya está registrado'}), 400
-    
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'error': 'El username ya está en uso'}), 400
-    
-    # B2: validar fortaleza mínima de contraseña (consistente con change-password y reset-password)
+    data = request.get_json() or {}
+
+    # Normalización temprana
+    email_norm = (data.get('email') or '').strip().lower()
+    name = (data.get('name') or '').strip()
+    first_surname = (data.get('first_surname') or '').strip()
+    second_surname = (data.get('second_surname') or '').strip() or None
+    phone = (data.get('phone') or '').strip() or None
+    gender_raw = (data.get('gender') or '').strip().upper() or None
+    curp_raw = (data.get('curp') or '').strip().upper() or None
+    dob_raw = (data.get('date_of_birth') or '').strip() or None
+
+    # Validaciones de campos obligatorios (registro público sólo crea candidatos)
+    if not email_norm:
+        return jsonify({'error': 'email es requerido'}), 400
+    if '@' not in email_norm or '.' not in email_norm.split('@')[-1]:
+        return jsonify({'error': 'Email inválido'}), 400
+    if not data.get('password'):
+        return jsonify({'error': 'password es requerido'}), 400
+    if not name:
+        return jsonify({'error': 'name es requerido'}), 400
+    if not first_surname:
+        return jsonify({'error': 'first_surname es requerido'}), 400
+
+    # B2: fortaleza mínima de contraseña
     if len(data['password']) < 8:
         return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
-    
+
+    # Género: si viene, debe ser M / F / O
+    if gender_raw and gender_raw not in ('M', 'F', 'O'):
+        return jsonify({'error': 'Género inválido (M, F u O)'}), 400
+
+    # CURP: si viene, debe tener exactamente 18 caracteres alfanuméricos
+    if curp_raw:
+        if len(curp_raw) != 18 or not curp_raw.isalnum():
+            return jsonify({'error': 'CURP inválida (18 caracteres alfanuméricos)'}), 400
+
+    # Fecha de nacimiento (opcional): formato YYYY-MM-DD
+    date_of_birth = None
+    if dob_raw:
+        try:
+            date_of_birth = datetime.strptime(dob_raw, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Fecha de nacimiento inválida (formato YYYY-MM-DD)'}), 400
+        # Sanity check: edad >= 13 y <= 120 años
+        today = datetime.utcnow().date()
+        age_years = (today - date_of_birth).days // 365
+        if age_years < 13 or age_years > 120:
+            return jsonify({'error': 'Fecha de nacimiento fuera de rango (13–120 años)'}), 400
+
+    # AH1: endpoint público - NO se acepta role/campus_id/subsystem_id del cliente.
+    if User.query.filter(func.lower(User.email) == email_norm).first():
+        return jsonify({'error': 'El email ya está registrado'}), 400
+
+    # CURP duplicada (constraint a nivel aplicación porque la columna no es UNIQUE)
+    if curp_raw and User.query.filter_by(curp=curp_raw).first():
+        return jsonify({'error': 'La CURP ya está registrada'}), 400
+
+    # Username: regla B3 → 10 alfanuméricos. Para registro público SIEMPRE se
+    # autogenera; si el cliente envía uno se ignora (no se expone al usuario).
+    try:
+        from app.routes.direct import _generate_unique_username
+        generated_username = _generate_unique_username()
+    except Exception:
+        logger.exception('auth.register: error generando username único')
+        return jsonify({'error': 'No se pudo generar el username'}), 500
+
     # Crear usuario - forzar role='candidato', ignorar campos privilegiados del request
     user = User(
-        email=data['email'],
-        username=data['username'],
-        name=data['name'],
-        first_surname=data['first_surname'],
-        second_surname=data.get('second_surname'),
-        gender=data.get('gender'),
-        phone=data.get('phone'),
-        curp=data.get('curp'),
-        campus_id=0,
+        email=email_norm,
+        username=generated_username,
+        name=name,
+        first_surname=first_surname,
+        second_surname=second_surname,
+        gender=gender_raw,
+        phone=phone,
+        curp=curp_raw,
+        date_of_birth=date_of_birth,
+        campus_id=None,   # se asigna al campus Directo en el bloque post-commit
         subsystem_id=0,
         role='candidato'  # AH1: hardcoded - no aceptar role del cliente
     )
@@ -138,6 +181,25 @@ def register():
     
     db.session.add(user)
     db.session.commit()
+    
+    # Modelo Directo (B2C): todo usuario registrado por la página pública pasa
+    # a ser candidato del "Group Directo" (catálogo público). Falla silenciosa
+    # si el setup B2C aún no existe — no debe bloquear el registro.
+    try:
+        from app.routes.direct import _get_direct_group, _ensure_group_membership
+        partner, campus, group = _get_direct_group()
+        if group and campus:
+            # Asignar campus_id si está en 0 (default público) para que el
+            # usuario quede "colgado" del campus Directo, igual que un checkout.
+            if not getattr(user, 'campus_id', None):
+                user.campus_id = campus.id
+            if partner and not getattr(user, 'coordinator_id', None):
+                user.coordinator_id = partner.coordinator_id
+            _ensure_group_membership(user, group)
+            db.session.commit()
+    except Exception:
+        logger.exception("auth.register: error asignando usuario al Group Directo")
+        db.session.rollback()
     
     # Enviar email de verificación de correo
     try:
@@ -150,6 +212,28 @@ def register():
         'message': 'Usuario creado exitosamente. Revisa tu correo para verificar tu cuenta.',
         'user': user.to_dict()
     }), 201
+
+
+@bp.route('/check-email', methods=['POST'])
+def check_email():
+    """
+    Verifica si un email ya está registrado (usado por el formulario de registro
+    en el paso 1 para dar feedback temprano antes de continuar).
+
+    Body: { "email": "user@example.com" }
+    Respuesta: { "available": bool, "email": "..." } (200) o
+               { "error": "Email inválido" } (400).
+    """
+    data = request.get_json(silent=True) or {}
+    email_norm = (data.get('email') or '').strip().lower()
+
+    if not email_norm:
+        return jsonify({'error': 'email es requerido'}), 400
+    if '@' not in email_norm or '.' not in email_norm.split('@')[-1]:
+        return jsonify({'error': 'Email inválido'}), 400
+
+    exists = User.query.filter(func.lower(User.email) == email_norm).first() is not None
+    return jsonify({'available': not exists, 'email': email_norm}), 200
 
 
 @bp.route('/verify-email', methods=['GET'])

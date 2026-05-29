@@ -538,6 +538,18 @@ const Layout = ({ children }: LayoutProps) => {
                     Sesiones
                   </Link>
                 )}
+                {user?.role === 'candidato' && user?.is_system_direct === true && (
+                  <Link
+                    to="/mi/catalogo"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.startsWith('/mi/catalogo')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Catálogo de certificaciones
+                  </Link>
+                )}
                 {user?.role === 'candidato' && (
                   <Link 
                     to="/downloads" 
@@ -779,6 +791,18 @@ const Layout = ({ children }: LayoutProps) => {
                     }`}
                   >
                     Auditoría Chat
+                  </Link>
+                )}
+                {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
+                  <Link
+                    to="/admin/modelo-directo"
+                    className={`whitespace-nowrap flex-shrink-0 fluid-px-3 fluid-py-1.5 fluid-rounded-lg fluid-text-sm transition-all ${
+                      location.pathname.includes('/modelo-directo')
+                        ? 'text-primary-600 font-semibold bg-primary-50'
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    Modelo Directo
                   </Link>
                 )}
                 {['gerente', 'admin', 'developer'].includes(user?.role ?? '') && (
@@ -1232,6 +1256,24 @@ const Layout = ({ children }: LayoutProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Descargas
+                  </div>
+                </Link>
+              )}
+              {user?.role === 'candidato' && user?.is_system_direct === true && (
+                <Link
+                  to="/mi/catalogo"
+                  className={`block fluid-px-3 fluid-py-3 fluid-rounded-lg transition-all fluid-text-sm ${
+                    location.pathname.startsWith('/mi/catalogo')
+                      ? 'bg-primary-50 text-primary-600 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg className="fluid-icon fluid-mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Catálogo de certificaciones
                   </div>
                 </Link>
               )}

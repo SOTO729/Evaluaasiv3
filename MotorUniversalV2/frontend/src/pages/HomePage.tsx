@@ -8,6 +8,7 @@ import EditorDashboard from './EditorDashboard'
 import CoordinatorDashboard from './coordinador/CoordinatorDashboard'
 import ResponsableDashboard from './responsable/ResponsableDashboard'
 import ResponsablePartnerDashboard from './responsable_partner/ResponsablePartnerDashboard'
+import DirectCandidateDashboard from './DirectCandidateDashboard'
 import CertificationPathCard, { Certification } from '../components/candidate/CertificationPathCard'
 import {
   BookOpen,
@@ -229,6 +230,11 @@ const HomePage = () => {
   if (isCoordinator) return <CoordinatorDashboard />
   if (isResponsable) return <ResponsableDashboard />
   if (isResponsablePartner) return <ResponsablePartnerDashboard />
+
+  // Candidatos del Modelo Directo (B2C): pantalla de bienvenida + catálogo
+  if (user?.role === 'candidato' && user?.is_system_direct === true) {
+    return <DirectCandidateDashboard />
+  }
 
   if (loading) {
     return (

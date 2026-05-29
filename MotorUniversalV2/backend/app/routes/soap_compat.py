@@ -227,9 +227,116 @@ def _esc(val):
     return xml_escape(str(val))
 
 
+def _dataset_response(action_name, table_name, columns, rows, ns=None):
+    """
+    Envuelve la respuesta como ADO.NET DataSet (XSD inline + diffgram), formato
+    que produce ASP.NET cuando un WebMethod retorna DataSet/DataTable.
+
+    Args:
+        action_name : nombre de la operacion SOAP (genera <{action}Response> y <{action}Result>)
+        table_name  : nombre de la DataTable (legacy usa 'Regreso' en casi todas)
+        columns     : list[ (col_name, xs_type) ]   ej. [('Actualizar','int'),('URL','string'),('Hash','string')]
+        rows        : list[dict]  cada dict con valores por columna (faltantes = NULL)
+        ns          : namespace override (por defecto se respeta el del request)
+    """
+    NS = ns or _get_ns()
+
+    cols_xsd = ''.join(
+        f'<xs:element name="{c}" type="xs:{t}" minOccurs="0" />'
+        for c, t in columns
+    )
+    schema = (
+        f'<xs:schema id="NewDataSet" xmlns="" '
+        f'xmlns:xs="http://www.w3.org/2001/XMLSchema" '
+        f'xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">'
+        f'<xs:element name="NewDataSet" msdata:IsDataSet="true" '
+        f'msdata:MainDataTable="{table_name}" msdata:UseCurrentLocale="true">'
+        f'<xs:complexType>'
+        f'<xs:choice minOccurs="0" maxOccurs="unbounded">'
+        f'<xs:element name="{table_name}">'
+        f'<xs:complexType><xs:sequence>{cols_xsd}</xs:sequence></xs:complexType>'
+        f'</xs:element>'
+        f'</xs:choice>'
+        f'</xs:complexType>'
+        f'</xs:element>'
+        f'</xs:schema>'
+    )
+
+    if rows:
+        rows_xml = ''
+        for idx, row in enumerate(rows, 1):
+            cells = ''.join(
+                f'<{c}>{_esc(row[c])}</{c}>'
+                for c, _t in columns
+                if c in row and row[c] is not None
+            )
+            rows_xml += (
+                f'<{table_name} diffgr:id="{table_name}{idx}" msdata:rowOrder="{idx-1}">'
+                f'{cells}'
+                f'</{table_name}>'
+            )
+        diffgram = (
+            f'<diffgr:diffgram '
+            f'xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" '
+            f'xmlns:diffgr="urn:schemas-microsoft-com:xml-diffgram-v1">'
+            f'<NewDataSet xmlns="">{rows_xml}</NewDataSet>'
+            f'</diffgr:diffgram>'
+        )
+    else:
+        diffgram = (
+            f'<diffgr:diffgram '
+            f'xmlns:msdata="urn:schemas-microsoft-com:xml-msdata" '
+            f'xmlns:diffgr="urn:schemas-microsoft-com:xml-diffgram-v1" />'
+        )
+
+    body = (
+        f'<{action_name}Response xmlns="{NS}">'
+        f'<{action_name}Result>{schema}{diffgram}</{action_name}Result>'
+        f'</{action_name}Response>'
+    )
+    return _soap_response(body)
+
+
+def _log_unsupported(service, action, raw=None):
+    """Log estructurado para inventariar que pide el cliente legacy si alguien lo redirige al shim."""
+    import logging
+    logger = logging.getLogger('soap_compat')
+    logger.warning(
+        '[SOAP-COMPAT] Accion no soportada: service=%s action=%s remote=%s ua=%s body_len=%d',
+        service, action,
+        request.remote_addr if request else '-',
+        (request.headers.get('User-Agent') if request else '-') or '-',
+        len(raw or '') if raw else 0,
+    )
+
+
 # MSApp mapping: AppId -> office_app name
 MSAPP_MAP = {'1': 'word', '2': 'excel', '3': 'powerpoint', '4': 'access',
              '001': 'word', '002': 'excel', '003': 'powerpoint', '004': 'access'}
+
+
+# Columnas exactas de las DataTables de Usuario.asmx en el legacy (Usuario.asmx.cs)
+LOGIN_COLS = [
+    ('UsuarioId', 'int'), ('Nombre', 'string'), ('Apellido', 'string'),
+    ('VoucherId', 'int'), ('VoucherCode', 'string'), ('AppId', 'int'),
+    ('Prioritaria', 'int'), ('URL', 'string'), ('Login', 'string'),
+    ('Detalle', 'string'), ('SubSistema', 'string'), ('URLImagen', 'string'),
+    ('PerfilId', 'int'), ('Plantel', 'string'), ('Grupo', 'string'),
+    ('UsuarioEmail', 'string'), ('MostrarAviso', 'unsignedByte'),
+    ('IdAviso', 'int'), ('CURP', 'string'), ('SubsistemaId', 'string'),
+    ('Perfil', 'string'), ('URLAviso', 'string'),
+    ('PinSeguridad', 'boolean'), ('Pin', 'string'),
+]
+
+INICIO_COLS = [
+    ('VoucherId', 'int'), ('FechaInicio', 'string'),
+    ('VoucherStatus', 'int'), ('Mensaje', 'string'),
+]
+
+FIN_COLS = [
+    ('VoucherId', 'int'), ('FechaFin', 'string'), ('IdTrans', 'string'),
+    ('Mensaje', 'string'), ('Plantel', 'string'), ('Grupo', 'string'),
+]
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -246,13 +353,22 @@ def usuario_asmx():
         return _usuario_login(raw)
     elif action == 'Inicio':
         return _usuario_inicio(raw)
-    elif action == 'Fin':
+    elif action in ('Fin', 'Final'):
+        # 'Final' es el nombre usado por Examen_*v7.x; 'Fin' por v6.x.
         return _usuario_fin(raw)
     elif action == 'Fecha':
         return _usuario_fecha()
+    elif action == 'ObtenerPaisPorIP':
+        # Algunos EXE v7.x llaman ObtenerPaisPorIP contra Usuario.asmx en lugar de webservice.asmx.
+        return _dataset_response(
+            'ObtenerPaisPorIP', 'Regreso',
+            [('Pais', 'string')],
+            [{'Pais': 'MX'}],
+        )
     elif action == 'CaducaVoucherPorPin':
         return _usuario_caduca_voucher(raw)
     else:
+        _log_unsupported('Usuario', action, raw)
         return _soap_fault(f'Acción no soportada: {action}')
 
 
@@ -266,35 +382,28 @@ def _usuario_login(raw):
     
     Cambio MotorV2: VoucherCode = GroupExam.id (número de asignación)
     """
-    NS = _get_ns()
     username = _extract_soap_value(raw, 'UsuarioNombre')
     password = _extract_soap_value(raw, 'Password')
     app_id = _extract_soap_value(raw, 'AppId')
 
-    if not username or not password:
-        return _soap_response(
-            f'<LoginResponse xmlns="{NS}">'
-            f'<Regreso><Login>false</Login><Detalle>Credenciales requeridas</Detalle></Regreso>'
-            f'</LoginResponse>'
+    def _login_error(msg):
+        return _dataset_response(
+            'Login', 'Regreso', LOGIN_COLS,
+            [{'Login': 'false', 'Detalle': msg}],
         )
+
+    if not username or not password:
+        return _login_error('Credenciales requeridas')
 
     user = User.query.filter_by(username=username).first()
     if not user:
         user = User.query.filter_by(email=username).first()
 
     if not user or not user.check_password(password):
-        return _soap_response(
-            f'<LoginResponse xmlns="{NS}">'
-            f'<Regreso><Login>false</Login><Detalle>Credenciales inválidas</Detalle></Regreso>'
-            f'</LoginResponse>'
-        )
+        return _login_error('Credenciales invalidas')
 
     if not user.is_active:
-        return _soap_response(
-            f'<LoginResponse xmlns="{NS}">'
-            f'<Regreso><Login>false</Login><Detalle>Usuario inactivo</Detalle></Regreso>'
-            f'</LoginResponse>'
-        )
+        return _login_error('Usuario inactivo')
 
     # Buscar asignación activa (reemplaza voucher)
     group_exam, group, campus = _find_active_assignment(user.id, session_type='examen')
@@ -344,51 +453,58 @@ def _usuario_login(raw):
     db.session.add(token)
     db.session.commit()
 
-    # Build names
-    first_name = user.first_name or user.full_name or user.username
-    last_name = user.last_name or ''
+    # Build names (User model: name + first_surname + second_surname)
+    first_name = getattr(user, 'name', None) or user.username
+    last_name = ' '.join(filter(None, [
+        getattr(user, 'first_surname', None),
+        getattr(user, 'second_surname', None),
+    ]))
     plantel = campus.name if campus else ''
     grupo = group.name if group else ''
 
     # VoucherCode = ID de asignación (GroupExam.id) o token.id como fallback
     voucher_code = str(group_exam.id) if group_exam else str(token.id)
 
-    body = (
-        f'<LoginResponse xmlns="{NS}"><Regreso>'
-        f'<Login>true</Login>'
-        f'<UsuarioId>{_esc(user.id)}</UsuarioId>'
-        f'<Nombre>{_esc(first_name)}</Nombre>'
-        f'<Apellido>{_esc(last_name)}</Apellido>'
-        f'<VoucherCode>{_esc(voucher_code)}</VoucherCode>'
-        f'<VoucherId>{_esc(user.id)}</VoucherId>'
-        f'<Detalle>Bienvenido</Detalle>'
-        f'<Prioritaria>0</Prioritaria>'
-        f'<URL></URL>'
-        f'<SubSistema>{_esc(subsistema)}</SubSistema>'
-        f'<Plantel>{_esc(plantel)}</Plantel>'
-        f'<Grupo>{_esc(grupo)}</Grupo>'
-        f'<UsuarioEmail>{_esc(user.email)}</UsuarioEmail>'
-        f'<CURP>{_esc(getattr(user, "curp", ""))}</CURP>'
-        f'<SubsistemaId>{_esc(app_id)}</SubsistemaId>'
-        f'<MostrarAviso>0</MostrarAviso>'
-        f'<IdAviso>0</IdAviso>'
-        f'<Perfil>{_esc(user.role)}</Perfil>'
-        f'<URLAviso></URLAviso>'
-        f'<PinSeguridad>false</PinSeguridad>'
-        f'<Pin></Pin>'
-        f'<URLImagen></URLImagen>'
-        f'<MostrarReporte>true</MostrarReporte>'
-        f'</Regreso></LoginResponse>'
-    )
-    return _soap_response(body)
+    # AppId int (en VB6: 1=Word, 2=Excel, 3=PPT, 4=Access)
+    try:
+        app_id_int = int(app_id) if app_id else 0
+    except (TypeError, ValueError):
+        app_id_int = 0
+
+    row = {
+        'UsuarioId': user.id,
+        'Nombre': first_name,
+        'Apellido': last_name,
+        'VoucherId': user.id,
+        'VoucherCode': voucher_code,
+        'AppId': app_id_int,
+        'Prioritaria': 0,
+        'URL': '',
+        'Login': 'true',
+        'Detalle': 'Bienvenido',
+        'SubSistema': subsistema,
+        'URLImagen': '',
+        'PerfilId': 0,
+        'Plantel': plantel,
+        'Grupo': grupo,
+        'UsuarioEmail': user.email or '',
+        'MostrarAviso': 0,
+        'IdAviso': 0,
+        'CURP': getattr(user, 'curp', '') or '',
+        'SubsistemaId': app_id or '',
+        'Perfil': user.role or '',
+        'URLAviso': '',
+        'PinSeguridad': 'false',
+        'Pin': '',
+    }
+    return _dataset_response('Login', 'Regreso', LOGIN_COLS, [row])
 
 
 def _usuario_inicio(raw):
     """
     Inicio — reemplaza Usuario.asmx/Inicio
-    VB6 parsea: <Regreso><VoucherStatus>...</VoucherStatus></Regreso>
+    VB6 parsea: DataSet table 'Regreso' con VoucherId, FechaInicio, VoucherStatus, Mensaje.
     """
-    NS = _get_ns()
     voucher_id = _extract_soap_value(raw, 'VoucherId')
     subsistema = _extract_soap_value(raw, 'Subsistema')
     user_pc = _extract_soap_value(raw, 'UserPC')
@@ -398,21 +514,19 @@ def _usuario_inicio(raw):
     version_examen = _extract_soap_value(raw, 'VersionExamen')
     version_app = _extract_soap_value(raw, 'VersionApp')
 
-    if not voucher_id:
-        return _soap_response(
-            f'<InicioResponse xmlns="{NS}"><Regreso>'
-            f'<VoucherStatus>0</VoucherStatus>'
-            f'</Regreso></InicioResponse>'
+    def _inicio_resp(status, msg='', vid=0, fecha=''):
+        return _dataset_response(
+            'Inicio', 'Regreso', INICIO_COLS,
+            [{'VoucherId': vid, 'FechaInicio': fecha, 'VoucherStatus': status, 'Mensaje': msg}],
         )
+
+    if not voucher_id:
+        return _inicio_resp(0, 'VoucherId requerido')
 
     # VoucherId in our model = user.id (set in Login)
     user = User.query.get(voucher_id)
     if not user:
-        return _soap_response(
-            f'<InicioResponse xmlns="{NS}"><Regreso>'
-            f'<VoucherStatus>0</VoucherStatus>'
-            f'</Regreso></InicioResponse>'
-        )
+        return _inicio_resp(0, 'Voucher no encontrado')
 
     # Buscar asignación activa
     group_exam, group, campus = _find_active_assignment(user.id, session_type='examen')
@@ -465,20 +579,19 @@ def _usuario_inicio(raw):
 
         db.session.commit()
 
-    body = (
-        f'<InicioResponse xmlns="{NS}"><Regreso>'
-        f'<VoucherStatus>1</VoucherStatus>'
-        f'</Regreso></InicioResponse>'
-    )
-    return _soap_response(body)
+    fecha = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S')
+    try:
+        vid_int = int(voucher_id)
+    except (TypeError, ValueError):
+        vid_int = 0
+    return _inicio_resp(1, 'OK', vid=vid_int, fecha=fecha)
 
 
 def _usuario_fin(raw):
     """
     Fin — reemplaza Usuario.asmx/Fin
-    VB6 parsea: <Regreso><IdTrans>...</IdTrans></Regreso>
+    VB6 parsea: DataSet table 'Regreso' con VoucherId, FechaFin, IdTrans, Mensaje, Plantel, Grupo.
     """
-    NS = _get_ns()
     voucher_id = _extract_soap_value(raw, 'VoucherId')
     resultado = _extract_soap_value(raw, 'Resultado')
     subsistema = _extract_soap_value(raw, 'Subsistema')
@@ -489,20 +602,24 @@ def _usuario_fin(raw):
     except (ValueError, TypeError):
         pass
 
-    if not voucher_id:
-        return _soap_response(
-            f'<FinResponse xmlns="{NS}"><Regreso>'
-            f'<IdTrans>TI000001</IdTrans>'
-            f'</Regreso></FinResponse>'
+    try:
+        vid_int = int(voucher_id) if voucher_id else 0
+    except (TypeError, ValueError):
+        vid_int = 0
+
+    def _fin_resp(trans_id='TI000001', msg='', plantel='', grupo='', fecha=''):
+        return _dataset_response(
+            'Fin', 'Regreso', FIN_COLS,
+            [{'VoucherId': vid_int, 'FechaFin': fecha, 'IdTrans': trans_id,
+              'Mensaje': msg, 'Plantel': plantel, 'Grupo': grupo}],
         )
+
+    if not voucher_id:
+        return _fin_resp(msg='VoucherId requerido')
 
     user = User.query.get(voucher_id)
     if not user:
-        return _soap_response(
-            f'<FinResponse xmlns="{NS}"><Regreso>'
-            f'<IdTrans>TI000001</IdTrans>'
-            f'</Regreso></FinResponse>'
-        )
+        return _fin_resp(msg='Voucher no encontrado')
 
     # Find the in-progress result for this user
     result = OfficeExamResult.query.filter_by(
@@ -537,30 +654,57 @@ def _usuario_fin(raw):
 
         trans_id = f'TR{result.id[:6].upper()}'
 
-    body = (
-        f'<FinResponse xmlns="{NS}"><Regreso>'
-        f'<IdTrans>{trans_id}</IdTrans>'
-        f'</Regreso></FinResponse>'
-    )
-    return _soap_response(body)
+    # Extraer plantel/grupo desde la asignación si está disponible
+    plantel_name = ''
+    grupo_name = ''
+    if result and result.campus_id:
+        try:
+            campus = Campus.query.get(result.campus_id)
+            if campus:
+                plantel_name = campus.name or ''
+        except Exception:
+            pass
+    if result and result.group_id:
+        try:
+            grp = CandidateGroup.query.get(result.group_id)
+            if grp:
+                grupo_name = grp.name or ''
+        except Exception:
+            pass
+
+    fecha = (result.finished_at if result and result.finished_at else datetime.utcnow()).strftime('%Y-%m-%dT%H:%M:%S')
+    return _fin_resp(trans_id=trans_id, msg='OK', plantel=plantel_name, grupo=grupo_name, fecha=fecha)
 
 
 def _usuario_fecha():
     """
     Fecha — reemplaza Usuario.asmx/Fecha
     VB6 parsea: <FechaResult>double</FechaResult>
+    Precision: legacy usa 15 digitos (Double.ToString("R") en .NET).
     """
     NS = _get_ns()
     # VB6 expects date as OLE Automation double (days since 1899-12-30)
+    # Legacy reporta hora local de Mexico (servidor original en CST Mexico)
     import datetime as dt
+    try:
+        from zoneinfo import ZoneInfo  # py >= 3.9
+        tz_mx = ZoneInfo('America/Mexico_City')
+        now_local = dt.datetime.now(tz_mx).replace(tzinfo=None)
+    except Exception:
+        # Fallback: UTC-6 fijo
+        now_local = dt.datetime.utcnow() - dt.timedelta(hours=6)
     ole_epoch = dt.datetime(1899, 12, 30)
-    now = dt.datetime.utcnow()
-    delta = now - ole_epoch
+    delta = now_local - ole_epoch
     ole_date = delta.total_seconds() / 86400.0
+
+    # Imita .NET Double.ToString("R") (17 digitos significativos en round-trip)
+    fecha_str = f'{ole_date:.17g}'
+    if 'e' in fecha_str or 'E' in fecha_str:
+        fecha_str = f'{ole_date:.17f}'.rstrip('0').rstrip('.')
 
     body = (
         f'<FechaResponse xmlns="{NS}">'
-        f'<FechaResult>{ole_date:.10f}</FechaResult>'
+        f'<FechaResult>{fecha_str}</FechaResult>'
         f'</FechaResponse>'
     )
     return _soap_response(body)
@@ -591,15 +735,17 @@ def admintools_asmx():
     if action in ('VerificarExamen', 'VerificarSimulador', 'VerificarParcial'):
         return _verificar_app(raw, action)
     else:
+        _log_unsupported('AdminTools', action, raw)
         return _soap_fault(f'Acción no soportada: {action}')
 
 
 def _verificar_app(raw, action):
     """
-    Verificar versión de app.
-    VB6 parsea: <Regreso><Hash>...</Hash><Actualizar>0|1</Actualizar><URL>...</URL></Regreso>
+    Verificar version de app.
+    Legacy ASP.NET retorna DataSet con tabla 'Regreso' (Actualizar:int, URL:string, Hash:string).
+    Si NO hay actualizacion -> dataset vacio (diffgram vacio).
+    Si SI hay actualizacion -> 1 fila con los datos.
     """
-    NS = _get_ns()
     # Extract version info
     version_app = (
         _extract_soap_value(raw, 'VersionApp') or
@@ -609,7 +755,6 @@ def _verificar_app(raw, action):
     )
     app_id = _extract_soap_value(raw, 'AppId')
 
-    # Check OfficeAppVersion table
     app_type_map = {
         'VerificarExamen': 'examen',
         'VerificarSimulador': 'simulador',
@@ -631,16 +776,16 @@ def _verificar_app(raw, action):
             update_url = app_record.download_url or ''
         hash_val = getattr(app_record, 'file_hash', '') or ''
 
-    # Response tag depends on the action
-    response_tag = f'{action}Response'
-    body = (
-        f'<{response_tag} xmlns="{NS}"><Regreso>'
-        f'<Hash>{_esc(hash_val)}</Hash>'
-        f'<Actualizar>{"1" if update_required else "0"}</Actualizar>'
-        f'<URL>{_esc(update_url)}</URL>'
-        f'</Regreso></{response_tag}>'
-    )
-    return _soap_response(body)
+    columns = [('Actualizar', 'int'), ('URL', 'string'), ('Hash', 'string')]
+    rows = []
+    if update_required:
+        rows.append({
+            'Actualizar': 1,
+            'URL': update_url,
+            'Hash': hash_val,
+        })
+
+    return _dataset_response(action, 'Regreso', columns, rows)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -653,9 +798,13 @@ def storage_asmx():
     action = _get_soap_action(request.headers)
     raw = request.get_data(as_text=True)
 
-    if action == 'UpXML2016':
+    # WSDL: <operation name="FileXML2"> usa <input element="UpXML2016"> con SOAPAction .../UpXML2016
+    #       <operation name="FileXML2016"> usa <input element="UpXML"> con SOAPAction .../UpXML
+    # El cliente VB6 envia SOAPAction "UpXML2016" (30 reactivos) o "UpXML" (20/40 reactivos).
+    if action in ('UpXML2016', 'UpXML', 'FileXML2016', 'FileXML2'):
         return _storage_upload(raw)
     else:
+        _log_unsupported('Storage', action, raw)
         return _soap_fault(f'Acción no soportada: {action}')
 
 
@@ -744,9 +893,11 @@ def simulador_asmx():
         return _simulador_inicio(raw)
     elif action == 'Final':
         return _simulador_final(raw)
-    elif action == 'VerificarInformacion':
+    elif action in ('VerificarInformacion', 'VerificarSimulador'):
+        # VerificarSimulador es el nombre usado por Examen_*v7.x (mismo payload/respuesta).
         return _simulador_verificar_info(raw)
     else:
+        _log_unsupported('Simulador', action, raw)
         return _soap_fault(f'Acción no soportada: {action}')
 
 
@@ -1195,14 +1346,36 @@ def webservice_asmx():
     NS = _get_ns()
 
     if action == 'ObtenerPaisPorIP':
-        # Return México as default country
+        # Legacy retorna DataSet con tabla 'Regreso' (Pais:string)
+        return _dataset_response(
+            'ObtenerPaisPorIP', 'Regreso',
+            [('Pais', 'string')],
+            [{'Pais': 'MX'}],
+        )
+    elif action == 'HelloWorld':
         body = (
-            f'<ObtenerPaisPorIPResponse xmlns="{NS}"><Regreso>'
-            f'<Pais>MX</Pais>'
-            f'</Regreso></ObtenerPaisPorIPResponse>'
+            f'<HelloWorldResponse xmlns="{NS}">'
+            f'<HelloWorldResult>Hello World</HelloWorldResult>'
+            f'</HelloWorldResponse>'
+        )
+        return _soap_response(body)
+    elif action in ('InciarSimuladorSems', 'IniciarSimuladorSems'):
+        # Examen_*v7.x llama este action a veces contra webservice.asmx en lugar de Licencias.asmx.
+        body = (
+            f'<{action}Response xmlns="{NS}">'
+            f'<{action}Result>true</{action}Result>'
+            f'</{action}Response>'
+        )
+        return _soap_response(body)
+    elif action == 'TelemetriaFueraDeLinea':
+        body = (
+            f'<TelemetriaFueraDeLineaResponse xmlns="{NS}">'
+            f'<TelemetriaFueraDeLineaResult>true</TelemetriaFueraDeLineaResult>'
+            f'</TelemetriaFueraDeLineaResponse>'
         )
         return _soap_response(body)
     else:
+        _log_unsupported('webservice', action)
         return _soap_fault(f'Acción no soportada: {action}')
 
 

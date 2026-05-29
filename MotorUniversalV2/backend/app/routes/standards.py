@@ -867,6 +867,111 @@ def delete_standard_logo(standard_id):
         return jsonify({'error': f'Error al eliminar logo: {str(e)}'}), 500
 
 
+# ============== ENDPOINTS DE FICHA INFORMATIVA (PDF) ==============
+
+@standards_bp.route('/<int:standard_id>/info-sheet', methods=['POST'])
+@jwt_required()
+def upload_standard_info_sheet(standard_id):
+    """Subir ficha informativa (PDF) para un estándar de competencia."""
+    from app.utils.azure_storage import azure_storage
+
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para subir fichas informativas'}), 403
+
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+
+    try:
+        if not request.files or 'info_sheet' not in request.files:
+            return jsonify({'error': 'No se recibió ningún archivo (campo info_sheet)'}), 400
+
+        f = request.files['info_sheet']
+        filename = (f.filename or '').lower()
+        if not filename.endswith('.pdf'):
+            return jsonify({'error': 'Solo se permiten archivos PDF'}), 400
+
+        # Validar tamaño (≤20 MB)
+        f.seek(0, 2)
+        size = f.tell()
+        f.seek(0)
+        if size > 20 * 1024 * 1024:
+            return jsonify({'error': 'El PDF no debe superar 20 MB'}), 400
+
+        new_url = azure_storage.upload_file(f, folder='standard-info-sheets')
+        if not new_url:
+            return jsonify({'error': 'Error al subir el PDF a Azure Storage'}), 500
+
+        # Eliminar PDF anterior si existe
+        if standard.info_sheet_url:
+            try:
+                azure_storage.delete_file(standard.info_sheet_url)
+            except Exception:
+                pass
+
+        standard.info_sheet_url = new_url
+        standard.updated_by = current_user_id
+        standard.updated_at = datetime.utcnow()
+        db.session.commit()
+        invalidate_standards_cache()
+
+        return jsonify({
+            'message': 'Ficha informativa subida exitosamente',
+            'info_sheet_url': new_url,
+            'standard': standard.to_dict()
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al subir ficha informativa: {str(e)}'}), 500
+
+
+@standards_bp.route('/<int:standard_id>/info-sheet', methods=['DELETE'])
+@jwt_required()
+def delete_standard_info_sheet(standard_id):
+    """Eliminar ficha informativa de un estándar."""
+    from app.utils.azure_storage import azure_storage
+
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para eliminar fichas informativas'}), 403
+
+    standard = CompetencyStandard.query.get(standard_id)
+    if not standard:
+        return jsonify({'error': 'Estándar no encontrado'}), 404
+
+    if not standard.info_sheet_url:
+        return jsonify({'message': 'El estándar no tiene ficha informativa'}), 200
+
+    try:
+        try:
+            azure_storage.delete_file(standard.info_sheet_url)
+        except Exception:
+            pass
+
+        standard.info_sheet_url = None
+        standard.updated_by = current_user_id
+        standard.updated_at = datetime.utcnow()
+        db.session.commit()
+        invalidate_standards_cache()
+
+        return jsonify({
+            'message': 'Ficha informativa eliminada exitosamente',
+            'standard': standard.to_dict()
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al eliminar ficha informativa: {str(e)}'}), 500
+
+
 # ============== ENDPOINTS DE LOGO MARCAS ==============
 
 @standards_bp.route('/brands/<int:brand_id>/logo', methods=['POST'])

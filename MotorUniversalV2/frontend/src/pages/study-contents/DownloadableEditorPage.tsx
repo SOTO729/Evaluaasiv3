@@ -128,6 +128,18 @@ const DownloadableEditorPage = () => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Descarga un archivo individual del desglose (uno por uno).
+  const downloadSingleFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -216,7 +228,7 @@ const DownloadableEditorPage = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 fluid-px-4 fluid-py-3 rounded-lg shadow-lg flex items-center fluid-gap-2 fluid-text-sm ${
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 text-sm ${
           toast.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
         }`}>
           {toast.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
@@ -224,37 +236,46 @@ const DownloadableEditorPage = () => {
         </div>
       )}
 
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto fluid-px-4">
-          <div className="flex items-center justify-between h-16">
-            <button
-              onClick={() => navigate(`/study-contents/${materialId}`)}
-              className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
+      {/* Header flotante (sin barra rectangular) */}
+      <header className="sticky top-0 z-40 pointer-events-none">
+        <div className="flex items-center gap-3 px-4 sm:px-6 pt-3 pb-2">
+          {/* Izquierda: pastilla de navegación + identidad (toda clicable) */}
+          <button
+            type="button"
+            onClick={() => navigate(`/study-contents/${materialId}`)}
+            title="Volver al material"
+            className="group pointer-events-auto flex items-center gap-2 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 pl-1.5 pr-3.5 py-1.5 min-w-0 shrink-0 hover:ring-emerald-200 transition-all text-left"
+          >
+            <span className="flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-colors shrink-0">
               <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:inline fluid-text-sm">Volver al material</span>
-            </button>
+            </span>
+            <span className="flex flex-col min-w-0 leading-tight pr-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">
+                {topic?.downloadable_exercise ? 'Editar descargable' : 'Nuevo descargable'}
+              </span>
+              <span className="text-sm font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-[180px]">
+                {topic?.title || 'Descargable'}
+              </span>
+            </span>
+          </button>
 
-            <div className="flex items-center fluid-gap-3">
-              <div className="fluid-p-2 bg-emerald-100 rounded-lg">
-                <Download className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="fluid-text-lg font-semibold text-gray-900">
-                  {topic?.downloadable_exercise ? 'Editar Descargable' : 'Crear Descargable'}
-                </h1>
-                <p className="fluid-text-sm text-gray-500">{topic?.title}</p>
-              </div>
-            </div>
+          {/* Centro: chip de identidad del material */}
+          <div className="pointer-events-auto hidden md:flex items-center gap-2.5 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 px-6 py-2.5">
+            <span className="flex items-center justify-center w-7 h-7 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+              <Download className="w-4 h-4" />
+            </span>
+            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Material descargable</span>
+          </div>
 
+          {/* Derecha: guardar */}
+          <div className="pointer-events-auto flex items-center gap-2 shrink-0 ml-auto">
             <button
               onClick={handleSave}
               disabled={saving || !isFormComplete || isUploading}
-              className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 rounded-lg font-medium transition-all fluid-text-sm ${
+              className={`flex items-center gap-2 h-11 px-5 rounded-2xl text-sm font-semibold transition-all ${
                 isFormComplete && !isUploading
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-sm'
               }`}
             >
               {saving || isUploading ? (
@@ -262,31 +283,18 @@ const DownloadableEditorPage = () => {
               ) : (
                 <Save className="w-5 h-5" />
               )}
-              <span className="hidden sm:inline">Guardar</span>
+              <span>{saving || isUploading ? 'Guardando...' : 'Guardar'}</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Contenido */}
-      <main className="flex-1 max-w-5xl mx-auto w-full fluid-px-4 fluid-py-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Header visual */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 fluid-p-6 text-white">
-            <div className="absolute inset-0 bg-black/10"></div>
-            <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-            <div className="relative z-10 flex items-center fluid-gap-3">
-              <div className="fluid-p-3 bg-white/20 rounded-xl ">
-                <Download className="w-8 h-8" />
-              </div>
-              <div>
-                <h2 className="fluid-text-xl font-semibold">Material Descargable</h2>
-                <p className="text-white/80 fluid-text-sm">Sube archivos para que los estudiantes puedan descargar</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="fluid-p-6 space-y-6">
+      {/* Contenido principal */}
+      <main className="flex-1 px-4 sm:px-6 pt-2 pb-6">
+        <div className="w-full bg-white border border-gray-200 shadow-xl rounded-2xl overflow-hidden">
+          <div className="grid lg:grid-cols-2">
+            {/* Columna izquierda: formulario y carga de archivos */}
+            <div className="px-6 sm:px-8 py-7 space-y-6 lg:border-r lg:border-gray-100">
             {/* Título */}
             <div>
               <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
@@ -376,31 +384,8 @@ const DownloadableEditorPage = () => {
                 )}
               </div>
               
-              {/* Lista de archivos seleccionados */}
-              {selectedFiles.length > 0 && (
-                <div className="fluid-mt-4 space-y-2">
-                  <div className="flex items-center justify-between fluid-text-sm text-gray-600">
-                    <span>{selectedFiles.length} archivo(s) seleccionado(s)</span>
-                    <span>{formatFileSize(totalSize)}</span>
-                  </div>
-                  {selectedFiles.map((file, index) => (
-                    <div key={index} className="flex items-center fluid-gap-3 fluid-p-3 bg-gray-50 rounded-lg">
-                      {getFileIcon(file.name)}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate fluid-text-base">{file.name}</p>
-                        <p className="fluid-text-sm text-gray-500">{formatFileSize(file.size)}</p>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeFile(index); }}
-                        className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-                      >
-                        <X className="w-4 h-4 text-gray-500" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
+              {/* Lista de archivos seleccionados (se muestra en la columna derecha) */}
+
               {/* Barra de progreso */}
               {isUploading && (
                 <div className="fluid-mt-4">
@@ -414,6 +399,83 @@ const DownloadableEditorPage = () => {
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
+                </div>
+              )}
+            </div>
+            </div>
+
+            {/* Columna derecha: desglose de archivos del paquete */}
+            <div className="px-6 sm:px-8 py-7 bg-gray-50/70 lg:flex lg:flex-col">
+              <div className="flex items-center gap-2 mb-1">
+                <Package className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-gray-800">
+                  {selectedFiles.length > 1 ? 'Archivos en el ZIP' : 'Archivos del paquete'}
+                </h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                {selectedFiles.length > 1
+                  ? 'Estos archivos se empaquetarán en un ZIP. Puedes descargarlos uno por uno.'
+                  : 'Desglose de los archivos del material descargable.'}
+              </p>
+
+              {selectedFiles.length > 0 ? (
+                <div className="space-y-2 lg:flex-1 lg:overflow-y-auto">
+                  <div className="flex items-center justify-between text-xs text-gray-500 px-1">
+                    <span>{selectedFiles.length} archivo(s)</span>
+                    <span>{formatFileSize(totalSize)}</span>
+                  </div>
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 bg-white rounded-xl ring-1 ring-gray-200/70 shadow-sm">
+                      <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-50 shrink-0">
+                        {getFileIcon(file.name)}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 truncate text-sm">{file.name}</p>
+                        <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => downloadSingleFile(file)}
+                        title="Descargar este archivo"
+                        className="flex items-center justify-center w-9 h-9 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors shrink-0"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        title="Quitar del paquete"
+                        className="flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : form.file_url ? (
+                <div className="flex items-center gap-3 p-3 bg-white rounded-xl ring-1 ring-gray-200/70 shadow-sm">
+                  <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-50 shrink-0">
+                    {form.file_name ? getFileIcon(form.file_name) : <Package className="w-5 h-5 text-emerald-600" />}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate text-sm">{form.file_name || 'Archivo actual'}</p>
+                    <p className="text-xs text-gray-500">Archivo ya subido</p>
+                  </div>
+                  <a
+                    href={form.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Descargar archivo"
+                    className="flex items-center justify-center w-9 h-9 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors shrink-0"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+                </div>
+              ) : (
+                <div className="lg:flex-1 flex flex-col items-center justify-center text-center text-gray-400 py-10">
+                  <Package className="w-10 h-10 mb-3 text-gray-300" />
+                  <p className="text-sm">Aún no has agregado archivos</p>
+                  <p className="text-xs text-gray-400 mt-1">Los archivos que selecciones aparecerán aquí.</p>
                 </div>
               )}
             </div>

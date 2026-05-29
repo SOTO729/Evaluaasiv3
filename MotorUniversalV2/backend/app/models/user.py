@@ -217,17 +217,101 @@ class User(db.Model):
         permissions = role_permissions.get(self.role, [])
         return '*' in permissions or permission in permissions
     
+    def _belongs_to_direct_partner(self):
+        """True si el candidato pertenece a un campus cuyo partner es Directo
+        (`is_system_direct=True`). Los candidatos del modelo Directo NUNCA
+        deben ser bloqueados por CURP."""
+        try:
+            if not self.campus_id:
+                return False
+            from app.models.partner import Campus, Partner
+            campus = Campus.query.get(self.campus_id)
+            if not campus or not campus.partner_id:
+                return False
+            partner = Partner.query.get(campus.partner_id)
+            return bool(partner and getattr(partner, 'is_system_direct', False))
+        except Exception:
+            return False
+
+    def _has_conocer_assignment(self):
+        """True si el candidato tiene al menos una asignación a un examen
+        cuyo `competency_standard_id` no es null (i.e., requiere certificado
+        CONOCER). Considera asignaciones grupales (`assignment_type='all'`)
+        vía GroupMember, y asignaciones selectivas vía GroupExamMember.
+        Cualquier excepción se trata como "no se pudo confirmar" → False
+        para no bloquear gratuitamente."""
+        try:
+            from app.models.partner import GroupExam, GroupExamMember, GroupMember
+            from app.models.exam import Exam
+            # Asignación selectiva
+            sel = (db.session.query(GroupExamMember.id)
+                   .join(GroupExam, GroupExam.id == GroupExamMember.group_exam_id)
+                   .join(Exam, Exam.id == GroupExam.exam_id)
+                   .filter(GroupExamMember.user_id == self.id,
+                           GroupExam.is_active == True,  # noqa: E712
+                           Exam.competency_standard_id.isnot(None))
+                   .first())
+            if sel:
+                return True
+            # Asignación grupal (all)
+            grp = (db.session.query(GroupExam.id)
+                   .join(GroupMember, GroupMember.group_id == GroupExam.group_id)
+                   .join(Exam, Exam.id == GroupExam.exam_id)
+                   .filter(GroupMember.user_id == self.id,
+                           GroupExam.assignment_type == 'all',
+                           GroupExam.is_active == True,  # noqa: E712
+                           Exam.competency_standard_id.isnot(None))
+                   .first())
+            return grp is not None
+        except Exception:
+            return False
+
     def to_dict(self, include_private=False, include_partners=False):
         """Convertir a diccionario"""
         # Flag derivado: True si el candidato necesita validar su CURP antes de
         # poder presentar exámenes / descargar materiales.
+        #
+        # Reglas (mayo 2026):
+        #   * Sólo candidatos con CURP no verificada y CURP no genérica.
+        #   * Si el candidato pertenece al partner Directo (B2C),
+        #     NUNCA se le bloquea por CURP (puede tomar exámenes catálogo
+        #     sin necesidad de identidad oficial).
+        #   * Sólo se le bloquea si tiene al menos UNA asignación a un examen
+        #     con `competency_standard_id` (CONOCER). Sin asignaciones CONOCER
+        #     no hay motivo de fricción y verá el dashboard sin restricciones.
+        #   * `skip_curp_validation` se respeta como override explícito.
         _GENERIC_FOREIGN = {'XEXX010101HNEXXXA4', 'XEXX010101MNEXXXA8'}
-        requires_curp_validation = bool(
+        _base_curp_pending = bool(
             self.role == 'candidato'
             and not self.curp_verified
             and not bool(getattr(self, 'skip_curp_validation', False))
             and (self.curp or '').upper().strip() not in _GENERIC_FOREIGN
         )
+        if not _base_curp_pending:
+            requires_curp_validation = False
+        elif self._belongs_to_direct_partner():
+            # Modelo Directo: nunca bloquear por CURP
+            requires_curp_validation = False
+        else:
+            # Sólo bloquear si tiene asignación CONOCER
+            requires_curp_validation = self._has_conocer_assignment()
+        # Flag de Modelo Directo (B2C): expone si el campus del usuario
+        # pertenece a un partner con is_system_direct=True. Lo usamos en el
+        # frontend para mostrar un dashboard de bienvenida + catálogo de compra
+        # diferente al de candidatos institucionales.
+        partner_id = None
+        is_system_direct = False
+        if self.role == 'candidato' and self.campus_id:
+            try:
+                from app.models.partner import Campus, Partner
+                _campus = Campus.query.get(self.campus_id)
+                if _campus and _campus.partner_id:
+                    partner_id = _campus.partner_id
+                    _partner = Partner.query.get(_campus.partner_id)
+                    is_system_direct = bool(_partner and getattr(_partner, 'is_system_direct', False))
+            except Exception:
+                pass
+
         data = {
             'id': self.id,
             'email': self.email,
@@ -242,6 +326,8 @@ class User(db.Model):
             'is_verified': self.is_verified,
             'curp_verified': self.curp_verified,
             'requires_curp_validation': requires_curp_validation,
+            'partner_id': partner_id,
+            'is_system_direct': is_system_direct,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             # Opciones de documentos habilitados

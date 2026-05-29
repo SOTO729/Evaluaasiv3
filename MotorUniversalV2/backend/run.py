@@ -40,6 +40,8 @@ with app.app_context():
             check_and_add_conocer_solicitud_email_columns,
             check_and_create_study_export_requests_table,
             check_and_add_pending_billing_column,
+            check_and_setup_direct_b2c_model,
+            check_and_add_scholarship_tracking_columns,
         )
         check_and_add_columns()
         check_and_add_study_interactive_columns()
@@ -71,6 +73,8 @@ with app.app_context():
         check_and_add_conocer_solicitud_email_columns()
         check_and_create_study_export_requests_table()
         check_and_add_pending_billing_column()
+        check_and_setup_direct_b2c_model()
+        check_and_add_scholarship_tracking_columns()
     except Exception as e:
         print(f"⚠️  Auto-migración falló (continuando de todas formas): {e}")
 

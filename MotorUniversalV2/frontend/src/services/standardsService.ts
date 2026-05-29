@@ -15,6 +15,7 @@ export interface CompetencyStandard {
   brand_id?: number;
   brand?: Brand | null;
   logo_url?: string;
+  info_sheet_url?: string | null;
   is_active: boolean;
   has_template?: boolean;
   created_by: string;
@@ -323,6 +324,33 @@ export const deleteStandardLogo = async (id: number): Promise<{
   return response.data;
 };
 
+/**
+ * Subir ficha informativa (PDF) para un estándar
+ */
+export const uploadStandardInfoSheet = async (id: number, file: File): Promise<{
+  message: string;
+  info_sheet_url: string;
+  standard: CompetencyStandard;
+}> => {
+  const formData = new FormData();
+  formData.append('info_sheet', file);
+  const response = await api.post(`/competency-standards/${id}/info-sheet`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+/**
+ * Eliminar ficha informativa de un estándar
+ */
+export const deleteStandardInfoSheet = async (id: number): Promise<{
+  message: string;
+  standard: CompetencyStandard;
+}> => {
+  const response = await api.delete(`/competency-standards/${id}/info-sheet`);
+  return response.data;
+};
+
 export default {
   getStandards,
   getStandard,
@@ -344,4 +372,7 @@ export default {
   // Logo
   uploadStandardLogo,
   deleteStandardLogo,
+  // Info sheet (ficha informativa PDF)
+  uploadStandardInfoSheet,
+  deleteStandardInfoSheet,
 };

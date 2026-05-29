@@ -61,8 +61,8 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen flex overflow-x-hidden overscroll-contain">
       {/* Left Side - Form */}
-      <div className="flex-1 flex flex-col justify-center fluid-px-8 bg-white">
-        <div className="mx-auto w-full max-w-lg">
+      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-10 bg-white">
+        <div className="mx-auto w-full max-w-md sm:max-w-lg">
           {/* Logo */}
           <Link to="/" className="flex items-center fluid-gap-3 fluid-mb-10">
             <img src="/logo.webp" alt="Evaluaasi" className="fluid-h-14 w-auto" />
@@ -88,15 +88,15 @@ const LoginPage = () => {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-5">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Username/Email Field */}
             <div>
-              <label htmlFor="username" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                 Email o Usuario
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 fluid-pl-4 flex items-center pointer-events-none">
-                  <Mail className="fluid-icon-sm text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Mail className="w-5 h-5 text-gray-400" />
                 </div>
                 <input
                   id="username"
@@ -104,7 +104,7 @@ const LoginPage = () => {
                   type="text"
                   autoComplete="username email"
                   required
-                  className="block w-full fluid-pl-12 fluid-pr-4 fluid-py-3 border border-gray-300 fluid-rounded-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="block w-full pl-11 pr-4 py-3 border border-gray-300 rounded-xl text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   placeholder="tu@email.com o tu usuario"
                   value={formData.username}
                   onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -114,12 +114,12 @@ const LoginPage = () => {
 
             {/* Password Field */}
             <div>
-              <label htmlFor="password" className="block fluid-text-sm font-medium text-gray-700 fluid-mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Contraseña
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 fluid-pl-4 flex items-center pointer-events-none">
-                  <Lock className="fluid-icon-sm text-gray-400" />
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                  <Lock className="w-5 h-5 text-gray-400" />
                 </div>
                 <input
                   id="password"
@@ -127,20 +127,20 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
-                  className="block w-full fluid-pl-12 fluid-pr-12 fluid-py-3 border border-gray-300 fluid-rounded-xl fluid-text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="block w-full pl-11 pr-11 py-3 border border-gray-300 rounded-xl text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   placeholder="••••••••"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 fluid-pr-4 flex items-center"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="fluid-icon-sm text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="w-5 h-5 text-gray-400 hover:text-gray-600" />
                   ) : (
-                    <Eye className="fluid-icon-sm text-gray-400 hover:text-gray-600" />
+                    <Eye className="w-5 h-5 text-gray-400 hover:text-gray-600" />
                   )}
                 </button>
               </div>
@@ -148,7 +148,7 @@ const LoginPage = () => {
 
             {/* Forgot Password */}
             <div className="text-right">
-              <Link to="/forgot-password" className="fluid-text-sm text-primary-600 hover:text-primary-500">
+              <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-500">
                 ¿Olvidaste tu contraseña?
               </Link>
             </div>
@@ -157,17 +157,17 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center fluid-gap-2 fluid-px-6 fluid-py-3 bg-primary-600 text-white fluid-rounded-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 fluid-text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
-                  <Loader2 className="fluid-icon-sm animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                   Ingresando...
                 </>
               ) : (
                 <>
                   Ingresar
-                  <ArrowRight className="fluid-icon-sm" />
+                  <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>

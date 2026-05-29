@@ -771,11 +771,56 @@ def update_exam(exam_id):
         'default_exam_questions_count', 'default_exam_exercises_count',
         'default_simulator_questions_count', 'default_simulator_exercises_count',
         'default_duration_minutes', 'default_passing_score',
+        # Modelo Directo (B2C) — catálogo público
+        'is_public_catalog', 'direct_sale_description', 'is_free_sample',
     ]
-    
+
+    # Modelo Directo: validar unicidad ECM antes de publicar al catálogo público
+    # Reglas:
+    #   - Solo se puede publicar UN examen DE PAGO por competency_standard_id.
+    #   - Las muestras gratuitas (is_free_sample=True) NO compiten por unicidad.
+    #   - Si el examen no tiene ECM asignado, no se puede publicar al catálogo.
+    if data.get('is_public_catalog') is True:
+        # Estado final efectivo de is_free_sample (puede venir en el mismo PUT)
+        will_be_free_sample = bool(
+            data['is_free_sample'] if 'is_free_sample' in data else getattr(exam, 'is_free_sample', False)
+        )
+        ecm_id = getattr(exam, 'competency_standard_id', None)
+        if not ecm_id:
+            return jsonify({
+                'error': 'Este examen no tiene un Estándar de Competencia (ECM) asignado. '
+                         'Asigna un ECM antes de publicarlo en el catálogo público.'
+            }), 400
+        if not will_be_free_sample:
+            # Buscar otro examen DE PAGO ya publicado con el mismo ECM
+            conflict = Exam.query.filter(
+                Exam.id != exam.id,
+                Exam.competency_standard_id == ecm_id,
+                Exam.is_public_catalog == True,  # noqa: E712
+                Exam.is_free_sample == False,  # noqa: E712
+            ).first()
+            if conflict:
+                return jsonify({
+                    'error': f'Ya existe otro examen publicado para este ECM en el catálogo público '
+                             f'(id={conflict.id}, "{conflict.name}"). Despublícalo primero o márcalo '
+                             f'como muestra gratuita.'
+                }), 409
+
     for field in updatable_fields:
         if field in data:
             setattr(exam, field, data[field])
+
+    # direct_price_mxn solo lo puede modificar admin/developer (regla locked):
+    # admin+editor pueden marcar/desmarcar como público, pero solo admin fija el precio.
+    if 'direct_price_mxn' in data:
+        if user.role in ('admin', 'developer'):
+            try:
+                val = data['direct_price_mxn']
+                exam.direct_price_mxn = float(val) if val is not None and val != '' else None
+            except (TypeError, ValueError):
+                return jsonify({'error': 'direct_price_mxn debe ser numérico o null'}), 400
+        else:
+            return jsonify({'error': 'Solo un admin puede modificar el precio del catálogo público'}), 403
     
     exam.updated_by = user_id
     db.session.commit()
@@ -4170,6 +4215,106 @@ def debug_result_data(result_id):
         return _internal_error(e, 'debug_result_data')
 
 
+# ============= FICHA INFORMATIVA (PDF "Conoce más" — Modelo Directo) =============
+
+@bp.route('/<int:exam_id>/info-sheet', methods=['POST'])
+@jwt_required()
+def upload_exam_info_sheet(exam_id):
+    """
+    Subir/reemplazar el PDF "Ficha informativa" de un examen del catálogo.
+    Roles permitidos: admin, developer, editor, editor_invitado, coordinator.
+    """
+    from app.utils.azure_storage import azure_storage
+
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para gestionar fichas informativas'}), 403
+
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+
+    if not request.files or 'file' not in request.files:
+        return jsonify({'error': 'No se recibió ningún archivo (campo "file")'}), 400
+
+    pdf_file = request.files['file']
+    filename = (pdf_file.filename or '').lower()
+    if not filename.endswith('.pdf'):
+        return jsonify({'error': 'Solo se permiten archivos PDF'}), 400
+
+    # Validar tamaño (máx 20 MB)
+    try:
+        pdf_file.stream.seek(0, 2)
+        size = pdf_file.stream.tell()
+        pdf_file.stream.seek(0)
+        if size > 20 * 1024 * 1024:
+            return jsonify({'error': 'El PDF excede 20 MB'}), 400
+    except Exception:
+        pass
+
+    try:
+        new_url = azure_storage.upload_file(pdf_file, folder='exam-info-sheets')
+        if not new_url:
+            return jsonify({'error': 'No se pudo subir el archivo a Azure Storage'}), 500
+
+        # Eliminar PDF anterior si existía
+        old_url = getattr(exam, 'info_sheet_url', None)
+        if old_url:
+            try:
+                azure_storage.delete_file(old_url)
+            except Exception:
+                pass
+
+        from datetime import datetime
+        exam.info_sheet_url = new_url
+        exam.updated_by = current_user_id
+        exam.updated_at = datetime.utcnow()
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Ficha informativa subida correctamente',
+            'info_sheet_url': new_url,
+            'exam_id': exam.id,
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error al subir ficha informativa: {str(e)}'}), 500
+
+
+@bp.route('/<int:exam_id>/info-sheet', methods=['DELETE'])
+@jwt_required()
+def delete_exam_info_sheet(exam_id):
+    """
+    Eliminar el PDF "Ficha informativa" de un examen.
+    """
+    from app.utils.azure_storage import azure_storage
+
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not current_user or current_user.role not in ['admin', 'developer', 'editor', 'editor_invitado', 'coordinator']:
+        return jsonify({'error': 'No tiene permisos para gestionar fichas informativas'}), 403
+
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'Examen no encontrado'}), 404
+
+    old_url = getattr(exam, 'info_sheet_url', None)
+    if old_url:
+        try:
+            azure_storage.delete_file(old_url)
+        except Exception:
+            pass
+
+    from datetime import datetime
+    exam.info_sheet_url = None
+    exam.updated_by = current_user_id
+    exam.updated_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'message': 'Ficha informativa eliminada', 'exam_id': exam.id}), 200
+
+
 # ============= GENERACIÓN ASÍNCRONA DE PDFs =============
 
 @bp.route('/results/<result_id>/request-pdf', methods=['POST'])
@@ -4427,3 +4572,5 @@ def download_xae_legacy(exam_id):
             'error': 'Internal proxy error',
             'xae_content': '',
         }), 502
+
+

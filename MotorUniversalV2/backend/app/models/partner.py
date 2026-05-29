@@ -65,6 +65,10 @@ class Partner(db.Model):
     # Mapeo a EvaluaasiConfig (SubsistemaId)
     config_subsistema_id = db.Column(db.Integer, nullable=True)
 
+    # Modelo Directo (B2C): si True, este es el partner virtual para usuarios self-service
+    # Solo debe existir UN partner con este flag en True (creado por auto-migración).
+    is_system_direct = db.Column(db.Boolean, default=False, nullable=False, index=True)
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -94,6 +98,7 @@ class Partner(db.Model):
             'is_active': self.is_active,
             'notes': self.notes,
             'config_subsistema_id': self.config_subsistema_id,
+            'is_system_direct': bool(getattr(self, 'is_system_direct', False)),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

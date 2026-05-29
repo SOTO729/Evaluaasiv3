@@ -491,6 +491,10 @@ const StudyInteractiveExercisePage = () => {
   })
   const [isSavingExerciseInfo, setIsSavingExerciseInfo] = useState(false)
 
+  // Modal de bienvenida/creación inicial (2 pasos): título + instrucciones, luego editor de pasos
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [onboardingShown, setOnboardingShown] = useState(false)
+
   // Modal de confirmación para salir sin guardar
   const [exitConfirmModal, setExitConfirmModal] = useState(false)
   const [reloadConfirmModal, setReloadConfirmModal] = useState(false)
@@ -573,6 +577,16 @@ const StudyInteractiveExercisePage = () => {
     }
   }, [topicData])
 
+  // Al crear un ejercicio por primera vez (no existe aún), abrir el modal de
+  // bienvenida de 2 pasos para capturar título e instrucciones antes del editor.
+  useEffect(() => {
+    if (!isLoading && topicData && !topicData.interactive_exercise && !exercise && !onboardingShown) {
+      setExerciseInfoForm({ title: '', description: '' })
+      setShowOnboarding(true)
+      setOnboardingShown(true)
+    }
+  }, [isLoading, topicData, exercise, onboardingShown])
+
   // Interceptar cierre de ventana/pestaña si hay cambios sin guardar
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -626,6 +640,37 @@ const StudyInteractiveExercisePage = () => {
       setIsExerciseInfoModalOpen(true)
     }
   })
+
+  // Crear ejercicio con título e instrucciones desde el modal de bienvenida (paso 1)
+  const createExerciseWithInfoMutation = useMutation({
+    mutationFn: (data: { title: string; description: string }) => createInteractive(
+      Number(materialId),
+      Number(sessionId),
+      Number(topicId),
+      data
+    ),
+    onSuccess: (data) => {
+      setExercise(data)
+      queryClient.invalidateQueries({ queryKey: ['study-topic', materialId, sessionId, topicId] })
+      setShowOnboarding(false)
+      setIsSavingExerciseInfo(false)
+    },
+    onError: (err) => {
+      console.error('Error creating interactive exercise', err)
+      alert('Error al crear el ejercicio. Intenta de nuevo.')
+      setIsSavingExerciseInfo(false)
+    }
+  })
+
+  // Handler del paso 1 del modal de bienvenida: crear el ejercicio y pasar al editor
+  const handleOnboardingContinue = async () => {
+    if (!exerciseInfoForm.title.trim()) return
+    setIsSavingExerciseInfo(true)
+    await createExerciseWithInfoMutation.mutateAsync({
+      title: exerciseInfoForm.title.trim(),
+      description: exerciseInfoForm.description
+    })
+  }
 
   const saveExerciseMutation = useMutation({
     mutationFn: (data: Partial<{ is_active: boolean; title?: string; description?: string }>) => updateInteractive(
@@ -4243,6 +4288,173 @@ const StudyInteractiveExercisePage = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Modal de bienvenida (2 pasos) al crear un ejercicio interactivo nuevo */}
+      {showOnboarding && (
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[65] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            {/* Encabezado con degradado */}
+            <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-600 px-6 sm:px-8 py-6 text-white">
+              <div className="flex items-start gap-4">
+                <span className="flex items-center justify-center w-12 h-12 rounded-2xl bg-white/15 ring-1 ring-white/25 shrink-0">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-xl font-bold leading-tight">Crear ejercicio interactivo</h2>
+                  <p className="text-sm text-indigo-100 mt-1">
+                    Un ejercicio interactivo permite a los estudiantes interactuar sobre imágenes
+                    (clics, campos de texto, áreas) paso a paso. Vamos a configurarlo en 2 pasos.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Stepper de 2 pasos */}
+            <div className="px-6 sm:px-8 pt-6">
+              <div className="flex items-center">
+                {/* Paso 1 (activo) */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="flex items-center justify-center w-9 h-9 rounded-full bg-indigo-600 text-white text-sm font-bold ring-4 ring-indigo-100">
+                    1
+                  </span>
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold text-gray-900">Título e instrucciones</p>
+                    <p className="text-xs text-gray-500">Lo que verá el estudiante</p>
+                  </div>
+                </div>
+                {/* Conector */}
+                <div className="flex-1 h-0.5 bg-gray-200 mx-3 rounded-full" />
+                {/* Paso 2 (pendiente) */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-100 text-gray-400 text-sm font-bold ring-4 ring-gray-50">
+                    2
+                  </span>
+                  <div className="leading-tight">
+                    <p className="text-sm font-semibold text-gray-400">Editor de pasos</p>
+                    <p className="text-xs text-gray-400">Imágenes y acciones</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cuerpo: formulario del paso 1 */}
+            <div className="px-6 sm:px-8 py-6 space-y-5">
+              <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-100 rounded-xl p-4">
+                <svg className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-indigo-700">
+                  <span className="font-semibold">Paso 1 de 2.</span> Define el título y las instrucciones del ejercicio.
+                  Podrás editarlos en cualquier momento desde el editor de pasos (botón con el ícono de lápiz junto al título).
+                </p>
+              </div>
+
+              {/* Título */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Título del ejercicio <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={exerciseInfoForm.title}
+                  onChange={(e) => setExerciseInfoForm({ ...exerciseInfoForm, title: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && exerciseInfoForm.title.trim() && !isSavingExerciseInfo) {
+                      handleOnboardingContinue()
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  placeholder="Ej: Identifica las partes del motor"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Un nombre claro y descriptivo que identifique el ejercicio.
+                </p>
+              </div>
+
+              {/* Instrucciones */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Instrucciones del ejercicio
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Explica qué debe hacer el estudiante para completarlo. Puedes usar negritas, listas y enlaces.
+                </p>
+                <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+                  <ReactQuill
+                    theme="snow"
+                    value={exerciseInfoForm.description}
+                    onChange={(content) => setExerciseInfoForm({ ...exerciseInfoForm, description: content })}
+                    modules={{
+                      toolbar: [
+                        [{ 'header': [1, 2, 3, false] }],
+                        ['bold', 'italic', 'underline'],
+                        [{ 'color': [] }],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['link'],
+                        ['clean']
+                      ],
+                    }}
+                    formats={['header', 'bold', 'italic', 'underline', 'color', 'list', 'link']}
+                    placeholder="Ej: Haz clic en cada parte señalada para identificar correctamente los componentes..."
+                    style={{ minHeight: '140px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Qué sigue en el paso 2 */}
+              <div className="flex items-start gap-3 bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <svg className="w-5 h-5 text-gray-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold text-gray-700">Después (paso 2):</span> entrarás al editor de pasos,
+                  donde subirás imágenes y agregarás acciones interactivas (botones, campos de texto, áreas y comentarios) sobre cada imagen.
+                </p>
+              </div>
+            </div>
+
+            {/* Pie con acciones */}
+            <div className="flex items-center justify-between gap-3 px-6 sm:px-8 py-5 border-t border-gray-100 bg-gray-50/60">
+              <button
+                onClick={() => navigate(`/study-contents/${materialId}`)}
+                disabled={isSavingExerciseInfo}
+                className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleOnboardingContinue}
+                disabled={isSavingExerciseInfo || !exerciseInfoForm.title.trim()}
+                className={`flex items-center gap-2 h-11 px-5 rounded-xl text-sm font-semibold transition-all ${
+                  exerciseInfoForm.title.trim() && !isSavingExerciseInfo
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-700'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isSavingExerciseInfo ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Creando...
+                  </>
+                ) : (
+                  <>
+                    Continuar al editor de pasos
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación para eliminar acción */}
       {deleteActionModal.isOpen && (

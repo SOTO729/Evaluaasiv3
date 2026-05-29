@@ -22,8 +22,10 @@ import {
   ChevronRight,
   Award,
   ScrollText,
+  BookOpen,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import StandardInfoSheetManager from '../../components/standards/StandardInfoSheetManager';
 
 // Hook para debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -45,10 +47,14 @@ function useDebounce<T>(value: T, delay: number): T {
 // Componente de fila de estándar
 const StandardRow = ({ 
   standard, 
-  onView
+  onView,
+  onManageSheet,
+  canManageSheet,
 }: { 
   standard: CompetencyStandard;
   onView: () => void;
+  onManageSheet: () => void;
+  canManageSheet: boolean;
 }) => {
   const getLevelBadgeColor = (level?: number) => {
     if (!level) return 'bg-gray-100 text-gray-600';
@@ -144,6 +150,22 @@ const StandardRow = ({
                 <span className="font-medium">Plantilla activa</span>
               </div>
             )}
+            {canManageSheet && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onManageSheet(); }}
+                className={`inline-flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 rounded-fluid-md border transition-colors ${
+                  standard.info_sheet_url
+                    ? 'text-blue-700 border-blue-200 bg-blue-50 hover:bg-blue-100'
+                    : 'text-gray-600 border-gray-200 bg-gray-50 hover:bg-gray-100'
+                }`}
+                title={standard.info_sheet_url ? 'Ver / reemplazar ficha informativa' : 'Subir ficha informativa'}
+              >
+                <BookOpen className="fluid-icon-xs" />
+                <span className="font-medium">
+                  {standard.info_sheet_url ? 'Ficha cargada' : 'Sin ficha'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -166,6 +188,7 @@ export default function StandardsListPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [sheetTarget, setSheetTarget] = useState<CompetencyStandard | null>(null);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'developer';
   const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado' || user?.role === 'coordinator';
@@ -342,9 +365,22 @@ export default function StandardsListPage() {
               key={standard.id}
               standard={standard}
               onView={() => navigate(`/standards/${standard.id}`)}
+              onManageSheet={() => setSheetTarget(standard)}
+              canManageSheet={canCreate}
             />
           ))}
         </div>
+      )}
+
+      {sheetTarget && (
+        <StandardInfoSheetManager
+          standard={sheetTarget}
+          onClose={() => setSheetTarget(null)}
+          onUpdated={(updated) => {
+            setStandards((prev) => prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
+            setSheetTarget(updated);
+          }}
+        />
       )}
     </div>
   );

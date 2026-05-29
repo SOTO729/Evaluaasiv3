@@ -241,6 +241,14 @@ def create_app(config_name='development'):
     except Exception as e:
         print(f"[INIT] ❌ Error importando payments_bp: {e}")
         raise
+
+    # Modelo Directo (B2C) — catálogo público + checkout self-service
+    try:
+        from app.routes.direct import bp as direct_bp
+        app.register_blueprint(direct_bp, url_prefix='/api/direct')
+        print("[INIT] ✅ direct registrado (modelo Directo B2C)")
+    except Exception as e:
+        print(f"[INIT] ❌ Error importando direct_bp: {e}")
     
     # Downloads (EXEs Office para candidatos/responsables)
     try:
@@ -267,7 +275,9 @@ def create_app(config_name='development'):
         app.register_blueprint(soap_compat_bp)
         # /soap/: nuevas builds VB6 recompiladas (cuyos .bas apuntan a /soap/AdminTools.asmx)
         app.register_blueprint(soap_compat_bp, name='soap_compat_prefixed', url_prefix='/soap')
-        print("[INIT] ✅ soap_compat registrado en raíz y en /soap (capa SOAP para VB6)")
+        # /api/: para proxy desde Azure SWA (dev.evaluaasi.com/api/Usuario.asmx → container app)
+        app.register_blueprint(soap_compat_bp, name='soap_compat_api', url_prefix='/api')
+        print("[INIT] ✅ soap_compat registrado en raíz, /soap y /api (capa SOAP para VB6)")
     except Exception as e:
         print(f"[INIT] ❌ Error importando soap_compat_bp: {e}")
         raise
@@ -407,6 +417,27 @@ def create_app(config_name='development'):
             check_and_add_skip_curp_validation_column()
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando certificate_type/skip_curp: {e}")
+
+        # bundle_exam_ids en payments (Modelo Directo: compra múltiple)
+        try:
+            from app.auto_migrate import check_and_add_payment_bundle_column
+            check_and_add_payment_bundle_column()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando bundle_exam_ids: {e}")
+
+        # info_sheet_url en exams (Modelo Directo: PDF "Conoce más")
+        try:
+            from app.auto_migrate import check_and_add_exam_info_sheet_column
+            check_and_add_exam_info_sheet_column()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando info_sheet_url: {e}")
+
+        # info_sheet_url en competency_standards (ficha informativa por ECM)
+        try:
+            from app.auto_migrate import check_and_add_standard_info_sheet_column
+            check_and_add_standard_info_sheet_column()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando info_sheet_url en standards: {e}")
 
     # Arrancar worker de cola de verificación CURP (background thread)
     try:

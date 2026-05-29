@@ -64,18 +64,25 @@ import {
   Combine,
   SplitSquareHorizontal,
   Grid3X3,
+  Code2,
+  X,
+  ClipboardPaste,
+  Replace,
+  Plus,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import DOMPurify from 'dompurify';
+import { sanitizeReadingHtml, READING_SANITIZE_CONFIG } from '../../utils/sanitizeReading';
 
 interface ReadingForm {
   title: string;
   content: string;
 }
 
-// Extensión de Image personalizada con alineación
+// Extensión de Image personalizada con alineación, redimensionado (arrastrar bordes) y movimiento
 const CustomImage = Image.extend({
+  draggable: true,
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -106,13 +113,156 @@ const CustomImage = Image.extend({
       },
     };
   },
+  // NodeView que dibuja la imagen con manijas en las esquinas para redimensionar
+  // arrastrando los bordes (estilo Microsoft Word) y permite moverla.
+  addNodeView() {
+    return ({ node, editor, getPos }: any) => {
+      let currentNode = node;
+
+      const container = document.createElement('div');
+      container.className = 'tiptap-image';
+      container.draggable = true;
+
+      const img = document.createElement('img');
+      img.draggable = false;
+      container.appendChild(img);
+
+      // Al hacer clic en la imagen, seleccionarla para mostrar su configuración
+      img.addEventListener('mousedown', () => {
+        if (typeof getPos === 'function') {
+          editor.commands.setNodeSelection(getPos());
+        }
+      });
+
+      const applyAttrs = (n: any) => {
+        img.src = n.attrs.src;
+        img.alt = n.attrs.alt || '';
+        if (n.attrs.title) img.title = n.attrs.title; else img.removeAttribute('title');
+        img.style.width = n.attrs.width || '';
+        container.setAttribute('data-align', n.attrs.align || 'center');
+      };
+
+      const corners = ['nw', 'ne', 'sw', 'se'];
+      corners.forEach(corner => {
+        const handle = document.createElement('div');
+        handle.className = `tiptap-image-handle tiptap-image-handle-${corner}`;
+        handle.addEventListener('mousedown', (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          container.draggable = false; // evita iniciar arrastre mientras se redimensiona
+          const startX = e.clientX;
+          const startWidth = img.offsetWidth;
+          const parentWidth = container.parentElement?.offsetWidth || startWidth;
+          const growsRight = corner === 'ne' || corner === 'se';
+
+          const onMove = (ev: MouseEvent) => {
+            const dx = ev.clientX - startX;
+            let newWidth = startWidth + (growsRight ? dx : -dx);
+            newWidth = Math.max(40, Math.min(newWidth, parentWidth));
+            img.style.width = `${Math.round(newWidth)}px`;
+          };
+          const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            container.draggable = true;
+            if (typeof getPos === 'function') {
+              const pos = getPos();
+              editor.view.dispatch(
+                editor.view.state.tr.setNodeMarkup(pos, undefined, {
+                  ...currentNode.attrs,
+                  width: img.style.width,
+                })
+              );
+            }
+          };
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+        container.appendChild(handle);
+      });
+
+      applyAttrs(currentNode);
+
+      return {
+        dom: container,
+        selectNode() {
+          container.classList.add('tiptap-image-selected');
+        },
+        deselectNode() {
+          container.classList.remove('tiptap-image-selected');
+        },
+        update(updatedNode: any) {
+          if (updatedNode.type.name !== currentNode.type.name) return false;
+          currentNode = updatedNode;
+          applyAttrs(updatedNode);
+          return true;
+        },
+        ignoreMutation() {
+          return true;
+        },
+      };
+    };
+  },
 });
 
+
+// TextStyle extendido con fuente y tamaño.
+// Se renderizan como estilos inline (font-family / font-size) que sobreviven a
+// DOMPurify y, por su mayor especificidad, se ven igual en la página de preview.
+const CustomTextStyle = TextStyle.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fontSize: {
+        default: null,
+        parseHTML: element => (element as HTMLElement).style.fontSize || null,
+        renderHTML: attributes => {
+          if (!attributes.fontSize) return {};
+          return { style: `font-size: ${attributes.fontSize}` };
+        },
+      },
+      fontFamily: {
+        default: null,
+        parseHTML: element => (element as HTMLElement).style.fontFamily?.replace(/['"]/g, '') || null,
+        renderHTML: attributes => {
+          if (!attributes.fontFamily) return {};
+          return { style: `font-family: ${attributes.fontFamily}` };
+        },
+      },
+    };
+  },
+});
+
+// Opciones para los selectores del toolbar
+const FONT_FAMILIES = [
+  { label: 'Predeterminada', value: '' },
+  { label: 'Arial', value: 'Arial, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Times New Roman', value: '"Times New Roman", serif' },
+  { label: 'Courier New', value: '"Courier New", monospace' },
+  { label: 'Verdana', value: 'Verdana, sans-serif' },
+  { label: 'Trebuchet MS', value: '"Trebuchet MS", sans-serif' },
+];
+
+const FONT_SIZES = [
+  { label: 'Tamaño', value: '' },
+  { label: '12', value: '12px' },
+  { label: '14', value: '14px' },
+  { label: '16', value: '16px' },
+  { label: '18', value: '18px' },
+  { label: '20', value: '20px' },
+  { label: '24', value: '24px' },
+  { label: '30', value: '30px' },
+  { label: '36', value: '36px' },
+];
+
 // Toolbar Component
-const EditorToolbar = ({ editor, onImageUpload, isUploading }: { 
+const EditorToolbar = ({ editor, onImageUpload, isUploading, inline = false, onCustomImageSize }: { 
   editor: ReturnType<typeof useEditor>; 
   onImageUpload: () => void;
   isUploading: boolean;
+  inline?: boolean;
+  onCustomImageSize?: () => void;
 }) => {
   if (!editor) return null;
 
@@ -142,10 +292,40 @@ const EditorToolbar = ({ editor, onImageUpload, isUploading }: {
   const colors = ['#000000', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
   const highlightColors = ['#fef08a', '#bbf7d0', '#bfdbfe', '#f5d0fe', '#fed7aa', '#e5e7eb'];
 
+  // Tipo de bloque actual (para el selector de estilo de párrafo)
+  const currentBlockType = editor.isActive('heading', { level: 1 })
+    ? 'h1'
+    : editor.isActive('heading', { level: 2 })
+    ? 'h2'
+    : editor.isActive('heading', { level: 3 })
+    ? 'h3'
+    : 'paragraph';
+
+  const applyBlockType = (value: string) => {
+    if (value === 'paragraph') {
+      editor.chain().focus().setParagraph().run();
+    } else {
+      const level = Number(value.replace('h', '')) as 1 | 2 | 3;
+      editor.chain().focus().setHeading({ level }).run();
+    }
+  };
+
+  const currentFontFamily = (editor.getAttributes('textStyle').fontFamily as string) || '';
+  const currentFontSize = (editor.getAttributes('textStyle').fontSize as string) || '';
+
+  const applyFontFamily = (value: string) => {
+    editor.chain().focus().setMark('textStyle', { fontFamily: value || null }).run();
+  };
+  const applyFontSize = (value: string) => {
+    editor.chain().focus().setMark('textStyle', { fontSize: value || null }).run();
+  };
+
+  const selectClass = 'h-8 pl-2.5 pr-7 text-sm bg-white border border-gray-200 rounded-md text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/40 cursor-pointer transition-colors';
+
   return (
-    <div className="border-b border-gray-200 bg-white sticky top-0 z-30">
+    <div className={inline ? 'flex flex-col min-w-0' : 'border-b border-gray-200 bg-gradient-to-b from-white to-gray-50/80 z-30'}>
       {/* Primera fila: Formato básico */}
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b border-gray-100">
+      <div className={inline ? 'flex flex-nowrap items-center gap-0.5 px-1.5 py-1 overflow-x-auto' : 'flex flex-wrap items-center gap-1 p-2 border-b border-gray-100'}>
         {/* Deshacer/Rehacer */}
         <button
           onClick={() => editor.chain().focus().undo().run()}
@@ -163,6 +343,44 @@ const EditorToolbar = ({ editor, onImageUpload, isUploading }: {
         >
           <Redo className="w-4 h-4" />
         </button>
+
+        <div className="w-px h-6 bg-gray-200 mx-1" />
+
+        {/* Estilo de párrafo / Fuente / Tamaño */}
+        <select
+          value={currentBlockType}
+          onChange={(e) => applyBlockType(e.target.value)}
+          className={`${selectClass} font-medium`}
+          title="Estilo de texto"
+        >
+          <option value="paragraph">Normal</option>
+          <option value="h1">Título 1</option>
+          <option value="h2">Título 2</option>
+          <option value="h3">Título 3</option>
+        </select>
+        <select
+          value={currentFontFamily}
+          onChange={(e) => applyFontFamily(e.target.value)}
+          className={`${selectClass} max-w-[140px]`}
+          title="Fuente"
+          style={currentFontFamily ? { fontFamily: currentFontFamily } : undefined}
+        >
+          {FONT_FAMILIES.map(f => (
+            <option key={f.label} value={f.value} style={f.value ? { fontFamily: f.value } : undefined}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={currentFontSize}
+          onChange={(e) => applyFontSize(e.target.value)}
+          className={`${selectClass} w-[72px]`}
+          title="Tamaño de fuente"
+        >
+          {FONT_SIZES.map(s => (
+            <option key={s.label} value={s.value}>{s.label}</option>
+          ))}
+        </select>
 
         <div className="w-px h-6 bg-gray-200 mx-1" />
 
@@ -494,12 +712,7 @@ const EditorToolbar = ({ editor, onImageUpload, isUploading }: {
             100%
           </button>
           <button
-            onClick={() => {
-              const width = window.prompt('Ancho de imagen (ej: 300px, 50%):', '');
-              if (width) {
-                editor.chain().focus().updateAttributes('image', { width }).run();
-              }
-            }}
+            onClick={() => onCustomImageSize?.()}
             className="px-2 py-1 text-sm rounded bg-white border hover:bg-gray-50"
           >
             Personalizado...
@@ -532,6 +745,15 @@ const ReadingEditorPage = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [editorReady, setEditorReady] = useState(false);
 
+  // Importar HTML
+  const [showHtmlModal, setShowHtmlModal] = useState(false);
+  const [htmlInput, setHtmlInput] = useState('');
+  const [htmlMode, setHtmlMode] = useState<'replace' | 'append'>('replace');
+
+  // Tamaño personalizado de imagen
+  const [showImageSizeModal, setShowImageSizeModal] = useState(false);
+  const [imageSizeInput, setImageSizeInput] = useState('');
+
   // Configurar editor Tiptap
   const editor = useEditor({
     extensions: [
@@ -560,7 +782,7 @@ const ReadingEditorPage = () => {
       Link.configure({
         openOnClick: false,
       }),
-      TextStyle,
+      CustomTextStyle,
       Color,
       Highlight.configure({
         multicolor: true,
@@ -651,6 +873,52 @@ const ReadingEditorPage = () => {
     input.click();
   }, [editor, materialId]);
 
+  // Insertar / reemplazar el cuerpo de la lectura desde HTML pegado
+  const handleApplyHtml = useCallback(() => {
+    if (!editor) return;
+    const raw = htmlInput.trim();
+    if (!raw) {
+      setToast({ message: 'Pega algún HTML primero', type: 'error' });
+      return;
+    }
+    // Sanitizar para evitar scripts/estilos peligrosos antes de insertarlo,
+    // preservando imágenes referenciadas (http/https, data:base64, blob:).
+    const clean = DOMPurify.sanitize(raw, READING_SANITIZE_CONFIG) as string;
+    if (htmlMode === 'replace') {
+      editor.commands.setContent(clean, true);
+    } else {
+      editor.commands.focus('end');
+      editor.commands.insertContent(clean);
+    }
+    setForm(prev => ({ ...prev, content: editor.getHTML() }));
+    setShowHtmlModal(false);
+    setHtmlInput('');
+    setToast({
+      message: htmlMode === 'replace' ? 'Contenido reemplazado desde HTML' : 'HTML agregado al final',
+      type: 'success',
+    });
+  }, [editor, htmlInput, htmlMode]);
+
+  // Pegar desde el portapapeles dentro del modal
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) setHtmlInput(prev => (prev ? prev + '\n' + text : text));
+    } catch {
+      setToast({ message: 'No se pudo leer el portapapeles. Pega manualmente (Ctrl+V).', type: 'error' });
+    }
+  }, []);
+
+  // Conteo de palabras y caracteres del contenido (sin etiquetas)
+  const { wordCount, charCount } = (() => {
+    const text = (form.content || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ');
+    const trimmed = text.replace(/\s+/g, ' ').trim();
+    return {
+      wordCount: trimmed ? trimmed.split(' ').length : 0,
+      charCount: trimmed.length,
+    };
+  })();
+
   // Auto-ocultar toast
   useEffect(() => {
     if (toast) {
@@ -705,6 +973,9 @@ const ReadingEditorPage = () => {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Estilos CSS para Tiptap */}
       <style>{`
+        .reading-page {
+          max-width: 100%;
+        }
         .tiptap-editor {
           min-height: 500px;
           outline: none;
@@ -778,6 +1049,59 @@ const ReadingEditorPage = () => {
           outline: 3px solid #3b82f6;
           outline-offset: 2px;
         }
+        /* Imagen redimensionable (node view) */
+        .tiptap-editor .tiptap-image {
+          position: relative;
+          display: inline-block;
+          max-width: 100%;
+          line-height: 0;
+        }
+        .tiptap-editor .tiptap-image[data-align="center"] {
+          display: block;
+          margin-left: auto;
+          margin-right: auto;
+          width: fit-content;
+        }
+        .tiptap-editor .tiptap-image[data-align="left"] {
+          display: block;
+          margin-left: 0;
+          margin-right: auto;
+          width: fit-content;
+        }
+        .tiptap-editor .tiptap-image[data-align="right"] {
+          display: block;
+          margin-left: auto;
+          margin-right: 0;
+          width: fit-content;
+        }
+        .tiptap-editor .tiptap-image img {
+          display: block;
+          max-width: 100%;
+          height: auto;
+          cursor: move;
+        }
+        .tiptap-editor .tiptap-image.tiptap-image-selected img {
+          outline: 2px solid #3b82f6;
+          outline-offset: 1px;
+        }
+        .tiptap-editor .tiptap-image-handle {
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          background: #3b82f6;
+          border: 2px solid #ffffff;
+          border-radius: 9999px;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+          display: none;
+          z-index: 20;
+        }
+        .tiptap-editor .tiptap-image.tiptap-image-selected .tiptap-image-handle {
+          display: block;
+        }
+        .tiptap-editor .tiptap-image-handle-nw { top: -7px; left: -7px; cursor: nwse-resize; }
+        .tiptap-editor .tiptap-image-handle-ne { top: -7px; right: -7px; cursor: nesw-resize; }
+        .tiptap-editor .tiptap-image-handle-sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+        .tiptap-editor .tiptap-image-handle-se { bottom: -7px; right: -7px; cursor: nwse-resize; }
         /* Estilos de tabla */
         .tiptap-table {
           border-collapse: collapse;
@@ -840,115 +1164,369 @@ const ReadingEditorPage = () => {
         </div>
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-40 px-4 pt-4">
-        <div className="bg-white/95  border border-gray-200 rounded-2xl shadow-sm px-6">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-6">
-              <button
-                onClick={() => navigate(`/study-contents/${materialId}`)}
-                className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                <span className="text-sm font-medium hidden sm:block">Volver</span>
-              </button>
-              
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                  <FileText className="w-5 h-5 text-white" />
-                </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-sm font-semibold text-gray-900">
-                    {hasExistingReading ? 'Editar' : 'Crear'} Lectura
-                  </h1>
-                  {topic && (
-                    <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                      {topic.title}
-                    </p>
-                  )}
-                </div>
-              </div>
+      {/* Header flotante (sin barra rectangular) */}
+      <header className="sticky top-0 z-40 pointer-events-none">
+        <div className="flex items-center gap-3 px-4 sm:px-6 pt-3 pb-2">
+          {/* Izquierda: pastilla de navegación + identidad (toda clicable) */}
+          <button
+            type="button"
+            onClick={() => navigate(`/study-contents/${materialId}`)}
+            title="Volver al material"
+            className="group pointer-events-auto flex items-center gap-2 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 pl-1.5 pr-3.5 py-1.5 min-w-0 shrink-0 hover:ring-blue-200 transition-all text-left"
+          >
+            <span className="flex items-center justify-center w-9 h-9 rounded-xl text-gray-500 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </span>
+            <span className="flex flex-col min-w-0 leading-tight pr-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                {hasExistingReading ? 'Editar lectura' : 'Nueva lectura'}
+              </span>
+              <span className="text-sm font-semibold text-gray-900 truncate max-w-[120px] sm:max-w-[180px]">
+                {topic?.title || 'Lectura'}
+              </span>
+            </span>
+          </button>
+
+          {/* Centro: barra de formato flotante (en preview se muestra atenuada y deshabilitada) */}
+          {editorReady && (
+            <div
+              className={`flex-1 min-w-0 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 overflow-hidden transition-opacity ${
+                showPreview ? 'opacity-40 pointer-events-none select-none' : 'pointer-events-auto'
+              }`}
+              aria-hidden={showPreview}
+            >
+              <EditorToolbar
+                editor={editor}
+                onImageUpload={handleImageUpload}
+                isUploading={isUploadingImage}
+                inline
+                onCustomImageSize={() => {
+                  setImageSizeInput((editor?.getAttributes('image').width as string) || '');
+                  setShowImageSizeModal(true);
+                }}
+              />
             </div>
+          )}
 
-            <div className="flex items-center gap-2">
+          {/* Derecha: acciones flotantes circulares + guardar */}
+          <div className="pointer-events-auto flex items-center gap-2 shrink-0 ml-auto">
+            <button
+              onClick={() => { setHtmlMode(form.content.trim() ? 'append' : 'replace'); setShowHtmlModal(true); }}
+              className="flex items-center justify-center w-11 h-11 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 text-gray-600 hover:text-violet-600 hover:ring-violet-200 transition-all"
+              title="Pegar código HTML para crear el cuerpo de la lectura"
+            >
+              <Code2 className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className={`flex items-center justify-center w-11 h-11 rounded-2xl shadow-lg transition-all ring-1 ${
+                showPreview
+                  ? 'bg-blue-600 text-white ring-blue-600/30 shadow-blue-600/25'
+                  : 'bg-white/90 backdrop-blur-md text-gray-600 ring-gray-900/5 shadow-gray-900/5 hover:text-blue-600 hover:ring-blue-200'
+              }`}
+              title={showPreview ? 'Volver a editar' : 'Ver vista previa'}
+            >
+              {showPreview ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+
+            {isAdmin && hasExistingReading && (
               <button
-                onClick={() => setShowPreview(!showPreview)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                  showPreview 
-                    ? 'bg-blue-100 text-blue-700' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                onClick={() => setShowDeleteModal(true)}
+                className="flex items-center justify-center w-11 h-11 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 text-gray-600 hover:text-red-600 hover:ring-red-200 transition-all"
+                title="Eliminar lectura"
               >
-                {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                <span className="hidden sm:inline">{showPreview ? 'Editar' : 'Vista previa'}</span>
+                <Trash2 className="w-5 h-5" />
               </button>
+            )}
 
-              {isAdmin && hasExistingReading && (
-                <button
-                  onClick={() => setShowDeleteModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-all"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Eliminar</span>
-                </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.title.trim()}
+              className={`flex items-center gap-2 h-11 px-5 rounded-2xl text-sm font-semibold transition-all ${
+                !saving && form.title.trim()
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-sm'
+              }`}
+            >
+              {saving ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Save className="w-5 h-5" />
               )}
-
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.title.trim()}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all shadow-sm"
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                <span className="hidden sm:inline">{saving ? 'Guardando...' : 'Guardar'}</span>
-              </button>
-            </div>
+              <span>{saving ? 'Guardando...' : 'Guardar'}</span>
+            </button>
           </div>
         </div>
       </header>
 
       {/* Contenido principal */}
-      <main className="flex-1 px-4 py-4">
-        <div className="max-w-5xl mx-auto">
-          {/* Campo de título */}
-          <div className="mb-4">
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Título de la lectura..."
-              className="w-full px-4 py-3 text-xl font-semibold border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* Editor o Preview */}
-          {showPreview ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-6 min-h-[500px]">
-              <div 
-                className="prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(form.content) }}
-              />
+      <main className="flex-1 flex flex-col">
+        {showPreview ? (
+          /* ---------- VISTA PREVIA (tal cual la verá el candidato) ---------- */
+          <div className="px-4 py-6">
+            <div className="w-full">
+              <div className="flex items-center gap-2 mb-3 text-xs text-gray-500">
+                <Eye className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-gray-700">Vista previa</span>
+                <span className="text-gray-400">— así se verá la lectura en el material de estudio</span>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 shadow-xl overflow-hidden">
+                {form.content.trim() || form.title.trim() ? (
+                  <article className="px-8 sm:px-14 py-12">
+                    <h1 className="text-3xl font-bold text-gray-900 pb-3 mb-6 border-b border-gray-200">
+                      {form.title || 'Sin título'}
+                    </h1>
+                    <div
+                      className="reading-content prose prose-lg max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-strong:text-gray-900 [&_img]:rounded-lg"
+                      dangerouslySetInnerHTML={{ __html: sanitizeReadingHtml(form.content) }}
+                    />
+                  </article>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center min-h-[500px] text-gray-400">
+                    <FileText className="w-12 h-12 mb-3 text-gray-300" />
+                    <p className="text-sm">Aún no hay contenido para previsualizar</p>
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <EditorToolbar 
-                editor={editor} 
-                onImageUpload={handleImageUpload}
-                isUploading={isUploadingImage}
-              />
-              <div className="p-4">
-                <EditorContent 
-                  editor={editor} 
+          </div>
+        ) : (
+          /* ---------- EDITOR (estilo documento profesional) ---------- */
+          <>
+            {/* Lienzo: hoja del documento (la barra de formato vive en el header) */}
+            <div className="flex-1 px-4 pt-4 pb-6">
+              <div className="reading-page mx-auto bg-white border border-gray-200 shadow-xl rounded-xl px-8 sm:px-14 py-12">
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Título de la lectura..."
+                  className="w-full text-3xl font-bold text-gray-900 placeholder-gray-300 bg-transparent border-0 border-b border-gray-100 focus:border-blue-300 focus:outline-none px-0 pb-3 mb-6 transition-colors"
+                />
+                <EditorContent
+                  editor={editor}
                   className="tiptap-editor prose prose-lg max-w-none focus:outline-none"
                 />
               </div>
+
+              {/* Barra de estado inferior */}
+              <div className="w-full mt-3 flex items-center justify-between px-1 text-xs text-gray-500">
+                <span>{wordCount} palabra{wordCount === 1 ? '' : 's'} · {charCount} caracteres</span>
+                <button
+                  onClick={() => { setHtmlMode(form.content.trim() ? 'append' : 'replace'); setShowHtmlModal(true); }}
+                  className="flex items-center gap-1.5 font-medium text-violet-600 hover:text-violet-700 transition-colors"
+                >
+                  <Code2 className="w-3.5 h-3.5" />
+                  Pegar HTML
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </main>
+
+      {/* Modal: Tamaño personalizado de imagen */}
+      {showImageSizeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full flex flex-col shadow-2xl">
+            {/* Header del modal */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                  <ImageIcon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Tamaño de imagen</h3>
+                  <p className="text-xs text-gray-500">Define un ancho en porcentaje o píxeles</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImageSizeModal(false)}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Cuerpo del modal */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Ancho</label>
+                <input
+                  type="text"
+                  value={imageSizeInput}
+                  onChange={(e) => setImageSizeInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && imageSizeInput.trim()) {
+                      editor?.chain().focus().updateAttributes('image', { width: imageSizeInput.trim() }).run();
+                      setShowImageSizeModal(false);
+                    }
+                  }}
+                  placeholder="Ej: 50% o 300px"
+                  autoFocus
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="mt-1.5 text-xs text-gray-400">Usa un porcentaje (ej: 50%) o un valor en píxeles (ej: 300px).</p>
+              </div>
+
+              {/* Presets rápidos */}
+              <div className="flex flex-wrap gap-2">
+                {['25%', '50%', '75%', '100%'].map(preset => (
+                  <button
+                    key={preset}
+                    onClick={() => setImageSizeInput(preset)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                      imageSizeInput === preset
+                        ? 'bg-blue-50 border-blue-300 text-blue-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer del modal */}
+            <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowImageSizeModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (imageSizeInput.trim()) {
+                    editor?.chain().focus().updateAttributes('image', { width: imageSizeInput.trim() }).run();
+                  }
+                  setShowImageSizeModal(false);
+                }}
+                disabled={!imageSizeInput.trim()}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all text-sm font-medium shadow-sm"
+              >
+                <Check className="w-4 h-4" />
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Pegar HTML */}
+      {showHtmlModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+            {/* Header del modal */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-sm">
+                  <Code2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">Pegar HTML</h3>
+                  <p className="text-xs text-gray-500">Crea el cuerpo de la lectura a partir de código HTML</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHtmlModal(false)}
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Cuerpo del modal */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Modo: reemplazar / agregar */}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setHtmlMode('replace')}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${
+                    htmlMode === 'replace'
+                      ? 'bg-violet-50 border-violet-300 text-violet-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Replace className="w-4 h-4" />
+                  Reemplazar contenido
+                </button>
+                <button
+                  onClick={() => setHtmlMode('append')}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all ${
+                    htmlMode === 'append'
+                      ? 'bg-violet-50 border-violet-300 text-violet-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar al final
+                </button>
+                <button
+                  onClick={handlePasteFromClipboard}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all ml-auto"
+                >
+                  <ClipboardPaste className="w-4 h-4" />
+                  Pegar del portapapeles
+                </button>
+              </div>
+
+              {/* Editor de HTML + Vista previa */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Código HTML</label>
+                  <textarea
+                    value={htmlInput}
+                    onChange={(e) => setHtmlInput(e.target.value)}
+                    placeholder={'<h2>Mi título</h2>\n<p>Escribe o pega aquí tu HTML...</p>'}
+                    spellCheck={false}
+                    className="w-full h-64 px-3 py-2 font-mono text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="block mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">Vista previa</label>
+                  <div className="h-64 overflow-y-auto px-3 py-2 border border-gray-200 rounded-xl bg-white">
+                    {htmlInput.trim() ? (
+                      <div
+                        className="reading-content prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: sanitizeReadingHtml(htmlInput) }}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                        La vista previa aparecerá aquí
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-400">
+                El HTML se limpia automáticamente por seguridad (se eliminan scripts). Se conservan textos, encabezados,
+                listas, tablas, enlaces, imágenes y formato básico.
+              </p>
+            </div>
+
+            {/* Footer del modal */}
+            <div className="flex gap-3 justify-end px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowHtmlModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleApplyHtml}
+                disabled={!htmlInput.trim()}
+                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 transition-all text-sm font-medium shadow-sm"
+              >
+                <Check className="w-4 h-4" />
+                {htmlMode === 'replace' ? 'Reemplazar contenido' : 'Agregar al final'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmación de eliminación */}
       {showDeleteModal && (

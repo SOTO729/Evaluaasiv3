@@ -100,6 +100,8 @@ def get_my_balance():
         total_received = sum(float(b.total_received or 0) for b in balances)
         total_spent = sum(float(b.total_spent or 0) for b in balances)
         total_scholarships = sum(float(b.total_scholarships or 0) for b in balances)
+        total_scholarship_balance = sum(float(b.scholarship_balance or 0) for b in balances)
+        total_scholarships_spent = sum(float(b.total_scholarships_spent or 0) for b in balances)
         
         return jsonify({
             'balances': [b.to_dict(include_campus=True) for b in balances],
@@ -108,6 +110,9 @@ def get_my_balance():
                 'total_received': total_received,
                 'total_spent': total_spent,
                 'total_scholarships': total_scholarships,
+                'scholarship_balance': total_scholarship_balance,
+                'total_scholarships_spent': total_scholarships_spent,
+                'paid_balance': total_balance - total_scholarship_balance,
             },
             'coordinator': {
                 'id': user.id,
@@ -1481,6 +1486,8 @@ def get_balance_stats():
         total_received = db.session.query(func.sum(CoordinatorBalance.total_received)).scalar() or 0
         total_spent = db.session.query(func.sum(CoordinatorBalance.total_spent)).scalar() or 0
         total_scholarships = db.session.query(func.sum(CoordinatorBalance.total_scholarships)).scalar() or 0
+        total_scholarship_balance = db.session.query(func.sum(CoordinatorBalance.scholarship_balance)).scalar() or 0
+        total_scholarships_spent = db.session.query(func.sum(CoordinatorBalance.total_scholarships_spent)).scalar() or 0
         
         # Conteos
         coordinators_with_balance = db.session.query(
@@ -1500,7 +1507,10 @@ def get_balance_stats():
                 'current_balance': float(total_balance),
                 'total_received': float(total_received),
                 'total_spent': float(total_spent),
-                'total_scholarships': float(total_scholarships)
+                'total_scholarships': float(total_scholarships),
+                'scholarship_balance': float(total_scholarship_balance),
+                'total_scholarships_spent': float(total_scholarships_spent),
+                'paid_balance': float(total_balance) - float(total_scholarship_balance)
             },
             'coordinators_with_balance': coordinators_with_balance,
             'requests': {
@@ -1561,6 +1571,8 @@ def get_campus_balance_summary(campus_id):
         total_received = sum(float(b.total_received or 0) for b in balances)
         total_spent = sum(float(b.total_spent or 0) for b in balances)
         total_scholarships = sum(float(b.total_scholarships or 0) for b in balances)
+        total_scholarship_balance = sum(float(b.scholarship_balance or 0) for b in balances)
+        total_scholarships_spent = sum(float(b.total_scholarships_spent or 0) for b in balances)
         
         # Desglose por coordinador
         coordinators = []
@@ -1573,6 +1585,9 @@ def get_campus_balance_summary(campus_id):
                 'total_received': float(b.total_received or 0),
                 'total_spent': float(b.total_spent or 0),
                 'total_scholarships': float(b.total_scholarships or 0),
+                'scholarship_balance': float(b.scholarship_balance or 0),
+                'total_scholarships_spent': float(b.total_scholarships_spent or 0),
+                'paid_balance': float(b.current_balance or 0) - float(b.scholarship_balance or 0),
             })
         
         return jsonify({
@@ -1583,6 +1598,9 @@ def get_campus_balance_summary(campus_id):
                 'total_received': total_received,
                 'total_spent': total_spent,
                 'total_scholarships': total_scholarships,
+                'scholarship_balance': total_scholarship_balance,
+                'total_scholarships_spent': total_scholarships_spent,
+                'paid_balance': total_balance - total_scholarship_balance,
             },
             'coordinators_count': len(balances),
             'coordinators': coordinators,
@@ -2473,6 +2491,9 @@ def get_my_campus_balance():
         total_received = sum(float(b.total_received or 0) for b in balances)
         total_spent = sum(float(b.total_spent or 0) for b in balances)
         total_scholarships = sum(float(b.total_scholarships or 0) for b in balances)
+        total_scholarship_balance = sum(float(b.scholarship_balance or 0) for b in balances)
+        total_scholarships_spent = sum(float(b.total_scholarships_spent or 0) for b in balances)
+        total_paid_balance = total_balance - total_scholarship_balance
 
         # Convertir a unidades
         def to_units(amount):
@@ -2492,12 +2513,17 @@ def get_my_campus_balance():
                 'total_received': total_received,
                 'total_spent': total_spent,
                 'total_scholarships': total_scholarships,
+                'scholarship_balance': total_scholarship_balance,
+                'total_scholarships_spent': total_scholarships_spent,
+                'paid_balance': total_paid_balance,
             },
             'totals_units': {
                 'current_balance': to_units(total_balance),
                 'total_received': to_units(total_received),
                 'total_spent': to_units(total_spent),
                 'total_scholarships': to_units(total_scholarships),
+                'scholarship_balance': to_units(total_scholarship_balance),
+                'paid_balance': to_units(total_paid_balance),
             },
             'coordinators_count': len(balances),
         })

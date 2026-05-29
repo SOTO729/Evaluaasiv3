@@ -56,6 +56,13 @@ class Payment(db.Model):
     credits_applied = db.Column(db.Boolean, default=False, nullable=False)
     credits_applied_at = db.Column(db.DateTime, nullable=True)
 
+    # Modelo Directo — bundle (compra múltiple en una sola preferencia MP)
+    # Cuando un usuario compra varios exámenes a la vez:
+    #   * bundle_exam_ids = JSON list de exam_id incluidos en el bundle
+    #   * group_exam_id queda en NULL (o referencia al primero) porque no hay 1:1
+    #   * Al aprobarse el pago, el webhook crea GroupExamMember para CADA examen.
+    bundle_exam_ids = db.Column(db.Text, nullable=True)
+
     # Datos extra del webhook (JSON)
     webhook_data = db.Column(db.Text, nullable=True)
 
@@ -89,6 +96,8 @@ class Payment(db.Model):
             'status_label': PAYMENT_STATUS.get(self.status, self.status),
             'credits_applied': self.credits_applied,
             'credits_applied_at': self.credits_applied_at.isoformat() if self.credits_applied_at else None,
+            'bundle_exam_ids': self.get_bundle_exam_ids(),
+            'is_bundle': bool(self.get_bundle_exam_ids()),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'campus': {
@@ -96,3 +105,21 @@ class Payment(db.Model):
                 'name': self.campus.name,
             } if self.campus else None,
         }
+
+    def get_bundle_exam_ids(self):
+        """Devuelve la lista de IDs de exámenes incluidos en el bundle (o [] si no es bundle)."""
+        raw = getattr(self, 'bundle_exam_ids', None)
+        if not raw:
+            return []
+        try:
+            data = json.loads(raw)
+            return [int(x) for x in data] if isinstance(data, list) else []
+        except Exception:
+            return []
+
+    def set_bundle_exam_ids(self, exam_ids):
+        """Serializa la lista de IDs como JSON en bundle_exam_ids."""
+        if exam_ids:
+            self.bundle_exam_ids = json.dumps([int(x) for x in exam_ids])
+        else:
+            self.bundle_exam_ids = None

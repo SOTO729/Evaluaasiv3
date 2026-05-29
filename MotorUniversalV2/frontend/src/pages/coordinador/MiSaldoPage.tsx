@@ -335,8 +335,10 @@ export default function MiSaldoPage() {
   }
 
   // ===== Vista Coordinador =====
-  const totals = balanceData?.totals || { current_balance: 0, total_received: 0, total_spent: 0, total_scholarships: 0 };
+  const totals = balanceData?.totals || { current_balance: 0, total_received: 0, total_spent: 0, total_scholarships: 0, scholarship_balance: 0, paid_balance: 0, total_scholarships_spent: 0 };
   const campusBalances = balanceData?.balances || [];
+  const scholarshipBalance = totals.scholarship_balance ?? 0;
+  const paidBalance = totals.paid_balance ?? (totals.current_balance - scholarshipBalance);
   
   const usagePercent = totals.total_received > 0
     ? Math.round((totals.total_spent / totals.total_received) * 100)
@@ -376,6 +378,18 @@ export default function MiSaldoPage() {
             <p className="text-green-100 mt-2">
               Distribuido en {campusBalances.length} plantel{campusBalances.length !== 1 ? 'es' : ''}
             </p>
+            {scholarshipBalance > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium">
+                  <Wallet className="w-4 h-4" />
+                  Saldo pagado: {formatCurrency(paidBalance)}
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium">
+                  <Gift className="w-4 h-4" />
+                  Saldo beca: {formatCurrency(scholarshipBalance)}
+                </span>
+              </div>
+            )}
           </div>
           <div className="mt-6 md:mt-0 flex gap-3">
             <Link
@@ -477,6 +491,11 @@ export default function MiSaldoPage() {
                       <p className={`text-2xl font-bold ${bal.current_balance > 0 ? 'text-green-600' : 'text-gray-400'}`}>
                         {formatCurrency(bal.current_balance)}
                       </p>
+                      {(bal.scholarship_balance ?? 0) > 0 && (
+                        <p className="text-xs text-purple-600 font-medium">
+                          Beca: {formatCurrency(bal.scholarship_balance ?? 0)} · Pagado: {formatCurrency((bal.paid_balance ?? (bal.current_balance - (bal.scholarship_balance ?? 0))))}
+                        </p>
+                      )}
                       {bal.campus?.certification_cost && bal.campus.certification_cost > 0 && (
                         <p className="text-xs text-gray-500">
                           {formatUnits(bal.current_balance, bal.campus.certification_cost)}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { authService } from '../../services/authService'
 import { 
   GraduationCap, 
@@ -11,28 +11,32 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  User,
-  Phone
+  Phone,
+  Calendar,
+  IdCard,
+  Info
 } from 'lucide-react'
 
 const RegisterPage = () => {
-  const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [registeredEmail, setRegisteredEmail] = useState('')
   const [formData, setFormData] = useState({
     email: '',
-    username: '',
     password: '',
     confirmPassword: '',
     name: '',
     first_surname: '',
     second_surname: '',
+    gender: '',
+    curp: '',
+    date_of_birth: '',
     phone: '',
     acceptTerms: false,
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle')
 
   const passwordRequirements = [
     { label: 'Mínimo 8 caracteres', met: formData.password.length >= 8 },
@@ -41,17 +45,54 @@ const RegisterPage = () => {
     { label: 'Un número', met: /[0-9]/.test(formData.password) },
   ]
 
-  const isStep1Valid = formData.email && formData.username && formData.password && 
-    formData.confirmPassword && formData.password === formData.confirmPassword &&
-    passwordRequirements.every(r => r.met)
+  // CURP opcional pero si se llena debe ser válida (18 alfanuméricos)
+  const curpClean = formData.curp.trim().toUpperCase()
+  const curpValid = curpClean === '' || /^[A-Z0-9]{18}$/.test(curpClean)
 
-  const isStep2Valid = formData.name && formData.first_surname && formData.acceptTerms
+  const isStep1Valid = formData.email && formData.password &&
+    formData.confirmPassword && formData.password === formData.confirmPassword &&
+    passwordRequirements.every(r => r.met) &&
+    emailStatus !== 'taken' && emailStatus !== 'invalid' && emailStatus !== 'checking'
+
+  const isStep2Valid = formData.name.trim() && formData.first_surname.trim() &&
+    formData.acceptTerms && curpValid
+
+  const checkEmailAvailability = async (rawEmail: string) => {
+    const email = rawEmail.trim().toLowerCase()
+    if (!email) {
+      setEmailStatus('idle')
+      return true
+    }
+    // Formato básico antes de pegarle al backend
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailStatus('invalid')
+      return false
+    }
+    try {
+      setEmailStatus('checking')
+      const res = await authService.checkEmail(email)
+      setEmailStatus(res.available ? 'available' : 'taken')
+      return res.available
+    } catch {
+      // No bloqueamos el avance si el endpoint falla; el backend revalida al crear.
+      setEmailStatus('idle')
+      return true
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (step === 1) {
-      if (isStep1Valid) setStep(2)
+      if (!isStep1Valid) return
+      // Revalidar email contra backend antes de avanzar
+      const ok = await checkEmailAvailability(formData.email)
+      if (!ok) {
+        setError('El email ya está registrado o no es válido.')
+        return
+      }
+      setError('')
+      setStep(2)
       return
     }
 
@@ -60,13 +101,15 @@ const RegisterPage = () => {
 
     try {
       await authService.register({
-        email: formData.email,
-        username: formData.username,
+        email: formData.email.trim().toLowerCase(),
         password: formData.password,
-        name: formData.name,
-        first_surname: formData.first_surname,
-        second_surname: formData.second_surname,
-        phone: formData.phone,
+        name: formData.name.trim(),
+        first_surname: formData.first_surname.trim(),
+        second_surname: formData.second_surname.trim() || undefined,
+        gender: formData.gender || undefined,
+        curp: curpClean || undefined,
+        date_of_birth: formData.date_of_birth || undefined,
+        phone: formData.phone.trim() || undefined,
       })
       setRegisteredEmail(formData.email)
       setStep(3)
@@ -103,8 +146,8 @@ const RegisterPage = () => {
       </div>
 
       {/* Right Side - Form */}
-      <div className="flex-1 flex flex-col justify-center fluid-px-8 bg-white">
-        <div className="mx-auto w-full max-w-sm">
+      <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-12 py-10 bg-white overflow-y-auto">
+        <div className="mx-auto w-full max-w-md sm:max-w-lg lg:max-w-xl">
           {/* Logo */}
           <Link to="/" className="flex items-center fluid-gap-3 fluid-mb-10">
             <img src="/logo.webp" alt="Evaluaasi" className="fluid-h-12 w-auto" />
@@ -170,39 +213,49 @@ const RegisterPage = () => {
             </div>
           ) : (
           /* Form */
-          <form onSubmit={handleSubmit} className="flex flex-col fluid-gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             {step === 1 ? (
               <>
                 {/* Email */}
                 <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Email</label>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Email *</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
                     <input
                       type="email"
                       required
-                      className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      className={`w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 ${
+                        emailStatus === 'taken' || emailStatus === 'invalid' ? 'border-red-300' : 'border-gray-300'
+                      }`}
                       placeholder="tu@email.com"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(e) => {
+                        setFormData({ ...formData, email: e.target.value })
+                        if (emailStatus !== 'idle') setEmailStatus('idle')
+                      }}
+                      onBlur={(e) => { void checkEmailAvailability(e.target.value) }}
                     />
                   </div>
-                </div>
-
-                {/* Username */}
-                <div>
-                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Usuario</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
-                    <input
-                      type="text"
-                      required
-                      className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                      placeholder="usuario123"
-                      value={formData.username}
-                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    />
-                  </div>
+                  {emailStatus === 'checking' && (
+                    <p className="fluid-mt-1 fluid-text-xs text-gray-500">Verificando disponibilidad…</p>
+                  )}
+                  {emailStatus === 'available' && (
+                    <p className="fluid-mt-1 fluid-text-xs text-green-600">Email disponible.</p>
+                  )}
+                  {emailStatus === 'taken' && (
+                    <p className="fluid-mt-1 fluid-text-xs text-red-500">
+                      Este email ya está registrado.{' '}
+                      <Link to="/login" className="underline font-medium">Inicia sesión</Link>
+                      {' '}o{' '}
+                      <Link to="/forgot-password" className="underline font-medium">recupera tu contraseña</Link>.
+                    </p>
+                  )}
+                  {emailStatus === 'invalid' && (
+                    <p className="fluid-mt-1 fluid-text-xs text-red-500">Email inválido.</p>
+                  )}
+                  {emailStatus === 'idle' && (
+                    <p className="fluid-mt-1 fluid-text-xs text-gray-500">Tu usuario se generará automáticamente.</p>
+                  )}
                 </div>
 
                 {/* Password */}
@@ -313,6 +366,63 @@ const RegisterPage = () => {
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     />
                   </div>
+                </div>
+
+                {/* Género + Fecha de nacimiento */}
+                <div className="grid grid-cols-2 fluid-gap-3">
+                  <div>
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Género (opcional)</label>
+                    <select
+                      className="w-full fluid-px-4 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                      value={formData.gender}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    >
+                      <option value="">— Seleccionar —</option>
+                      <option value="M">Masculino</option>
+                      <option value="F">Femenino</option>
+                      <option value="O">Otro / Prefiero no decirlo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">Fecha de nacimiento</label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400 pointer-events-none" />
+                      <input
+                        type="date"
+                        max={new Date().toISOString().slice(0, 10)}
+                        className="w-full fluid-pl-10 fluid-pr-2 fluid-py-3 border border-gray-300 rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        value={formData.date_of_birth}
+                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* CURP */}
+                <div>
+                  <label className="block fluid-text-sm font-medium text-gray-700 fluid-mb-1">
+                    CURP (opcional, recomendado)
+                  </label>
+                  <div className="relative">
+                    <IdCard className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
+                    <input
+                      type="text"
+                      maxLength={18}
+                      className={`w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border rounded-fluid-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 uppercase tracking-wider ${
+                        !curpValid ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="GAGA800101HDFRRR09"
+                      value={formData.curp}
+                      onChange={(e) => setFormData({ ...formData, curp: e.target.value.toUpperCase() })}
+                    />
+                  </div>
+                  <div className="fluid-mt-1 flex items-start fluid-gap-1 fluid-text-xs text-gray-500">
+                    <Info className="fluid-icon-xs flex-shrink-0 mt-0.5" />
+                    <span>Necesaria para emitir certificados oficiales (CONOCER). Puedes agregarla después.</span>
+                  </div>
+                  {!curpValid && (
+                    <p className="fluid-mt-1 fluid-text-xs text-red-500">La CURP debe tener exactamente 18 caracteres alfanuméricos.</p>
+                  )}
                 </div>
 
                 {/* Terms */}

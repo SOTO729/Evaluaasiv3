@@ -38,6 +38,9 @@ class CompetencyStandard(db.Model):
     # Logo del estándar
     logo_url = db.Column(db.String(500), nullable=True)
     
+    # Ficha informativa PDF ("Conoce más") asociada al estándar
+    info_sheet_url = db.Column(db.String(500), nullable=True)
+    
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -78,6 +81,7 @@ class CompetencyStandard(db.Model):
             'brand_id': self.brand_id,
             'brand': self.brand.to_dict() if self.brand else None,
             'logo_url': self.logo_url,
+            'info_sheet_url': getattr(self, 'info_sheet_url', None),
             'is_active': self.is_active,
             'has_template': self.certificate_template is not None,
             'created_by': self.created_by,

@@ -33,6 +33,9 @@ class CoordinatorBalance(db.Model):
     total_received = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Total recibido (aprobaciones)
     total_spent = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Total gastado (asignaciones)
     total_scholarships = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Total en becas recibidas
+    # Separación contable beca vs saldo pagado (política: beca primero)
+    scholarship_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Beca DISPONIBLE (se descuenta)
+    total_scholarships_spent = db.Column(db.Numeric(12, 2), default=0, nullable=False)  # Beca consumida acumulada
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -56,6 +59,9 @@ class CoordinatorBalance(db.Model):
             'total_received': float(self.total_received) if self.total_received else 0,
             'total_spent': float(self.total_spent) if self.total_spent else 0,
             'total_scholarships': float(self.total_scholarships) if self.total_scholarships else 0,
+            'scholarship_balance': float(self.scholarship_balance) if self.scholarship_balance else 0,
+            'total_scholarships_spent': float(self.total_scholarships_spent) if self.total_scholarships_spent else 0,
+            'paid_balance': float((self.current_balance or Decimal('0')) - (self.scholarship_balance or Decimal('0'))),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -83,18 +89,38 @@ class CoordinatorBalance(db.Model):
         return data
     
     def add_balance(self, amount, is_scholarship=False):
-        """Agregar saldo al coordinador para este plantel"""
-        self.current_balance = (self.current_balance or Decimal('0')) + Decimal(str(amount))
-        self.total_received = (self.total_received or Decimal('0')) + Decimal(str(amount))
+        """Agregar saldo al coordinador para este plantel.
+
+        Si is_scholarship=True, el monto también alimenta el saldo de beca
+        disponible (scholarship_balance) y el acumulado histórico.
+        """
+        amount_dec = Decimal(str(amount))
+        self.current_balance = (self.current_balance or Decimal('0')) + amount_dec
+        self.total_received = (self.total_received or Decimal('0')) + amount_dec
         if is_scholarship:
-            self.total_scholarships = (self.total_scholarships or Decimal('0')) + Decimal(str(amount))
+            self.total_scholarships = (self.total_scholarships or Decimal('0')) + amount_dec
+            self.scholarship_balance = (self.scholarship_balance or Decimal('0')) + amount_dec
         self.updated_at = datetime.utcnow()
-    
+
     def deduct_balance(self, amount):
-        """Descontar saldo del coordinador para este plantel"""
-        self.current_balance = (self.current_balance or Decimal('0')) - Decimal(str(amount))
-        self.total_spent = (self.total_spent or Decimal('0')) + Decimal(str(amount))
+        """Descontar saldo del coordinador para este plantel.
+
+        Política BECA PRIMERO: se consume el saldo de beca disponible antes que
+        el saldo pagado. Retorna el desglose {'scholarship': x, 'paid': y} para
+        que la transacción registre cuánto provino de beca.
+        """
+        amount_dec = Decimal(str(amount))
+        available_beca = self.scholarship_balance or Decimal('0')
+        take_beca = available_beca if available_beca < amount_dec else amount_dec
+        if take_beca < Decimal('0'):
+            take_beca = Decimal('0')
+        take_paid = amount_dec - take_beca
+        self.current_balance = (self.current_balance or Decimal('0')) - amount_dec
+        self.scholarship_balance = available_beca - take_beca
+        self.total_spent = (self.total_spent or Decimal('0')) + amount_dec
+        self.total_scholarships_spent = (self.total_scholarships_spent or Decimal('0')) + take_beca
         self.updated_at = datetime.utcnow()
+        return {'scholarship': take_beca, 'paid': take_paid}
     
     def has_sufficient_balance(self, amount):
         """Verificar si tiene saldo suficiente en este plantel"""
@@ -300,6 +326,8 @@ class BalanceTransaction(db.Model):
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     balance_before = db.Column(db.Numeric(12, 2), nullable=False)
     balance_after = db.Column(db.Numeric(12, 2), nullable=False)
+    # Porción del movimiento que correspondió a beca (resto = saldo pagado)
+    scholarship_amount = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     
     # Referencia al origen del movimiento
     reference_type = db.Column(db.String(50), nullable=True)  # 'balance_request', 'group_exam_member', etc.
@@ -333,6 +361,8 @@ class BalanceTransaction(db.Model):
             'amount': float(self.amount) if self.amount else 0,
             'balance_before': float(self.balance_before) if self.balance_before else 0,
             'balance_after': float(self.balance_after) if self.balance_after else 0,
+            'scholarship_amount': float(self.scholarship_amount) if self.scholarship_amount else 0,
+            'paid_amount': float((self.amount or Decimal('0')) - (self.scholarship_amount or Decimal('0'))),
             'reference_type': self.reference_type,
             'reference_id': self.reference_id,
             'notes': self.notes,
@@ -370,7 +400,7 @@ class BalanceTransaction(db.Model):
 
 def create_balance_transaction(coordinator_id, campus_id, transaction_type, concept, amount, 
                                group_id=None, reference_type=None, reference_id=None, notes=None, 
-                               created_by_id=None):
+                               created_by_id=None, scholarship_amount=None):
     """Helper para crear una transacción de saldo vinculada a un plantel (campus).
     
     Args:
@@ -384,6 +414,10 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
         reference_id: ID de la referencia
         notes: Notas del movimiento
         created_by_id: ID del usuario que realizó el movimiento
+        scholarship_amount: Override explícito de la porción beca (p. ej. para
+            devoluciones que restauran al bucket original). Si es None se
+            calcula automáticamente según la política (beca primero en débitos,
+            monto completo en créditos de concepto 'beca', cero en el resto).
     """
     from app.models.balance import CoordinatorBalance
     
@@ -398,15 +432,28 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
         db.session.flush()
     
     balance_before = float(balance.current_balance or 0)
+    sch_amount = Decimal('0')  # porción beca de este movimiento
     
     # Aplicar el movimiento según el tipo
     if transaction_type == 'credit':
         is_scholarship = concept == 'beca'
         balance.add_balance(amount, is_scholarship=is_scholarship)
+        if is_scholarship:
+            # add_balance ya incrementó scholarship_balance por el monto completo
+            sch_amount = Decimal(str(amount))
+        elif scholarship_amount is not None and Decimal(str(scholarship_amount)) > 0:
+            # Crédito que restaura beca (p. ej. devolución al bucket original)
+            sch_amount = Decimal(str(scholarship_amount))
+            balance.scholarship_balance = (balance.scholarship_balance or Decimal('0')) + sch_amount
     elif transaction_type == 'debit':
-        balance.deduct_balance(amount)
-    else:  # adjustment
+        split = balance.deduct_balance(amount)
+        sch_amount = split['scholarship']
+    else:  # adjustment (negativo => solo saldo pagado; positivo => saldo pagado)
         balance.current_balance = balance.current_balance + Decimal(str(amount))
+        # Invariante: scholarship_balance nunca puede exceder current_balance
+        if (balance.scholarship_balance or Decimal('0')) > (balance.current_balance or Decimal('0')):
+            balance.scholarship_balance = balance.current_balance if balance.current_balance > 0 else Decimal('0')
+        balance.updated_at = datetime.utcnow()
     
     balance_after = float(balance.current_balance)
     
@@ -420,6 +467,7 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
         amount=abs(amount),  # Siempre positivo, el tipo indica dirección
         balance_before=balance_before,
         balance_after=balance_after,
+        scholarship_amount=abs(sch_amount) if sch_amount else Decimal('0'),
         reference_type=reference_type,
         reference_id=reference_id,
         notes=notes,

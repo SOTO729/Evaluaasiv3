@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
+import { sanitizeReadingHtml } from '../../utils/sanitizeReading';
 import {
   getMaterial,
   getMaterialProgress,
@@ -1250,16 +1251,42 @@ const StudyContentPreviewPage: React.FC = () => {
 
   // Obtener URL de video embed
   const getVideoEmbedUrl = (url: string) => {
-    const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?\s]+)/);
+    if (!url) return url;
+    const trimmed = url.trim();
+
+    const youtubeMatch = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?\s]+)/);
     if (youtubeMatch) {
       // Usar el formato estándar de embed de YouTube
       return `https://www.youtube.com/embed/${youtubeMatch[1]}?feature=oembed`;
     }
-    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) {
-      return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+
+    // Si ya es una URL del reproductor de Vimeo, usarla tal cual (conserva el hash ?h=)
+    if (trimmed.includes('player.vimeo.com/video/')) {
+      return trimmed;
     }
-    return url;
+
+    // Vimeo: capturar el id y, si existe, el hash de privacidad de videos no listados.
+    // Formatos soportados:
+    //   vimeo.com/123456789
+    //   vimeo.com/123456789/abcdef1234   (hash en la ruta)
+    //   vimeo.com/123456789?h=abcdef1234 (hash en query)
+    //   vimeo.com/channels/xxx/123456789 · vimeo.com/groups/xxx/videos/123456789
+    const vimeoMatch = trimmed.match(
+      /vimeo\.com\/(?:channels\/[^/]+\/|groups\/[^/]+\/videos\/)?(\d+)(?:\/([0-9a-zA-Z]+))?/
+    );
+    if (vimeoMatch) {
+      const id = vimeoMatch[1];
+      let hash = vimeoMatch[2];
+      if (!hash) {
+        const hMatch = trimmed.match(/[?&]h=([0-9a-zA-Z]+)/);
+        if (hMatch) hash = hMatch[1];
+      }
+      return hash
+        ? `https://player.vimeo.com/video/${id}?h=${hash}`
+        : `https://player.vimeo.com/video/${id}`;
+    }
+
+    return trimmed;
   };
 
   if (loading) {
@@ -1621,8 +1648,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Descripción del video - abajo */}
                       {currentTopic.video.description && (
                         <div 
-                          className="fluid-pt-2 text-gray-600 prose prose-sm max-w-none fluid-text-sm"
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.video.description) }}
+                          className="reading-content fluid-pt-2 prose prose-sm max-w-none fluid-text-sm prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-blockquote:text-gray-600 prose-blockquote:border-gray-300"
+                          dangerouslySetInnerHTML={{ __html: sanitizeReadingHtml(currentTopic.video.description) }}
                         />
                       )}
                       
@@ -1666,8 +1693,8 @@ const StudyContentPreviewPage: React.FC = () => {
                     <article className="w-full">
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 fluid-mb-2 border-b border-gray-300">{currentTopic.reading.title}</h2>
                       <div 
-                        className="reading-content prose prose-sm max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto [&_img]:rounded-lg [&_img]:my-2 fluid-text-sm"
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.reading.content || '') }}
+                        className="reading-content prose prose-lg max-w-full prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-img:max-w-full prose-pre:max-w-full prose-pre:overflow-x-auto [&_img]:rounded-lg [&_img]:my-2"
+                        dangerouslySetInnerHTML={{ __html: sanitizeReadingHtml(currentTopic.reading.content || '') }}
                       />
                       
                       {/* Elemento invisible al final para detectar scroll */}

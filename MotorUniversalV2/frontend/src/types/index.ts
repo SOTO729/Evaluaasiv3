@@ -22,6 +22,8 @@ export interface User {
   phone?: string
   campus_id?: number
   subsystem_id?: number
+  partner_id?: number
+  is_system_direct?: boolean
   can_manage_groups?: boolean
   can_bulk_create_candidates?: boolean
   can_view_reports?: boolean
@@ -225,12 +227,13 @@ export interface LoginCredentials {
 
 export interface RegisterData {
   email: string
-  username: string
   password: string
   name: string
   first_surname: string
   second_surname?: string
   gender?: string
+  curp?: string
+  date_of_birth?: string
   phone?: string
 }
 

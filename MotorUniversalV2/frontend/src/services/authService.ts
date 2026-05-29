@@ -12,6 +12,11 @@ export const authService = {
     return response.data
   },
 
+  checkEmail: async (email: string): Promise<{ available: boolean; email: string }> => {
+    const response = await api.post<{ available: boolean; email: string }>('/auth/check-email', { email })
+    return response.data
+  },
+
   logout: async (): Promise<void> => {
     await api.post('/auth/logout')
   },

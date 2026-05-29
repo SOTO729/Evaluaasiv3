@@ -25,6 +25,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import StandardInfoSheetManager from '../../components/standards/StandardInfoSheetManager';
 
 export default function StandardDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +38,7 @@ export default function StandardDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [examSearch, setExamSearch] = useState('');
+  const [showSheetManager, setShowSheetManager] = useState(false);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'developer';
   const isEditor = user?.role === 'editor' || user?.role === 'editor_invitado' || user?.role === 'coordinator';
@@ -190,6 +192,16 @@ export default function StandardDetailPage() {
             </div>
             {(isAdmin || isEditor) && (
               <div className="flex flex-wrap fluid-gap-2">
+                <button
+                  onClick={() => setShowSheetManager(true)}
+                  className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 border border-white/30 rounded-fluid-lg fluid-text-sm font-medium text-white hover:bg-white/10 transition-colors"
+                  title={standard.info_sheet_url ? 'Ver / reemplazar ficha técnica' : 'Cargar ficha técnica'}
+                >
+                  <ScrollText className="fluid-icon-sm" />
+                  <span className="hidden sm:inline">
+                    {standard.info_sheet_url ? 'Ficha técnica' : 'Cargar ficha'}
+                  </span>
+                </button>
                 <button
                   onClick={() => navigate(`/standards/${standard.id}/certificate-template`)}
                   className="inline-flex items-center justify-center fluid-gap-2 fluid-px-4 fluid-py-2 border border-white/30 rounded-fluid-lg fluid-text-sm font-medium text-white hover:bg-white/10 transition-colors"
@@ -466,6 +478,15 @@ export default function StandardDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de ficha técnica del estándar */}
+      {showSheetManager && standard && (
+        <StandardInfoSheetManager
+          standard={standard}
+          onClose={() => setShowSheetManager(false)}
+          onUpdated={(updated) => setStandard((prev) => (prev ? { ...prev, ...updated } : prev))}
+        />
       )}
     </div>
   );

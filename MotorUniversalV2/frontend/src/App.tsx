@@ -21,6 +21,13 @@ const TermsOfServicePage = lazy(() => import('./pages/landing/TermsOfServicePage
 const VerifyPage = lazy(() => import('./pages/verify/VerifyPage'))
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'))
 const SsoLandingPage = lazy(() => import('./pages/auth/SsoLandingPage'))
+// Catálogo público (Modelo Directo / B2C)
+const CatalogPage = lazy(() => import('./pages/catalog/CatalogPage'))
+const ExamSalePage = lazy(() => import('./pages/catalog/ExamSalePage'))
+const BundleCheckoutPage = lazy(() => import('./pages/catalog/BundleCheckoutPage'))
+const CheckoutSuccess = lazy(() => import('./pages/catalog/CheckoutPages').then(m => ({ default: m.CheckoutSuccess })))
+const CheckoutFailure = lazy(() => import('./pages/catalog/CheckoutPages').then(m => ({ default: m.CheckoutFailure })))
+const CheckoutPending = lazy(() => import('./pages/catalog/CheckoutPages').then(m => ({ default: m.CheckoutPending })))
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'))
@@ -177,6 +184,7 @@ const DeletionRequestsPage = lazy(() => import('./pages/standards/DeletionReques
 const BrandsListPage = lazy(() => import('./pages/standards/BrandsListPage'))
 const BrandFormPage = lazy(() => import('./pages/standards/BrandFormPage'))
 const CertificateTemplateEditorPage = lazy(() => import('./pages/standards/CertificateTemplateEditorPage'))
+const ExamInfoSheetsPage = lazy(() => import('./pages/standards/ExamInfoSheetsPage'))
 
 // Partners (Coordinador)
 const PartnersListPage = lazy(() => import('./pages/partners/PartnersListPage'))
@@ -241,6 +249,7 @@ const GerenteFinanzasPage = lazy(() => import('./pages/gerente/GerenteFinanzasPa
 const GerenteMonitoreoPage = lazy(() => import('./pages/gerente/GerenteMonitoreoPage'))
 const GerenteCertificadosPage = lazy(() => import('./pages/gerente/GerenteCertificadosPage'))
 const ChatAuditPage = lazy(() => import('./pages/gerente/ChatAuditPage'))
+const ModeloDirectoPanel = lazy(() => import('./pages/admin/ModeloDirectoPanel'))
 
 // Coordinador - Saldo
 const MiSaldoPage = lazy(() => import('./pages/coordinador/MiSaldoPage'))
@@ -316,6 +325,14 @@ function App() {
           {/* Certificate Verification - Public */}
           <Route path="/verify/:code" element={<VerifyPage />} />
 
+          {/* Catálogo público - Modelo Directo (B2C) */}
+          <Route path="/catalogo" element={<CatalogPage />} />
+          <Route path="/catalogo/:examId" element={<ExamSalePage />} />
+          <Route path="/checkout/bundle" element={<BundleCheckoutPage />} />
+          <Route path="/checkout/success" element={<CheckoutSuccess />} />
+          <Route path="/checkout/failure" element={<CheckoutFailure />} />
+          <Route path="/checkout/pending" element={<CheckoutPending />} />
+
           {/* SSO landing - intercambia token opaco por JWT */}
           <Route path="/sso" element={<SsoLandingPage />} />
 
@@ -370,6 +387,8 @@ function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/chat-soporte" element={<CandidateSupportChatPage />} />
               <Route path="/mi-curp" element={<MiCurpPage />} />
+              {/* Catálogo de certificaciones embebido en el perfil del candidato */}
+              <Route path="/mi/catalogo" element={<CatalogPage embedded />} />
               
               {/* Study Contents Preview - con navbar */}
               <Route path="/study-contents/:id/preview" element={<RestrictedForGerenteFin><StudyContentPreviewPage /></RestrictedForGerenteFin>} />
@@ -419,6 +438,7 @@ function App() {
               <Route path="/standards/:id/exams/:examId" element={<RestrictedForGerenteFinOnly><StandardExamDetailPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/:id/edit" element={<RestrictedForGerenteFinOnly><StandardFormPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/:id/certificate-template" element={<RestrictedForGerenteFinOnly><CertificateTemplateEditorPage /></RestrictedForGerenteFinOnly>} />
+              <Route path="/standards/info-sheets" element={<RestrictedForGerenteFinOnly><ExamInfoSheetsPage /></RestrictedForGerenteFinOnly>} />
               <Route path="/standards/deletion-requests" element={<RestrictedForGerenteFinOnly><DeletionRequestsPage /></RestrictedForGerenteFinOnly>} />
               
               {/* Certificates - Restringido para coordinador, gerente y financiero */}
@@ -537,6 +557,8 @@ function App() {
               <Route path="/gerente/monitoreo" element={<GerenteMonitoreoPage />} />
               <Route path="/gerente/certificados" element={<GerenteCertificadosPage />} />
               <Route path="/gerente/chat-audit" element={<ChatAuditPage />} />
+              <Route path="/admin/modelo-directo" element={<ModeloDirectoPanel />} />
+              <Route path="/gerente/modelo-directo" element={<ModeloDirectoPanel />} />
               <Route path="/admin/study-exports" element={<StudyExportRequestsPage />} />
               <Route path="/gerente/study-exports" element={<StudyExportRequestsPage />} />
               {/* Coordinador - Auditoría de chats (acceso desde /support/communication) */}

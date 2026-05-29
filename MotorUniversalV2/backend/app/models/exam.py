@@ -46,6 +46,15 @@ class Exam(db.Model):
     # Estado
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     is_published = db.Column(db.Boolean, default=False, nullable=False, index=True)
+
+    # Catálogo público (modelo Directo / B2C)
+    # Si is_public_catalog=True, este examen aparece en /catalog (página pública sin auth)
+    # y puede ser comprado directamente por candidatos individuales vía MercadoPago.
+    is_public_catalog = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    direct_price_mxn = db.Column(db.Numeric(12, 2), nullable=True)  # Precio en MXN; null = no se vende aún
+    direct_sale_description = db.Column(db.Text, nullable=True)  # Descripción comercial (marketing copy)
+    info_sheet_url = db.Column(db.String(500), nullable=True)  # PDF "Ficha informativa" — Modelo Directo (Conoce más)
+    is_free_sample = db.Column(db.Boolean, default=False, nullable=False)  # Si True, examen gratis de muestra (no requiere pago)
     
     # Auditoría
     created_by = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='NO ACTION'), nullable=False, index=True)
@@ -163,6 +172,12 @@ class Exam(db.Model):
             'default_passing_score': self.default_passing_score,
             'is_active': self.is_active,
             'is_published': self.is_published,
+            # Catálogo público (modelo Directo)
+            'is_public_catalog': bool(getattr(self, 'is_public_catalog', False)),
+            'direct_price_mxn': float(self.direct_price_mxn) if getattr(self, 'direct_price_mxn', None) is not None else None,
+            'direct_sale_description': getattr(self, 'direct_sale_description', None),
+            'info_sheet_url': getattr(self, 'info_sheet_url', None),
+            'is_free_sample': bool(getattr(self, 'is_free_sample', False)),
             'total_questions': self.get_total_questions(),
             'total_exercises': self.get_total_exercises(),
             'total_categories': len(categories_list),

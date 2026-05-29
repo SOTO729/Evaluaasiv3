@@ -1179,6 +1179,147 @@ def check_and_add_balance_requested_by_column():
         db.session.rollback()
 
 
+def check_and_add_scholarship_tracking_columns():
+    """Separación contable beca vs saldo.
+
+    Agrega:
+    - coordinator_balances.scholarship_balance      (saldo de beca DISPONIBLE)
+    - coordinator_balances.total_scholarships_spent (beca consumida acumulada)
+    - balance_transactions.scholarship_amount       (porción beca de cada movimiento)
+
+    Política de consumo: BECA PRIMERO. Backfill conservador inicial:
+    scholarship_balance = min(total_scholarships_recibidas, current_balance>=0).
+    """
+    print("🔍 Verificando columnas de separación beca/saldo...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        db_type = get_db_type()
+
+        def _add_decimal_column(table, column):
+            if table not in tables:
+                print(f"  ⚠️  Tabla {table} no existe, saltando {column}...")
+                return False
+            cols = [c['name'] for c in inspector.get_columns(table)]
+            if column in cols:
+                print(f"  ✓ {table}.{column} ya existe")
+                return False
+            if db_type == 'mssql':
+                sql = f"ALTER TABLE {table} ADD {column} DECIMAL(12,2) NOT NULL DEFAULT 0"
+            elif db_type == 'postgresql':
+                sql = f"ALTER TABLE {table} ADD COLUMN {column} NUMERIC(12,2) NOT NULL DEFAULT 0"
+            else:  # sqlite
+                sql = f"ALTER TABLE {table} ADD COLUMN {column} NUMERIC DEFAULT 0"
+            db.session.execute(text(sql))
+            db.session.commit()
+            print(f"  ✓ {table}.{column} agregada")
+            return True
+
+        added_balance = _add_decimal_column('coordinator_balances', 'scholarship_balance')
+        _add_decimal_column('coordinator_balances', 'total_scholarships_spent')
+        _add_decimal_column('balance_transactions', 'scholarship_amount')
+
+        # Backfill conservador del saldo de beca disponible solo si la columna
+        # se acaba de crear (evita pisar datos en reinicios posteriores).
+        if added_balance and 'coordinator_balances' in tables:
+            try:
+                db.session.execute(text("""
+                    UPDATE coordinator_balances
+                    SET scholarship_balance = CASE
+                        WHEN current_balance <= 0 THEN 0
+                        WHEN total_scholarships < current_balance THEN total_scholarships
+                        ELSE current_balance
+                    END
+                    WHERE total_scholarships > 0
+                """))
+                db.session.commit()
+                print("  ✓ Backfill de scholarship_balance aplicado")
+            except Exception as e_bf:
+                print(f"  ⚠️  Backfill scholarship_balance falló: {e_bf}")
+                db.session.rollback()
+    except Exception as e:
+        print(f"❌ Error agregando columnas beca/saldo: {e}")
+        db.session.rollback()
+
+
+def check_and_add_payment_bundle_column():
+    """Verificar y agregar columna bundle_exam_ids a payments (Modelo Directo — compra múltiple)."""
+    print("🔍 Verificando columna bundle_exam_ids en payments...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'payments' not in tables:
+            print("  ⚠️  Tabla payments no existe, saltando...")
+            return
+        columns = [col['name'] for col in inspector.get_columns('payments')]
+        if 'bundle_exam_ids' in columns:
+            print("  ✓ Columna bundle_exam_ids ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql_col = "ALTER TABLE payments ADD bundle_exam_ids NVARCHAR(MAX) NULL"
+        else:
+            sql_col = "ALTER TABLE payments ADD COLUMN bundle_exam_ids TEXT NULL"
+        db.session.execute(text(sql_col))
+        db.session.commit()
+        print("  ✓ Columna bundle_exam_ids agregada a payments")
+    except Exception as e:
+        print(f"❌ Error agregando bundle_exam_ids: {e}")
+        db.session.rollback()
+
+
+def check_and_add_exam_info_sheet_column():
+    """Verificar y agregar columna info_sheet_url a exams (Modelo Directo — Conoce más)."""
+    print("🔍 Verificando columna info_sheet_url en exams...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'exams' not in tables:
+            print("  ⚠️  Tabla exams no existe, saltando...")
+            return
+        columns = [col['name'] for col in inspector.get_columns('exams')]
+        if 'info_sheet_url' in columns:
+            print("  ✓ Columna info_sheet_url ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql_col = "ALTER TABLE exams ADD info_sheet_url NVARCHAR(500) NULL"
+        else:
+            sql_col = "ALTER TABLE exams ADD COLUMN info_sheet_url VARCHAR(500) NULL"
+        db.session.execute(text(sql_col))
+        db.session.commit()
+        print("  ✓ Columna info_sheet_url agregada a exams")
+    except Exception as e:
+        print(f"❌ Error agregando info_sheet_url: {e}")
+        db.session.rollback()
+
+
+def check_and_add_standard_info_sheet_column():
+    """Verificar y agregar columna info_sheet_url a competency_standards (ficha informativa por ECM)."""
+    print("🔍 Verificando columna info_sheet_url en competency_standards...")
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if 'competency_standards' not in tables:
+            print("  ⚠️  Tabla competency_standards no existe, saltando...")
+            return
+        columns = [col['name'] for col in inspector.get_columns('competency_standards')]
+        if 'info_sheet_url' in columns:
+            print("  ✓ Columna info_sheet_url ya existe en competency_standards")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql_col = "ALTER TABLE competency_standards ADD info_sheet_url NVARCHAR(500) NULL"
+        else:
+            sql_col = "ALTER TABLE competency_standards ADD COLUMN info_sheet_url VARCHAR(500) NULL"
+        db.session.execute(text(sql_col))
+        db.session.commit()
+        print("  ✓ Columna info_sheet_url agregada a competency_standards")
+    except Exception as e:
+        print(f"❌ Error agregando info_sheet_url a competency_standards: {e}")
+        db.session.rollback()
+
+
 def check_and_add_exam_default_config_columns():
     """Verificar y agregar columnas de configuración de asignación por defecto en exams"""
     print("🔍 Verificando columnas de config de asignación en exams...")
@@ -3200,3 +3341,222 @@ def check_and_add_skip_curp_validation_column():
     except Exception as e:
         db.session.rollback()
         print(f"  ❌ error agregando skip_curp_validation: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MODELO DIRECTO (B2C) — Mayo 2026
+# Crea un Partner virtual "Evaluaasi Directo" + Campus + Group bajo el cual
+# se cuelgan los candidatos del modelo Directo (compra individual de
+# exámenes vía catálogo público + MercadoPago).
+# Agrega columnas a `partners` y `exams` para soportar el catálogo público.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Identificador estable del Partner Directo. Usar este valor para lookups.
+# El campo es_system_direct=True es la fuente de verdad; el name es solo UI.
+DIRECT_PARTNER_NAME = 'Evaluaasi Directo'
+DIRECT_CAMPUS_NAME = 'Sede Online'
+DIRECT_CAMPUS_CODE = 'DIRECTO-ONLINE'
+DIRECT_GROUP_NAME = 'Candidatos Directos'
+DIRECT_GROUP_CODE = 'DIRECTO-CANDIDATOS'
+
+
+def check_and_setup_direct_b2c_model():
+    """Setup completo del modelo Directo (B2C):
+    1) Agrega columna partners.is_system_direct
+    2) Agrega columnas exams.is_public_catalog, direct_price_mxn,
+       direct_sale_description, is_free_sample
+    3) Crea Partner Directo + Campus + Group si no existen
+    Idempotente. Compatible MSSQL/PostgreSQL/SQLite.
+    """
+    print("🔍 [B2C] Verificando esquema para modelo Directo...")
+
+    db_type = get_db_type()
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+
+    # ── 1) Columna partners.is_system_direct ─────────────────────────────────
+    if 'partners' in tables:
+        existing = [c['name'] for c in inspector.get_columns('partners')]
+        if 'is_system_direct' not in existing:
+            try:
+                if db_type == 'mssql':
+                    sql = ("ALTER TABLE partners ADD is_system_direct BIT NOT NULL "
+                           "CONSTRAINT df_partners_is_system_direct DEFAULT 0")
+                elif db_type == 'postgresql':
+                    sql = "ALTER TABLE partners ADD COLUMN is_system_direct BOOLEAN NOT NULL DEFAULT FALSE"
+                else:
+                    sql = "ALTER TABLE partners ADD COLUMN is_system_direct BOOLEAN NOT NULL DEFAULT 0"
+                db.session.execute(text(sql))
+                db.session.commit()
+                print("  ✅ partners.is_system_direct agregada")
+            except Exception as e:
+                db.session.rollback()
+                if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                    print("  ⚠️  partners.is_system_direct ya existe")
+                else:
+                    print(f"  ❌ error agregando partners.is_system_direct: {e}")
+        else:
+            print("  ✓ partners.is_system_direct ya existe")
+    else:
+        print("  ⚠️  Tabla partners no existe, saltando setup B2C")
+        return
+
+    # ── 2) Columnas en exams ─────────────────────────────────────────────────
+    if 'exams' in tables:
+        existing = [c['name'] for c in inspector.get_columns('exams')]
+        cols_to_add = []
+        if 'is_public_catalog' not in existing:
+            if db_type == 'mssql':
+                cols_to_add.append((
+                    'is_public_catalog',
+                    "ALTER TABLE exams ADD is_public_catalog BIT NOT NULL "
+                    "CONSTRAINT df_exams_is_public_catalog DEFAULT 0"
+                ))
+            elif db_type == 'postgresql':
+                cols_to_add.append((
+                    'is_public_catalog',
+                    "ALTER TABLE exams ADD COLUMN is_public_catalog BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+            else:
+                cols_to_add.append((
+                    'is_public_catalog',
+                    "ALTER TABLE exams ADD COLUMN is_public_catalog BOOLEAN NOT NULL DEFAULT 0"
+                ))
+        if 'direct_price_mxn' not in existing:
+            if db_type == 'mssql':
+                cols_to_add.append((
+                    'direct_price_mxn',
+                    "ALTER TABLE exams ADD direct_price_mxn DECIMAL(12,2) NULL"
+                ))
+            else:
+                cols_to_add.append((
+                    'direct_price_mxn',
+                    "ALTER TABLE exams ADD COLUMN direct_price_mxn NUMERIC(12,2) NULL"
+                ))
+        if 'direct_sale_description' not in existing:
+            if db_type == 'mssql':
+                cols_to_add.append((
+                    'direct_sale_description',
+                    "ALTER TABLE exams ADD direct_sale_description NVARCHAR(MAX) NULL"
+                ))
+            else:
+                cols_to_add.append((
+                    'direct_sale_description',
+                    "ALTER TABLE exams ADD COLUMN direct_sale_description TEXT NULL"
+                ))
+        if 'is_free_sample' not in existing:
+            if db_type == 'mssql':
+                cols_to_add.append((
+                    'is_free_sample',
+                    "ALTER TABLE exams ADD is_free_sample BIT NOT NULL "
+                    "CONSTRAINT df_exams_is_free_sample DEFAULT 0"
+                ))
+            elif db_type == 'postgresql':
+                cols_to_add.append((
+                    'is_free_sample',
+                    "ALTER TABLE exams ADD COLUMN is_free_sample BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+            else:
+                cols_to_add.append((
+                    'is_free_sample',
+                    "ALTER TABLE exams ADD COLUMN is_free_sample BOOLEAN NOT NULL DEFAULT 0"
+                ))
+
+        for col_name, sql in cols_to_add:
+            try:
+                db.session.execute(text(sql))
+                db.session.commit()
+                print(f"  ✅ exams.{col_name} agregada")
+            except Exception as e:
+                db.session.rollback()
+                if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                    print(f"  ⚠️  exams.{col_name} ya existe")
+                else:
+                    print(f"  ❌ error agregando exams.{col_name}: {e}")
+        if not cols_to_add:
+            print("  ✓ Columnas de catálogo en exams ya existen")
+    else:
+        print("  ⚠️  Tabla exams no existe, saltando columnas de catálogo")
+
+    # ── 3) Seed Partner + Campus + Group ─────────────────────────────────────
+    try:
+        from app.models.partner import Partner, Campus, CandidateGroup
+        from app.models.user import User
+
+        # Buscar Partner Directo existente
+        direct_partner = Partner.query.filter_by(is_system_direct=True).first()
+        if direct_partner:
+            print(f"  ✓ Partner Directo ya existe (id={direct_partner.id}, name='{direct_partner.name}')")
+        else:
+            # Coordinador: primer admin/developer activo
+            owner = (User.query
+                     .filter(User.role.in_(['admin', 'developer']))
+                     .filter(User.is_active == True)
+                     .order_by(User.created_at.asc())
+                     .first())
+            if not owner:
+                print("  ⚠️  No hay admin/developer activo todavía. Setup B2C diferido (volverá a intentarse en el próximo arranque).")
+                return
+
+            direct_partner = Partner(
+                name=DIRECT_PARTNER_NAME,
+                legal_name='Evaluaasi Directo — Plataforma Pública',
+                country='México',
+                coordinator_id=owner.id,
+                email=None,
+                is_active=True,
+                is_system_direct=True,
+                notes='Partner virtual del modelo Directo (B2C). NO eliminar. '
+                      'Todos los usuarios self-service registrados vía /catalog '
+                      'cuelgan de aquí.',
+            )
+            db.session.add(direct_partner)
+            db.session.flush()
+            print(f"  ✅ Partner Directo creado (id={direct_partner.id})")
+
+        # Campus virtual
+        direct_campus = Campus.query.filter_by(partner_id=direct_partner.id, code=DIRECT_CAMPUS_CODE).first()
+        if not direct_campus:
+            direct_campus = Campus(
+                partner_id=direct_partner.id,
+                name=DIRECT_CAMPUS_NAME,
+                code=DIRECT_CAMPUS_CODE,
+                country='México',
+                coordinator_id=direct_partner.coordinator_id,
+                activation_status='active',
+                activated_at=datetime.utcnow(),
+                is_active=True,
+                enable_online_payments=True,
+                enable_digital_badge=True,
+                enable_candidate_certificates=True,
+            )
+            db.session.add(direct_campus)
+            db.session.flush()
+            print(f"  ✅ Campus Directo creado (id={direct_campus.id})")
+        else:
+            print(f"  ✓ Campus Directo ya existe (id={direct_campus.id})")
+
+        # Group por defecto
+        direct_group = CandidateGroup.query.filter_by(campus_id=direct_campus.id, code=DIRECT_GROUP_CODE).first()
+        if not direct_group:
+            direct_group = CandidateGroup(
+                campus_id=direct_campus.id,
+                coordinator_id=direct_partner.coordinator_id,
+                name=DIRECT_GROUP_NAME,
+                code=DIRECT_GROUP_CODE,
+                description='Grupo virtual para todos los candidatos del modelo Directo (B2C).',
+                is_active=True,
+            )
+            db.session.add(direct_group)
+            db.session.flush()
+            print(f"  ✅ Group Directo creado (id={direct_group.id})")
+        else:
+            print(f"  ✓ Group Directo ya existe (id={direct_group.id})")
+
+        db.session.commit()
+        print("✅ [B2C] Modelo Directo configurado correctamente")
+    except Exception as e:
+        db.session.rollback()
+        print(f"  ❌ error creando seed Directo: {e}")
+
+

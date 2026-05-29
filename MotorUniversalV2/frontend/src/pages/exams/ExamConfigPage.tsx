@@ -27,6 +27,12 @@ const ExamConfigPage = () => {
   const [defaultPassingScore, setDefaultPassingScore] = useState<number | null>(null)
   const [useExamPassingScore, setUseExamPassingScore] = useState(true)
 
+  // Catálogo público (Modelo Directo / B2C)
+  // Nota: el precio del bundle ahora se calcula desde los add-ons que elige
+  // el candidato al momento del checkout. El editor solo decide si el examen
+  // está disponible o no en el catálogo público.
+  const [isPublicCatalog, setIsPublicCatalog] = useState(false)
+
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
@@ -64,6 +70,9 @@ const ExamConfigPage = () => {
       setDefaultPassingScore(dps)
       setUseExamDuration(ddm === null)
       setUseExamPassingScore(dps === null)
+
+      // Catálogo público
+      setIsPublicCatalog(!!(exam as any).is_public_catalog)
     }
   }, [exam])
 
@@ -71,7 +80,7 @@ const ExamConfigPage = () => {
     if (!exam) return
     try {
       setSaving(true)
-      await examService.updateExam(Number(id), {
+      const payload: any = {
         default_max_attempts: maxAttempts,
         default_max_disconnections: maxDisconnections,
         default_exam_content_type: contentType,
@@ -81,7 +90,11 @@ const ExamConfigPage = () => {
         default_simulator_exercises_count: simulatorExercisesCount,
         default_duration_minutes: useExamDuration ? null : defaultDurationMinutes,
         default_passing_score: useExamPassingScore ? null : defaultPassingScore,
-      } as any)
+        // Catálogo público (Modelo Directo) — el precio se define por add-ons
+        // elegidos por el candidato en el checkout, ya no por el editor.
+        is_public_catalog: isPublicCatalog,
+      }
+      await examService.updateExam(Number(id), payload)
       await queryClient.invalidateQueries({ queryKey: ['exam', id] })
       setToast({ message: 'Configuración guardada correctamente', type: 'success' })
     } catch (err: any) {
@@ -586,6 +599,42 @@ const ExamConfigPage = () => {
                   )}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Catálogo Público (Modelo Directo / B2C) */}
+        <div className="bg-white rounded-fluid-2xl border border-gray-200 shadow-sm fluid-p-6 fluid-mb-6">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="fluid-p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-fluid-lg">
+              <svg className="fluid-icon-md text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 fluid-text-lg">Catálogo Público (Modelo Directo)</h3>
+              <p className="fluid-text-sm text-gray-500">Permite que cualquier usuario compre este examen directamente desde el sitio público.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isPublicCatalog}
+                onChange={e => setIsPublicCatalog(e.target.checked)}
+                className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-5 h-5"
+              />
+              <span className="font-medium text-gray-800">Publicar en el catálogo público</span>
+            </label>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-fluid-lg fluid-p-3">
+              <p className="fluid-text-sm text-blue-900">
+                <strong>Nota:</strong> el precio que paga el candidato se define al momento del
+                checkout según los productos que elija (examen base, certificado EduIT,
+                certificado CONOCER, material de estudio). Aquí solo decides si el examen
+                aparece o no en el catálogo público.
+              </p>
             </div>
           </div>
         </div>

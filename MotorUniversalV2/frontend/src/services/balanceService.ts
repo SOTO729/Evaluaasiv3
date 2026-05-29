@@ -20,6 +20,12 @@ export interface CoordinatorBalance {
   total_received: number;
   total_spent: number;
   total_scholarships: number;
+  /** Saldo proveniente de becas aún disponible (subconjunto de current_balance). */
+  scholarship_balance?: number;
+  /** Total de beca ya consumida históricamente. */
+  total_scholarships_spent?: number;
+  /** Saldo pagado disponible (current_balance - scholarship_balance). */
+  paid_balance?: number;
   created_at: string;
   updated_at: string;
   coordinator?: {
@@ -45,6 +51,9 @@ export interface MyBalanceResponse {
     total_received: number;
     total_spent: number;
     total_scholarships: number;
+    scholarship_balance?: number;
+    total_scholarships_spent?: number;
+    paid_balance?: number;
   };
   coordinator: {
     id: string;
@@ -152,6 +161,10 @@ export interface BalanceTransaction {
   amount: number;
   balance_before: number;
   balance_after: number;
+  /** Porción del movimiento cubierta con beca (resto = saldo pagado). */
+  scholarship_amount?: number;
+  /** Porción del movimiento cubierta con saldo pagado (amount - scholarship_amount). */
+  paid_amount?: number;
   reference_type: string | null;
   reference_id: number | null;
   request_id: number | null;
@@ -184,6 +197,9 @@ export interface BalanceStats {
     total_received: number;
     total_spent: number;
     total_scholarships: number;
+    scholarship_balance?: number;
+    total_scholarships_spent?: number;
+    paid_balance?: number;
   };
   coordinators_with_balance: number;
   requests: {
@@ -216,12 +232,17 @@ export interface MyCampusBalanceResponse {
     total_received: number;
     total_spent: number;
     total_scholarships: number;
+    scholarship_balance?: number;
+    total_scholarships_spent?: number;
+    paid_balance?: number;
   };
   totals_units: {
     current_balance: number;
     total_received: number;
     total_spent: number;
     total_scholarships: number;
+    scholarship_balance?: number;
+    paid_balance?: number;
   };
   coordinators_count: number;
 }

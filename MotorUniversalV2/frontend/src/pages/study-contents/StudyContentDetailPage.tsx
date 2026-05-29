@@ -791,7 +791,7 @@ const StudyContentDetailPage = () => {
         allow_video: true,
         allow_downloadable: true,
         allow_interactive: true,
-        allow_scorm: true
+        allow_scorm: false
       });
     }
     setTopicModalOpen(true);
