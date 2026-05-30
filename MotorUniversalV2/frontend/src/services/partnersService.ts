@@ -1507,6 +1507,9 @@ export interface ExamAssignmentConfig {
   // PIN solo para examen
   security_pin?: string | null;  // deprecated - moved to campus level
   require_security_pin?: boolean;  // deprecated - moved to campus level
+  // Fuente de pago elegida por coordinador/auxiliar: 'beca' (consumir beca
+  // primero, default) o 'saldo' (consumir saldo pagado primero).
+  payment_source?: 'beca' | 'saldo';
 }
 
 export interface AvailableExam {
@@ -2074,10 +2077,12 @@ export interface AddAssignmentsResult {
 export async function addAssignmentsToExam(
   groupId: number,
   examId: number,
-  userIds: string[]
+  userIds: string[],
+  paymentSource?: 'beca' | 'saldo'
 ): Promise<AddAssignmentsResult> {
   const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/assignments/add`, {
-    user_ids: userIds
+    user_ids: userIds,
+    ...(paymentSource ? { payment_source: paymentSource } : {})
   });
   return response.data;
 }
@@ -2291,6 +2296,10 @@ export interface RetakePreviewResponse {
   retake_cost: number;
   coordinator_balance: number;
   balance_after: number;
+  /** Saldo de beca disponible (para anticipar mezcla de fondos). */
+  scholarship_balance?: number;
+  /** Saldo pagado disponible (para anticipar mezcla de fondos). */
+  paid_balance?: number;
   /** True cuando el usuario actual es responsable y debe solicitar al coordinador. */
   must_request_to_coordinator?: boolean;
   /** Mensaje sugerido para responsables que no pueden consumir saldo directamente. */
@@ -2325,9 +2334,11 @@ export interface ApplyRetakeResponse {
 export async function applyEcmRetake(
   groupId: number,
   examId: number,
-  userId: string
+  userId: string,
+  paymentSource?: 'beca' | 'saldo'
 ): Promise<ApplyRetakeResponse> {
-  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/${userId}/retake`);
+  const response = await api.post(`/partners/groups/${groupId}/exams/${examId}/members/${userId}/retake`,
+    paymentSource ? { payment_source: paymentSource } : {});
   return response.data;
 }
 

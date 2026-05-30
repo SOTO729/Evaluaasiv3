@@ -2605,23 +2605,23 @@ def create_certificate_request():
         
         # Enviar email al coordinador
         try:
-            from app.services.email_service import send_email
+            from app.services.email_service import send_email, build_email_html, cta_button
             group_name = CandidateGroup.query.get(group_id).name if group_id else 'General (plantel)'
             att_count = len(attachments)
-            att_text = f'<p><strong>Documentos adjuntos:</strong> {att_count} archivo{"s" if att_count != 1 else ""}</p>' if att_count > 0 else ''
+            att_text = f'<p style="margin:0 0 12px;color:#374151;font-size:14px;"><strong>Documentos adjuntos:</strong> {att_count} archivo{"s" if att_count != 1 else ""}</p>' if att_count > 0 else ''
+            _body = f"""
+                <h2 style="margin:0 0 16px;color:#111827;font-size:19px;font-weight:700;">Nueva solicitud de saldo de responsable</h2>
+                <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;"><strong>{user.full_name}</strong> ha solicitado <strong>{cert_request.units_requested} unidad(es)</strong> para el plantel <strong>{campus.name}</strong>.</p>
+                <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;"><strong>Grupo:</strong> {group_name}</p>
+                <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;"><strong>Justificación:</strong> {cert_request.justification}</p>
+                {att_text}
+                <p style="margin:0 0 4px;color:#374151;font-size:14px;line-height:1.6;">Ingresa a la plataforma para revisar y gestionar esta solicitud.</p>
+                {cta_button('Ver solicitud', f'https://thankful-stone-07fbe5410.6.azurestaticapps.net/mi-saldo/solicitudes-responsables/{cert_request.id}')}
+                """
             send_email(
                 to=coordinator.email,
                 subject=f'Nueva solicitud de saldo - {campus.name}',
-                html=f"""
-                <h2>Nueva solicitud de saldo de responsable</h2>
-                <p><strong>{user.full_name}</strong> ha solicitado <strong>{cert_request.units_requested} unidad(es)</strong> 
-                para el plantel <strong>{campus.name}</strong>.</p>
-                <p><strong>Grupo:</strong> {group_name}</p>
-                <p><strong>Justificación:</strong> {cert_request.justification}</p>
-                {att_text}
-                <p>Ingresa a la plataforma para revisar y gestionar esta solicitud.</p>
-                <p><a href="https://thankful-stone-07fbe5410.6.azurestaticapps.net/mi-saldo/solicitudes-responsables/{cert_request.id}">Ver solicitud</a></p>
-                """
+                html=build_email_html('Nueva solicitud de saldo', _body)
             )
         except Exception:
             pass  # Email is best-effort
@@ -2769,17 +2769,17 @@ def review_certificate_request(request_id):
                 responsable = User.query.get(cert_req.responsable_id)
                 campus = Campus.query.get(cert_req.campus_id)
                 if responsable and responsable.email:
-                    from app.services.email_service import send_email
+                    from app.services.email_service import send_email, build_email_html
+                    _body = f"""
+                        <h2 style="margin:0 0 16px;color:#b91c1c;font-size:19px;font-weight:700;">Tu solicitud fue rechazada</h2>
+                        <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;">Tu solicitud de <strong>{cert_req.units_requested} unidad(es)</strong> para el plantel <strong>{campus.name if campus else ""}</strong> fue rechazada por tu coordinador.</p>
+                        <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;"><strong>Motivo:</strong> {cert_req.coordinator_notes}</p>
+                        <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">Puedes crear una nueva solicitud con la información corregida.</p>
+                        """
                     send_email(
                         to=responsable.email,
                         subject=f'Solicitud de saldo rechazada - {campus.name if campus else ""}',
-                        html=f"""
-                        <h2>Tu solicitud fue rechazada</h2>
-                        <p>Tu solicitud de <strong>{cert_req.units_requested} unidad(es)</strong> 
-                        para el plantel <strong>{campus.name if campus else ""}</strong> fue rechazada por tu coordinador.</p>
-                        <p><strong>Motivo:</strong> {cert_req.coordinator_notes}</p>
-                        <p>Puedes crear una nueva solicitud con la información corregida.</p>
-                        """
+                        html=build_email_html('Solicitud rechazada', _body)
                     )
             except Exception:
                 pass
@@ -2913,18 +2913,17 @@ def review_certificate_request(request_id):
             try:
                 responsable = User.query.get(cert_req.responsable_id)
                 if responsable and responsable.email:
-                    from app.services.email_service import send_email
+                    from app.services.email_service import send_email, build_email_html
+                    _body = f"""
+                        <h2 style="margin:0 0 16px;color:#111827;font-size:19px;font-weight:700;">Tu solicitud fue aprobada por tu coordinador</h2>
+                        <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;">Tu solicitud de <strong>{cert_req.units_requested} unidad(es)</strong> para el plantel <strong>{campus.name if campus else ""}</strong> fue aprobada y enviada al flujo de aprobación.</p>
+                        <p style="margin:0 0 12px;color:#374151;font-size:14px;line-height:1.6;"><strong>Unidades aprobadas:</strong> {units}</p>
+                        <p style="margin:0;color:#374151;font-size:14px;line-height:1.6;">Te notificaremos cuando sea aprobada por el área financiera.</p>
+                        """
                     send_email(
                         to=responsable.email,
                         subject=f'Solicitud aprobada por coordinador - {campus.name if campus else ""}',
-                        html=f"""
-                        <h2>Tu solicitud fue aprobada por tu coordinador</h2>
-                        <p>Tu solicitud de <strong>{cert_req.units_requested} unidad(es)</strong> 
-                        para el plantel <strong>{campus.name if campus else ""}</strong> fue aprobada 
-                        y enviada al flujo de aprobación.</p>
-                        <p><strong>Unidades aprobadas:</strong> {units}</p>
-                        <p>Te notificaremos cuando sea aprobada por el área financiera.</p>
-                        """
+                        html=build_email_html('Solicitud aprobada', _body)
                     )
             except Exception:
                 pass

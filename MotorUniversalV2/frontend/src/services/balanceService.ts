@@ -472,6 +472,9 @@ export interface CampusBalanceSummary {
     total_received: number;
     total_spent: number;
     total_scholarships: number;
+    scholarship_balance?: number;
+    total_scholarships_spent?: number;
+    paid_balance?: number;
   };
   coordinators_count: number;
   coordinators: Array<{
@@ -481,6 +484,9 @@ export interface CampusBalanceSummary {
     total_received: number;
     total_spent: number;
     total_scholarships: number;
+    scholarship_balance?: number;
+    total_scholarships_spent?: number;
+    paid_balance?: number;
   }>;
 }
 
@@ -546,6 +552,40 @@ export function formatCurrency(amount: number): string {
     currency: 'MXN',
   }).format(amount);
 }
+
+/**
+ * Calcula cómo se repartiría un cobro entre beca y saldo pagado según el fondo
+ * que el usuario elige como prioridad. Réplica de CoordinatorBalance.deduct_balance
+ * del backend para poder anticipar en la UI si habrá mezcla de fondos.
+ *
+ * @returns { takeBeca, takePaid, mixed } donde `mixed` indica que ambos fondos
+ *          aportan al cobro (el fondo elegido no alcanzó y se usó el otro).
+ */
+export function computePaymentSplit(
+  prefer: 'beca' | 'saldo',
+  scholarshipBalance: number,
+  paidBalance: number,
+  totalCost: number
+): { takeBeca: number; takePaid: number; mixed: boolean } {
+  const beca = Math.max(0, scholarshipBalance || 0);
+  const paid = Math.max(0, paidBalance || 0);
+  const amount = Math.max(0, totalCost || 0);
+  let takeBeca: number;
+  let takePaid: number;
+  if (prefer === 'saldo') {
+    takePaid = Math.min(paid, amount);
+    takeBeca = Math.min(amount - takePaid, beca);
+  } else {
+    takeBeca = Math.min(beca, amount);
+    takePaid = amount - takeBeca;
+  }
+  // Redondeo a centavos para evitar ruido de punto flotante
+  takeBeca = Math.round(takeBeca * 100) / 100;
+  takePaid = Math.round(takePaid * 100) / 100;
+  const mixed = takeBeca > 0.001 && takePaid > 0.001;
+  return { takeBeca, takePaid, mixed };
+}
+
 
 /**
  * Calcular certificaciones disponibles dado un saldo y costo
@@ -715,6 +755,10 @@ export interface CostPreviewData {
   campus_name: string;
   group_name: string;
   cost_source: string;
+  /** Saldo de beca disponible (se consume primero por default). */
+  scholarship_balance?: number;
+  /** Saldo pagado disponible (current_balance - scholarship_balance). */
+  paid_balance?: number;
 }
 
 /**

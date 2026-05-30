@@ -6148,12 +6148,25 @@ def assignment_cost_preview(group_id):
         if g.current_user.role == 'responsable':
             all_balances = CoordinatorBalance.query.filter_by(campus_id=group.campus_id).all()
             current_balance = sum(float(b.current_balance or 0) for b in all_balances)
+            scholarship_balance = sum(float(b.scholarship_balance or 0) for b in all_balances)
         else:
+            # El auxiliar comparte el balance del coordinador dueño del campus
+            # (no tiene fila propia de CoordinatorBalance). Resolvemos el
+            # coordinador a cobrar para que el preview muestre el saldo real.
+            _eff_coord_id = g.current_user.id
+            if g.current_user.role == 'auxiliar':
+                _billing_coord_id, _ = _resolve_billing_coordinator_id(group, g.current_user)
+                if _billing_coord_id:
+                    _eff_coord_id = _billing_coord_id
             balance = CoordinatorBalance.query.filter_by(
-                coordinator_id=g.current_user.id,
+                coordinator_id=_eff_coord_id,
                 campus_id=group.campus_id
             ).first()
             current_balance = float(balance.current_balance) if balance else 0.0
+            scholarship_balance = float(balance.scholarship_balance or 0) if balance else 0.0
+        paid_balance = current_balance - scholarship_balance
+        if paid_balance < 0:
+            paid_balance = 0.0
         
         remaining_balance = current_balance - total_cost
         has_sufficient_balance = remaining_balance >= 0
@@ -6168,6 +6181,8 @@ def assignment_cost_preview(group_id):
             'already_assigned_count': already_assigned_count,
             'total_cost': total_cost,
             'current_balance': current_balance,
+            'scholarship_balance': scholarship_balance,
+            'paid_balance': paid_balance,
             'remaining_balance': remaining_balance,
             'has_sufficient_balance': has_sufficient_balance,
             'is_admin': is_admin,
@@ -6218,6 +6233,12 @@ def assign_exam_to_group(group_id):
         exam_id = data.get('exam_id')
         if not exam_id:
             return jsonify({'error': 'El ID del examen es requerido'}), 400
+        
+        # Fuente de pago elegida (solo coordinador/auxiliar pueden elegir; el
+        # resto mantiene la regla "beca primero" por default).
+        _payment_source = data.get('payment_source') if _user_role in ('coordinator', 'auxiliar') else None
+        if _payment_source not in ('beca', 'saldo'):
+            _payment_source = None
         
         assignment_type = data.get('assignment_type', 'all')
         member_ids = data.get('member_ids', [])
@@ -6424,7 +6445,8 @@ def assign_exam_to_group(group_id):
                         reference_type='group_exam',
                         reference_id=existing.id,
                         notes=notes,
-                        created_by_id=g.current_user.id
+                        created_by_id=g.current_user.id,
+                        payment_source=_payment_source
                     )
                 
                 # Crear EcmCandidateAssignment para los nuevos
@@ -6644,7 +6666,8 @@ def assign_exam_to_group(group_id):
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
-                created_by_id=g.current_user.id
+                created_by_id=g.current_user.id,
+                payment_source=_payment_source
             )
         
         # Crear EcmCandidateAssignment para los nuevos
@@ -6998,6 +7021,11 @@ def add_assignments_to_exam(group_id, exam_id):
         if len(user_ids) > 500:
             return jsonify({'error': 'Máximo 500 asignaciones por lote'}), 400
 
+        # Fuente de pago elegida (solo coordinador/auxiliar; el resto usa beca primero).
+        _payment_source = data.get('payment_source') if (g.current_user.role if hasattr(g.current_user, 'role') else '') in ('coordinator', 'auxiliar') else None
+        if _payment_source not in ('beca', 'saldo'):
+            _payment_source = None
+
         # Verificar que todos son miembros activos del grupo
         group_member_ids = {m.user_id for m in GroupMember.query.filter_by(group_id=group_id, status='active').all()}
         invalid_ids = [uid for uid in user_ids if uid not in group_member_ids]
@@ -7109,7 +7137,8 @@ def add_assignments_to_exam(group_id, exam_id):
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
-                created_by_id=g.current_user.id
+                created_by_id=g.current_user.id,
+                payment_source=_payment_source
             )
 
         # Set de user_ids ya presentes como GroupExamMember (BD + sesión)
@@ -8454,6 +8483,12 @@ def apply_ecm_retake(group_id, exam_id, user_id):
             return error
         campus = Campus.query.get(group.campus_id)
 
+        # Fuente de pago elegida (solo coordinador/auxiliar; el resto usa beca primero).
+        _retake_data = request.get_json(silent=True) or {}
+        _payment_source = _retake_data.get('payment_source') if (g.current_user.role if hasattr(g.current_user, 'role') else '') in ('coordinator', 'auxiliar') else None
+        if _payment_source not in ('beca', 'saldo'):
+            _payment_source = None
+
         # W-RACE-MOVE: bloquear el GroupMember al inicio para evitar que un
         # `move_members_to_group` concurrente reasigne al candidato a otro
         # grupo mientras cobramos la retoma. Si el miembro ya no está en
@@ -8597,7 +8632,8 @@ def apply_ecm_retake(group_id, exam_id, user_id):
                 reference_type='group_exam',
                 reference_id=group_exam.id,
                 notes=notes,
-                created_by_id=g.current_user.id
+                created_by_id=g.current_user.id,
+                payment_source=_payment_source
             )
             transaction = tx_result[0] if isinstance(tx_result, tuple) else tx_result
             db.session.flush()  # obtener transaction.id sin commitear todavía
@@ -8713,6 +8749,8 @@ def preview_ecm_retake(group_id, exam_id):
             campus_id=group.campus_id
         ).first()
         current_balance = float(balance.current_balance) if balance else 0.0
+        scholarship_balance = float(balance.scholarship_balance) if balance and balance.scholarship_balance else 0.0
+        paid_balance = max(0.0, current_balance - scholarship_balance)
 
         # Verificar si aprobó
         approved = Result.query.filter_by(
@@ -8743,6 +8781,8 @@ def preview_ecm_retake(group_id, exam_id):
             'assignment_number': ecm_assignment.assignment_number if ecm_assignment else None,
             'retake_cost': retake_cost,
             'current_balance': current_balance,
+            'scholarship_balance': scholarship_balance,
+            'paid_balance': paid_balance,
             'sufficient_balance': current_balance >= retake_cost,
             'results_count': results_count,
             'total_allowed': total_allowed,

@@ -13,6 +13,7 @@ import {
 import LoadingSpinner from '../../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../../components/PartnersBreadcrumb';
 import { useGroupBasePath } from '../../../hooks/useGroupBasePath';
+import { useAuthStore } from '../../../store/authStore';
 import {
   getGroup, assignExamToGroup, bulkAssignExamsByECM,
   CandidateGroup, ExamAssignmentConfig,
@@ -20,16 +21,21 @@ import {
 } from '../../../services/partnersService';
 import type { BulkExamAssignResult } from '../../../services/partnersService';
 import {
-  getAssignmentCostPreview, CostPreviewData, formatCurrency,
+  getAssignmentCostPreview, CostPreviewData, formatCurrency, computePaymentSplit,
 } from '../../../services/balanceService';
 import type { AssignMembersState } from './types';
 import AssignmentSuccessModal from './AssignmentSuccessModal';
+import PaymentMixConfirmModal from '../../../components/partners/PaymentMixConfirmModal';
 
 export default function ExamAssignmentReviewPage() {
   const { groupId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
+  const { user } = useAuthStore();
+  // Solo coordinador/auxiliar pueden elegir la fuente de pago (beca vs saldo).
+  const canChoosePaymentSource = user?.role === 'coordinator' || user?.role === 'auxiliar';
+  const [paymentSource, setPaymentSource] = useState<'beca' | 'saldo'>('beca');
 
   useEffect(() => {
     if (isResponsable && !canManage) navigate(basePath, { replace: true });
@@ -51,6 +57,8 @@ export default function ExamAssignmentReviewPage() {
   const [modalNewAssignments, setModalNewAssignments] = useState<NewAssignmentDetail[]>([]);
   const [modalAlreadyAssigned, setModalAlreadyAssigned] = useState<AlreadyAssignedCandidate[]>([]);
   const [modalBulkResult, setModalBulkResult] = useState<BulkExamAssignResult | null>(null);
+  // Modal de confirmación de mezcla de fondos (beca + saldo)
+  const [showMixModal, setShowMixModal] = useState(false);
 
   // Redirect if no state
   useEffect(() => {
@@ -98,6 +106,7 @@ export default function ExamAssignmentReviewPage() {
     try {
       setSaving(true);
       setError(null);
+      setShowMixModal(false);
 
       // Bulk assignment uses bulkAssignExamsByECM with dry_run=false
       if (assignmentType === 'bulk' && prevState.bulkFile && prevState.bulkEcmCode) {
@@ -131,6 +140,7 @@ export default function ExamAssignmentReviewPage() {
         exam_exercises_count: config.useAllExamExercises ? null : config.examExercisesCount,
         simulator_questions_count: config.useAllSimulatorQuestions ? null : config.simulatorQuestionsCount,
         simulator_exercises_count: config.useAllSimulatorExercises ? null : config.simulatorExercisesCount,
+        ...(canChoosePaymentSource ? { payment_source: paymentSource } : {}),
       };
 
       const result = await assignExamToGroup(Number(groupId), assignConfig);
@@ -173,6 +183,20 @@ export default function ExamAssignmentReviewPage() {
   if (loading) return <LoadingSpinner message="Calculando desglose de costo..." fullScreen />;
 
   if (!group || !costPreview) return <div className="p-6"><div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4"><p className="text-red-600">{error || 'Error al cargar datos'}</p></div></div>;
+
+  // Desglose de mezcla de fondos para coordinador/auxiliar
+  const mixSplit = (canChoosePaymentSource && costPreview.total_cost > 0)
+    ? computePaymentSplit(paymentSource, costPreview.scholarship_balance ?? 0, costPreview.paid_balance ?? 0, costPreview.total_cost)
+    : { takeBeca: 0, takePaid: 0, mixed: false };
+
+  // Si habrá mezcla de fondos, primero pedir confirmación; si no, confirmar directo.
+  const handleConfirmClick = () => {
+    if (mixSplit.mixed) {
+      setShowMixModal(true);
+    } else {
+      handleConfirm();
+    }
+  };
 
   const { selectedExam, assignmentType, selectedMemberIds } = prevState;
   const stepLabels = ['ECM', 'Examen', 'Materiales', 'Miembros', 'Confirmar'];
@@ -342,6 +366,47 @@ export default function ExamAssignmentReviewPage() {
           </div>
         </div>
 
+        {/* Selector de fuente de pago (solo coordinador/auxiliar) */}
+        {canChoosePaymentSource && costPreview.total_cost > 0 && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-fluid-xl fluid-p-4 fluid-mb-6">
+            <div className="flex items-center fluid-gap-2 fluid-mb-3">
+              <Wallet className="fluid-icon-sm text-indigo-500" />
+              <p className="fluid-text-sm font-semibold text-indigo-700">¿De qué fondo se descuenta?</p>
+            </div>
+            <p className="fluid-text-xs text-indigo-600 fluid-mb-3">
+              Si el fondo elegido no alcanza para el total, el resto se cubre automáticamente con el otro fondo.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 fluid-gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentSource('beca')}
+                className={`text-left rounded-fluid-lg border-2 fluid-p-3 transition ${paymentSource === 'beca' ? 'border-indigo-500 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-indigo-300'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 fluid-text-base">Beca primero</span>
+                  {paymentSource === 'beca' && <CheckCircle2 className="fluid-icon-sm text-indigo-500" />}
+                </div>
+                <p className="fluid-text-xs text-gray-500 mt-1">
+                  Disponible en beca: <strong>{formatCurrency(costPreview.scholarship_balance ?? 0)}</strong>
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentSource('saldo')}
+                className={`text-left rounded-fluid-lg border-2 fluid-p-3 transition ${paymentSource === 'saldo' ? 'border-indigo-500 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-indigo-300'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-gray-900 fluid-text-base">Saldo pagado primero</span>
+                  {paymentSource === 'saldo' && <CheckCircle2 className="fluid-icon-sm text-indigo-500" />}
+                </div>
+                <p className="fluid-text-xs text-gray-500 mt-1">
+                  Disponible en saldo: <strong>{formatCurrency(costPreview.paid_balance ?? 0)}</strong>
+                </p>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Insufficient balance alert */}
         {!costPreview.has_sufficient_balance && (
           <div className="bg-red-50 border border-red-200 rounded-fluid-xl fluid-p-4 fluid-mb-6 flex items-start fluid-gap-3">
@@ -381,7 +446,7 @@ export default function ExamAssignmentReviewPage() {
         {/* Action buttons */}
         <div className="flex justify-between pt-6 mt-2 border-t">
           <button onClick={() => navigate(-1)} className="fluid-px-4 fluid-py-2 text-gray-600 hover:text-gray-900 fluid-text-sm font-medium transition-colors">← Volver</button>
-          <button onClick={handleConfirm} disabled={saving || (!costPreview.has_sufficient_balance && costPreview.total_cost > 0)}
+          <button onClick={handleConfirmClick} disabled={saving || (!costPreview.has_sufficient_balance && costPreview.total_cost > 0)}
             className="fluid-px-6 fluid-py-3 bg-green-600 text-white rounded-fluid-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center fluid-gap-2 font-medium shadow-lg transition-all fluid-text-sm">
             {saving ? (
               <><Loader2 className="fluid-icon-base animate-spin" />{isResponsable ? 'Asignando vouchers...' : 'Asignando y descontando saldo...'}</>
@@ -404,6 +469,18 @@ export default function ExamAssignmentReviewPage() {
         alreadyAssigned={modalAlreadyAssigned}
         bulkResult={modalBulkResult || undefined}
         onNavigateToGroup={() => navigate(basePath)}
+      />
+
+      {/* Modal de confirmación de mezcla de fondos */}
+      <PaymentMixConfirmModal
+        open={showMixModal}
+        prefer={paymentSource}
+        takeBeca={mixSplit.takeBeca}
+        takePaid={mixSplit.takePaid}
+        totalCost={costPreview.total_cost}
+        processing={saving}
+        onCancel={() => setShowMixModal(false)}
+        onConfirm={handleConfirm}
       />
     </div>
   );

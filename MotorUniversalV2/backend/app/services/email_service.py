@@ -16,6 +16,7 @@ Uso:
     send_contact_form_email(name, email, message)
 """
 import os
+import re
 import logging
 import hashlib
 import hmac
@@ -252,6 +253,54 @@ def _send_via_acs(client, to, subject, html, plain_text, sender, reply_to, attac
         return False
 
 
+# ═══════════════════════════════════════════════════════════════
+# COMPATIBILIDAD CROSS-CLIENT (Outlook / Gmail / Apple Mail / Yahoo)
+# ═══════════════════════════════════════════════════════════════
+
+# Outlook (motor de Word) NO soporta linear-gradient: detectamos el primer
+# color del degradado para anteponerlo como color sólido de respaldo.
+_GRADIENT_RE = re.compile(
+    r'background(?:-image)?\s*:\s*linear-gradient\(\s*[^,()]+,\s*(#[0-9a-fA-F]{3,6})',
+    re.IGNORECASE,
+)
+# Outlook ignora rgba(); convertimos textos blancos translúcidos a un hex claro
+# para que no se vuelvan negros (e ilegibles) sobre fondos oscuros.
+_RGBA_WHITE_RE = re.compile(r'rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*0?\.[5-9]\d*\s*\)', re.IGNORECASE)
+
+
+def _make_email_compatible(html: str) -> str:
+    """
+    Normaliza el HTML para maximizar la compatibilidad con la mayoría de los
+    clientes de correo (Outlook de escritorio, Gmail, Apple Mail, Yahoo, etc.).
+
+    Outlook usa el motor de renderizado de Microsoft Word, que NO soporta
+    gradientes CSS, rgba() ni varias propiedades modernas. Sin un color sólido
+    de respaldo, los encabezados/botones con degradado y texto blanco quedan
+    invisibles. Esta función:
+      - Antepone un color sólido antes de cada `linear-gradient`.
+      - Convierte textos blancos en rgba() a un hex claro legible.
+      - Garantiza que las <img> tengan `border="0"` (evita bordes azules).
+    """
+    if not html:
+        return html
+
+    # 1) Color sólido de respaldo para degradados (toma el primer color del gradiente)
+    html = _GRADIENT_RE.sub(lambda m: f'background:{m.group(1)};{m.group(0)}', html)
+
+    # 2) rgba blanco translúcido -> hex claro (Outlook ignora rgba en texto)
+    html = _RGBA_WHITE_RE.sub('#dbeafe', html)
+
+    # 3) Imágenes a prueba de Outlook/Gmail: agregar border="0" si falta
+    html = re.sub(
+        r'<img\b((?:(?!border=)[^>])*?)\s*/?>',
+        lambda m: f'<img border="0"{m.group(1)}>',
+        html,
+        flags=re.IGNORECASE,
+    )
+
+    return html
+
+
 def send_email(
     to: str,
     subject: str,
@@ -288,6 +337,9 @@ def send_email(
         cc = None
         logger.info(f"[EMAIL TEST OVERRIDE] original={original_to} → test={to}")
 
+    # Maximizar compatibilidad con clientes de correo (Outlook/Gmail/Apple Mail/Yahoo)
+    html = _make_email_compatible(html)
+
     if _smtp_configured():
         return _send_via_smtp(to, subject, html, plain_text, sender, reply_to, attachments, cc)
 
@@ -307,34 +359,54 @@ LOGO_URL = 'https://thankful-stone-07fbe5410.6.azurestaticapps.net/logo.png'
 def _base_template(title: str, body_content: str, footer_extra: str = '') -> str:
     """Template base HTML para todos los emails."""
     return f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light only">
     <title>{title}</title>
+    <!--[if mso]>
+    <noscript><xml><o:OfficeDocumentSettings><o:AllowPNG/><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
+    <![endif]-->
+    <style>
+        body,table,td,a {{ -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }}
+        table,td {{ mso-table-lspace:0pt; mso-table-rspace:0pt; }}
+        img {{ -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; }}
+        body {{ margin:0 !important; padding:0 !important; width:100% !important; }}
+        @media only screen and (max-width:600px) {{
+            .email-container {{ width:100% !important; }}
+            .email-pad {{ padding-left:20px !important; padding-right:20px !important; }}
+        }}
+    </style>
 </head>
 <body style="margin:0;padding:0;background-color:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f4f8;padding:24px 0;">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">{title}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f4f8;">
         <tr>
-            <td align="center">
-                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+            <td align="center" style="padding:24px 12px;">
+                <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" class="email-container" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
                     <!-- Header -->
                     <tr>
-                        <td style="background:linear-gradient(135deg,#1e40af,#2563eb);padding:24px 32px;text-align:center;">
-                            <img src="{LOGO_URL}" alt="Evaluaasi" width="48" height="48" style="display:block;margin:0 auto 10px;border-radius:10px;" />
+                        <td bgcolor="#1e40af" class="email-pad" style="background:#1e40af;background:linear-gradient(135deg,#1e40af,#2563eb);padding:24px 32px;text-align:center;">
+                            <img src="{LOGO_URL}" alt="Evaluaasi" width="48" height="48" border="0" style="display:block;margin:0 auto 10px;border-radius:10px;border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic;" />
                             <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">Evaluaasi</h1>
-                            <p style="margin:4px 0 0;color:rgba(255,255,255,0.8);font-size:12px;">Plataforma de Evaluación y Certificación</p>
+                            <p style="margin:4px 0 0;color:#dbeafe;font-size:12px;">Plataforma de Evaluación y Certificación</p>
                         </td>
                     </tr>
                     <!-- Body -->
                     <tr>
-                        <td style="padding:32px;">
+                        <td class="email-pad" style="padding:32px;">
                             {body_content}
                         </td>
                     </tr>
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;">
+                        <td bgcolor="#f8fafc" class="email-pad" style="background-color:#f8fafc;padding:20px 32px;border-top:1px solid #e2e8f0;">
                             {footer_extra}
                             <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center;">
                                 Este email fue enviado por Evaluaasi. Si no esperabas este mensaje, puedes ignorarlo.
@@ -345,6 +417,7 @@ def _base_template(title: str, body_content: str, footer_extra: str = '') -> str
                         </td>
                     </tr>
                 </table>
+                <!--[if mso]></td></tr></table><![endif]-->
             </td>
         </tr>
     </table>
@@ -353,11 +426,11 @@ def _base_template(title: str, body_content: str, footer_extra: str = '') -> str
 
 
 def _button(text: str, url: str, color: str = '#2563eb') -> str:
-    """Genera un botón CTA para emails."""
-    return f"""<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px auto;">
+    """Genera un botón CTA para emails (a prueba de Outlook)."""
+    return f"""<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px auto;">
         <tr>
-            <td style="background-color:{color};border-radius:8px;">
-                <a href="{url}" target="_blank" style="display:inline-block;padding:12px 32px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.3px;">{text}</a>
+            <td align="center" bgcolor="{color}" style="background-color:{color};border-radius:8px;">
+                <a href="{url}" target="_blank" style="display:inline-block;padding:12px 32px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;letter-spacing:0.3px;line-height:1.2;mso-padding-alt:0;">{text}</a>
             </td>
         </tr>
     </table>"""
@@ -374,9 +447,24 @@ def _info_row(label: str, value: str) -> str:
 def _info_table(rows: list) -> str:
     """Tabla de información con filas clave-valor."""
     rows_html = ''.join(_info_row(label, value) for label, value in rows)
-    return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin:16px 0;">
+    return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f9fafb" style="background-color:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;margin:16px 0;">
         {rows_html}
     </table>"""
+
+
+def build_email_html(title: str, body_content: str, footer_extra: str = '') -> str:
+    """Envuelve contenido HTML en el template de marca de Evaluaasi.
+
+    Helper público pensado para correos generados fuera de este módulo
+    (rutas/servicios) que antes enviaban HTML "crudo". Garantiza branding
+    (logo, encabezado, pie) y compatibilidad uniforme entre clientes de correo.
+    """
+    return _base_template(title, body_content, footer_extra)
+
+
+def cta_button(text: str, url: str, color: str = '#2563eb') -> str:
+    """Botón CTA público a prueba de Outlook (wrapper de `_button`)."""
+    return _button(text, url, color)
 
 
 # ═══════════════════════════════════════════════════════════════

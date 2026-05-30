@@ -34,10 +34,12 @@ import {
   UserPlus,
   Upload,
   Download,
+  Wallet,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import PartnersBreadcrumb from '../../components/PartnersBreadcrumb';
 import { useGroupBasePath } from '../../hooks/useGroupBasePath';
+import { useAuthStore } from '../../store/authStore';
 import {
   getGroup,
   getExamMembersDetail,
@@ -58,6 +60,11 @@ import {
   BulkExamAssignResult,
   downloadBulkExamAssignTemplate,
 } from '../../services/partnersService';
+import {
+  getAssignmentCostPreview,
+  computePaymentSplit,
+} from '../../services/balanceService';
+import PaymentMixConfirmModal from '../../components/partners/PaymentMixConfirmModal';
 
 type SortField = 'name' | 'email' | 'curp' | 'assignment_number' | 'progress' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -68,6 +75,17 @@ export default function GroupEditAssignmentMembersPage() {
   const assignmentName = searchParams.get('name') || '';
   const { isResponsable, canManage, basePath } = useGroupBasePath(groupId);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  // Solo coordinador/auxiliar pueden elegir la fuente de pago (beca vs saldo).
+  // El responsable con permiso de gestionar grupos se mantiene como hasta ahora.
+  const canChoosePaymentSource = user?.role === 'coordinator' || user?.role === 'auxiliar';
+  const [paymentSource, setPaymentSource] = useState<'beca' | 'saldo'>('beca');
+
+  // Modal de confirmación de mezcla de fondos (beca + saldo)
+  const [showMixModal, setShowMixModal] = useState(false);
+  const [mixContext, setMixContext] = useState<'assign' | 'retake' | null>(null);
+  const [mixSplit, setMixSplit] = useState<{ takeBeca: number; takePaid: number; totalCost: number }>({ takeBeca: 0, takePaid: 0, totalCost: 0 });
+  const [mixChecking, setMixChecking] = useState(false);
 
   useEffect(() => {
     if (isResponsable && !canManage) navigate(basePath, { replace: true });
@@ -386,7 +404,13 @@ export default function GroupEditAssignmentMembersPage() {
     try {
       setApplyingRetake(true);
       setError(null);
-      const result = await applyEcmRetake(Number(groupId), Number(assignmentId), retakeTarget.user_id);
+      setShowMixModal(false);
+      const result = await applyEcmRetake(
+        Number(groupId),
+        Number(assignmentId),
+        retakeTarget.user_id,
+        canChoosePaymentSource ? paymentSource : undefined
+      );
       setSuccessMessage(`${result.message} — Nuevo saldo: $${result.new_balance.toFixed(2)}. Intentos totales: ${result.total_allowed_attempts}`);
       setShowRetakeModal(false);
       setRetakeTarget(null);
@@ -397,6 +421,26 @@ export default function GroupEditAssignmentMembersPage() {
     } finally {
       setApplyingRetake(false);
     }
+  };
+
+  // Antes de aplicar la retoma, si el fondo elegido no alcanza y se mezclará con
+  // el otro fondo, pedir confirmación explícita (solo coordinador/auxiliar).
+  const handleRetakeConfirmClick = () => {
+    if (canChoosePaymentSource && retakePreview && retakePreview.retake_cost > 0) {
+      const split = computePaymentSplit(
+        paymentSource,
+        retakePreview.scholarship_balance ?? 0,
+        retakePreview.paid_balance ?? 0,
+        retakePreview.retake_cost
+      );
+      if (split.mixed) {
+        setMixSplit({ takeBeca: split.takeBeca, takePaid: split.takePaid, totalCost: retakePreview.retake_cost });
+        setMixContext('retake');
+        setShowMixModal(true);
+        return;
+      }
+    }
+    handleConfirmRetake();
   };
 
   const handleInitSwap = (member: ExamMemberDetail) => {
@@ -578,10 +622,12 @@ export default function GroupEditAssignmentMembersPage() {
     try {
       setAssigning(true);
       setError(null);
+      setShowMixModal(false);
       const result = await addAssignmentsToExam(
         Number(groupId),
         Number(assignmentId),
-        Array.from(selectedForAssign)
+        Array.from(selectedForAssign),
+        canChoosePaymentSource ? paymentSource : undefined
       );
       setAssignResults(result);
       if (result.assigned_count > 0) {
@@ -591,6 +637,44 @@ export default function GroupEditAssignmentMembersPage() {
       handleBillingError(err, 'Error al crear las asignaciones');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  // Antes de asignar, consultar el desglose de costo de los candidatos
+  // seleccionados; si el fondo elegido no alcanza y se mezclará con el otro,
+  // pedir confirmación explícita (solo coordinador/auxiliar).
+  const handleAssignConfirmClick = async () => {
+    if (selectedForAssign.size === 0) return;
+    if (!canChoosePaymentSource) {
+      handleConfirmAssign();
+      return;
+    }
+    try {
+      setMixChecking(true);
+      setError(null);
+      const preview = await getAssignmentCostPreview(Number(groupId), {
+        assignment_type: 'selected',
+        member_ids: Array.from(selectedForAssign),
+      });
+      if (preview.total_cost > 0) {
+        const split = computePaymentSplit(
+          paymentSource,
+          preview.scholarship_balance ?? 0,
+          preview.paid_balance ?? 0,
+          preview.total_cost
+        );
+        if (split.mixed) {
+          setMixSplit({ takeBeca: split.takeBeca, takePaid: split.takePaid, totalCost: preview.total_cost });
+          setMixContext('assign');
+          setShowMixModal(true);
+          return;
+        }
+      }
+      handleConfirmAssign();
+    } catch (err: any) {
+      handleBillingError(err, 'Error al calcular el costo de la asignación');
+    } finally {
+      setMixChecking(false);
     }
   };
 
@@ -1643,6 +1727,41 @@ export default function GroupEditAssignmentMembersPage() {
                     </div>
                   </div>
 
+                  {/* Selector de fuente de pago (solo coordinador/auxiliar) */}
+                  {canChoosePaymentSource && retakePreview.can_apply && !retakePreview.must_request_to_coordinator && retakePreview.retake_cost > 0 && (
+                    <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Wallet className="w-4 h-4 text-indigo-500" />
+                        <p className="text-sm font-semibold text-indigo-700">¿De qué fondo se descuenta?</p>
+                      </div>
+                      <p className="text-xs text-indigo-600 mb-3">
+                        Si el fondo elegido no alcanza, el resto se cubre automáticamente con el otro fondo.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentSource('beca')}
+                          className={`text-left rounded-lg border-2 p-2.5 transition ${paymentSource === 'beca' ? 'border-indigo-500 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-indigo-300'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900 text-sm">Beca primero</span>
+                            {paymentSource === 'beca' && <CheckCircle2 className="w-4 h-4 text-indigo-500" />}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentSource('saldo')}
+                          className={`text-left rounded-lg border-2 p-2.5 transition ${paymentSource === 'saldo' ? 'border-indigo-500 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-indigo-300'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-gray-900 text-sm">Saldo pagado primero</span>
+                            {paymentSource === 'saldo' && <CheckCircle2 className="w-4 h-4 text-indigo-500" />}
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Hint para responsables: deben solicitar al coordinador */}
                   {retakePreview.must_request_to_coordinator && (
                     <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2">
@@ -1685,7 +1804,7 @@ export default function GroupEditAssignmentMembersPage() {
                 Cancelar
               </button>
               <button
-                onClick={handleConfirmRetake}
+                onClick={handleRetakeConfirmClick}
                 disabled={applyingRetake || retakeLoading || !retakePreview?.can_apply || !!retakePreview?.must_request_to_coordinator}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
               >
@@ -2158,6 +2277,41 @@ export default function GroupEditAssignmentMembersPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Selector de fuente de pago (solo coordinador/auxiliar) */}
+                {canChoosePaymentSource && selectedForAssign.size > 0 && (
+                  <div className="p-4 border-t border-gray-100 bg-indigo-50/60 flex-shrink-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wallet className="w-4 h-4 text-indigo-500" />
+                      <p className="text-sm font-semibold text-indigo-700">¿De qué fondo se descuenta?</p>
+                    </div>
+                    <p className="text-xs text-indigo-600 mb-3">
+                      Si el fondo elegido no alcanza para el total, el resto se cubre automáticamente con el otro fondo.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentSource('beca')}
+                        className={`text-left rounded-lg border-2 p-2.5 transition ${paymentSource === 'beca' ? 'border-indigo-500 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-indigo-300'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900 text-sm">Beca primero</span>
+                          {paymentSource === 'beca' && <CheckCircle2 className="w-4 h-4 text-indigo-500" />}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentSource('saldo')}
+                        className={`text-left rounded-lg border-2 p-2.5 transition ${paymentSource === 'saldo' ? 'border-indigo-500 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-indigo-300'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-gray-900 text-sm">Saldo pagado primero</span>
+                          {paymentSource === 'saldo' && <CheckCircle2 className="w-4 h-4 text-indigo-500" />}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -2172,16 +2326,16 @@ export default function GroupEditAssignmentMembersPage() {
               </button>
               {!assignResults && (
                 <button
-                  onClick={handleConfirmAssign}
-                  disabled={assigning || selectedForAssign.size === 0}
+                  onClick={handleAssignConfirmClick}
+                  disabled={assigning || mixChecking || selectedForAssign.size === 0}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-fluid-xl font-medium text-sm transition-colors"
                 >
-                  {assigning ? (
+                  {(assigning || mixChecking) ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <UserPlus className="w-4 h-4" />
                   )}
-                  {assigning ? 'Asignando...' : `Asignar ${selectedForAssign.size} candidato${selectedForAssign.size !== 1 ? 's' : ''}`}
+                  {assigning ? 'Asignando...' : mixChecking ? 'Calculando...' : `Asignar ${selectedForAssign.size} candidato${selectedForAssign.size !== 1 ? 's' : ''}`}
                 </button>
               )}
             </div>
@@ -2441,6 +2595,18 @@ export default function GroupEditAssignmentMembersPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación de mezcla de fondos (beca + saldo) */}
+      <PaymentMixConfirmModal
+        open={showMixModal}
+        prefer={paymentSource}
+        takeBeca={mixSplit.takeBeca}
+        takePaid={mixSplit.takePaid}
+        totalCost={mixSplit.totalCost}
+        processing={mixContext === 'retake' ? applyingRetake : assigning}
+        onCancel={() => { setShowMixModal(false); setMixContext(null); }}
+        onConfirm={() => { if (mixContext === 'retake') handleConfirmRetake(); else handleConfirmAssign(); }}
+      />
     </div>
   );
 }

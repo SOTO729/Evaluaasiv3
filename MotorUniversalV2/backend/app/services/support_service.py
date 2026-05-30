@@ -620,8 +620,9 @@ def send_support_user_email(target: str, template: str) -> dict[str, Any]:
     subject, body = _build_support_email_template(template_key, user)
 
     # Usar el servicio central (SMTP O365 con display name + TEST_EMAIL_OVERRIDE)
-    from app.services.email_service import send_email
-    html_body = "<pre style=\"font-family: inherit; white-space: pre-wrap;\">" + body + "</pre>"
+    from app.services.email_service import send_email, build_email_html
+    inner = "<div style=\"color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;\">" + body + "</div>"
+    html_body = build_email_html(subject, inner)
     success = send_email(
         to=recipient_email,
         subject=subject,

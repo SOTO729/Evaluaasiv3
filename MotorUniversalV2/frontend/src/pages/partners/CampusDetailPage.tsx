@@ -911,6 +911,23 @@ export default function CampusDetailPage({ campusIdProp, isResponsable }: Campus
                     </div>
                       )
                     })()}
+                    {(() => {
+                      const beca = balanceSummary.totals.scholarship_balance ?? 0
+                      const pagado = balanceSummary.totals.paid_balance ?? (balanceSummary.totals.current_balance - beca)
+                      if (beca <= 0 && pagado <= 0) return null
+                      return (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div className="bg-indigo-50/70 rounded-lg p-2 text-center border border-indigo-100">
+                            <p className="text-xs font-bold text-indigo-700">${beca.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-[10px] text-indigo-600 font-medium">Becas</p>
+                          </div>
+                          <div className="bg-emerald-50/70 rounded-lg p-2 text-center border border-emerald-100">
+                            <p className="text-xs font-bold text-emerald-700">${Math.max(0, pagado).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                            <p className="text-[10px] text-emerald-600 font-medium">Saldo</p>
+                          </div>
+                        </div>
+                      )
+                    })()}
                     {balanceSummary.coordinators_count === 0 && (
                       <div className="rounded-fluid-lg p-3 border border-amber-300 bg-amber-50">
                         <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wide">⚠ Sin coordinador asignado</p>

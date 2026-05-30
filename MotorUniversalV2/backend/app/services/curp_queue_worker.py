@@ -542,7 +542,7 @@ def _send_batch_completion_email(batch):
     resumen de validación CURP del batch."""
     from app.models.user import User
     from app.models.curp_verification import CurpVerificationQueue, QUEUE_DONE, QUEUE_REJECTED
-    from app.services.email_service import send_email
+    from app.services.email_service import send_email, build_email_html
 
     # Stats
     total = CurpVerificationQueue.query.filter_by(batch_id=batch.id).count()
@@ -590,9 +590,10 @@ def _send_batch_completion_email(batch):
 <p>Las CURPs no validadas tras varios reintentos quedaron marcadas como
 <code>curp_required</code>. Los candidatos podrán corregirlas al iniciar sesión.</p>
 """
+    branded = build_email_html(subject, body)
     try:
         for to_email in recipients:
-            send_email(to=to_email, subject=subject, html=body)
+            send_email(to=to_email, subject=subject, html=branded)
         logger.info(f"[CURP-WORKER] email enviado a {len(recipients)} destinatarios para batch {batch.id}")
     except Exception as e:
         logger.error(f"[CURP-WORKER] error enviando email batch {batch.id}: {e}")
@@ -656,7 +657,7 @@ def _send_self_fix_email(user, curp: str, success: bool, result=None, error_msg:
         logger.info(f"[CURP-WORKER] self_fix sin email para user={getattr(user,'id',None)} — solo desbloqueo silencioso")
         return
 
-    from app.services.email_service import send_email
+    from app.services.email_service import send_email, build_email_html
     from flask import current_app
 
     # Construir URL de regreso al dashboard si está disponible
@@ -734,7 +735,7 @@ def _send_self_fix_email(user, curp: str, success: bool, result=None, error_msg:
         )
 
     try:
-        ok = send_email(to=user.email, subject=subject, html=html, plain_text=plain)
+        ok = send_email(to=user.email, subject=subject, html=build_email_html(subject, html), plain_text=plain)
         if ok:
             logger.info(f"[CURP-WORKER] self_fix email OK to={user.email} success={success}")
         else:

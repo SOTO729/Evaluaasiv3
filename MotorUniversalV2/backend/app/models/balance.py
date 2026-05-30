@@ -102,20 +102,44 @@ class CoordinatorBalance(db.Model):
             self.scholarship_balance = (self.scholarship_balance or Decimal('0')) + amount_dec
         self.updated_at = datetime.utcnow()
 
-    def deduct_balance(self, amount):
+    def deduct_balance(self, amount, prefer='beca'):
         """Descontar saldo del coordinador para este plantel.
 
-        Política BECA PRIMERO: se consume el saldo de beca disponible antes que
-        el saldo pagado. Retorna el desglose {'scholarship': x, 'paid': y} para
-        que la transacción registre cuánto provino de beca.
+        El parámetro ``prefer`` indica qué fondo consumir primero:
+        - ``'beca'`` (default): política BECA PRIMERO. Consume el saldo de beca
+          disponible antes que el saldo pagado. Si la beca no alcanza, el resto
+          sale del saldo pagado. (Comportamiento histórico / responsable.)
+        - ``'saldo'``: consume el saldo pagado primero y usa la beca solo como
+          respaldo si el pagado no alcanza. (Elección de coordinador/auxiliar.)
+
+        En ambos casos, mientras el ``current_balance`` total sea suficiente, la
+        operación nunca se bloquea: solo cambia de qué fondo proviene el gasto.
+        Retorna el desglose {'scholarship': x, 'paid': y} para que la transacción
+        registre cuánto provino de beca.
         """
         amount_dec = Decimal(str(amount))
         available_beca = self.scholarship_balance or Decimal('0')
-        take_beca = available_beca if available_beca < amount_dec else amount_dec
-        if take_beca < Decimal('0'):
-            take_beca = Decimal('0')
-        take_paid = amount_dec - take_beca
-        self.current_balance = (self.current_balance or Decimal('0')) - amount_dec
+        if available_beca < Decimal('0'):
+            available_beca = Decimal('0')
+        total = self.current_balance or Decimal('0')
+        available_paid = total - available_beca
+        if available_paid < Decimal('0'):
+            available_paid = Decimal('0')
+
+        if prefer == 'saldo':
+            # SALDO PAGADO PRIMERO, beca como respaldo
+            take_paid = available_paid if available_paid < amount_dec else amount_dec
+            take_beca = amount_dec - take_paid
+            if take_beca > available_beca:
+                take_beca = available_beca
+        else:
+            # BECA PRIMERO (default)
+            take_beca = available_beca if available_beca < amount_dec else amount_dec
+            if take_beca < Decimal('0'):
+                take_beca = Decimal('0')
+            take_paid = amount_dec - take_beca
+
+        self.current_balance = total - amount_dec
         self.scholarship_balance = available_beca - take_beca
         self.total_spent = (self.total_spent or Decimal('0')) + amount_dec
         self.total_scholarships_spent = (self.total_scholarships_spent or Decimal('0')) + take_beca
@@ -400,7 +424,7 @@ class BalanceTransaction(db.Model):
 
 def create_balance_transaction(coordinator_id, campus_id, transaction_type, concept, amount, 
                                group_id=None, reference_type=None, reference_id=None, notes=None, 
-                               created_by_id=None, scholarship_amount=None):
+                               created_by_id=None, scholarship_amount=None, payment_source=None):
     """Helper para crear una transacción de saldo vinculada a un plantel (campus).
     
     Args:
@@ -418,6 +442,9 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
             devoluciones que restauran al bucket original). Si es None se
             calcula automáticamente según la política (beca primero en débitos,
             monto completo en créditos de concepto 'beca', cero en el resto).
+        payment_source: Solo aplica a débitos. 'beca' = consumir beca primero
+            (default), 'saldo' = consumir saldo pagado primero. Permite que el
+            coordinador/auxiliar elija de qué fondo descontar la asignación.
     """
     from app.models.balance import CoordinatorBalance
     
@@ -446,7 +473,8 @@ def create_balance_transaction(coordinator_id, campus_id, transaction_type, conc
             sch_amount = Decimal(str(scholarship_amount))
             balance.scholarship_balance = (balance.scholarship_balance or Decimal('0')) + sch_amount
     elif transaction_type == 'debit':
-        split = balance.deduct_balance(amount)
+        prefer = payment_source if payment_source in ('beca', 'saldo') else 'beca'
+        split = balance.deduct_balance(amount, prefer=prefer)
         sch_amount = split['scholarship']
     else:  # adjustment (negativo => solo saldo pagado; positivo => saldo pagado)
         balance.current_balance = balance.current_balance + Decimal(str(amount))
