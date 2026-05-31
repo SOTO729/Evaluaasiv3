@@ -5,7 +5,7 @@ import DOMPurify from 'dompurify';
 // imágenes embebidas en base64 `data:` o `blob:`) y sus atributos de tamaño/alineación
 // sobrevivan al saneado, de modo que se vean igual en el editor, la previsualización
 // y la página pública del módulo de materiales de estudio.
-const READING_SANITIZE_CONFIG: DOMPurify.Config = {
+const READING_SANITIZE_CONFIG = {
   ADD_TAGS: ['img'],
   ADD_ATTR: [
     'target',

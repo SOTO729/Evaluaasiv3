@@ -57,7 +57,7 @@ export default function ExamInfoSheetsPage() {
     if (onlyCatalog) list = list.filter(e => e.is_public_catalog === true)
     if (search.trim()) {
       const s = search.trim().toLowerCase()
-      list = list.filter(e => (e.title || '').toLowerCase().includes(s))
+      list = list.filter(e => (e.name || '').toLowerCase().includes(s))
     }
     return list
   }, [exams, onlyCatalog, search])
@@ -78,7 +78,7 @@ export default function ExamInfoSheetsPage() {
     try {
       const res = await directService.uploadInfoSheet(exam.id, file)
       setExams(prev => prev.map(e => e.id === exam.id ? { ...e, info_sheet_url: res.info_sheet_url } : e))
-      setOkMsg(`Ficha actualizada para "${exam.title}"`)
+      setOkMsg(`Ficha actualizada para "${exam.name}"`)
     } catch (e: any) {
       setError(e?.response?.data?.error || e?.message || 'Error subiendo el PDF')
     } finally {
@@ -87,7 +87,7 @@ export default function ExamInfoSheetsPage() {
   }
 
   const handleDelete = async (exam: ExamWithSheet) => {
-    if (!confirm(`¿Eliminar la ficha informativa de "${exam.title}"?`)) return
+    if (!confirm(`¿Eliminar la ficha informativa de "${exam.name}"?`)) return
     setBusyId(exam.id)
     setError(null)
     setOkMsg(null)
@@ -184,7 +184,7 @@ export default function ExamInfoSheetsPage() {
                 return (
                   <tr key={exam.id}>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{exam.title}</div>
+                      <div className="font-medium text-gray-900">{exam.name}</div>
                       <div className="text-xs text-gray-500">ID #{exam.id}</div>
                     </td>
                     <td className="px-4 py-3">
@@ -207,7 +207,7 @@ export default function ExamInfoSheetsPage() {
                       <div className="inline-flex items-center gap-2">
                         {hasSheet && (
                           <button
-                            onClick={() => setPreview({ url: exam.info_sheet_url!, title: exam.title })}
+                            onClick={() => setPreview({ url: exam.info_sheet_url!, title: exam.name })}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
                             title="Vista previa"
                           >

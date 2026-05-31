@@ -885,7 +885,7 @@ const ReadingEditorPage = () => {
     // preservando imágenes referenciadas (http/https, data:base64, blob:).
     const clean = DOMPurify.sanitize(raw, READING_SANITIZE_CONFIG) as string;
     if (htmlMode === 'replace') {
-      editor.commands.setContent(clean, true);
+      editor.commands.setContent(clean, { emitUpdate: true });
     } else {
       editor.commands.focus('end');
       editor.commands.insertContent(clean);

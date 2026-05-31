@@ -189,7 +189,7 @@ export default function GroupCascadeSelector({
           onChange={(v) => setPartnerId(v ? Number(v) : '')}
           options={partners}
           placeholder={loadingPartners ? 'Cargando partners...' : 'Selecciona partner'}
-          colorScheme="emerald"
+          colorScheme="green"
         />
       )}
       {!isResponsable && (
@@ -199,7 +199,7 @@ export default function GroupCascadeSelector({
           options={campuses}
           placeholder={loadingCampuses ? 'Cargando planteles...' : 'Selecciona plantel'}
           disabled={!partnerId}
-          colorScheme="emerald"
+          colorScheme="green"
         />
       )}
       <StyledSelect
@@ -208,7 +208,7 @@ export default function GroupCascadeSelector({
         options={cycles}
         placeholder={loadingCycles ? 'Cargando ciclos...' : 'Selecciona ciclo escolar'}
         disabled={!campusId}
-        colorScheme="emerald"
+        colorScheme="green"
       />
       <StyledSelect
         value={groupId === '' || groupId === undefined ? '' : String(groupId)}
@@ -216,7 +216,7 @@ export default function GroupCascadeSelector({
         options={groups}
         placeholder={loadingGroups ? 'Cargando grupos...' : 'Selecciona grupo'}
         disabled={!cycleId}
-        colorScheme="emerald"
+        colorScheme="green"
       />
     </div>
   );

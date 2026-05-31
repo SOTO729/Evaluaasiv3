@@ -64,10 +64,12 @@ export default function PartnerSsoApiKeyCard({ partnerId, canManage = true }: Pa
       )
       if (!ok) return
     }
+    const currentPassword = window.prompt('Confirma tu contraseña para generar la API key:')
+    if (!currentPassword) return
     try {
       setBusy(true)
       setError(null)
-      const data = await ssoService.generateApiKey(partnerId)
+      const data = await ssoService.generateApiKey(partnerId, currentPassword)
       setCreated(data)
       setShowSecret(true)
       await load()
@@ -80,10 +82,12 @@ export default function PartnerSsoApiKeyCard({ partnerId, canManage = true }: Pa
 
   const handleRevoke = async () => {
     if (!window.confirm('¿Desactivar la API key actual? Los sistemas conectados dejarán de poder iniciar sesiones SSO.')) return
+    const currentPassword = window.prompt('Confirma tu contraseña para revocar la API key:')
+    if (!currentPassword) return
     try {
       setBusy(true)
       setError(null)
-      await ssoService.revokeApiKey(partnerId)
+      await ssoService.revokeApiKey(partnerId, currentPassword)
       await load()
     } catch (err: any) {
       setError(err?.response?.data?.error || 'No fue posible revocar la API key.')
@@ -208,7 +212,7 @@ export default function PartnerSsoApiKeyCard({ partnerId, canManage = true }: Pa
 
             <div className="bg-gray-900 text-gray-100 rounded-fluid-xl fluid-p-3 font-mono fluid-text-sm break-all flex items-center fluid-gap-2">
               <span className="flex-1">
-                {showSecret ? created.api_key : '•'.repeat(Math.min(48, created.api_key.length))}
+                {showSecret ? (created.api_key ?? '') : '•'.repeat(Math.min(48, (created.api_key ?? '').length))}
               </span>
               <button
                 onClick={() => setShowSecret((v) => !v)}

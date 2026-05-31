@@ -20,7 +20,7 @@ const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 // Clona el árbol y le añade un id estable a cada nodo
 let _nodeSeq = 0;
-type EditableNode = ScormManifestNode & { _id: string; children?: EditableNode[] };
+type EditableNode = Omit<ScormManifestNode, 'children'> & { _id: string; children?: EditableNode[] };
 function decorate(tree: ScormManifestNode[]): EditableNode[] {
   return tree.map((n) => ({
     ...n,
