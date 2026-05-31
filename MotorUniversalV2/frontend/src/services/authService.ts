@@ -7,6 +7,16 @@ export const authService = {
     return response.data
   },
 
+  /**
+   * Inicia sesión con Google. Recibe el `code` (authorization code) del flujo
+   * popup auth-code de Google Identity Services y lo intercambia en el backend
+   * por un par access/refresh JWT.
+   */
+  googleLogin: async (code: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/google', { code })
+    return response.data
+  },
+
   register: async (data: RegisterData): Promise<{ message: string; user: User }> => {
     const response = await api.post<{ message: string; user: User }>('/auth/register', data)
     return response.data

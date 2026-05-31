@@ -70,6 +70,10 @@ class Config:
     MP_ACCESS_TOKEN = os.getenv('MP_ACCESS_TOKEN', '')
     MP_WEBHOOK_SECRET = os.getenv('MP_WEBHOOK_SECRET', '')
 
+    # Google OAuth (Iniciar sesión con Google)
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+
     # Upload
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 6 * 1024 * 1024 * 1024))  # 6GB para lotes CONOCER
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))

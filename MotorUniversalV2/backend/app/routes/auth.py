@@ -457,6 +457,121 @@ def refresh():
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# Iniciar sesión con Google (OAuth 2.0 / OpenID Connect) — mayo 2026
+# ════════════════════════════════════════════════════════════════════════════
+
+@bp.route('/google', methods=['POST'])
+@rate_limit_login(limit=10, window=60)  # 10 intentos/min por IP
+def google_login():
+    """Inicio de sesión con Google.
+
+    Recibe el `code` (authorization code) obtenido por el frontend mediante el
+    flujo popup de Google Identity Services (auth-code). El backend intercambia
+    ese code por tokens usando el client_secret (que nunca sale del servidor),
+    valida el id_token y emite un par access/refresh JWT como en /login.
+
+    Política: SOLO vinculación. El correo de Google debe corresponder a un
+    usuario ya existente y activo; no se crea ninguna cuenta automáticamente.
+    """
+    from flask import current_app
+    import requests as http_requests
+    from jose import jwt as jose_jwt
+
+    data = request.get_json(silent=True) or {}
+    code = (data.get('code') or '').strip()
+    if not code:
+        return jsonify({'error': 'Código de Google requerido'}), 400
+
+    client_id = current_app.config.get('GOOGLE_CLIENT_ID')
+    client_secret = current_app.config.get('GOOGLE_CLIENT_SECRET')
+    if not client_id or not client_secret:
+        return jsonify({'error': 'Inicio de sesión con Google no está configurado'}), 503
+
+    # Intercambiar el authorization code por tokens.
+    # En el flujo popup auth-code de Google, redirect_uri debe ser 'postmessage'.
+    try:
+        token_resp = http_requests.post(
+            'https://oauth2.googleapis.com/token',
+            data={
+                'code': code,
+                'client_id': client_id,
+                'client_secret': client_secret,
+                'redirect_uri': 'postmessage',
+                'grant_type': 'authorization_code',
+            },
+            timeout=15,
+        )
+    except Exception:
+        return jsonify({'error': 'No se pudo contactar a Google'}), 502
+
+    if token_resp.status_code != 200:
+        return jsonify({'error': 'Código de Google inválido o expirado'}), 401
+
+    id_token_str = (token_resp.json() or {}).get('id_token')
+    if not id_token_str:
+        return jsonify({'error': 'Google no devolvió un id_token'}), 401
+
+    # El id_token llega directamente de Google sobre TLS (canal confiable),
+    # por lo que decodificamos sus claims y validamos audiencia/emisor.
+    try:
+        claims = jose_jwt.get_unverified_claims(id_token_str)
+    except Exception:
+        return jsonify({'error': 'id_token de Google inválido'}), 401
+
+    if claims.get('aud') != client_id:
+        return jsonify({'error': 'El token de Google no corresponde a esta aplicación'}), 401
+    if claims.get('iss') not in ('https://accounts.google.com', 'accounts.google.com'):
+        return jsonify({'error': 'Emisor de Google inválido'}), 401
+
+    email = (claims.get('email') or '').strip().lower()
+    email_verified = claims.get('email_verified', False)
+    if not email:
+        return jsonify({'error': 'Google no proporcionó un correo'}), 401
+    if not email_verified:
+        return jsonify({'error': 'Tu correo de Google no está verificado'}), 403
+
+    # Buscar usuario existente por email (solo vinculación, sin auto-registro)
+    user = User.query.filter(func.lower(User.email) == email).first()
+    if not user:
+        return jsonify({
+            'error': 'No existe una cuenta con este correo de Google. '
+                     'Contacta a tu coordinador para que te dé de alta.',
+            'code': 'google_user_not_found',
+        }), 404
+
+    if not user.is_active:
+        return jsonify({'error': 'Tu cuenta está inactiva'}), 403
+
+    # Respetar el bloqueo por intentos fallidos
+    locked, remaining_seconds = is_account_locked(user.username)
+    if locked:
+        return jsonify({
+            'error': 'Cuenta bloqueada temporalmente',
+            'retry_after': remaining_seconds,
+            'locked': True,
+        }), 423
+
+    # Login exitoso
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    access_token = create_access_token(
+        identity=user.id,
+        fresh=True,
+        additional_claims={'role': user.role, 'username': user.username},
+    )
+    refresh_token = create_refresh_token(identity=user.id)
+
+    return jsonify({
+        'message': 'Login con Google exitoso',
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'user': user.to_dict(include_private=True),
+    }), 200
+
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # SSO Tokenización: intercambiar token opaco por par de JWT (mayo 2026)
 # ════════════════════════════════════════════════════════════════════════════
 
