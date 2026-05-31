@@ -210,3 +210,156 @@ npx @azure/static-web-apps-cli deploy dist `
 
 - **Inicio de sesión con Microsoft (Entra ID):** el botón existe pero es decorativo
   (sin `onClick`). Falta implementarlo cuando se tengan las credenciales de Microsoft.
+
+---
+---
+
+# Plan técnico: Chatbot-Agente de Soporte (IA)
+
+> Hoja de ruta para convertir el chat candidato-soporte en un **agente con IA**
+> (Azure OpenAI + tool-calling) capaz de responder y, de forma controlada, ejecutar
+> acciones del rol `soporte`. **Estado: PROPUESTA / NO IMPLEMENTADO.** Documento de
+> diseño; no hay código ni recursos creados todavía.
+
+## Objetivo
+
+Añadir un asistente de IA dentro del módulo de chat existente
+(`SupportChatWorkspace`) que:
+1. Responda dudas de candidatos en lenguaje natural (FAQ, navegación, estudio).
+2. Ejecute acciones de **bajo riesgo** de forma autónoma.
+3. **Prepare** acciones de riesgo medio para aprobación humana (human-in-the-loop).
+4. **Escale a un humano** cualquier acción de alto riesgo o cuando no esté seguro.
+
+## Por qué es factible
+
+- El módulo de chat ya existe: modelos `SupportConversation` / `SupportMessage`,
+  endpoints de envío, polling cada 7 s, adjuntos, plantillas.
+- `SupportMessage.message_type` ya es extensible (`text`/`attachment`/`system`) →
+  añadir `ai`/`bot`.
+- `current_handler_role` ya distingue `support` / `coordinator` → añadir `bot`.
+- Infraestructura Azure ya presente (Container Apps, Blob, Communication Services).
+  Solo falta un recurso de **Azure OpenAI** con un modelo desplegado (`gpt-4o-mini`).
+
+## Modelo de autonomía — 3 niveles de permiso
+
+| Nivel | Política | Acciones | Riesgo |
+|---|---|---|---|
+| **1 — Autónomo** | El bot ejecuta solo | Responder, buscar/consultar, marcar leído, sugerir plantilla, cambiar estado de SU conversación, crear conversación | Bajo / reversible |
+| **2 — Aprobación humana** | El bot **propone**, un humano de soporte aprueba/rechaza con un clic | Crear campus, crear/editar usuario, transferir a coordinador | Medio, controlado |
+| **3 — Prohibido al bot** | El bot **nunca** ejecuta; solo escala | Ver/cambiar/generar contraseñas, activar/desactivar usuarios, enviar correos, datos financieros | Alto |
+
+> Clasificación basada en las ~23 acciones reales del rol `soporte`
+> (ver sección "Acciones del rol soporte" más abajo).
+
+## Inventario de acciones del rol soporte (referencia)
+
+**Lectura (Nivel 1 — libre):**
+- `GET /api/support/users`, `/campuses`, `/partners`, `/calendar/sessions`
+- `GET /api/support/chat/conversations`, `.../messages`, `/templates`
+- `GET /api/partners/ecm-assignments` (analítica ECM)
+
+**Escritura reversible / chat (Nivel 1):**
+- `POST /api/support/chat/conversations` (crear conversación)
+- `POST /api/support/chat/conversations/<id>/messages` (enviar mensaje)
+- `POST /api/support/chat/conversations/<id>/read` (marcar leído)
+- `PATCH /api/support/chat/conversations/<id>/status` (open/resolved/closed)
+- `POST|PUT|DELETE /api/support/chat/templates` (plantillas)
+
+**Escritura media (Nivel 2 — aprobación humana):**
+- `POST /api/support/campuses` (crear campus)
+- `POST /api/user-management/users` (crear usuario)
+- `PUT /api/user-management/users/<id>` (editar usuario)
+- `POST /api/support/chat/conversations/<id>/transfer` (transferir a coordinador)
+
+**Alto riesgo (Nivel 3 — solo humano, el bot NO lo hace):**
+- `PUT /api/user-management/users/<id>/password` (cambiar contraseña)
+- `POST /api/user-management/users/<id>/generate-password` (generar contraseña)
+- `GET /api/user-management/users/<id>/password` (ver contraseña en texto plano)
+- `POST /api/user-management/users/<id>/toggle-active` (activar/desactivar)
+- `POST /api/support/users/send-email` (enviar correos de la plataforma)
+
+## Arquitectura propuesta
+
+```
+Candidato → SupportChatWorkspace → POST /messages
+   → (si conversación en modo bot) → chatbot_agent_service
+        → Azure OpenAI (tool-calling)
+            → herramienta de LECTURA   → ejecuta y responde (Nivel 1)
+            → herramienta de ESCRITURA media → crea BotActionRequest (Nivel 2)
+            → acción de alto riesgo    → escala a humano (Nivel 3)
+        → guarda respuesta como SupportMessage (sender=bot, message_type='ai')
+```
+
+### Componentes nuevos (backend)
+
+1. `app/services/chatbot_agent_service.py`
+   - Cliente Azure OpenAI (function calling).
+   - Definición de **herramientas** (cada una mapea a un endpoint/servicio interno),
+     etiquetadas por nivel de permiso.
+   - Construcción de contexto/system prompt + (Fase 2) RAG.
+2. Usuario "bot" del sistema (registro en `users`) para `sender_user_id`.
+3. `current_handler_role = "bot"` y `message_type = "ai"`.
+4. (Fase 2) Modelo `BotActionRequest` para la cola de aprobación:
+   `id, conversation_id, tool_name, payload(JSON), status(pending/approved/rejected),
+   proposed_at, decided_by_user_id, decided_at`.
+5. Endpoints:
+   - `POST /api/support/chat/conversations/<id>/bot-reply` (disparar/forzar respuesta).
+   - `GET /api/support/chat/bot-actions?status=pending` (cola de aprobación).
+   - `POST /api/support/chat/bot-actions/<id>/approve|reject`.
+
+### Componentes nuevos (frontend)
+
+- `SupportChatWorkspace.tsx`: estilo propio para mensajes del bot, indicador
+  "Asistente IA", botón **"Hablar con un humano"**.
+- (Fase 2) Panel de **acciones propuestas por el bot** con botones Aprobar/Rechazar.
+- Servicio `chatbotService.ts` para los nuevos endpoints.
+
+### Variables de entorno (Azure Container Apps)
+
+```
+AZURE_OPENAI_ENDPOINT=https://<recurso>.openai.azure.com/
+AZURE_OPENAI_KEY=<clave>
+AZURE_OPENAI_DEPLOYMENT=gpt-4o-mini
+AZURE_OPENAI_API_VERSION=2024-08-01-preview
+CHATBOT_ENABLED=true
+```
+
+## Seguridad (obligatorio)
+
+- **Prompt injection**: el texto del candidato NUNCA debe poder elevar permisos.
+  Las herramientas de Nivel 2/3 se controlan en el **backend**, no por lo que diga
+  el modelo. El modelo solo *propone*; el backend decide si requiere aprobación.
+- **Nunca** exponer al modelo datos sensibles (CURP completa, contraseñas, pagos).
+- **Auditoría**: registrar cada acción del bot en `ActivityLog`
+  ("ejecutado por bot" / "aprobado por <humano>").
+- **Rate limiting** en los endpoints del bot (reutilizar utilidades existentes).
+- El bot **no** debe tomar acciones financieras ni de certificación.
+
+## Costos estimados (Azure OpenAI, por uso)
+
+| Escenario | Configuración | Costo mensual aprox. |
+|---|---|---|
+| Fase 1 (FAQ, sin RAG) | gpt-4o-mini, ~5,000 msgs/mes | ~$3–6 USD |
+| Fase 2 (RAG en Azure SQL) | mini + embeddings en BD propia | ~$5–12 USD |
+| Volumen alto + Azure AI Search | mini + AI Search básico | ~$80–130 USD (mayoría fijo del AI Search) |
+
+- gpt-4o-mini: ~$0.15/1M tokens entrada, ~$0.60/1M salida → ~$0.0005–0.001 por interacción.
+- Embeddings (`text-embedding-3-small`): ~$0.02/1M tokens, indexado una sola vez.
+- Infra: **$0 adicional** (corre dentro del backend Flask actual).
+- Azure AI Search es **evitable** al inicio usando embeddings en Azure SQL.
+
+## Fases de implementación
+
+1. **Fase 1 — Bot conversacional + Nivel 1**: responde dudas + acciones reversibles
+   + escala a humano. (Esfuerzo: medio.)
+2. **Fase 2 — Nivel 2 (human-in-the-loop)**: cola `BotActionRequest` + UI de
+   aprobación. (Esfuerzo: medio-alto.)
+3. **Fase 3 — RAG + métricas**: contexto desde materiales de estudio; medir % resuelto
+   por el bot reutilizando la encuesta de satisfacción existente.
+
+## Pre-requisitos
+
+- Crear recurso **Azure OpenAI** en la suscripción (sujeto a cuota/región) y desplegar
+  `gpt-4o-mini`.
+- Definir el alcance inicial del bot (FAQ + navegación + dudas de estudio).
+- Confirmar la política de aprobación para acciones de Nivel 2.
