@@ -10,7 +10,7 @@
  * 
  * NOTA: Para solicitar saldo, usar /coordinador/solicitar-saldo
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -36,6 +36,8 @@ import {
   Paperclip,
   Upload,
   File,
+  Filter,
+  ListChecks,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -56,6 +58,10 @@ import {
 } from '../../services/partnersService';
 
 const DEFAULT_PRICE_PER_CERTIFICATION = 500;
+
+// Normaliza texto: minúsculas y sin acentos, para una búsqueda tolerante
+const normalizeText = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 interface RequestLine {
   id: string;
@@ -95,6 +101,8 @@ export default function SolicitarBecaPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [partnerFilter, setPartnerFilter] = useState<string>('');
   const [stateFilter, setStateFilter] = useState<string>('');
+  const [onlyWithLines, setOnlyWithLines] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   const [sortColumn, setSortColumn] = useState<SortColumn>('partner');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -116,6 +124,26 @@ export default function SolicitarBecaPage() {
 
   useEffect(() => {
     loadCampuses();
+  }, []);
+
+  // Enfocar el buscador al terminar de cargar
+  useEffect(() => {
+    if (!loading && !showReview) {
+      searchInputRef.current?.focus();
+    }
+  }, [loading, showReview]);
+
+  // Atajo de teclado "/" para enfocar el buscador
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (document.activeElement?.tagName || '').toUpperCase();
+      if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
 
   const loadCampuses = async () => {
@@ -140,7 +168,6 @@ export default function SolicitarBecaPage() {
 
     try {
       const data = await getGroups(campusId, { active_only: true, include_config: true });
-      console.log('loadGroups response:', { campusId, groups: data.groups, firstGroup: data.groups?.[0] });
       setGroupsCache(prev => ({
         ...prev,
         [campusId]: {
@@ -168,6 +195,16 @@ export default function SolicitarBecaPage() {
     return states.sort();
   }, [campuses]);
 
+  const hasActiveFilters = searchTerm.trim() !== '' || partnerFilter !== '' || stateFilter !== '' || onlyWithLines;
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setPartnerFilter('');
+    setStateFilter('');
+    setOnlyWithLines(false);
+    searchInputRef.current?.focus();
+  };
+
   const linesByCampus = useMemo(() => {
     const grouped: { [campusId: number]: RequestLine[] } = {};
     requestLines.forEach(line => {
@@ -186,17 +223,20 @@ export default function SolicitarBecaPage() {
   }, [requestLines]);
 
   const filteredCampuses = useMemo(() => {
+    const term = normalizeText(searchTerm.trim());
     const filtered = campuses.filter(campus => {
-      const matchesSearch = searchTerm === '' || 
-        campus.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        campus.partner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (campus.state_name && campus.state_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (campus.code && campus.code.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesSearch = term === '' || 
+        normalizeText(campus.name).includes(term) ||
+        normalizeText(campus.partner_name).includes(term) ||
+        (campus.state_name && normalizeText(campus.state_name).includes(term)) ||
+        (campus.city && normalizeText(campus.city).includes(term)) ||
+        (campus.code && normalizeText(campus.code).includes(term));
       
       const matchesPartner = partnerFilter === '' || campus.partner_name === partnerFilter;
       const matchesState = stateFilter === '' || campus.state_name === stateFilter;
+      const matchesLines = !onlyWithLines || (linesCountByCampus[campus.id] || 0) > 0;
       
-      return matchesSearch && matchesPartner && matchesState;
+      return matchesSearch && matchesPartner && matchesState && matchesLines;
     });
 
     return filtered.sort((a, b) => {
@@ -230,7 +270,7 @@ export default function SolicitarBecaPage() {
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [campuses, searchTerm, partnerFilter, stateFilter, sortColumn, sortDirection, linesCountByCampus]);
+  }, [campuses, searchTerm, partnerFilter, stateFilter, onlyWithLines, sortColumn, sortDirection, linesCountByCampus]);
 
   const totals = useMemo(() => {
     let totalUnits = 0, totalAmount = 0, saldoUnits = 0, saldoAmount = 0, becaUnits = 0, becaAmount = 0;
@@ -251,7 +291,6 @@ export default function SolicitarBecaPage() {
     const baseCost = campus?.certification_cost || groupsCache[campusId]?.campusCertificationCost || DEFAULT_PRICE_PER_CERTIFICATION;
     if (groupId === null) return baseCost;
     const group = groupsCache[campusId]?.groups.find(g => g.id === groupId);
-    console.log('getGroupPrice debug:', { campusId, groupId, group, effectiveConfig: group?.effective_config, baseCost });
     return group?.effective_config?.certification_cost ?? baseCost;
   };
 
@@ -799,12 +838,25 @@ export default function SolicitarBecaPage() {
                 <div className="relative">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
+                    ref={searchInputRef}
                     type="text"
-                    placeholder="Buscar por nombre, código, partner..."
+                    placeholder="Buscar por nombre, código, partner, estado o ciudad..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm lg:text-base"
+                    className="w-full pl-11 pr-16 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all text-sm lg:text-base"
                   />
+                  {searchTerm ? (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchTerm(''); searchInputRef.current?.focus(); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center justify-center w-6 h-6 text-xs font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-md">/</kbd>
+                  )}
                 </div>
               </div>
               
@@ -830,6 +882,60 @@ export default function SolicitarBecaPage() {
                 ))}
               </select>
             </div>
+
+            {/* Toggle + chips de filtros activos */}
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => setOnlyWithLines(prev => !prev)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  onlyWithLines
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-600'
+                }`}
+              >
+                <ListChecks className="w-4 h-4" />
+                Solo con líneas
+                {requestLines.length > 0 && (
+                  <span className={`ml-0.5 px-1.5 rounded-full text-xs ${onlyWithLines ? 'bg-white/20' : 'bg-gray-100 text-gray-500'}`}>
+                    {new Set(requestLines.map(l => l.campusId)).size}
+                  </span>
+                )}
+              </button>
+
+              {hasActiveFilters && (
+                <>
+                  <span className="hidden sm:inline-flex items-center gap-1 text-xs text-gray-400">
+                    <Filter className="w-3.5 h-3.5" /> Filtros:
+                  </span>
+                  {searchTerm.trim() && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
+                      "{searchTerm}"
+                      <button onClick={() => setSearchTerm('')} aria-label="Quitar búsqueda" className="hover:text-purple-900"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {partnerFilter && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
+                      {partnerFilter}
+                      <button onClick={() => setPartnerFilter('')} aria-label="Quitar partner" className="hover:text-purple-900"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  {stateFilter && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
+                      {stateFilter}
+                      <button onClick={() => setStateFilter('')} aria-label="Quitar estado" className="hover:text-purple-900"><X className="w-3 h-3" /></button>
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-gray-500 hover:text-red-600 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" /> Limpiar todo
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Campus Table */}
@@ -852,7 +958,18 @@ export default function SolicitarBecaPage() {
                       <td colSpan={6} className="px-4 py-16 text-center">
                         <Building2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                         <p className="text-gray-500 font-medium">No se encontraron planteles</p>
-                        <p className="text-sm text-gray-400 mt-1">Intenta con otros filtros de búsqueda</p>
+                        <p className="text-sm text-gray-400 mt-1">
+                          {hasActiveFilters ? 'Prueba ajustando o limpiando los filtros' : 'No hay planteles disponibles'}
+                        </p>
+                        {hasActiveFilters && (
+                          <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                          >
+                            <X className="w-4 h-4" /> Limpiar filtros
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ) : (
