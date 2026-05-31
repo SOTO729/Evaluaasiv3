@@ -3299,6 +3299,12 @@ export interface EcmAssignmentDetail {
   exam_id: number;
   exam_name: string;
   exam_ecm_code: string;
+  ecm_id?: number;
+  ecm_code?: string;
+  ecm_name?: string;
+  ecm_logo_url?: string | null;
+  brand?: string | null;
+  brand_logo_url?: string | null;
   assignment_date: string | null;
   assignment_type: string;
   unit_cost: number;
@@ -3387,6 +3393,50 @@ export async function getEcmAssignmentDetail(ecmId: number, params?: {
   sort_dir?: string;
 }): Promise<EcmAssignmentDetailResponse> {
   const response = await api.get(`/partners/ecm-assignments/${ecmId}`, { params });
+  return response.data;
+}
+
+export interface FlatEcmAssignmentsResponse {
+  assignments: EcmAssignmentDetail[];
+  total: number;
+  pages: number;
+  current_page: number;
+  per_page: number;
+  summary: {
+    total_assignments: number;
+    total_candidates: number;
+    total_cost: number;
+    avg_score: number | null;
+    pass_rate: number | null;
+    completed_count: number;
+    pending_count: number;
+    passed_count: number;
+  };
+  filters: {
+    ecms: { id: number; code: string; name: string }[];
+    brands: EcmBrand[];
+  };
+}
+
+/**
+ * Obtener TODAS las asignaciones en una tabla plana (a través de todos los ECM)
+ */
+export async function getAllEcmAssignments(params?: {
+  page?: number;
+  per_page?: number;
+  search?: string;
+  ecm_id?: number;
+  brand_id?: number;
+  group_id?: number;
+  exam_id?: number;
+  user_type?: string;
+  status?: string;
+  date_from?: string;
+  date_to?: string;
+  sort_by?: string;
+  sort_dir?: string;
+}): Promise<FlatEcmAssignmentsResponse> {
+  const response = await api.get('/partners/ecm-assignments/flat', { params });
   return response.data;
 }
 

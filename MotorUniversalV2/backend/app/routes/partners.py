@@ -15991,6 +15991,605 @@ def get_ecm_assignments():
         return _db_error_response(e)
 
 
+@bp.route('/ecm-assignments/flat', methods=['GET'])
+@jwt_required()
+def get_all_ecm_assignments():
+    """Tabla plana de TODAS las asignaciones (una fila por candidato/examen),
+    a través de todos los ECM. Estilo user-management.
+
+    Reusa la misma lógica que el detalle por ECM pero sin filtrar por un ECM
+    específico, agregando columnas de ECM/marca en cada fila y permitiendo
+    filtrar por ecm_id, brand_id, grupo, examen, estado, tipo de usuario y fechas.
+
+    Query params:
+    - page (int): Página (default 1)
+    - per_page (int): Por página (default 30, max 100)
+    - search (str): Buscar por nombre/email/CURP/ECM (multi-palabra)
+    - ecm_id (int): Filtrar por ECM
+    - brand_id (int): Filtrar por marca
+    - group_id (int): Filtrar por grupo
+    - exam_id (int): Filtrar por examen
+    - user_type (str): candidato, responsable, all
+    - status (str): all, completed, pending, passed, failed
+    - date_from / date_to (str): YYYY-MM-DD
+    - sort_by (str): date, name, score, cost, role, group, exam, status, ecm
+    - sort_dir (str): asc, desc
+    """
+    try:
+        from sqlalchemy import text
+
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        if not user or user.role not in ['admin', 'developer', 'coordinator', 'soporte']:
+            return jsonify({'error': 'Acceso denegado'}), 403
+
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 30, type=int), 100)
+        search = request.args.get('search', '').strip()
+        ecm_id_filter = request.args.get('ecm_id', type=int)
+        brand_id_filter = request.args.get('brand_id', type=int)
+        group_id_filter = request.args.get('group_id', type=int)
+        exam_id_filter = request.args.get('exam_id', type=int)
+        user_type_filter = request.args.get('user_type', 'all')
+        status_filter = request.args.get('status', 'all')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        sort_by = request.args.get('sort_by', 'date')
+        sort_dir = request.args.get('sort_dir', 'desc')
+        offset = (page - 1) * per_page
+
+        params = {'offset_val': offset, 'limit_val': per_page}
+        where_parts = []
+
+        # Aislamiento por coordinador (mismo criterio que el detalle)
+        _coord_filter_id = _get_coordinator_filter(user)
+        if _coord_filter_id:
+            where_parts.append("AND a.coordinator_id = :coord_filter_id")
+            params['coord_filter_id'] = _coord_filter_id
+
+        if ecm_id_filter:
+            where_parts.append("AND a.ecm_id = :ecm_id_f")
+            params['ecm_id_f'] = ecm_id_filter
+        if brand_id_filter:
+            where_parts.append("AND a.brand_id = :brand_id_f")
+            params['brand_id_f'] = brand_id_filter
+        if exam_id_filter:
+            where_parts.append("AND a.exam_id = :exam_id_f")
+            params['exam_id_f'] = exam_id_filter
+        if group_id_filter:
+            where_parts.append("AND a.group_id = :group_id_f")
+            params['group_id_f'] = group_id_filter
+        if user_type_filter != 'all':
+            where_parts.append("AND a.user_role = :user_type_f")
+            params['user_type_f'] = user_type_filter
+        if search:
+            tokens = search.lower().split()
+            cols = (
+                "LOWER(a.user_name) LIKE :{k} OR LOWER(a.user_email) LIKE :{k} "
+                "OR LOWER(a.user_curp) LIKE :{k} OR LOWER(a.ecm_code) LIKE :{k} "
+                "OR LOWER(a.ecm_name) LIKE :{k}"
+            )
+            if len(tokens) > 1:
+                for i, tok in enumerate(tokens):
+                    key = f'search_tok_{i}'
+                    where_parts.append("AND (" + cols.format(k=key) + ")")
+                    params[key] = f'%{tok}%'
+            else:
+                where_parts.append("AND (" + cols.format(k='search_f') + ")")
+                params['search_f'] = f'%{search.lower()}%'
+        if date_from:
+            try:
+                from_dt = datetime.strptime(date_from, '%Y-%m-%d')
+                where_parts.append("AND a.assignment_date >= :date_from_f")
+                params['date_from_f'] = from_dt
+            except ValueError:
+                pass
+        if date_to:
+            try:
+                to_dt = datetime.strptime(date_to, '%Y-%m-%d').replace(
+                    hour=23, minute=59, second=59
+                )
+                where_parts.append("AND a.assignment_date <= :date_to_f")
+                params['date_to_f'] = to_dt
+            except ValueError:
+                pass
+
+        if status_filter == 'completed':
+            where_parts.append("AND lr.result_status_raw = 1")
+        elif status_filter == 'pending':
+            where_parts.append("AND (lr.result_status_raw IS NULL OR lr.result_status_raw != 1)")
+        elif status_filter == 'passed':
+            where_parts.append("AND lr.result_status_raw = 1 AND lr.result_raw = 1")
+        elif status_filter == 'failed':
+            where_parts.append("AND lr.result_status_raw = 1 AND lr.result_raw = 0")
+
+        where_sql = '\n                '.join(where_parts)
+
+        sort_map = {
+            'date': 'a.assignment_date',
+            'name': 'a.user_name',
+            'score': 'COALESCE(lr.score, -1)',
+            'cost': 'COALESCE(CAST(COALESCE(co.total_cost, 0) AS FLOAT) / NULLIF(mc.member_count, 0), 0)',
+            'role': 'a.user_role',
+            'group': 'a.group_name',
+            'exam': 'a.exam_name',
+            'ecm': 'a.ecm_code',
+            'status': 'COALESCE(lr.result_status_raw, -1)',
+            'material': 'COALESCE(lr.result_status_raw, -1)',
+            'duration': 'COALESCE(lr.duration_seconds, -1)',
+        }
+        sort_col = sort_map.get(sort_by, 'a.assignment_date')
+        sort_direction = 'DESC' if sort_dir == 'desc' else 'ASC'
+
+        cte_sql = """
+            WITH base_assignments AS (
+                SELECT
+                    u.id AS user_id,
+                    CONCAT(u.name, ' ', u.first_surname,
+                           COALESCE(' ' + u.second_surname, '')) AS user_name,
+                    u.email AS user_email,
+                    u.role AS user_role,
+                    u.curp AS user_curp,
+                    ge.id AS group_exam_id,
+                    ge.exam_id,
+                    ge.assigned_at AS assignment_date,
+                    ge.assignment_type,
+                    ge.max_attempts,
+                    ge.time_limit_minutes,
+                    ge.passing_score,
+                    cg.id AS group_id,
+                    cg.name AS group_name,
+                    cg.code AS group_code,
+                    c.id AS campus_id,
+                    c.name AS campus_name,
+                    COALESCE(c.enable_tier_basic, 0) AS enable_tier_basic,
+                    COALESCE(c.enable_tier_standard, 0) AS enable_tier_standard,
+                    COALESCE(c.enable_tier_advanced, 0) AS enable_tier_advanced,
+                    COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
+                    p.id AS partner_id,
+                    p.name AS partner_name,
+                    e.name AS exam_name,
+                    e.competency_standard_id AS ecm_id,
+                    cs.code AS ecm_code,
+                    cs.name AS ecm_name,
+                    cs.logo_url AS ecm_logo_url,
+                    cs.brand_id AS brand_id,
+                    b.name AS brand_name,
+                    b.logo_url AS brand_logo_url,
+                    cg.coordinator_id AS coordinator_id
+                FROM group_exams ge
+                JOIN exams e ON e.id = ge.exam_id
+                JOIN competency_standards cs ON cs.id = e.competency_standard_id
+                LEFT JOIN brands b ON b.id = cs.brand_id
+                JOIN candidate_groups cg ON cg.id = ge.group_id
+                LEFT JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                JOIN group_members gm ON gm.group_id = ge.group_id
+                JOIN users u ON u.id = gm.user_id
+                WHERE e.competency_standard_id IS NOT NULL
+                  AND ge.assignment_type = 'all'
+
+                UNION ALL
+
+                SELECT
+                    u.id,
+                    CONCAT(u.name, ' ', u.first_surname,
+                           COALESCE(' ' + u.second_surname, '')),
+                    u.email, u.role, u.curp,
+                    ge.id, ge.exam_id, ge.assigned_at,
+                    ge.assignment_type,
+                    ge.max_attempts, ge.time_limit_minutes, ge.passing_score,
+                    cg.id, cg.name, cg.code,
+                    c.id, c.name,
+                    COALESCE(c.enable_tier_basic, 0),
+                    COALESCE(c.enable_tier_standard, 0),
+                    COALESCE(c.enable_tier_advanced, 0),
+                    COALESCE(c.enable_digital_badge, 0),
+                    p.id, p.name,
+                    e.name,
+                    e.competency_standard_id,
+                    cs.code, cs.name, cs.logo_url,
+                    cs.brand_id, b.name, b.logo_url,
+                    cg.coordinator_id
+                FROM group_exams ge
+                JOIN exams e ON e.id = ge.exam_id
+                JOIN competency_standards cs ON cs.id = e.competency_standard_id
+                LEFT JOIN brands b ON b.id = cs.brand_id
+                JOIN candidate_groups cg ON cg.id = ge.group_id
+                LEFT JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                JOIN group_exam_members gem ON gem.group_exam_id = ge.id
+                JOIN users u ON u.id = gem.user_id
+                WHERE e.competency_standard_id IS NOT NULL
+                  AND ge.assignment_type != 'all'
+            ),
+            latest_results AS (
+                SELECT
+                    r.user_id, r.exam_id, r.score,
+                    r.status AS result_status_raw,
+                    r.result AS result_raw,
+                    r.end_date, r.duration_seconds, r.certificate_code,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY r.user_id, r.exam_id
+                        ORDER BY r.created_at DESC
+                    ) AS rn
+                FROM results r
+                WHERE r.exam_id IN (
+                    SELECT id FROM exams
+                    WHERE competency_standard_id IS NOT NULL
+                )
+            ),
+            costs AS (
+                SELECT
+                    bt.reference_id AS group_exam_id,
+                    SUM(bt.amount) AS total_cost
+                FROM balance_transactions bt
+                WHERE bt.reference_type = 'group_exam'
+                  AND bt.concept IN ('asignacion_certificacion', 'asignacion_retoma')
+                GROUP BY bt.reference_id
+            ),
+            member_counts AS (
+                SELECT ge.id AS group_exam_id, COUNT(gm.id) AS member_count
+                FROM group_exams ge
+                JOIN group_members gm ON gm.group_id = ge.group_id
+                WHERE ge.assignment_type = 'all'
+                GROUP BY ge.id
+
+                UNION ALL
+
+                SELECT ge.id, COUNT(gem.id)
+                FROM group_exams ge
+                JOIN group_exam_members gem ON gem.group_exam_id = ge.id
+                WHERE ge.assignment_type != 'all'
+                GROUP BY ge.id
+            )
+        """
+
+        data_sql = text(cte_sql + f"""
+            SELECT
+                a.user_id, a.user_name, a.user_email, a.user_role, a.user_curp,
+                a.group_exam_id, a.exam_id, a.assignment_date, a.assignment_type,
+                a.max_attempts, a.time_limit_minutes, a.passing_score,
+                a.group_id, a.group_name, a.group_code,
+                a.campus_id, a.campus_name,
+                a.enable_tier_basic, a.enable_tier_standard,
+                a.enable_tier_advanced, a.enable_digital_badge,
+                a.partner_id, a.partner_name,
+                a.exam_name,
+                a.ecm_id, a.ecm_code, a.ecm_name, a.ecm_logo_url,
+                a.brand_id, a.brand_name, a.brand_logo_url,
+                lr.score, lr.result_status_raw, lr.result_raw,
+                lr.end_date AS result_date, lr.duration_seconds, lr.certificate_code,
+                CAST(COALESCE(co.total_cost, 0) AS FLOAT)
+                    / NULLIF(mc.member_count, 0) AS unit_cost
+            FROM base_assignments a
+            LEFT JOIN latest_results lr
+                ON lr.user_id = a.user_id
+               AND lr.exam_id = a.exam_id
+               AND lr.rn = 1
+            LEFT JOIN costs co
+                ON co.group_exam_id = a.group_exam_id
+            LEFT JOIN member_counts mc
+                ON mc.group_exam_id = a.group_exam_id
+            WHERE 1=1
+                {where_sql}
+            ORDER BY {sort_col} {sort_direction}
+            OFFSET :offset_val ROWS FETCH NEXT :limit_val ROWS ONLY
+        """)
+
+        summary_sql = text(cte_sql + f"""
+            SELECT
+                COUNT(*) AS total,
+                COUNT(DISTINCT a.user_id) AS unique_users,
+                SUM(CAST(COALESCE(co.total_cost, 0) AS FLOAT)
+                    / NULLIF(mc.member_count, 0)) AS total_cost,
+                ROUND(AVG(CASE WHEN lr.result_status_raw = 1
+                          THEN CAST(lr.score AS FLOAT) END), 1) AS avg_score,
+                SUM(CASE WHEN lr.result_status_raw = 1
+                    THEN 1 ELSE 0 END) AS completed_count,
+                SUM(CASE WHEN lr.result_status_raw IS NULL
+                          OR lr.result_status_raw != 1
+                    THEN 1 ELSE 0 END) AS pending_count,
+                SUM(CASE WHEN lr.result_status_raw = 1 AND lr.result_raw = 1
+                    THEN 1 ELSE 0 END) AS passed_count
+            FROM base_assignments a
+            LEFT JOIN latest_results lr
+                ON lr.user_id = a.user_id
+               AND lr.exam_id = a.exam_id
+               AND lr.rn = 1
+            LEFT JOIN costs co
+                ON co.group_exam_id = a.group_exam_id
+            LEFT JOIN member_counts mc
+                ON mc.group_exam_id = a.group_exam_id
+            WHERE 1=1
+                {where_sql}
+        """)
+
+        data_rows = db.session.execute(data_sql, params).fetchall()
+        summary_row = db.session.execute(summary_sql, params).fetchone()
+
+        total = summary_row.total or 0
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 0
+        completed_count = summary_row.completed_count or 0
+        passed_count = summary_row.passed_count or 0
+        pass_rate = (
+            round(passed_count / completed_count * 100, 1)
+            if completed_count > 0 else None
+        )
+
+        # Material progress en batch (solo página actual)
+        material_progress_map = {}
+        if data_rows:
+            page_ge_ids = list(set(row.group_exam_id for row in data_rows))
+            page_exam_ids = list(set(row.exam_id for row in data_rows))
+            page_user_ids = list(set(row.user_id for row in data_rows))
+
+            ge_ids_str = ','.join(str(int(x)) for x in page_ge_ids)
+            custom_mats = db.session.execute(text(
+                f"SELECT group_exam_id, study_material_id "
+                f"FROM group_exam_materials "
+                f"WHERE group_exam_id IN ({ge_ids_str}) AND is_included = 1"
+            )).fetchall()
+            ge_material_map = {}
+            for r in custom_mats:
+                ge_material_map.setdefault(r.group_exam_id, []).append(r.study_material_id)
+
+            exam_ids_str = ','.join(str(int(x)) for x in page_exam_ids)
+            linked_mats = db.session.execute(text(
+                f"SELECT exam_id, study_material_id "
+                f"FROM study_material_exams "
+                f"WHERE exam_id IN ({exam_ids_str})"
+            )).fetchall()
+            exam_material_map = {}
+            for r in linked_mats:
+                exam_material_map.setdefault(r.exam_id, []).append(r.study_material_id)
+
+            all_material_ids = set()
+            ge_final_materials = {}
+            for row in data_rows:
+                mats = ge_material_map.get(row.group_exam_id) or \
+                       exam_material_map.get(row.exam_id, [])
+                ge_final_materials[row.group_exam_id] = mats
+                all_material_ids.update(mats)
+
+            if all_material_ids:
+                mat_ids_str = ','.join(str(int(x)) for x in all_material_ids)
+                topics = db.session.execute(text(
+                    f"SELECT st.id AS topic_id, ss.material_id "
+                    f"FROM study_topics st "
+                    f"JOIN study_sessions ss ON ss.id = st.session_id "
+                    f"WHERE ss.material_id IN ({mat_ids_str})"
+                )).fetchall()
+                material_topics = {}
+                all_topic_ids = set()
+                for t in topics:
+                    material_topics.setdefault(t.material_id, []).append(t.topic_id)
+                    all_topic_ids.add(t.topic_id)
+
+                completed_set = set()
+                if all_topic_ids:
+                    user_ids_str = ','.join(f"'{str(x)}'" for x in page_user_ids)
+                    topic_ids_str = ','.join(str(int(x)) for x in all_topic_ids)
+                    completions = db.session.execute(text(
+                        f"SELECT user_id, topic_id "
+                        f"FROM student_topic_progress "
+                        f"WHERE user_id IN ({user_ids_str}) "
+                        f"  AND topic_id IN ({topic_ids_str}) "
+                        f"  AND is_completed = 1"
+                    )).fetchall()
+                    completed_set = {(c.user_id, c.topic_id) for c in completions}
+
+                for row in data_rows:
+                    mats = ge_final_materials.get(row.group_exam_id, [])
+                    total_t = 0
+                    completed_t = 0
+                    for mid in mats:
+                        for tid in material_topics.get(mid, []):
+                            total_t += 1
+                            if (row.user_id, tid) in completed_set:
+                                completed_t += 1
+                    if total_t > 0:
+                        material_progress_map[(row.user_id, row.group_exam_id)] = {
+                            'total': total_t,
+                            'completed': completed_t,
+                            'percentage': round(completed_t / total_t * 100, 1),
+                        }
+
+        # Nº asignación + vigencia, por (user_id, ecm_id)
+        assignment_number_map = {}
+        eca_id_map = {}
+        vigencia_map = {}  # group_exam_id -> vigencia
+        ecm_vigencia_map = {}  # (user_id, ecm_id) -> vigencia
+        if data_rows:
+            page_uids = list(set(row.user_id for row in data_rows))
+            page_ge_ids_for_vigencia = list(set(row.group_exam_id for row in data_rows))
+            if page_uids:
+                uid_placeholders = ','.join(f"'{str(u)}'" for u in page_uids)
+                ecm_assigns = db.session.execute(text(
+                    f"SELECT id, user_id, competency_standard_id, assignment_number, "
+                    f"validity_months, expires_at, extended_months "
+                    f"FROM ecm_candidate_assignments "
+                    f"WHERE user_id IN ({uid_placeholders})"
+                )).fetchall()
+                for ea in ecm_assigns:
+                    key = (ea.user_id, ea.competency_standard_id)
+                    assignment_number_map[key] = ea.assignment_number
+                    eca_id_map[key] = ea.id
+                    ecm_expires = ea.expires_at
+                    ecm_extended = ea.extended_months or 0
+                    effective_ecm_expires = None
+                    ecm_is_expired = False
+                    if ecm_expires:
+                        from dateutil.relativedelta import relativedelta
+                        effective_ecm_expires = ecm_expires + relativedelta(months=ecm_extended)
+                        ecm_is_expired = datetime.utcnow() > effective_ecm_expires
+                    ecm_vigencia_map[key] = {
+                        'validity_months': ea.validity_months,
+                        'expires_at': effective_ecm_expires.isoformat() if effective_ecm_expires else None,
+                        'extended_months': ecm_extended,
+                        'is_expired': ecm_is_expired,
+                    }
+
+            if page_ge_ids_for_vigencia:
+                ge_ids_vig_str = ','.join(str(int(x)) for x in page_ge_ids_for_vigencia)
+                ge_vig_rows = db.session.execute(text(
+                    f"SELECT id, validity_months, expires_at, extended_months "
+                    f"FROM group_exams WHERE id IN ({ge_ids_vig_str})"
+                )).fetchall()
+                for gv in ge_vig_rows:
+                    gv_expires = gv.expires_at
+                    gv_extended = gv.extended_months or 0
+                    effective_gv_expires = None
+                    gv_is_expired = False
+                    if gv_expires:
+                        from dateutil.relativedelta import relativedelta
+                        effective_gv_expires = gv_expires + relativedelta(months=gv_extended)
+                        gv_is_expired = datetime.utcnow() > effective_gv_expires
+                    vigencia_map[gv.id] = {
+                        'validity_months': gv.validity_months,
+                        'expires_at': effective_gv_expires.isoformat() if effective_gv_expires else None,
+                        'extended_months': gv_extended,
+                        'is_expired': gv_is_expired,
+                    }
+
+        assignments = []
+        for row in data_rows:
+            cert_types = ['reporte_evaluacion']
+            if row.enable_tier_standard:
+                cert_types.append('certificado_eduit')
+            if row.enable_digital_badge:
+                cert_types.append('insignia_digital')
+            if row.enable_tier_advanced:
+                cert_types.append('certificado_conocer')
+
+            if row.result_status_raw == 1:
+                result_status = 'completed'
+                passed = row.result_raw == 1
+            elif row.result_status_raw == 0:
+                result_status = 'in_progress'
+                passed = None
+            else:
+                result_status = 'pending'
+                passed = None
+
+            vkey = (row.user_id, row.ecm_id)
+            assignments.append({
+                'user_id': row.user_id,
+                'user_name': row.user_name,
+                'user_email': row.user_email,
+                'user_role': row.user_role,
+                'user_curp': row.user_curp,
+                'assignment_number': assignment_number_map.get(vkey),
+                'group_id': row.group_id,
+                'group_name': row.group_name,
+                'group_code': row.group_code,
+                'campus_name': row.campus_name,
+                'campus_id': row.campus_id,
+                'partner_name': row.partner_name,
+                'partner_id': row.partner_id,
+                'exam_id': row.exam_id,
+                'exam_name': row.exam_name,
+                'ecm_id': row.ecm_id,
+                'ecm_code': row.ecm_code,
+                'ecm_name': row.ecm_name,
+                'ecm_logo_url': row.ecm_logo_url,
+                'brand_id': row.brand_id,
+                'brand': row.brand_name,
+                'brand_logo_url': row.brand_logo_url,
+                'exam_ecm_code': row.ecm_code,
+                'assignment_date': (
+                    row.assignment_date.isoformat()
+                    if row.assignment_date else None
+                ),
+                'assignment_type': row.assignment_type,
+                'unit_cost': (
+                    round(float(row.unit_cost), 2)
+                    if row.unit_cost is not None else 0
+                ),
+                'score': row.score,
+                'result_status': result_status,
+                'passed': passed,
+                'result_date': (
+                    row.result_date.isoformat()
+                    if row.result_date else None
+                ),
+                'duration_seconds': row.duration_seconds,
+                'certificate_code': (
+                    row.certificate_code if passed else None
+                ),
+                'material_progress': material_progress_map.get(
+                    (row.user_id, row.group_exam_id)
+                ),
+                'max_attempts': row.max_attempts,
+                'time_limit': row.time_limit_minutes,
+                'passing_score': row.passing_score,
+                'certificate_types': cert_types,
+                'vigencia': ecm_vigencia_map.get(vkey) or vigencia_map.get(row.group_exam_id),
+                'group_exam_id': row.group_exam_id,
+                'ecm_assignment_id': eca_id_map.get(vkey),
+            })
+
+        # Opciones de filtro: ECMs y marcas (respetando aislamiento)
+        ecm_filter_params = {}
+        ecm_coord_join = ""
+        ecm_coord_where = ""
+        if _coord_filter_id:
+            ecm_coord_join = "JOIN candidate_groups cg ON cg.id = ge.group_id"
+            ecm_coord_where = "AND cg.coordinator_id = :coord_filter_id"
+            ecm_filter_params['coord_filter_id'] = _coord_filter_id
+        ecms_rows = db.session.execute(text(f"""
+            SELECT DISTINCT cs.id, cs.code, cs.name
+            FROM competency_standards cs
+            JOIN exams e ON e.competency_standard_id = cs.id
+            JOIN group_exams ge ON ge.exam_id = e.id
+            {ecm_coord_join}
+            WHERE 1=1 {ecm_coord_where}
+        """), ecm_filter_params).fetchall()
+        available_ecms = sorted(
+            [{'id': r.id, 'code': r.code, 'name': r.name} for r in ecms_rows],
+            key=lambda x: x['code'] or ''
+        )
+
+        brand_rows = db.session.execute(text(
+            "SELECT id, name, logo_url FROM brands WHERE is_active = 1 ORDER BY display_order"
+        )).fetchall()
+        brands = [{'id': b.id, 'name': b.name, 'logo_url': b.logo_url} for b in brand_rows]
+
+        return jsonify({
+            'assignments': assignments,
+            'total': total,
+            'pages': total_pages,
+            'current_page': page,
+            'per_page': per_page,
+            'summary': {
+                'total_assignments': total,
+                'total_candidates': summary_row.unique_users or 0,
+                'total_cost': round(float(summary_row.total_cost or 0), 2),
+                'avg_score': (
+                    float(summary_row.avg_score)
+                    if summary_row.avg_score is not None else None
+                ),
+                'pass_rate': pass_rate,
+                'completed_count': completed_count,
+                'pending_count': summary_row.pending_count or 0,
+                'passed_count': passed_count,
+            },
+            'filters': {
+                'ecms': available_ecms,
+                'brands': brands,
+            }
+        })
+
+    except HTTPException:
+
+        raise
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return _db_error_response(e)
+
+
 @bp.route('/ecm-assignments/<int:ecm_id>', methods=['GET'])
 @jwt_required()
 def get_ecm_assignment_detail(ecm_id):
