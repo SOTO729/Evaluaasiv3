@@ -455,28 +455,31 @@ def list_users():
         
         # Búsqueda optimizada
         if search:
-            search_term = f'%{search}%'
-            # Intentar usar búsqueda por prefijo si es corta (más eficiente con índices)
-            if len(search) <= 3:
-                search_prefix = f'{search}%'
-                query = query.filter(
-                    or_(
-                        User.name.ilike(search_prefix),
-                        User.first_surname.ilike(search_prefix),
-                        User.email.ilike(search_prefix),
-                        User.curp.ilike(search_prefix),
-                        User.username.ilike(search_prefix)
+            # Campos sobre los que se busca (incluye apellido materno).
+            searchable_columns = [
+                User.name,
+                User.first_surname,
+                User.second_surname,
+                User.email,
+                User.curp,
+                User.username,
+            ]
+            tokens = search.split()
+            if len(tokens) > 1:
+                # Búsqueda multi-palabra: cada palabra debe aparecer en alguno de
+                # los campos (AND entre palabras, OR entre campos). Permite encontrar
+                # "Juan Pérez" aunque nombre y apellidos estén en columnas distintas.
+                for token in tokens:
+                    token_like = f'%{token}%'
+                    query = query.filter(
+                        or_(*[col.ilike(token_like) for col in searchable_columns])
                     )
-                )
             else:
+                # Una sola palabra: prefijo para términos cortos (más eficiente con
+                # índices) y substring para términos largos.
+                pattern = f'{search}%' if len(search) <= 3 else f'%{search}%'
                 query = query.filter(
-                    or_(
-                        User.name.ilike(search_term),
-                        User.first_surname.ilike(search_term),
-                        User.email.ilike(search_term),
-                        User.curp.ilike(search_term),
-                        User.username.ilike(search_term)
-                    )
+                    or_(*[col.ilike(pattern) for col in searchable_columns])
                 )
         
         # Filtros de fecha de creación

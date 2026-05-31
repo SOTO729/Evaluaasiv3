@@ -130,11 +130,31 @@ export default function UsersListPage() {
 
   // Debounce ref para búsqueda
   const [debouncedSearch, setDebouncedSearch] = useState(search);
-  
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const isSearchPending = search !== debouncedSearch;
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Auto-foco del buscador al montar la página
+  useEffect(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  // Atajo de teclado "/" para enfocar el buscador
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = document.activeElement?.tagName;
+      if (e.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -620,12 +640,33 @@ export default function UsersListPage() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 fluid-icon-sm text-gray-400" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar por nombre, email, CURP..."
+              placeholder="Buscar por nombre, apellidos, email, CURP o usuario..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full fluid-pl-10 fluid-pr-4 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 fluid-text-base transition-all"
+              className="w-full fluid-pl-10 fluid-pr-10 fluid-py-3 border-2 border-gray-200 rounded-fluid-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 fluid-text-base transition-all"
             />
+            {isSearchPending && (
+              <span className="absolute right-10 top-1/2 -translate-y-1/2 fluid-text-xs text-gray-400 hidden sm:inline">
+                Buscando…
+              </span>
+            )}
+            {search ? (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); searchInputRef.current?.focus(); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                title="Limpiar búsqueda"
+                aria-label="Limpiar búsqueda"
+              >
+                <X className="fluid-icon-sm" />
+              </button>
+            ) : (
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-block fluid-text-xs text-gray-400 border border-gray-200 rounded px-1.5 py-0.5 pointer-events-none">
+                /
+              </kbd>
+            )}
           </div>
           
           <button
