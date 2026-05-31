@@ -568,10 +568,7 @@ export default function EcmAssignmentsPage() {
                     </button>
                   </th>
                   <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
-                    <button onClick={() => handleSort('material')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
-                      Material
-                      <ArrowUpDown className="w-3 h-3" />
-                    </button>
+                    Material
                   </th>
                   <th className="text-center py-3 px-3 fluid-text-xs font-medium text-gray-500 uppercase whitespace-nowrap">
                     <button onClick={() => handleSort('duration')} className="flex items-center fluid-gap-1 hover:text-gray-900 transition-colors mx-auto">
