@@ -363,3 +363,78 @@ CHATBOT_ENABLED=true
   `gpt-4o-mini`.
 - Definir el alcance inicial del bot (FAQ + navegación + dudas de estudio).
 - Confirmar la política de aprobación para acciones de Nivel 2.
+
+---
+
+## Canal WhatsApp (opcional)
+
+> El mismo bot puede atender por **WhatsApp** sin reescribir su lógica. WhatsApp es
+> solo un **canal de entrada/salida** adicional sobre el mismo
+> `chatbot_agent_service` (IA + tool-calling + los 3 niveles de autonomía).
+
+### Arquitectura (canal-agnóstico)
+
+```
+WhatsApp (usuario) → WhatsApp Business API → POST /api/whatsapp/webhook
+   → whatsapp_channel (adaptador)
+        → chatbot_agent_service(texto, usuario, canal="whatsapp")   ← MISMO motor
+   → respuesta → WhatsApp Cloud API → usuario
+```
+
+Clave de diseño: que `chatbot_agent_service` reciba `(texto, usuario, canal)` y
+devuelva texto, **independiente del canal**. Así el chat web y WhatsApp comparten
+el motor, las herramientas y el modelo de permisos de 3 niveles.
+
+### Componentes nuevos (solo la capa de canal)
+
+| Componente | Para qué |
+|---|---|
+| Cuenta **WhatsApp Business Platform** (Meta) | Número y API oficial |
+| Proveedor: **Meta Cloud API** (directo) o **Twilio** / **360dialog** | Enviar/recibir mensajes |
+| `GET /api/whatsapp/webhook` | Verificación de Meta (`hub.challenge`) |
+| `POST /api/whatsapp/webhook` | Recibir mensajes entrantes |
+| `app/services/whatsapp_channel.py` | Adaptador payload WhatsApp ↔ formato interno |
+| Mapeo teléfono → usuario | Identificar candidato por su número (campo `phone` en `users`) |
+
+### Variables de entorno adicionales
+
+```
+WHATSAPP_PHONE_NUMBER_ID=<id del número>
+WHATSAPP_BUSINESS_ACCOUNT_ID=<waba id>
+WHATSAPP_ACCESS_TOKEN=<token permanente del system user>
+WHATSAPP_VERIFY_TOKEN=<token propio para verificar el webhook>
+WHATSAPP_API_VERSION=v21.0
+```
+
+### Diferencias frente al chat web (importantes)
+
+1. **Ventana de 24 h**: fuera de las 24 h tras el último mensaje del usuario, Meta
+   solo permite responder con **plantillas pre-aprobadas**. El bot reactivo (responde
+   cuando el usuario escribe) no tiene problema; los avisos **proactivos** requieren
+   plantilla aprobada.
+2. **Identidad / seguridad**: en el chat web el usuario ya viene autenticado con JWT;
+   en WhatsApp **solo tienes el número de teléfono**. Hay que **verificar identidad**
+   antes de exponer datos personales. Esto refuerza que las acciones de **Nivel 2 y 3
+   se mantengan bloqueadas/escaladas** (el riesgo de suplantación es mayor).
+3. **Aprobación humana (Nivel 2)**: la cola `BotActionRequest` y su UI siguen del lado
+   soporte (web). El usuario de WhatsApp solo **dispara** la propuesta; un humano la
+   aprueba desde el panel.
+4. **Persistencia**: opcionalmente, espejar las conversaciones de WhatsApp en
+   `SupportConversation` (con `channel="whatsapp"`) para que soporte las vea junto a
+   las del chat web y conserve la auditoría.
+
+### Costos adicionales
+
+- **Azure OpenAI**: el mismo del plan (no cambia por canal).
+- **Meta WhatsApp**: cobro por conversación; las **de servicio iniciadas por el
+  usuario** suelen entrar en un free tier mensual (~1,000/mes) y luego tienen tarifa
+  por país. Las plantillas de utilidad/marketing tienen tarifa aparte.
+- **Infra**: $0 adicional (el webhook corre en el backend Flask actual).
+
+### Recomendación
+
+- Diseñar el motor **canal-agnóstico desde Fase 1**, aunque solo se implemente el chat
+  web primero. Agregar WhatsApp después se reduce a: webhook + adaptador + mapeo de
+  teléfono.
+- En WhatsApp, **endurecer la verificación de identidad** antes de cualquier acción de
+  Nivel 2 y nunca permitir Nivel 3 por este canal.
