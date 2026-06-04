@@ -22,6 +22,7 @@ with app.app_context():
             check_and_create_brands_table,
             check_and_add_competency_standard_logo_column,
             check_and_make_email_nullable,
+            check_and_widen_downloadable_file_type,
             check_and_add_balance_attachments_column,
             check_and_add_balance_requested_by_column,
             check_and_add_exam_default_config_columns,
@@ -55,6 +56,7 @@ with app.app_context():
         check_and_create_brands_table()
         check_and_add_competency_standard_logo_column()
         check_and_make_email_nullable()
+        check_and_widen_downloadable_file_type()
         check_and_add_balance_attachments_column()
         check_and_add_balance_requested_by_column()
         check_and_add_exam_default_config_columns()

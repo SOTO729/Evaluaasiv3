@@ -1979,11 +1979,15 @@ const StudyInteractiveExercisePage = () => {
     setDeleteActionModal({ isOpen: false, actionId: null, actionType: null, isCorrect: false })
   }
 
-  // Función para validar que todos los pasos tienen respuesta correcta
+  // Función para validar que los pasos tienen respuesta correcta.
+  // Regla: solo el último paso (o el único paso) puede quedar sin una acción
+  // correcta, por lo que se exime de esta validación y se permite guardar.
   const validateStepsHaveCorrectAnswer = (): { isValid: boolean; invalidSteps: number[] } => {
     const invalidSteps: number[] = []
     
-    steps.forEach((step: StudyInteractiveExerciseStep) => {
+    steps.forEach((step: StudyInteractiveExerciseStep, index: number) => {
+      // El último paso puede estar vacío (sin acción correcta)
+      if (index === steps.length - 1) return
       const hasCorrectAnswer = (step.actions || []).some((action: StudyInteractiveExerciseAction) => 
         (action.action_type === 'button' && action.correct_answer === 'correct') ||
         (action.action_type === 'text_input' && action.correct_answer && action.correct_answer.trim() !== '')

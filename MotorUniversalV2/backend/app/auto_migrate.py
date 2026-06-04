@@ -1114,6 +1114,60 @@ def check_and_make_email_nullable():
         db.session.rollback()
 
 
+def check_and_widen_downloadable_file_type():
+    """
+    Ampliar la columna file_type de study_downloadable_exercises.
+    Originalmente era VARCHAR(50), pero los MIME types de Office Open XML
+    (docx/xlsx/pptx) superan los 70 caracteres y provocaban un error de
+    truncamiento en MSSQL al subir esos archivos. Se amplía a 255.
+    """
+    print("🔍 Verificando ancho de file_type en study_downloadable_exercises...")
+
+    db_type = get_db_type()
+
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+
+        if 'study_downloadable_exercises' not in tables:
+            print("  ⚠️  Tabla study_downloadable_exercises no existe, saltando...")
+            return
+
+        columns = inspector.get_columns('study_downloadable_exercises')
+        file_type_col = next((c for c in columns if c['name'] == 'file_type'), None)
+
+        if not file_type_col:
+            print("  ⚠️  Columna file_type no existe, saltando...")
+            return
+
+        # Determinar la longitud actual de la columna
+        current_length = getattr(file_type_col.get('type'), 'length', None)
+
+        if current_length is not None and current_length >= 255:
+            print(f"  ✓ file_type ya tiene longitud suficiente ({current_length})")
+            return
+
+        print(f"  📝 Ampliando file_type (actual: {current_length}) a 255...")
+        if db_type == 'mssql':
+            db.session.execute(text(
+                "ALTER TABLE study_downloadable_exercises ALTER COLUMN file_type NVARCHAR(255) NULL"
+            ))
+        elif db_type == 'postgresql':
+            db.session.execute(text(
+                "ALTER TABLE study_downloadable_exercises ALTER COLUMN file_type TYPE VARCHAR(255)"
+            ))
+        else:
+            # SQLite no aplica límite real de longitud en VARCHAR, nada que hacer
+            print("  ✓ SQLite no requiere ALTER de longitud")
+            return
+        db.session.commit()
+        print("  ✓ Columna file_type ampliada a 255 exitosamente")
+
+    except Exception as e:
+        print(f"❌ Error ampliando file_type: {e}")
+        db.session.rollback()
+
+
 def check_and_add_balance_attachments_column():
     """Verificar y agregar columna attachments a balance_requests"""
     print("🔍 Verificando columna attachments en balance_requests...")

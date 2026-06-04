@@ -314,7 +314,9 @@ class StudyDownloadableExercise(db.Model):
     description = db.Column(db.Text)
     file_url = db.Column(db.Text, nullable=False)
     file_name = db.Column(db.String(255))
-    file_type = db.Column(db.String(50))
+    # MIME type. Los tipos Office Open XML (docx/xlsx/pptx) superan los 70
+    # caracteres, por lo que se usa 255 para evitar truncamiento en MSSQL.
+    file_type = db.Column(db.String(255))
     file_size_bytes = db.Column(db.Integer)
     
     # Auditoría

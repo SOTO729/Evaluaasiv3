@@ -280,8 +280,11 @@ const ExerciseEditor = ({ exercise, onClose }: ExerciseEditorProps) => {
     }
   }, [steps])
 
-  // Verificar si hay campos de texto sin respuesta en todos los pasos
-  const hasTextboxWithoutAnswer = steps.some((step: ExerciseStep) => 
+  // Verificar si hay campos de texto sin respuesta en los pasos.
+  // Regla: solo el último paso (o el único paso) puede quedar sin una acción
+  // correcta, por lo que se exime de esta validación y se permite guardar.
+  const hasTextboxWithoutAnswer = steps.some((step: ExerciseStep, index: number) => 
+    index !== steps.length - 1 &&
     step.actions?.some((action: ExerciseAction) => 
       action.action_type === 'textbox' && (!action.correct_answer || action.correct_answer.trim() === '')
     )
