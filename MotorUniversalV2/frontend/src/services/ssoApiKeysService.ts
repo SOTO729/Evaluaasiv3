@@ -11,6 +11,7 @@ import { api } from './api'
 export type SsoAssignmentType = 'all' | 'selected'
 export type SsoExamContentType = 'mixed' | 'questions_only' | 'exercises_only'
 export type SsoCertificateType = 'conocer' | 'eduit' | 'badge' | 'none'
+export type SsoAssignmentMode = 'platform' | 'api'
 
 export interface ApiKeyAssignmentPayload {
   exam_id: number
@@ -58,6 +59,7 @@ export interface CampusApiKeyRow {
   api_key_prefix: string | null
   is_active: boolean
   is_legacy: boolean
+  assignment_mode: SsoAssignmentMode
   created_at: string | null
   created_by_id: string | null
   created_by?: { id: string; username: string; full_name: string }
@@ -99,6 +101,7 @@ export const ssoApiKeysService = {
     payload: {
       description: string
       name?: string | null
+      assignment_mode?: SsoAssignmentMode
       assignment?: ApiKeyAssignmentPayload | null
       current_password: string
     },
@@ -109,7 +112,7 @@ export const ssoApiKeysService = {
 
   update: async (
     keyId: number,
-    payload: { description?: string; name?: string | null; is_active?: boolean },
+    payload: { description?: string; name?: string | null; is_active?: boolean; assignment_mode?: SsoAssignmentMode },
   ): Promise<CampusApiKeyRow> => {
     const { data } = await api.patch(`/sso/api-keys/${keyId}`, payload)
     return data

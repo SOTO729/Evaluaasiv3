@@ -37,6 +37,8 @@ from app.services.sso_service import (
     find_campus_by_api_key,
     find_campus_and_api_key,
     apply_api_key_assignments,
+    apply_standard_assignments,
+    resolve_standards,
     SSO_TOKEN_TTL_MINUTES,
 )
 from app.utils.rate_limit import rate_limit, get_client_ip
@@ -56,6 +58,12 @@ def generar_token():
     """Recibe datos del alumno + apikey del plantel y retorna un token SSO.
 
     Acepta application/x-www-form-urlencoded y application/json (UTF-8).
+
+    Parámetros: apikey, matricula, nombre, apellido (requeridos); email, curp,
+    grupo (opcionales). `estandar` (opcional, solo modo 'api'): código(s) de
+    estándar separados por coma (ej. "EC0217" o "EC0217,EC0301"). Si la api key
+    está en modo 'api' se asigna el examen activo más reciente de cada estándar
+    con su configuración por defecto del editor, y NO se aplican las plantillas.
 
     Respuesta éxito (200):
         { "error": false, "mensaje_error": "", "token": "<raw>" }
@@ -86,6 +94,7 @@ def generar_token():
     email = (payload.get('email') or '').strip().lower() or None
     grupo = (payload.get('grupo') or '').strip() or None
     curp = (payload.get('curp') or '').strip().upper() or None
+    estandar_raw = (payload.get('estandar') or '').strip()
 
     missing = []
     if not apikey:
@@ -133,6 +142,32 @@ def generar_token():
         # Módulo SSO apagado a nivel plantel: la llave existe pero no acepta
         # llamadas hasta que se vuelva a encender el flag desde el panel.
         return jsonify({'error': True, 'mensajeError': 'Módulo SSO deshabilitado para este plantel'}), 403
+
+    # Modo de asignación de la api key: 'platform' (materializa plantillas) o
+    # 'api' (el examen lo decide el parámetro `estandar`; excluyente con las
+    # plantillas). Las keys legacy (sin fila CampusApiKey) son 'platform'.
+    assignment_mode = (
+        (getattr(api_key_row, 'assignment_mode', 'platform') or 'platform')
+        if api_key_row is not None else 'platform'
+    )
+    resolved_standards: list = []
+    if assignment_mode == 'api':
+        import re as _re_std
+        codes = [c for c in _re_std.split(r'[;,]', estandar_raw) if c.strip()]
+        if not codes:
+            return jsonify({
+                'error': True,
+                'mensajeError': (
+                    "Esta API key opera en modo 'api': debes enviar el parámetro "
+                    "'estandar' con el/los código(s) del estándar (ej. EC0217 o EC0217,EC0301)."
+                ),
+            }), 400
+        resolved_standards, std_errors = resolve_standards(codes)
+        if not resolved_standards:
+            return jsonify({
+                'error': True,
+                'mensajeError': '; '.join(std_errors) or 'No se pudo resolver ningún estándar válido',
+            }), 404
 
     if len(matricula) > 80:
         return jsonify({'error': True, 'mensajeError': 'matricula excede 80 caracteres'}), 400
@@ -186,12 +221,20 @@ def generar_token():
             db.session.rollback()
         if resolved_group is not None:
             try:
-                apply_api_key_assignments(api_key_row, user, resolved_group)
+                if assignment_mode == 'api':
+                    # Excluyente: en modo 'api' NO se aplican plantillas; se
+                    # asignan los exámenes de los estándares resueltos.
+                    apply_standard_assignments(
+                        api_key_row, user, resolved_group, resolved_standards
+                    )
+                else:
+                    apply_api_key_assignments(api_key_row, user, resolved_group)
             except Exception as e:
                 db.session.rollback()
                 import logging
                 logging.getLogger(__name__).warning(
-                    f'[SSO-GEN] no se pudieron materializar plantillas api_key={api_key_row.id}: {e}'
+                    f'[SSO-GEN] no se pudieron materializar asignaciones api_key={api_key_row.id} '
+                    f'(modo={assignment_mode}): {e}'
                 )
 
     response_body = {
@@ -810,7 +853,13 @@ def create_campus_api_key_v2(campus_id: int):
         return jsonify({'error': 'description requerida'}), 400
     name = (payload.get('name') or '').strip() or None
 
-    assignment_data = payload.get('assignment')
+    assignment_mode = (payload.get('assignment_mode') or 'platform').strip().lower()
+    if assignment_mode not in ('platform', 'api'):
+        assignment_mode = 'platform'
+
+    # En modo 'api' el examen lo decide el parámetro `estandar` de
+    # /generar_token: la key NO lleva plantillas de asignación.
+    assignment_data = payload.get('assignment') if assignment_mode == 'platform' else None
     parsed = None
     if assignment_data:
         try:
@@ -829,6 +878,7 @@ def create_campus_api_key_v2(campus_id: int):
         name=name,
         is_active=True,
         is_legacy=False,
+        assignment_mode=assignment_mode,
         created_by_id=current_user.id,
     )
     raw = CampusApiKey.generate_raw()
@@ -975,6 +1025,10 @@ def update_api_key(key_id: int):
         ak.name = (payload.get('name') or '').strip() or None
     if 'is_active' in payload:
         ak.is_active = bool(payload.get('is_active'))
+    if 'assignment_mode' in payload:
+        mode = (payload.get('assignment_mode') or '').strip().lower()
+        if mode in ('platform', 'api'):
+            ak.assignment_mode = mode
     db.session.commit()
     return jsonify(ak.to_dict(include_assignments=True)), 200
 

@@ -847,3 +847,159 @@ def apply_api_key_assignments(
 
     db.session.commit()
     return materialized
+
+
+def resolve_standards(codes: list[str]) -> tuple[list, list[str]]:
+    """Dada una lista de códigos de estándar (ej. ['EC0217','EC0301']), resuelve
+    cada uno a (CompetencyStandard, Exam más reciente activo+publicado).
+
+    Devuelve (resueltos, errores):
+      - resueltos: lista de tuplas (standard, exam) en el orden de entrada,
+        sin duplicados por exam_id.
+      - errores: lista de mensajes legibles por cada código que no se pudo
+        resolver (no existe, inactivo o sin examen publicado).
+    """
+    from app.models.competency_standard import CompetencyStandard
+
+    resolved: list = []
+    errors: list[str] = []
+    seen_exam_ids: set[int] = set()
+    for raw_code in codes:
+        code = (raw_code or '').strip().upper()
+        if not code:
+            continue
+        std = (
+            CompetencyStandard.query
+            .filter(db.func.upper(CompetencyStandard.code) == code, CompetencyStandard.is_active == True)  # noqa: E712
+            .first()
+        )
+        if std is None:
+            errors.append(f"Estándar '{code}' no existe o está inactivo")
+            continue
+        exam = std.get_active_exam()
+        if exam is None:
+            errors.append(f"El estándar '{code}' no tiene examen publicado activo")
+            continue
+        if exam.id in seen_exam_ids:
+            continue
+        seen_exam_ids.add(exam.id)
+        resolved.append((std, exam))
+    return resolved, errors
+
+
+def apply_standard_assignments(
+    api_key: Optional[CampusApiKey],
+    user: User,
+    group: CandidateGroup,
+    resolved_standards: list,
+) -> list[GroupExam]:
+    """Asigna directamente, vía API, los exámenes de los estándares resueltos
+    (modo `assignment_mode='api'`). Excluyente con las plantillas.
+
+    Por cada (standard, exam):
+      1. find_or_create GroupExam(group_id, exam_id) usando la configuración
+         por defecto del editor (campos `default_*` del examen).
+      2. Garantiza GroupExamMember(user) como ledger y, si es nuevo, lo marca
+         `pending_billing` (cobro diferido idéntico a las plantillas).
+
+    El candidato NUNCA se ve obligado a validar CURP por esta vía: se fija
+    `skip_curp_validation=True` (la CURP sigue siendo opcional).
+    """
+    from dateutil.relativedelta import relativedelta
+
+    materialized: list[GroupExam] = []
+    if not resolved_standards:
+        return materialized
+
+    campus = group.campus if group.campus else Campus.query.get(group.campus_id)
+    default_validity = (campus.assignment_validity_months if campus else None) or 12
+    created_by_id = api_key.created_by_id if api_key is not None else None
+
+    for std, exam in resolved_standards:
+        ge: Optional[GroupExam] = (
+            GroupExam.query
+            .filter_by(group_id=group.id, exam_id=exam.id)
+            .first()
+        )
+
+        if ge is None:
+            now = datetime.utcnow()
+            validity_months = default_validity
+            ge = GroupExam(
+                group_id=group.id,
+                exam_id=exam.id,
+                assigned_at=now,
+                assigned_by_id=created_by_id,
+                assignment_type='selected',
+                time_limit_minutes=(
+                    exam.default_duration_minutes
+                    if exam.default_duration_minutes is not None
+                    else exam.duration_minutes
+                ),
+                passing_score=(
+                    exam.default_passing_score
+                    if exam.default_passing_score is not None
+                    else exam.passing_score
+                ),
+                max_attempts=(exam.default_max_attempts or 2),
+                max_disconnections=(exam.default_max_disconnections or 3),
+                exam_content_type=(exam.default_exam_content_type or 'mixed'),
+                exam_questions_count=exam.default_exam_questions_count,
+                exam_exercises_count=exam.default_exam_exercises_count,
+                simulator_questions_count=exam.default_simulator_questions_count,
+                simulator_exercises_count=exam.default_simulator_exercises_count,
+                require_security_pin=False,
+                is_active=True,
+                validity_months=validity_months,
+                expires_at=now + relativedelta(months=validity_months),
+                extended_months=0,
+            )
+            db.session.add(ge)
+            db.session.flush()
+            log_activity(
+                user=None,
+                action_type='sso_apikey_standard_materialized',
+                entity_type='group_exam',
+                entity_id=ge.id,
+                entity_name=f"GroupExam estándar={std.code} exam={exam.id} group={group.id}",
+                details={
+                    'api_key_id': api_key.id if api_key else None,
+                    'campus_id': campus.id if campus else None,
+                    'standard_code': std.code,
+                    'exam_id': exam.id,
+                },
+                success=True,
+            )
+
+        # Ledger por candidato + cobro diferido
+        existing_gem = GroupExamMember.query.filter_by(
+            group_exam_id=ge.id, user_id=user.id
+        ).first()
+        if existing_gem is None:
+            try:
+                new_gem = GroupExamMember(group_exam_id=ge.id, user_id=user.id)
+                db.session.add(new_gem)
+                db.session.flush()
+                if api_key is not None:
+                    try:
+                        _mark_pending_billing(api_key, user, group, ge, new_gem)
+                    except Exception as e:
+                        from flask import current_app
+                        current_app.logger.error(
+                            f"[SSO BILLING] error marcando pending (estándar): {e}"
+                        )
+            except Exception:
+                pass
+
+        materialized.append(ge)
+
+    # CURP opcional para candidatos asignados por estándar vía API.
+    try:
+        if user.external_id and not getattr(user, 'skip_curp_validation', False):
+            user.skip_curp_validation = True
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.warning(f'[SSO] error setting skip_curp_validation (estándar): {e}')
+
+    db.session.commit()
+    return materialized

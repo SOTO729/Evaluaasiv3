@@ -121,6 +121,13 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
   const [description, setDescription] = useState('')
   const [keyName, setKeyName] = useState('')
 
+  // Modo de asignación (solo al crear key):
+  //  - 'platform': se configura un examen/plantilla en el wizard (flujo actual)
+  //  - 'api': el examen lo decide el parámetro `estandar` de /generar_token;
+  //    el wizard NO pide examen.
+  const [assignmentMode, setAssignmentMode] = useState<'platform' | 'api'>('platform')
+  const isApiMode = isCreateKey && assignmentMode === 'api'
+
   // ── Paso 2: asignación ────────────────────────────────────────────
   const [ecmSearch, setEcmSearch] = useState('')
   const [ecms, setEcms] = useState<AvailableEcm[]>([])
@@ -192,7 +199,10 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
   const [campusRequiresPin, setCampusRequiresPin] = useState<boolean>(false)
 
   // ── Wizard control ────────────────────────────────────────────────
-  const totalSteps = isCreateKey ? 3 : 2
+  // En modo 'api' se omite el paso de examen → 2 pasos (meta + confirmación).
+  const examStep = isCreateKey ? 2 : 1
+  const passwordStep = isApiMode ? 2 : 3
+  const totalSteps = isApiMode ? 2 : isCreateKey ? 3 : 2
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -354,10 +364,10 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
     if (step === 1 && isCreateKey) {
       return description.trim().length > 0
     }
-    if (step === (isCreateKey ? 2 : 1)) {
+    if (step === examStep && !isApiMode) {
       return selectedExamId !== null
     }
-    if (step === (isCreateKey ? 3 : 2) && isCreateKey) {
+    if (step === passwordStep && isCreateKey) {
       return currentPassword.length > 0
     }
     return true
@@ -398,7 +408,9 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
         const result = await ssoApiKeysService.create(mode.campusId, {
           description: description.trim(),
           name: keyName.trim() || null,
-          assignment: payload,
+          assignment_mode: assignmentMode,
+          // En modo 'api' no se envía plantilla: el examen lo decide `estandar`.
+          assignment: isApiMode ? null : payload,
           current_password: currentPassword,
         })
         onSuccess(result)
@@ -436,7 +448,9 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
       ? 'Suma un examen más a esta integración SSO.'
       : 'Ajusta los parámetros de esta plantilla de asignación.'
 
-  const stepLabels = isCreateKey
+  const stepLabels = isApiMode
+    ? ['Identificación', 'Confirmación']
+    : isCreateKey
     ? ['Identificación', 'Examen y configuración', 'Confirmación']
     : ['Examen y configuración', 'Confirmación']
 
@@ -547,19 +561,75 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
                   />
                 </div>
               </div>
-              <div className="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900">
-                <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  En el siguiente paso configurarás el primer examen. La configuración del editor se
-                  aplicará automáticamente; si el editor no definió parámetros, usaremos los valores
-                  estándar (intentos, desconexiones, etc.).
+
+              {/* Modo de asignación */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+                <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">¿Cómo se asignarán los exámenes?</h3>
                 </div>
+                <label
+                  className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                    assignmentMode === 'platform'
+                      ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assignment_mode"
+                    className="mt-1"
+                    checked={assignmentMode === 'platform'}
+                    onChange={() => setAssignmentMode('platform')}
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Vía plataforma</div>
+                    <div className="text-xs text-gray-600">
+                      Configuras aquí el examen y su configuración. Todos los candidatos que entren
+                      por la API key reciben esa plantilla.
+                    </div>
+                  </div>
+                </label>
+                <label
+                  className={`flex gap-3 p-3 rounded-xl border cursor-pointer transition ${
+                    assignmentMode === 'api'
+                      ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assignment_mode"
+                    className="mt-1"
+                    checked={assignmentMode === 'api'}
+                    onChange={() => setAssignmentMode('api')}
+                  />
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Vía API (estándar)</div>
+                    <div className="text-xs text-gray-600">
+                      No configuras examen aquí. El sistema externo envía el código del estándar
+                      (ej. <span className="font-mono">estandar=EC0217</span>) al generar el token y
+                      se asigna el examen más reciente de ese estándar con su configuración del editor.
+                    </div>
+                  </div>
+                </label>
               </div>
+
+              {!isApiMode && (
+                <div className="flex gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900">
+                  <Sparkles className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    En el siguiente paso configurarás el primer examen. La configuración del editor se
+                    aplicará automáticamente; si el editor no definió parámetros, usaremos los valores
+                    estándar (intentos, desconexiones, etc.).
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* PASO 2 (o 1 en add/edit): asignación */}
-          {step === (isCreateKey ? 2 : 1) && (
+          {step === examStep && !isApiMode && (
             <div className="space-y-5">
               {!isEdit && (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
@@ -869,8 +939,8 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
             </div>
           )}
 
-          {/* PASO 3 (solo create-key): step-up */}
-          {step === 3 && isCreateKey && (
+          {/* PASO final (solo create-key): step-up */}
+          {step === passwordStep && isCreateKey && (
             <div className="space-y-5">
               <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
@@ -914,7 +984,13 @@ export default function ApiKeyWizardModal({ mode, campusId, onClose, onSuccess }
                     <span className="font-medium text-gray-900">{keyName}</span>
                   </div>
                 )}
-                {selectedExam && (
+                <div className="flex gap-2">
+                  <span className="text-gray-500 min-w-[110px]">Modo:</span>
+                  <span className="font-medium text-gray-900">
+                    {isApiMode ? 'Vía API (estándar)' : 'Vía plataforma'}
+                  </span>
+                </div>
+                {!isApiMode && selectedExam && (
                   <div className="flex gap-2">
                     <span className="text-gray-500 min-w-[110px]">Examen inicial:</span>
                     <span className="font-medium text-gray-900">{selectedExam.name}</span>

@@ -418,6 +418,13 @@ def create_app(config_name='development'):
         except Exception as e:
             print(f"[AUTO-MIGRATE] Error verificando certificate_type/skip_curp: {e}")
 
+        # assignment_mode en campus_api_keys (platform|api)
+        try:
+            from app.auto_migrate import check_and_add_assignment_mode_column
+            check_and_add_assignment_mode_column()
+        except Exception as e:
+            print(f"[AUTO-MIGRATE] Error verificando assignment_mode: {e}")
+
         # bundle_exam_ids en payments (Modelo Directo: compra múltiple)
         try:
             from app.auto_migrate import check_and_add_payment_bundle_column

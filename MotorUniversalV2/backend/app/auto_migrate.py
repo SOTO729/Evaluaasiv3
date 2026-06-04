@@ -3362,6 +3362,43 @@ def check_and_add_certificate_type_column():
         print(f"  ❌ error agregando certificate_type: {e}")
 
 
+def check_and_add_assignment_mode_column():
+    """Agrega columna assignment_mode a campus_api_keys.
+
+    Define cómo se asignan exámenes a los candidatos que entran por la key:
+    'platform' (default, materializa plantillas) o 'api' (el examen lo decide
+    el parámetro `estandar` de /generar_token; excluyente con plantillas).
+    """
+    print("🔍 Verificando columna assignment_mode en campus_api_keys...")
+    try:
+        inspector = inspect(db.engine)
+        if 'campus_api_keys' not in inspector.get_table_names():
+            print("  ⚠️  Tabla campus_api_keys no existe, saltando")
+            return
+        existing = [c['name'] for c in inspector.get_columns('campus_api_keys')]
+        if 'assignment_mode' in existing:
+            print("  ✓ assignment_mode ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = (
+                "ALTER TABLE campus_api_keys "
+                "ADD assignment_mode NVARCHAR(20) NOT NULL "
+                "CONSTRAINT df_capk_assignmode DEFAULT 'platform'"
+            )
+        else:
+            sql = (
+                "ALTER TABLE campus_api_keys "
+                "ADD COLUMN assignment_mode VARCHAR(20) NOT NULL DEFAULT 'platform'"
+            )
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✅ Columna assignment_mode agregada")
+    except Exception as e:
+        db.session.rollback()
+        print(f"  ❌ error agregando assignment_mode: {e}")
+
+
 def check_and_add_skip_curp_validation_column():
     """Agrega columna skip_curp_validation a users.
 

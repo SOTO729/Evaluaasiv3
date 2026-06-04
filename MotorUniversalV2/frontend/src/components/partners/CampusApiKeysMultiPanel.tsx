@@ -432,6 +432,11 @@ export default function CampusApiKeysMultiPanel({
                           Legacy
                         </span>
                       )}
+                      {k.assignment_mode === 'api' && (
+                        <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-indigo-100 text-indigo-800 rounded">
+                          Vía API · estándar
+                        </span>
+                      )}
                       {!k.is_active ? (
                         <span className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide bg-gray-200 text-gray-700 rounded">
                           Inactiva
@@ -477,9 +482,15 @@ export default function CampusApiKeysMultiPanel({
                       {k.last_used_ip && (
                         <span className="font-mono">IP: {k.last_used_ip}</span>
                       )}
-                      <span className="inline-flex items-center gap-1">
-                        <FileText className="w-3 h-3" /> {k.assignment_count} plantillas
-                      </span>
+                      {k.assignment_mode === 'api' ? (
+                        <span className="inline-flex items-center gap-1">
+                          <FileText className="w-3 h-3" /> Estándar vía API
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <FileText className="w-3 h-3" /> {k.assignment_count} plantillas
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1">
                         <CalendarDays className="w-3 h-3" /> Creada {formatDate(k.created_at)}
                       </span>
@@ -543,6 +554,18 @@ export default function CampusApiKeysMultiPanel({
                 {/* Asignaciones */}
                 {isOpen && (
                   <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/40">
+                    {k.assignment_mode === 'api' ? (
+                      <div className="mt-3 px-3 py-3 text-xs text-indigo-900 bg-indigo-50 rounded-lg border border-indigo-200 flex gap-2">
+                        <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5 text-indigo-600" />
+                        <div>
+                          Esta API key asigna el examen <strong>según el estándar</strong> que envíe
+                          el sistema externo (parámetro <code className="font-mono">estandar</code> en{' '}
+                          <code className="font-mono">/generar_token</code>). No se configuran
+                          plantillas desde la plataforma.
+                        </div>
+                      </div>
+                    ) : (
+                    <>
                     <div className="text-[11px] uppercase tracking-wide font-semibold text-gray-500 mt-3 mb-2 flex items-center gap-1.5">
                       <BookOpen className="w-3 h-3" />
                       Plantillas de examen ({k.assignments?.length ?? 0})
@@ -637,7 +660,7 @@ export default function CampusApiKeysMultiPanel({
                         ))}
                       </div>
                     )}
-                    {isManager && !k.is_legacy && (
+                    {isManager && !k.is_legacy && k.assignment_mode !== 'api' && (
                       <button
                         onClick={() => setAddingToKey(k.id)}
                         className="mt-3 text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 px-2.5 py-1.5 rounded hover:bg-indigo-50 transition"
@@ -645,6 +668,8 @@ export default function CampusApiKeysMultiPanel({
                         <Plus className="w-3.5 h-3.5" />
                         Agregar examen a esta API key
                       </button>
+                    )}
+                    </>
                     )}
                   </div>
                 )}

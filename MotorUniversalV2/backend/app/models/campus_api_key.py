@@ -62,6 +62,17 @@ class CampusApiKey(db.Model):
     # sin asignación automática de exámenes).
     is_legacy = db.Column(db.Boolean, default=False, nullable=False)
 
+    # Modo de asignación de exámenes para los candidatos que entran por la key:
+    #   - 'platform' (default): se materializan las plantillas configuradas en
+    #     la propia api key (CampusApiKeyAssignment) al recibir al candidato.
+    #   - 'api': NO se aplican plantillas. El examen se decide por el/los
+    #     estándar(es) (`estandar`) que mande la llamada a /generar_token; se
+    #     asigna el examen activo más reciente de cada estándar con su config
+    #     por defecto del editor. Excluyente con las plantillas.
+    assignment_mode = db.Column(
+        db.String(20), default='platform', nullable=False, server_default='platform'
+    )
+
     # Relaciones
     campus = db.relationship('Campus', backref=db.backref('api_keys', lazy='dynamic', cascade='all, delete-orphan'))
     created_by = db.relationship('User', foreign_keys=[created_by_id])
@@ -133,6 +144,7 @@ class CampusApiKey(db.Model):
             'api_key_prefix': self.api_key_prefix if self.is_active else None,
             'is_active': self.is_active,
             'is_legacy': self.is_legacy,
+            'assignment_mode': (self.assignment_mode or 'platform'),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'created_by_id': self.created_by_id,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
