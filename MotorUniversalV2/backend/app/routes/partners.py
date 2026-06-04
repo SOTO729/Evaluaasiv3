@@ -1329,10 +1329,19 @@ def create_campus_responsable(campus_id):
         
         # ── H5: pre-validar coordinator_id ANTES de cualquier db.session.add()
         # para evitar autoflush parcial si la validación falla.
+        #
+        # Regla de asignación del coordinador del responsable:
+        #   - coordinator  → se asigna a sí mismo (ignora cualquier valor enviado).
+        #   - auxiliar     → se asigna al coordinador del auxiliar (su coordinator_id).
+        #   - admin/dev    → debe elegir el coordinador explícitamente vía interfaz.
         current_user = g.current_user
         coordinator_id_value = None
         if current_user.role == 'coordinator':
             coordinator_id_value = current_user.id
+        elif current_user.role == 'auxiliar':
+            if not current_user.coordinator_id:
+                return jsonify({'error': 'El auxiliar no tiene un coordinador asignado'}), 400
+            coordinator_id_value = current_user.coordinator_id
         elif data.get('coordinator_id'):
             coord_check = User.query.get(data['coordinator_id'])
             if not coord_check or coord_check.role != 'coordinator' or not coord_check.is_active:

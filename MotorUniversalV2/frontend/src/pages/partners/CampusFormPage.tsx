@@ -78,6 +78,8 @@ import {
   type ConfigSubsistema,
   type ConfigEstandar,
 } from '../../services/vmSessionsService';
+import { getAvailableCoordinators, type AvailableCoordinator } from '../../services/userManagementService';
+import { useAuthStore } from '../../store/authStore';
 
 export default function CampusFormPage() {
   const { partnerId: urlPartnerId, campusId } = useParams();
@@ -119,7 +121,13 @@ export default function CampusFormPage() {
     email: '', curp: '', gender: '' as '' | 'M' | 'F' | 'O',
     date_of_birth: '',
     can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true,
+    coordinator_id: '',
   });
+
+  // Solo el admin elige el coordinador del responsable. Coordinador/auxiliar lo heredan automáticamente.
+  const currentUserRole = useAuthStore((s) => s.user?.role);
+  const isAdminCreator = currentUserRole === 'admin' || currentUserRole === 'developer';
+  const [coordinators, setCoordinators] = useState<AvailableCoordinator[]>([]);
 
   // Datos básicos del plantel
   const [formData, setFormData] = useState({
@@ -279,6 +287,16 @@ export default function CampusFormPage() {
         // Cargar responsables
         await loadResponsables(Number(campusId));
         
+        // Solo el admin puede elegir coordinador: cargar el roster
+        if (isAdminCreator) {
+          try {
+            const coordResp = await getAvailableCoordinators();
+            setCoordinators(coordResp.coordinators);
+          } catch {
+            setCoordinators([]);
+          }
+        }
+        
         // Ahora cargar el partner
         const partner = await getPartner(partnerId);
         setPartnerName(partner.name);
@@ -344,6 +362,10 @@ export default function CampusFormPage() {
       setRespError('Todos los campos son requeridos');
       return;
     }
+    if (isAdminCreator && !newResp.coordinator_id) {
+      setRespError('Debes seleccionar el coordinador al que pertenece este responsable');
+      return;
+    }
     setSavingResp(true);
     setRespError(null);
     try {
@@ -358,9 +380,10 @@ export default function CampusFormPage() {
         can_bulk_create_candidates: newResp.can_bulk_create_candidates,
         can_manage_groups: newResp.can_manage_groups,
         can_view_reports: newResp.can_view_reports,
+        ...(isAdminCreator && newResp.coordinator_id ? { coordinator_id: newResp.coordinator_id } : {}),
       });
       setNewRespPassword(res.responsable.temporary_password || null);
-      setNewResp({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true });
+      setNewResp({ name: '', first_surname: '', second_surname: '', email: '', curp: '', gender: '', date_of_birth: '', can_bulk_create_candidates: false, can_manage_groups: false, can_view_reports: true, coordinator_id: '' });
       await loadResponsables(Number(campusId));
       if (!res.responsable.temporary_password) setShowAddResp(false);
     } catch (err: any) {
@@ -1862,6 +1885,26 @@ export default function CampusFormPage() {
                               <input type="date" value={newResp.date_of_birth} onChange={(e) => setNewResp(p => ({ ...p, date_of_birth: e.target.value }))} className="w-full fluid-px-3 fluid-py-2 border border-gray-300 rounded-fluid-lg fluid-text-sm focus:ring-2 focus:ring-indigo-500" />
                             </div>
                           </div>
+
+                          {/* Coordinador asignado (solo admin elige) */}
+                          {isAdminCreator && (
+                            <div className="fluid-mb-4">
+                              <label className="block fluid-text-xs font-medium text-gray-700 fluid-mb-1">
+                                Coordinador asignado *
+                              </label>
+                              <StyledSelect
+                                value={newResp.coordinator_id}
+                                onChange={(value) => setNewResp(p => ({ ...p, coordinator_id: value }))}
+                                options={coordinators.map(c => ({ value: c.id, label: `${c.full_name} (${c.email})` }))}
+                                placeholder="Seleccionar coordinador..."
+                                icon={UserCog}
+                                colorScheme="indigo"
+                              />
+                              <p className="fluid-text-xs text-gray-500 fluid-mt-1">
+                                El responsable quedará ligado a este coordinador.
+                              </p>
+                            </div>
+                          )}
 
                           {/* Permisos */}
                           <div className="fluid-mb-4 fluid-p-4 bg-indigo-50/70 rounded-fluid-xl border border-indigo-200">
