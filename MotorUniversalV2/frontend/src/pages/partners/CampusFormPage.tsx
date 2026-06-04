@@ -370,6 +370,21 @@ export default function CampusFormPage() {
     }
   };
 
+  // Precarga el formulario de nuevo responsable con los datos del director del plantel
+  const handleUseDirectorData = () => {
+    setRespError(null);
+    setNewResp(prev => ({
+      ...prev,
+      name: formData.director_name || '',
+      first_surname: formData.director_first_surname || '',
+      second_surname: formData.director_second_surname || '',
+      email: formData.director_email || '',
+      curp: formData.director_curp || '',
+      gender: (formData.director_gender as '' | 'M' | 'F' | 'O') || '',
+      date_of_birth: formData.director_date_of_birth || '',
+    }));
+  };
+
   const handleToggleRespPermission = async (userId: string, field: 'can_bulk_create_candidates' | 'can_manage_groups' | 'can_view_reports', value: boolean) => {
     if (!campusId) return;
     try {
@@ -1784,7 +1799,20 @@ export default function CampusFormPage() {
                               <UserPlus className="w-4 h-4 text-indigo-600" />
                               Nuevo Responsable
                             </h4>
-                            <button type="button" onClick={() => setShowAddResp(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
+                            <div className="flex items-center fluid-gap-2">
+                              {formData.director_name && (
+                                <button
+                                  type="button"
+                                  onClick={handleUseDirectorData}
+                                  title="Precargar los datos del director del plantel"
+                                  className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 border border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-fluid-lg fluid-text-xs font-medium transition-colors"
+                                >
+                                  <UserCog className="w-3.5 h-3.5" />
+                                  Usar datos del director
+                                </button>
+                              )}
+                              <button type="button" onClick={() => setShowAddResp(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4 text-gray-500" /></button>
+                            </div>
                           </div>
 
                           {respError && (
