@@ -154,6 +154,7 @@ export default function CampusFormPage() {
     enable_virtual_machines: false,
     enable_online_payments: false,
     enable_candidate_certificates: true,
+    enable_sso_api: false,
     require_exam_pin: false,
     enable_session_calendar: false,
     session_scheduling_mode: 'leader_only' as 'leader_only' | 'candidate_self',
@@ -257,6 +258,7 @@ export default function CampusFormPage() {
           enable_virtual_machines: campus.enable_virtual_machines ?? false,
           enable_online_payments: campus.enable_online_payments ?? false,
           enable_candidate_certificates: campus.enable_candidate_certificates ?? false,
+          enable_sso_api: campus.enable_sso_api ?? false,
           require_exam_pin: campus.require_exam_pin ?? false,
           enable_session_calendar: campus.enable_session_calendar ?? false,
           session_scheduling_mode: campus.session_scheduling_mode ?? 'leader_only',
@@ -474,6 +476,7 @@ export default function CampusFormPage() {
             enable_virtual_machines: configData.enable_virtual_machines,
             enable_online_payments: configData.enable_online_payments,
             enable_candidate_certificates: configData.enable_candidate_certificates,
+            enable_sso_api: configData.enable_sso_api,
             require_exam_pin: configData.require_exam_pin,
             enable_session_calendar: configData.enable_session_calendar,
             session_scheduling_mode: configData.session_scheduling_mode,
@@ -529,6 +532,7 @@ export default function CampusFormPage() {
         enable_virtual_machines: configData.enable_virtual_machines,
         enable_online_payments: configData.enable_online_payments,
         enable_candidate_certificates: configData.enable_candidate_certificates,
+        enable_sso_api: configData.enable_sso_api,
         require_exam_pin: configData.require_exam_pin,
         enable_session_calendar: configData.enable_session_calendar,
         session_scheduling_mode: configData.session_scheduling_mode,
@@ -1313,6 +1317,14 @@ export default function CampusFormPage() {
                         icon={Lock}
                         description="PIN de 4 dígitos generado diariamente para iniciar exámenes"
                         colorClass="orange"
+                      />
+                      {/* Módulo SSO API (tokenización) */}
+                      <ConfigToggle 
+                        field="enable_sso_api" 
+                        label="SSO API (Tokenización)" 
+                        icon={Globe}
+                        description="Permite que sistemas externos generen accesos SSO de candidatos vía API key. Al activarlo se habilita la creación de llaves desde el plantel."
+                        colorClass="purple"
                       />
                       {/* Calendario de Sesiones */}
                       <ConfigToggle 

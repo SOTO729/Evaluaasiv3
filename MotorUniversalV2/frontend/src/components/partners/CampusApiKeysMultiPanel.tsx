@@ -287,7 +287,7 @@ export default function CampusApiKeysMultiPanel({
                 {meta.enable_sso_api ? 'Desactivar SSO' : 'Activar SSO'}
               </button>
             )}
-            {isManager && (
+            {isManager && meta?.enable_sso_api && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 rounded-lg flex items-center gap-1.5 shadow-sm"
@@ -363,6 +363,20 @@ export default function CampusApiKeysMultiPanel({
         </div>
       )}
 
+      {/* Aviso: módulo SSO deshabilitado */}
+      {meta && !meta.enable_sso_api && (
+        <div className="mx-6 mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex gap-2">
+          <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <span className="font-medium">Módulo SSO API desactivado.</span> No se pueden
+            crear ni usar API keys hasta activarlo.{' '}
+            {isAdminLike(role)
+              ? 'Usa el botón "Activar SSO" o el toggle en la edición del plantel.'
+              : 'Solicita a un administrador que active el módulo SSO del plantel.'}
+          </div>
+        </div>
+      )}
+
       {/* Lista */}
       {keys.length === 0 ? (
         <div className="p-10 text-center">
@@ -372,7 +386,7 @@ export default function CampusApiKeysMultiPanel({
           <div className="text-sm font-medium text-gray-700">
             No hay API keys configuradas
           </div>
-          {isManager && (
+          {isManager && meta?.enable_sso_api && (
             <div className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
               Crea la primera para habilitar SSO desde sistemas externos. Cada llave puede tener
               su propio conjunto de exámenes y configuración.
