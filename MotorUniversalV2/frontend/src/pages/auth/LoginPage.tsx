@@ -96,6 +96,10 @@ const LoginPage = () => {
       setError('No se pudo iniciar sesión con Google. Intenta de nuevo.')
       setGoogleLoading(false)
     },
+    onNonOAuthError: () => {
+      // Se dispara cuando el usuario cierra el popup o este no se puede abrir.
+      setGoogleLoading(false)
+    },
   })
 
   const handleMicrosoftLogin = async () => {
