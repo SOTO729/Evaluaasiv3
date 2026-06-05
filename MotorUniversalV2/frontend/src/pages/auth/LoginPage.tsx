@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
-import { loginWithMicrosoft, isMicrosoftLoginEnabled } from '../../lib/msal'
+import { loginWithMicrosoft, isMicrosoftLoginEnabled, warmupMicrosoftLogin } from '../../lib/msal'
 import type { AuthResponse } from '../../types'
 import { 
   GraduationCap, 
@@ -28,6 +28,11 @@ const LoginPage = () => {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [microsoftLoading, setMicrosoftLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  useEffect(() => {
+    // Pre-inicializa MSAL para que el popup de Microsoft no quede bloqueado.
+    warmupMicrosoftLogin()
+  }, [])
 
   const handlePostLogin = (response: AuthResponse) => {
     login(response.user, response.access_token, response.refresh_token)
