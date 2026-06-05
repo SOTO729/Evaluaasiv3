@@ -74,6 +74,9 @@ class Config:
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
 
+    # Microsoft Entra ID (Iniciar sesión con Microsoft, flujo MSAL SPA sin secreto)
+    MICROSOFT_CLIENT_ID = os.getenv('MICROSOFT_CLIENT_ID', '')
+
     # Upload
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 6 * 1024 * 1024 * 1024))  # 6GB para lotes CONOCER
     ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 'png,jpg,jpeg,gif,pdf').split(','))

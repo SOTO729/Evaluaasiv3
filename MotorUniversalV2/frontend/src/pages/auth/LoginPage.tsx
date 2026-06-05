@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useGoogleLogin } from '@react-oauth/google'
 import { useAuthStore } from '../../store/authStore'
 import { authService } from '../../services/authService'
+import { loginWithMicrosoft, isMicrosoftLoginEnabled } from '../../lib/msal'
 import type { AuthResponse } from '../../types'
 import { 
   GraduationCap, 
@@ -25,6 +26,7 @@ const LoginPage = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [microsoftLoading, setMicrosoftLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const handlePostLogin = (response: AuthResponse) => {
@@ -95,6 +97,37 @@ const LoginPage = () => {
       setGoogleLoading(false)
     },
   })
+
+  const handleMicrosoftLogin = async () => {
+    setError('')
+    if (!isMicrosoftLoginEnabled()) {
+      setError('El inicio de sesión con Microsoft no está disponible en este momento.')
+      return
+    }
+    setMicrosoftLoading(true)
+    try {
+      const idToken = await loginWithMicrosoft()
+      const response = await authService.microsoftLogin(idToken)
+      handlePostLogin(response)
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 404) {
+        setError('No existe una cuenta con ese correo de Microsoft. Contacta a tu coordinador para que te dé de alta.')
+      } else if (status === 423) {
+        setError('Tu cuenta está bloqueada temporalmente por intentos fallidos. Intenta más tarde.')
+      } else if (status === 403) {
+        setError(err.response?.data?.error || 'Tu cuenta no está disponible para iniciar sesión.')
+      } else if (status === 503) {
+        setError('El inicio de sesión con Microsoft no está disponible en este momento.')
+      } else if (err?.errorCode === 'user_cancelled' || err?.name === 'BrowserAuthError') {
+        // El usuario cerró el popup; no mostramos error.
+      } else {
+        setError('No se pudo iniciar sesión con Microsoft. Intenta de nuevo.')
+      }
+    } finally {
+      setMicrosoftLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen flex overflow-x-hidden overscroll-contain">
@@ -243,14 +276,20 @@ const LoginPage = () => {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 fluid-rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={handleMicrosoftLogin}
+              disabled={microsoftLoading || loading}
+              className="flex items-center justify-center fluid-gap-2 fluid-py-3 fluid-px-4 border border-gray-300 fluid-rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="fluid-icon-sm" viewBox="0 0 23 23">
-                <path fill="#f35325" d="M1 1h10v10H1z"/>
-                <path fill="#81bc06" d="M12 1h10v10H12z"/>
-                <path fill="#05a6f0" d="M1 12h10v10H1z"/>
-                <path fill="#ffba08" d="M12 12h10v10H12z"/>
-              </svg>
+              {microsoftLoading ? (
+                <Loader2 className="fluid-icon-sm animate-spin text-gray-500" />
+              ) : (
+                <svg className="fluid-icon-sm" viewBox="0 0 23 23">
+                  <path fill="#f35325" d="M1 1h10v10H1z"/>
+                  <path fill="#81bc06" d="M12 1h10v10H12z"/>
+                  <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+                  <path fill="#ffba08" d="M12 12h10v10H12z"/>
+                </svg>
+              )}
               <span className="fluid-text-sm font-medium text-gray-700 hidden sm:inline">Microsoft</span>
             </button>
           </div>

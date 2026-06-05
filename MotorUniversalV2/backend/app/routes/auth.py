@@ -570,6 +570,123 @@ def google_login():
     }), 200
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# Iniciar sesión con Microsoft (Entra ID / MSAL) — junio 2026
+# ════════════════════════════════════════════════════════════════════════════
+
+@bp.route('/microsoft', methods=['POST'])
+@rate_limit_login(limit=10, window=60)  # 10 intentos/min por IP
+def microsoft_login():
+    """Inicio de sesión con Microsoft (Entra ID).
+
+    Recibe el `id_token` (JWT OpenID Connect) obtenido por el frontend mediante
+    el flujo popup de MSAL (cliente público SPA, sin secreto). El backend valida
+    la firma del token contra las llaves públicas (JWKS) de Microsoft, comprueba
+    la audiencia (client_id) y el emisor, y emite un par access/refresh JWT como
+    en /login.
+
+    Política: SOLO vinculación. El correo de Microsoft debe corresponder a un
+    usuario ya existente y activo; no se crea ninguna cuenta automáticamente.
+    """
+    from flask import current_app
+    import requests as http_requests
+    from jose import jwt as jose_jwt
+
+    data = request.get_json(silent=True) or {}
+    id_token_str = (data.get('id_token') or '').strip()
+    if not id_token_str:
+        return jsonify({'error': 'Token de Microsoft requerido'}), 400
+
+    client_id = current_app.config.get('MICROSOFT_CLIENT_ID')
+    if not client_id:
+        return jsonify({'error': 'Inicio de sesión con Microsoft no está configurado'}), 503
+
+    # 1) Obtener el `kid` del encabezado para localizar la llave pública.
+    try:
+        unverified_header = jose_jwt.get_unverified_header(id_token_str)
+        kid = unverified_header.get('kid')
+    except Exception:
+        return jsonify({'error': 'Token de Microsoft inválido'}), 401
+
+    # 2) Descargar el JWKS de Microsoft (authority 'common': cuentas org + personales).
+    try:
+        jwks_resp = http_requests.get(
+            'https://login.microsoftonline.com/common/discovery/v2.0/keys',
+            timeout=10,
+        )
+        jwks = jwks_resp.json() if jwks_resp.status_code == 200 else None
+    except Exception:
+        return jsonify({'error': 'No se pudo contactar a Microsoft'}), 502
+
+    if not jwks or 'keys' not in jwks:
+        return jsonify({'error': 'No se pudo contactar a Microsoft'}), 502
+
+    signing_key = next((k for k in jwks['keys'] if k.get('kid') == kid), None)
+    if not signing_key:
+        return jsonify({'error': 'Token de Microsoft inválido'}), 401
+
+    # 3) Verificar firma y audiencia. El emisor incluye el tenant id en authority
+    #    'common', por lo que se valida su formato manualmente más abajo.
+    try:
+        claims = jose_jwt.decode(
+            id_token_str,
+            signing_key,
+            algorithms=['RS256'],
+            audience=client_id,
+            options={'verify_iss': False},
+        )
+    except Exception:
+        return jsonify({'error': 'Token de Microsoft inválido o expirado'}), 401
+
+    iss = (claims.get('iss') or '')
+    if not (iss.startswith('https://login.microsoftonline.com/') and iss.endswith('/v2.0')):
+        return jsonify({'error': 'Emisor de Microsoft inválido'}), 401
+
+    # 4) Resolver el correo. Los id_token de Microsoft exponen el correo en
+    #    `email` o, con frecuencia, en `preferred_username` (UPN).
+    email = (claims.get('email') or claims.get('preferred_username') or '').strip().lower()
+    if not email or '@' not in email:
+        return jsonify({'error': 'Microsoft no proporcionó un correo'}), 401
+
+    # 5) Buscar usuario existente por email (solo vinculación, sin auto-registro).
+    user = User.query.filter(func.lower(User.email) == email).first()
+    if not user:
+        return jsonify({
+            'error': 'No existe una cuenta con este correo de Microsoft. '
+                     'Contacta a tu coordinador para que te dé de alta.',
+            'code': 'microsoft_user_not_found',
+        }), 404
+
+    if not user.is_active:
+        return jsonify({'error': 'Tu cuenta está inactiva'}), 403
+
+    # Respetar el bloqueo por intentos fallidos
+    locked, remaining_seconds = is_account_locked(user.username)
+    if locked:
+        return jsonify({
+            'error': 'Cuenta bloqueada temporalmente',
+            'retry_after': remaining_seconds,
+            'locked': True,
+        }), 423
+
+    # Login exitoso
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    access_token = create_access_token(
+        identity=user.id,
+        fresh=True,
+        additional_claims={'role': user.role, 'username': user.username},
+    )
+    refresh_token = create_refresh_token(identity=user.id)
+
+    return jsonify({
+        'message': 'Login con Microsoft exitoso',
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'user': user.to_dict(include_private=True),
+    }), 200
+
 
 # ════════════════════════════════════════════════════════════════════════════
 # SSO Tokenización: intercambiar token opaco por par de JWT (mayo 2026)

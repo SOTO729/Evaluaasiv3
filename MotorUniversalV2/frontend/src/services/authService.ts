@@ -17,6 +17,16 @@ export const authService = {
     return response.data
   },
 
+  /**
+   * Inicia sesión con Microsoft. Recibe el `id_token` (JWT OpenID Connect) del
+   * flujo popup MSAL (Entra ID) y lo valida en el backend, que emite un par
+   * access/refresh JWT.
+   */
+  microsoftLogin: async (idToken: string): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/microsoft', { id_token: idToken })
+    return response.data
+  },
+
   register: async (data: RegisterData): Promise<{ message: string; user: User }> => {
     const response = await api.post<{ message: string; user: User }>('/auth/register', data)
     return response.data
