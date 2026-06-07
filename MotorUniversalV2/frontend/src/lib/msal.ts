@@ -62,11 +62,12 @@ warmupMicrosoftLogin()
  * Connect) que el backend valida en /auth/microsoft. Lanza un error si el
  * usuario cancela o si no se obtiene un id_token.
  *
- * Incluye un "watchdog" sobre la ventana del popup: MSAL no siempre rechaza la
- * promesa cuando el usuario cierra el popup manualmente, lo que dejaría el botón
- * de Microsoft cargando para siempre. Escuchando el evento `POPUP_OPENED`
+ * Incluye un "watchdog" sobre la ventana del popup: en MSAL v5 `loginPopup`
+ * espera la respuesta vía BroadcastChannel (hasta 60s) y NO rechaza cuando el
+ * usuario cierra el popup manualmente, lo que dejaría el botón de Microsoft
+ * cargando hasta que expire ese timeout. Escuchando el evento `POPUP_OPENED`
  * obtenemos la referencia a la ventana y, si se cierra sin completar el flujo,
- * rechazamos nosotros para que la UI pueda reactivar el botón.
+ * rechazamos nosotros para que la UI pueda reactivar el botón de inmediato.
  */
 export async function loginWithMicrosoft(): Promise<string> {
   const pca = await getMsalInstance()
@@ -116,6 +117,17 @@ export async function loginWithMicrosoft(): Promise<string> {
       .loginPopup({
         scopes: ['openid', 'email', 'profile'],
         prompt: 'select_account',
+        // MSAL v5 espera la respuesta del popup por un BroadcastChannel con
+        // timeout de 60s y NO detecta el cierre manual de la ventana. Si el
+        // usuario cierra el popup, MSAL mantiene el flag `interaction.status`
+        // (interaction_in_progress) hasta que expira ese timeout, bloqueando el
+        // siguiente intento con `BrowserAuthError: interaction_in_progress`
+        // (por eso "una vez cerrado ya no se vuelve a abrir"). Con este flag,
+        // cada nuevo intento cancela limpiamente la interacción pendiente
+        // (cancelPendingBridgeResponse) y abre un popup nuevo. Es seguro aquí:
+        // el botón se deshabilita durante el intento, así que no hay
+        // interacciones concurrentes legítimas que podamos pisar.
+        overrideInteractionInProgress: true,
       })
       .then((result) => {
         const idToken = result?.idToken
