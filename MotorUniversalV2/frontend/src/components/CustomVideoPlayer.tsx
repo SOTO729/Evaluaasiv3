@@ -1,21 +1,19 @@
 /**
- * Reproductor de video unificado con controles propios (estilo del proyecto).
+ * Reproductor de video con controles propios (estilo del proyecto) para archivos
+ * directos (HTML5 <video>) y Vimeo (@vimeo/player con controles nativos apagados).
  *
- * Soporta tres "motores" con la MISMA barra de controles (play/pausa, barra de
- * avance, volumen, tiempo y pantalla completa):
- *   - 'direct' : archivo HTML5 (<video>), p. ej. blobs/CDN de Azure.
- *   - 'youtube': YouTube IFrame Player API (controles nativos apagados).
- *   - 'vimeo'  : Vimeo Player SDK (@vimeo/player, controles nativos apagados).
+ * YouTube es la excepción: se embebe con un <iframe> nativo directo al origen
+ * (youtube-nocookie.com) y usa SUS propios controles. Se descartó la IFrame API de
+ * YouTube porque los bloqueadores/DNS la rompen (iframe_api → ERR_NAME_NOT_RESOLVED)
+ * y el embed nativo es mucho más resistente.
  *
- * Un iframe plano cross-origin no se puede controlar desde el padre, así que para
- * YouTube/Vimeo usamos sus APIs JS con controls=0 y dibujamos nuestros controles
- * encima. Así el material de estudio muestra el mismo reproductor para los 3
- * orígenes, sin el "chrome" de YouTube/Vimeo.
+ *   - 'direct' : archivo HTML5 (<video>) — controles propios.
+ *   - 'vimeo'  : Vimeo Player SDK (@vimeo/player, controles nativos apagados) — controles propios.
+ *   - 'youtube': <iframe> nativo de youtube-nocookie.com — controles de YouTube.
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Loader2 } from 'lucide-react';
 import VimeoPlayer from '@vimeo/player';
-import { loadYouTubeIframeApi } from '../utils/youtubeApi';
 import { parseVideoSource, VideoSourceType } from '../utils/videoEmbed';
 
 interface CustomVideoPlayerProps {
@@ -49,21 +47,19 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hostRef = useRef<HTMLDivElement>(null); // contenedor de YT/Vimeo
-  const ytRef = useRef<any>(null); // YT.Player
+  const hostRef = useRef<HTMLDivElement>(null); // contenedor de Vimeo
   const vimeoRef = useRef<VimeoPlayer | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hideControlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // onEnded sin recrear los efectos de inicialización.
   const onEndedRef = useRef(onEnded);
   onEndedRef.current = onEnded;
 
+  // YouTube usa su iframe nativo (no nuestros controles); para él no aplica el
+  // ciclo de "ready" del SDK.
+  const usesCustomControls = engine !== 'youtube';
+
   const [isReady, setIsReady] = useState(engine === 'direct');
-  // Si la IFrame API de YouTube no carga (p. ej. la bloquea un adblocker/DNS),
-  // caemos a un <iframe> plano con controles nativos para que el video al menos
-  // se reproduzca. En ese modo no podemos dibujar nuestros propios controles.
-  const [ytApiFailed, setYtApiFailed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -107,88 +103,6 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       video.removeEventListener('ended', handleEnded);
     };
   }, [engine, src, onDimensionsLoaded]);
-
-  // ───────────────────────────── Motor: YouTube ───────────────────────────────
-  useEffect(() => {
-    if (engine !== 'youtube' || !hostRef.current) return;
-    const { youtubeId } = parseVideoSource(src);
-    if (!youtubeId) return;
-
-    let destroyed = false;
-    const host = hostRef.current;
-    const inner = document.createElement('div');
-    host.appendChild(inner);
-
-    loadYouTubeIframeApi().then((YT) => {
-      if (destroyed) return;
-      setYtApiFailed(false);
-      // eslint-disable-next-line new-cap
-      const player = new YT.Player(inner, {
-        width: '100%',
-        height: '100%',
-        videoId: youtubeId,
-        playerVars: {
-          controls: 0,
-          modestbranding: 1,
-          rel: 0,
-          iv_load_policy: 3,
-          disablekb: 1,
-          fs: 0,
-          playsinline: 1,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: (e: any) => {
-            if (destroyed) return;
-            ytRef.current = e.target;
-            fillIframe(e.target.getIframe?.());
-            setDuration(e.target.getDuration?.() || 0);
-            setIsReady(true);
-            // Poll del tiempo (el IFrame API no emite timeupdate).
-            pollRef.current = setInterval(() => {
-              const p = ytRef.current;
-              if (p?.getCurrentTime) {
-                setCurrentTime(p.getCurrentTime() || 0);
-                const d = p.getDuration?.();
-                if (d) setDuration(d);
-              }
-            }, 250);
-          },
-          onStateChange: (e: any) => {
-            // YT.PlayerState: ENDED=0, PLAYING=1, PAUSED=2
-            if (e.data === 1) setIsPlaying(true);
-            else if (e.data === 2) setIsPlaying(false);
-            else if (e.data === 0) {
-              setIsPlaying(false);
-              onEndedRef.current?.();
-            }
-          },
-        },
-      });
-      ytRef.current = player;
-    }).catch(() => {
-      // API bloqueada o sin red: usar el iframe plano como respaldo.
-      if (!destroyed) {
-        setYtApiFailed(true);
-        setIsReady(true);
-      }
-    });
-
-    return () => {
-      destroyed = true;
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
-      try {
-        ytRef.current?.destroy?.();
-      } catch {
-        /* noop */
-      }
-      ytRef.current = null;
-      host.innerHTML = '';
-    };
-  }, [engine, src]);
 
   // ────────────────────────────── Motor: Vimeo ────────────────────────────────
   useEffect(() => {
@@ -257,13 +171,11 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
   // ───────────────────────────── Comandos (común) ─────────────────────────────
   const play = useCallback(() => {
     if (engine === 'direct') videoRef.current?.play();
-    else if (engine === 'youtube') ytRef.current?.playVideo?.();
     else if (engine === 'vimeo') vimeoRef.current?.play().catch(() => {});
   }, [engine]);
 
   const pause = useCallback(() => {
     if (engine === 'direct') videoRef.current?.pause();
-    else if (engine === 'youtube') ytRef.current?.pauseVideo?.();
     else if (engine === 'vimeo') vimeoRef.current?.pause().catch(() => {});
   }, [engine]);
 
@@ -277,8 +189,6 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       setCurrentTime(time);
       if (engine === 'direct') {
         if (videoRef.current) videoRef.current.currentTime = time;
-      } else if (engine === 'youtube') {
-        ytRef.current?.seekTo?.(time, true);
       } else if (engine === 'vimeo') {
         vimeoRef.current?.setCurrentTime(time).catch(() => {});
       }
@@ -294,10 +204,6 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           videoRef.current.volume = effective;
           videoRef.current.muted = muted;
         }
-      } else if (engine === 'youtube') {
-        ytRef.current?.setVolume?.(effective * 100);
-        if (muted) ytRef.current?.mute?.();
-        else ytRef.current?.unMute?.();
       } else if (engine === 'vimeo') {
         vimeoRef.current?.setVolume(effective).catch(() => {});
       }
@@ -362,9 +268,9 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // Respaldo cuando la IFrame API de YouTube no carga: iframe plano con controles
-  // nativos desde youtube-nocookie.com (ya permitido en frame-src del CSP).
-  const ytFallbackUrl =
+  // YouTube: iframe nativo directo al origen (youtube-nocookie.com, ya permitido
+  // en frame-src del CSP). Sin nuestros controles.
+  const youtubeEmbedUrl =
     engine === 'youtube'
       ? `https://www.youtube-nocookie.com/embed/${parseVideoSource(src).youtubeId ?? ''}?rel=0`
       : '';
@@ -387,9 +293,9 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           onClick={togglePlay}
           preload="metadata"
         />
-      ) : engine === 'youtube' && ytApiFailed ? (
+      ) : engine === 'youtube' ? (
         <iframe
-          src={ytFallbackUrl}
+          src={youtubeEmbedUrl}
           className="absolute inset-0 w-full h-full"
           style={{ border: 0 }}
           // YouTube valida el dominio que embebe con el header Referer; sin él
@@ -404,21 +310,20 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
         <div ref={hostRef} className="absolute inset-0 w-full h-full" />
       )}
 
-      {/* Capa para click-to-toggle sobre el iframe de YouTube/Vimeo (no en modo
-          fallback: ahí mandan los controles nativos del iframe). */}
-      {engine !== 'direct' && isReady && !ytApiFailed && (
+      {/* Capa para click-to-toggle sobre el iframe de Vimeo. */}
+      {engine === 'vimeo' && isReady && (
         <div className="absolute inset-0 z-10 cursor-pointer" onClick={togglePlay} />
       )}
 
-      {/* Loading (YouTube/Vimeo mientras carga el SDK) */}
-      {!isReady && engine !== 'direct' && (
+      {/* Loading (Vimeo mientras carga el SDK) */}
+      {!isReady && engine === 'vimeo' && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
           <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
         </div>
       )}
 
-      {/* Overlay play grande (al pausar) */}
-      {isReady && !isPlaying && !ytApiFailed && (
+      {/* Overlay play grande (al pausar) — solo motores con controles propios */}
+      {usesCustomControls && isReady && !isPlaying && (
         <div
           className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlay}
@@ -429,8 +334,8 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Controles propios (ocultos en modo fallback: manda el iframe nativo) */}
-      {!ytApiFailed && (
+      {/* Controles propios — no para YouTube (usa los nativos del iframe) */}
+      {usesCustomControls && (
       <div
         className={`absolute bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-3 px-4 transition-opacity duration-300 ${
           showControls ? 'opacity-100' : 'opacity-0'
