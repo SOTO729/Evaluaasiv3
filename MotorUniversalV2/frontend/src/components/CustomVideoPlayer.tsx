@@ -1,23 +1,65 @@
 /**
- * Reproductor de video personalizado con controles customizados
- * Volumen a la izquierda, pantalla completa a la derecha
+ * Reproductor de video unificado con controles propios (estilo del proyecto).
+ *
+ * Soporta tres "motores" con la MISMA barra de controles (play/pausa, barra de
+ * avance, volumen, tiempo y pantalla completa):
+ *   - 'direct' : archivo HTML5 (<video>), p. ej. blobs/CDN de Azure.
+ *   - 'youtube': YouTube IFrame Player API (controles nativos apagados).
+ *   - 'vimeo'  : Vimeo Player SDK (@vimeo/player, controles nativos apagados).
+ *
+ * Un iframe plano cross-origin no se puede controlar desde el padre, así que para
+ * YouTube/Vimeo usamos sus APIs JS con controls=0 y dibujamos nuestros controles
+ * encima. Así el material de estudio muestra el mismo reproductor para los 3
+ * orígenes, sin el "chrome" de YouTube/Vimeo.
  */
-import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Loader2 } from 'lucide-react';
+import VimeoPlayer from '@vimeo/player';
+import { loadYouTubeIframeApi } from '../utils/youtubeApi';
+import { parseVideoSource, VideoSourceType } from '../utils/videoEmbed';
 
 interface CustomVideoPlayerProps {
   src: string;
+  /** Motor a usar. Si se omite, se detecta desde `src`. */
+  type?: VideoSourceType;
   className?: string;
   onEnded?: () => void;
+  /** Solo aplica a 'direct'. */
   objectFit?: 'contain' | 'cover' | 'fill';
+  /** Solo aplica a 'direct'. */
   onDimensionsLoaded?: (width: number, height: number) => void;
 }
 
-const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = '', onEnded, objectFit = 'contain', onDimensionsLoaded }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+const fillIframe = (iframe: HTMLIFrameElement | null | undefined) => {
+  if (iframe) {
+    iframe.style.cssText =
+      'position:absolute;top:0;left:0;width:100%;height:100%;border:0;';
+  }
+};
+
+const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
+  src,
+  type,
+  className = '',
+  onEnded,
+  objectFit = 'contain',
+  onDimensionsLoaded,
+}) => {
+  const engine: VideoSourceType = type ?? parseVideoSource(src).type;
+
   const containerRef = useRef<HTMLDivElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
-  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null); // contenedor de YT/Vimeo
+  const ytRef = useRef<any>(null); // YT.Player
+  const vimeoRef = useRef<VimeoPlayer | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hideControlsTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // onEnded sin recrear los efectos de inicialización.
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
+
+  const [isReady, setIsReady] = useState(engine === 'direct');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -26,102 +68,262 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isHovering, setIsHovering] = useState(false);
-  
-  let hideControlsTimeout: ReturnType<typeof setTimeout>;
 
+  // ───────────────────────── Motor: HTML5 <video> (direct) ────────────────────
   useEffect(() => {
+    if (engine !== 'direct') return;
     const video = videoRef.current;
     if (!video) return;
 
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
-      // Obtener dimensiones reales del video y notificar al componente padre
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-      if (videoWidth && videoHeight && onDimensionsLoaded) {
-        onDimensionsLoaded(videoWidth, videoHeight);
+      if (video.videoWidth && video.videoHeight && onDimensionsLoaded) {
+        onDimensionsLoaded(video.videoWidth, video.videoHeight);
       }
     };
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
     const handleEnded = () => {
       setIsPlaying(false);
-      if (onEnded) onEnded();
-    };
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      onEndedRef.current?.();
     };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
     video.addEventListener('ended', handleEnded);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
       video.removeEventListener('ended', handleEnded);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [onDimensionsLoaded]);
+  }, [engine, src, onDimensionsLoaded]);
 
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
+  // ───────────────────────────── Motor: YouTube ───────────────────────────────
+  useEffect(() => {
+    if (engine !== 'youtube' || !hostRef.current) return;
+    const { youtubeId } = parseVideoSource(src);
+    if (!youtubeId) return;
 
-    if (isPlaying) {
-      video.pause();
-    } else {
-      video.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
+    let destroyed = false;
+    const host = hostRef.current;
+    const inner = document.createElement('div');
+    host.appendChild(inner);
+
+    loadYouTubeIframeApi().then((YT) => {
+      if (destroyed) return;
+      // eslint-disable-next-line new-cap
+      const player = new YT.Player(inner, {
+        width: '100%',
+        height: '100%',
+        videoId: youtubeId,
+        playerVars: {
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          iv_load_policy: 3,
+          disablekb: 1,
+          fs: 0,
+          playsinline: 1,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: (e: any) => {
+            if (destroyed) return;
+            ytRef.current = e.target;
+            fillIframe(e.target.getIframe?.());
+            setDuration(e.target.getDuration?.() || 0);
+            setIsReady(true);
+            // Poll del tiempo (el IFrame API no emite timeupdate).
+            pollRef.current = setInterval(() => {
+              const p = ytRef.current;
+              if (p?.getCurrentTime) {
+                setCurrentTime(p.getCurrentTime() || 0);
+                const d = p.getDuration?.();
+                if (d) setDuration(d);
+              }
+            }, 250);
+          },
+          onStateChange: (e: any) => {
+            // YT.PlayerState: ENDED=0, PLAYING=1, PAUSED=2
+            if (e.data === 1) setIsPlaying(true);
+            else if (e.data === 2) setIsPlaying(false);
+            else if (e.data === 0) {
+              setIsPlaying(false);
+              onEndedRef.current?.();
+            }
+          },
+        },
+      });
+      ytRef.current = player;
+    });
+
+    return () => {
+      destroyed = true;
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      try {
+        ytRef.current?.destroy?.();
+      } catch {
+        /* noop */
+      }
+      ytRef.current = null;
+      host.innerHTML = '';
+    };
+  }, [engine, src]);
+
+  // ────────────────────────────── Motor: Vimeo ────────────────────────────────
+  useEffect(() => {
+    if (engine !== 'vimeo' || !hostRef.current) return;
+    const { vimeoId, vimeoHash } = parseVideoSource(src);
+    if (!vimeoId) return;
+
+    let destroyed = false;
+    const host = hostRef.current;
+    const playerUrl = (vimeoHash
+      ? `https://player.vimeo.com/video/${vimeoId}?h=${vimeoHash}`
+      : `https://player.vimeo.com/video/${vimeoId}`) as `https://player.vimeo.com/video/${string}`;
+
+    const player = new VimeoPlayer(host, {
+      url: playerUrl,
+      controls: false,
+      title: false,
+      byline: false,
+      portrait: false,
+      responsive: false,
+    });
+    vimeoRef.current = player;
+
+    player
+      .ready()
+      .then(() => {
+        if (destroyed) return;
+        fillIframe(host.querySelector('iframe'));
+        setIsReady(true);
+        player
+          .getDuration()
+          .then((d) => !destroyed && setDuration(d || 0))
+          .catch(() => {});
+      })
+      .catch(() => {});
+
+    player.on('timeupdate', (data: { seconds: number; duration: number }) => {
+      setCurrentTime(data.seconds);
+      if (data.duration) setDuration(data.duration);
+    });
+    player.on('play', () => setIsPlaying(true));
+    player.on('pause', () => setIsPlaying(false));
+    player.on('ended', () => {
+      setIsPlaying(false);
+      onEndedRef.current?.();
+    });
+
+    return () => {
+      destroyed = true;
+      try {
+        player.destroy();
+      } catch {
+        /* noop */
+      }
+      vimeoRef.current = null;
+    };
+  }, [engine, src]);
+
+  // ───────────────────────── Pantalla completa (común) ────────────────────────
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // ───────────────────────────── Comandos (común) ─────────────────────────────
+  const play = useCallback(() => {
+    if (engine === 'direct') videoRef.current?.play();
+    else if (engine === 'youtube') ytRef.current?.playVideo?.();
+    else if (engine === 'vimeo') vimeoRef.current?.play().catch(() => {});
+  }, [engine]);
+
+  const pause = useCallback(() => {
+    if (engine === 'direct') videoRef.current?.pause();
+    else if (engine === 'youtube') ytRef.current?.pauseVideo?.();
+    else if (engine === 'vimeo') vimeoRef.current?.pause().catch(() => {});
+  }, [engine]);
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying) pause();
+    else play();
+  }, [isPlaying, play, pause]);
+
+  const seekTo = useCallback(
+    (time: number) => {
+      setCurrentTime(time);
+      if (engine === 'direct') {
+        if (videoRef.current) videoRef.current.currentTime = time;
+      } else if (engine === 'youtube') {
+        ytRef.current?.seekTo?.(time, true);
+      } else if (engine === 'vimeo') {
+        vimeoRef.current?.setCurrentTime(time).catch(() => {});
+      }
+    },
+    [engine]
+  );
+
+  const applyVolume = useCallback(
+    (vol: number, muted: boolean) => {
+      const effective = muted ? 0 : vol;
+      if (engine === 'direct') {
+        if (videoRef.current) {
+          videoRef.current.volume = effective;
+          videoRef.current.muted = muted;
+        }
+      } else if (engine === 'youtube') {
+        ytRef.current?.setVolume?.(effective * 100);
+        if (muted) ytRef.current?.mute?.();
+        else ytRef.current?.unMute?.();
+      } else if (engine === 'vimeo') {
+        vimeoRef.current?.setVolume(effective).catch(() => {});
+      }
+    },
+    [engine]
+  );
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const video = videoRef.current;
-    const progress = progressRef.current;
-    if (!video || !progress) return;
-
-    const rect = progress.getBoundingClientRect();
+    if (!duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
     const pos = (e.clientX - rect.left) / rect.width;
-    video.currentTime = pos * duration;
+    seekTo(Math.max(0, Math.min(1, pos)) * duration);
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const video = videoRef.current;
-    if (!video) return;
-
     const newVolume = parseFloat(e.target.value);
-    video.volume = newVolume;
+    const muted = newVolume === 0;
     setVolume(newVolume);
-    setIsMuted(newVolume === 0);
+    setIsMuted(muted);
+    applyVolume(newVolume, muted);
   };
 
   const toggleMute = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isMuted) {
-      video.volume = volume || 0.5;
-      video.muted = false;
-      setIsMuted(false);
-    } else {
-      video.muted = true;
-      setIsMuted(true);
-    }
+    const muted = !isMuted;
+    setIsMuted(muted);
+    applyVolume(volume || 0.5, muted);
   };
 
   const toggleFullscreen = async () => {
     const container = containerRef.current;
     if (!container) return;
-
-    if (!document.fullscreenElement) {
-      await container.requestFullscreen();
-    } else {
-      await document.exitFullscreen();
-    }
+    if (!document.fullscreenElement) await container.requestFullscreen().catch(() => {});
+    else await document.exitFullscreen().catch(() => {});
   };
 
   const formatTime = (time: number) => {
+    if (!isFinite(time) || time < 0) time = 0;
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -129,9 +331,9 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
 
   const handleMouseMove = () => {
     setShowControls(true);
-    clearTimeout(hideControlsTimeout);
+    if (hideControlsTimeout.current) clearTimeout(hideControlsTimeout.current);
     if (isPlaying && !isHovering) {
-      hideControlsTimeout = setTimeout(() => setShowControls(false), 3000);
+      hideControlsTimeout.current = setTimeout(() => setShowControls(false), 3000);
     }
   };
 
@@ -143,7 +345,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
   const handleMouseLeave = () => {
     setIsHovering(false);
     if (isPlaying) {
-      hideControlsTimeout = setTimeout(() => setShowControls(false), 2000);
+      hideControlsTimeout.current = setTimeout(() => setShowControls(false), 2000);
     }
   };
 
@@ -157,20 +359,36 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Video */}
-      <video
-        ref={videoRef}
-        src={src}
-        className="w-full h-full cursor-pointer"
-        style={{ objectFit }}
-        onClick={togglePlay}
-        preload="metadata"
-      />
+      {/* Media */}
+      {engine === 'direct' ? (
+        <video
+          ref={videoRef}
+          src={src}
+          className="w-full h-full cursor-pointer"
+          style={{ objectFit }}
+          onClick={togglePlay}
+          preload="metadata"
+        />
+      ) : (
+        <div ref={hostRef} className="absolute inset-0 w-full h-full" />
+      )}
 
-      {/* Overlay para play/pause grande */}
-      {!isPlaying && (
-        <div 
-          className="absolute inset-0 flex items-center justify-center bg-black/20 cursor-pointer"
+      {/* Capa para click-to-toggle sobre el iframe de YouTube/Vimeo */}
+      {engine !== 'direct' && isReady && (
+        <div className="absolute inset-0 z-10 cursor-pointer" onClick={togglePlay} />
+      )}
+
+      {/* Loading (YouTube/Vimeo mientras carga el SDK) */}
+      {!isReady && engine !== 'direct' && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black">
+          <Loader2 className="w-8 h-8 text-primary-400 animate-spin" />
+        </div>
+      )}
+
+      {/* Overlay play grande (al pausar) */}
+      {isReady && !isPlaying && (
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlay}
         >
           <div className="w-20 h-20 bg-primary-600 rounded-full flex items-center justify-center shadow-lg hover:bg-primary-700 transition-colors">
@@ -180,14 +398,13 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
       )}
 
       {/* Controles */}
-      <div 
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-3 px-4 transition-opacity duration-300 ${
+      <div
+        className={`absolute bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-3 px-4 transition-opacity duration-300 ${
           showControls ? 'opacity-100' : 'opacity-0'
         }`}
       >
         {/* Barra de progreso */}
         <div
-          ref={progressRef}
           className="h-1 bg-white/30 rounded-full cursor-pointer mb-3 group/progress"
           onClick={handleProgressClick}
         >
@@ -201,9 +418,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
 
         {/* Controles inferiores */}
         <div className="flex items-center justify-between">
-          {/* Lado izquierdo: Play + Volumen + Tiempo */}
           <div className="flex items-center gap-3">
-            {/* Play/Pause */}
             <button
               onClick={togglePlay}
               className="text-white hover:text-primary-400 transition-colors p-1"
@@ -215,7 +430,6 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
               )}
             </button>
 
-            {/* Volumen */}
             <div className="flex items-center gap-2 group/volume">
               <button
                 onClick={toggleMute}
@@ -238,13 +452,11 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({ src, className = 
               />
             </div>
 
-            {/* Tiempo */}
             <span className="text-white text-sm font-medium">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
           </div>
 
-          {/* Lado derecho: Pantalla completa */}
           <div className="flex items-center gap-2">
             <button
               onClick={toggleFullscreen}

@@ -6,7 +6,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { sanitizeReadingHtml } from '../../utils/sanitizeReading';
-import { getEmbeddableVideoUrl } from '../../utils/videoEmbed';
 import {
   getMaterial,
   getMaterialProgress,
@@ -1250,13 +1249,6 @@ const StudyContentPreviewPage: React.FC = () => {
     });
   };
 
-  // URL de video embed (YouTube/Vimeo) con el reproductor "limpio" (solo el
-  // video, sin el chrome de Vimeo). Si no es un servicio embebible conocido,
-  // devolvemos la URL tal cual (archivo directo). Lógica compartida con el
-  // editor en utils/videoEmbed.
-  const getVideoEmbedUrl = (url: string) =>
-    getEmbeddableVideoUrl(url) ?? (url ? url.trim() : url);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -1600,13 +1592,9 @@ const StudyContentPreviewPage: React.FC = () => {
                           <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
                             {/* Wrapper con aspect ratio 16:9 */}
                             <div className="relative w-full aspect-video">
-                              <iframe
-                                src={getVideoEmbedUrl(currentTopic.video.video_url)}
+                              <CustomVideoPlayer
+                                src={currentTopic.video.video_url}
                                 className="absolute inset-0 w-full h-full"
-                                style={{ border: 'none' }}
-                                allowFullScreen
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                referrerPolicy="strict-origin-when-cross-origin"
                               />
                             </div>
                           </div>

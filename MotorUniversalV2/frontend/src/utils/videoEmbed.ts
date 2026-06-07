@@ -90,3 +90,58 @@ export const getEmbeddableVideoUrl = (url: string): string | null => {
 
   return null;
 };
+
+export type VideoSourceType = 'youtube' | 'vimeo' | 'direct';
+
+export interface VideoSource {
+  type: VideoSourceType;
+  /** URL original (trim). */
+  url: string;
+  youtubeId?: string;
+  vimeoId?: string;
+  /** Hash de privacidad para videos no listados de Vimeo. */
+  vimeoHash?: string;
+}
+
+/**
+ * Analiza una URL de video y devuelve su tipo e identificadores. Se usa para el
+ * reproductor unificado (CustomVideoPlayer): YouTube y Vimeo se controlan con sus
+ * SDKs/APIs, no con un iframe plano. Lo que no es YouTube/Vimeo se trata como
+ * `direct` (archivo HTML5).
+ */
+export const parseVideoSource = (url: string): VideoSource => {
+  const trimmed = (url || '').trim();
+
+  const youtubeMatch = trimmed.match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([^&?\s/]+)/
+  );
+  if (youtubeMatch) {
+    return { type: 'youtube', url: trimmed, youtubeId: youtubeMatch[1] };
+  }
+
+  // URL del reproductor ya armada: player.vimeo.com/video/<id>?h=<hash>
+  const playerMatch = trimmed.match(/player\.vimeo\.com\/video\/(\d+)/);
+  if (playerMatch) {
+    const hMatch = trimmed.match(/[?&]h=([0-9a-zA-Z]+)/);
+    return {
+      type: 'vimeo',
+      url: trimmed,
+      vimeoId: playerMatch[1],
+      vimeoHash: hMatch ? hMatch[1] : undefined,
+    };
+  }
+
+  const vimeoMatch = trimmed.match(
+    /vimeo\.com\/(?:channels\/[^/]+\/|groups\/[^/]+\/videos\/)?(\d+)(?:\/([0-9a-zA-Z]+))?/
+  );
+  if (vimeoMatch) {
+    let hash = vimeoMatch[2];
+    if (!hash) {
+      const hMatch = trimmed.match(/[?&]h=([0-9a-zA-Z]+)/);
+      if (hMatch) hash = hMatch[1];
+    }
+    return { type: 'vimeo', url: trimmed, vimeoId: vimeoMatch[1], vimeoHash: hash };
+  }
+
+  return { type: 'direct', url: trimmed };
+};

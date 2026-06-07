@@ -296,14 +296,9 @@ const VideoEditorPage = () => {
       return (
         <div className="relative w-full bg-black rounded-xl overflow-hidden shadow-md">
           <div className="relative w-full aspect-video">
-            <iframe
+            <CustomVideoPlayer
               src={playableSource.src}
-              title="Vista previa del video"
               className="absolute inset-0 w-full h-full"
-              style={{ border: 'none' }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              referrerPolicy="strict-origin-when-cross-origin"
-              allowFullScreen
             />
           </div>
         </div>
