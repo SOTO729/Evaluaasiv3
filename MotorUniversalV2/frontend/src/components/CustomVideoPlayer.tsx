@@ -60,6 +60,10 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
   onEndedRef.current = onEnded;
 
   const [isReady, setIsReady] = useState(engine === 'direct');
+  // Si la IFrame API de YouTube no carga (p. ej. la bloquea un adblocker/DNS),
+  // caemos a un <iframe> plano con controles nativos para que el video al menos
+  // se reproduzca. En ese modo no podemos dibujar nuestros propios controles.
+  const [ytApiFailed, setYtApiFailed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -117,6 +121,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
 
     loadYouTubeIframeApi().then((YT) => {
       if (destroyed) return;
+      setYtApiFailed(false);
       // eslint-disable-next-line new-cap
       const player = new YT.Player(inner, {
         width: '100%',
@@ -161,6 +166,12 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
         },
       });
       ytRef.current = player;
+    }).catch(() => {
+      // API bloqueada o sin red: usar el iframe plano como respaldo.
+      if (!destroyed) {
+        setYtApiFailed(true);
+        setIsReady(true);
+      }
     });
 
     return () => {
@@ -351,6 +362,13 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
 
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  // Respaldo cuando la IFrame API de YouTube no carga: iframe plano con controles
+  // nativos desde youtube-nocookie.com (ya permitido en frame-src del CSP).
+  const ytFallbackUrl =
+    engine === 'youtube'
+      ? `https://www.youtube-nocookie.com/embed/${parseVideoSource(src).youtubeId ?? ''}?rel=0`
+      : '';
+
   return (
     <div
       ref={containerRef}
@@ -369,12 +387,22 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           onClick={togglePlay}
           preload="metadata"
         />
+      ) : engine === 'youtube' && ytApiFailed ? (
+        <iframe
+          src={ytFallbackUrl}
+          className="absolute inset-0 w-full h-full"
+          style={{ border: 0 }}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          title="YouTube video"
+        />
       ) : (
         <div ref={hostRef} className="absolute inset-0 w-full h-full" />
       )}
 
-      {/* Capa para click-to-toggle sobre el iframe de YouTube/Vimeo */}
-      {engine !== 'direct' && isReady && (
+      {/* Capa para click-to-toggle sobre el iframe de YouTube/Vimeo (no en modo
+          fallback: ahí mandan los controles nativos del iframe). */}
+      {engine !== 'direct' && isReady && !ytApiFailed && (
         <div className="absolute inset-0 z-10 cursor-pointer" onClick={togglePlay} />
       )}
 
@@ -386,7 +414,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
       )}
 
       {/* Overlay play grande (al pausar) */}
-      {isReady && !isPlaying && (
+      {isReady && !isPlaying && !ytApiFailed && (
         <div
           className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 cursor-pointer"
           onClick={togglePlay}
@@ -397,7 +425,8 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Controles */}
+      {/* Controles propios (ocultos en modo fallback: manda el iframe nativo) */}
+      {!ytApiFailed && (
       <div
         className={`absolute bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black/80 to-transparent pt-8 pb-3 px-4 transition-opacity duration-300 ${
           showControls ? 'opacity-100' : 'opacity-0'
@@ -471,6 +500,7 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
