@@ -392,6 +392,10 @@ const CustomVideoPlayer: React.FC<CustomVideoPlayerProps> = ({
           src={ytFallbackUrl}
           className="absolute inset-0 w-full h-full"
           style={{ border: 0 }}
+          // YouTube valida el dominio que embebe con el header Referer; sin él
+          // devuelve "Error 153". Forzar el envío del origen evita ese error
+          // cuando la política de referer por defecto es restrictiva.
+          referrerPolicy="strict-origin-when-cross-origin"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
           title="YouTube video"
