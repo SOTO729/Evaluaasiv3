@@ -165,6 +165,39 @@ def _render_reading_section(reading) -> str:
     )
 
 
+# Parámetros del reproductor de Vimeo para mostrar SOLO el video, sin título,
+# autor, avatar ni botones de acción (compartir, me gusta, ver más tarde) que
+# enlazan a vimeo.com. Misma intención que utils/videoEmbed.ts en el frontend.
+_VIMEO_CLEAN_PARAMS = 'title=0&byline=0&portrait=0'
+
+
+def _vimeo_clean_embed(url: str) -> str | None:
+    """URL de embed "limpio" de Vimeo (solo el video), o None si no es Vimeo.
+
+    Conserva el hash de privacidad de videos no listados (``?h=`` o ``/<hash>``).
+    """
+    # Ya es una URL del reproductor: conservarla (incluido ?h=) y añadir params.
+    if 'player.vimeo.com/video/' in url:
+        sep = '&' if '?' in url else '?'
+        return f'{url}{sep}{_VIMEO_CLEAN_PARAMS}'
+    # vimeo.com/<id>[/<hash>], vimeo.com/channels/.../<id>, ?h=<hash>, etc.
+    m = re.search(
+        r'vimeo\.com/(?:channels/[^/]+/|groups/[^/]+/videos/)?(\d+)(?:/([0-9a-zA-Z]+))?',
+        url,
+    )
+    if not m:
+        return None
+    vid = m.group(1)
+    vhash = m.group(2)
+    if not vhash:
+        hm = re.search(r'[?&]h=([0-9a-zA-Z]+)', url)
+        if hm:
+            vhash = hm.group(1)
+    if vhash:
+        return f'https://player.vimeo.com/video/{vid}?h={vhash}&{_VIMEO_CLEAN_PARAMS}'
+    return f'https://player.vimeo.com/video/{vid}?{_VIMEO_CLEAN_PARAMS}'
+
+
 def _render_video_section(video) -> str:
     if not video:
         return ''
@@ -185,10 +218,10 @@ def _render_video_section(video) -> str:
         m = re.search(r'(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]{6,})', url)
         if m:
             embed_url = f'https://www.youtube.com/embed/{m.group(1)}'
-        elif 'vimeo.com/' in url and '/video/' not in url:
-            vm = re.search(r'vimeo\.com/(\d+)', url)
-            if vm:
-                embed_url = f'https://player.vimeo.com/video/{vm.group(1)}'
+        else:
+            vimeo_embed = _vimeo_clean_embed(url)
+            if vimeo_embed:
+                embed_url = vimeo_embed
         player = (
             f'<iframe src="{_esc(embed_url)}" allowfullscreen '
             f'allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"></iframe>'

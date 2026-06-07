@@ -33,6 +33,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
 import { sanitizeReadingHtml } from '../../utils/sanitizeReading';
 import { isAzureUrl } from '../../utils/urlHelpers';
+import { getEmbeddableVideoUrl } from '../../utils/videoEmbed';
 
 const formatFileSize = (bytes: number) => {
   if (bytes === 0) return '0 Bytes';
@@ -40,40 +41,6 @@ const formatFileSize = (bytes: number) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-// Convierte una URL de YouTube/Vimeo en su URL embebible (misma lógica que la página del candidato).
-// Devuelve null si la URL no corresponde a un servicio embebible.
-const getEmbedUrl = (url: string): string | null => {
-  if (!url) return null;
-  const trimmed = url.trim();
-
-  const youtubeMatch = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([^&?\s/]+)/);
-  if (youtubeMatch) {
-    return `https://www.youtube.com/embed/${youtubeMatch[1]}?feature=oembed`;
-  }
-
-  // Si ya es una URL del reproductor de Vimeo, usarla tal cual (conserva el hash ?h=)
-  if (trimmed.includes('player.vimeo.com/video/')) {
-    return trimmed;
-  }
-
-  const vimeoMatch = trimmed.match(
-    /vimeo\.com\/(?:channels\/[^/]+\/|groups\/[^/]+\/videos\/)?(\d+)(?:\/([0-9a-zA-Z]+))?/
-  );
-  if (vimeoMatch) {
-    const id = vimeoMatch[1];
-    let hash = vimeoMatch[2];
-    if (!hash) {
-      const hMatch = trimmed.match(/[?&]h=([0-9a-zA-Z]+)/);
-      if (hMatch) hash = hMatch[1];
-    }
-    return hash
-      ? `https://player.vimeo.com/video/${id}?h=${hash}`
-      : `https://player.vimeo.com/video/${id}`;
-  }
-
-  return null;
 };
 
 // Detecta si la URL apunta directamente a un archivo de video reproducible.
@@ -288,7 +255,7 @@ const VideoEditorPage = () => {
     // 2) ¿Es una URL externa embebible (YouTube/Vimeo)?
     const trimmedUrl = form.video_url?.trim() || '';
     if (trimmedUrl) {
-      const embed = getEmbedUrl(trimmedUrl);
+      const embed = getEmbeddableVideoUrl(trimmedUrl);
       if (embed) return { type: 'embed' as const, src: embed };
 
       // 3) Video guardado en Azure Blob → usar URL firmada

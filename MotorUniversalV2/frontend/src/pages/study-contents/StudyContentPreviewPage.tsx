@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { sanitizeReadingHtml } from '../../utils/sanitizeReading';
+import { getEmbeddableVideoUrl } from '../../utils/videoEmbed';
 import {
   getMaterial,
   getMaterialProgress,
@@ -1249,45 +1250,12 @@ const StudyContentPreviewPage: React.FC = () => {
     });
   };
 
-  // Obtener URL de video embed
-  const getVideoEmbedUrl = (url: string) => {
-    if (!url) return url;
-    const trimmed = url.trim();
-
-    const youtubeMatch = trimmed.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([^&?\s]+)/);
-    if (youtubeMatch) {
-      // Usar el formato estándar de embed de YouTube
-      return `https://www.youtube.com/embed/${youtubeMatch[1]}?feature=oembed`;
-    }
-
-    // Si ya es una URL del reproductor de Vimeo, usarla tal cual (conserva el hash ?h=)
-    if (trimmed.includes('player.vimeo.com/video/')) {
-      return trimmed;
-    }
-
-    // Vimeo: capturar el id y, si existe, el hash de privacidad de videos no listados.
-    // Formatos soportados:
-    //   vimeo.com/123456789
-    //   vimeo.com/123456789/abcdef1234   (hash en la ruta)
-    //   vimeo.com/123456789?h=abcdef1234 (hash en query)
-    //   vimeo.com/channels/xxx/123456789 · vimeo.com/groups/xxx/videos/123456789
-    const vimeoMatch = trimmed.match(
-      /vimeo\.com\/(?:channels\/[^/]+\/|groups\/[^/]+\/videos\/)?(\d+)(?:\/([0-9a-zA-Z]+))?/
-    );
-    if (vimeoMatch) {
-      const id = vimeoMatch[1];
-      let hash = vimeoMatch[2];
-      if (!hash) {
-        const hMatch = trimmed.match(/[?&]h=([0-9a-zA-Z]+)/);
-        if (hMatch) hash = hMatch[1];
-      }
-      return hash
-        ? `https://player.vimeo.com/video/${id}?h=${hash}`
-        : `https://player.vimeo.com/video/${id}`;
-    }
-
-    return trimmed;
-  };
+  // URL de video embed (YouTube/Vimeo) con el reproductor "limpio" (solo el
+  // video, sin el chrome de Vimeo). Si no es un servicio embebible conocido,
+  // devolvemos la URL tal cual (archivo directo). Lógica compartida con el
+  // editor en utils/videoEmbed.
+  const getVideoEmbedUrl = (url: string) =>
+    getEmbeddableVideoUrl(url) ?? (url ? url.trim() : url);
 
   if (loading) {
     return (
