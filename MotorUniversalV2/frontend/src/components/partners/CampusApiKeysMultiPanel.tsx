@@ -660,7 +660,7 @@ export default function CampusApiKeysMultiPanel({
                         ))}
                       </div>
                     )}
-                    {isManager && !k.is_legacy && k.assignment_mode !== 'api' && (
+                    {isManager && !k.is_legacy && (
                       <button
                         onClick={() => setAddingToKey(k.id)}
                         className="mt-3 text-xs font-medium text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 px-2.5 py-1.5 rounded hover:bg-indigo-50 transition"
