@@ -33,6 +33,7 @@ import {
   Target,
   Clock,
   Package,
+  Info,
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import CustomVideoPlayer from '../../components/CustomVideoPlayer';
@@ -131,11 +132,12 @@ const StudyContentPreviewPage: React.FC = () => {
   const mainContainerRef = useRef<HTMLElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const sessionRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const bottomBarRef = useRef<HTMLDivElement>(null);
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
   const [showInstructionsModal, setShowInstructionsModal] = useState(false);
+  // Descripción del tema en popover (sub-header compacto)
+  const [showTopicInfo, setShowTopicInfo] = useState(false);
   const readingMarkedCompleteRef = useRef(false);
   const isProgrammaticScrollRef = useRef(false);  // Para ignorar scroll programático
   
@@ -149,22 +151,33 @@ const StudyContentPreviewPage: React.FC = () => {
     // Más grande en móviles porque hay menos espacio vertical
     const width = typeof window !== 'undefined' ? window.innerWidth : 1024;
     
-    let offset = 350; // default para móvil pequeño - más espacio
+    let offset = 320; // default para móvil pequeño - más espacio
     if (width >= 1536) {
-      offset = 250; // 2xl
+      offset = 220; // 2xl
     } else if (width >= 1280) {
-      offset = 270; // xl
+      offset = 240; // xl
     } else if (width >= 1024) {
-      offset = 290; // lg
+      offset = 260; // lg
     } else if (width >= 768) {
-      offset = 310; // md
+      offset = 280; // md
     } else if (width >= 640) {
-      offset = 330; // sm
+      offset = 300; // sm
     }
     
     return Math.max(windowHeight - offset, 150); // mínimo 150px
   }, [windowHeight]);
-  
+
+  // Altura máxima para la imagen del ejercicio interactivo. Como el ejercicio ya
+  // no tiene header propio ni barra de pasos (los controles flotan sobre la imagen),
+  // solo descontamos el header superior + el sub-header + un pequeño margen, para
+  // que la imagen llene la pantalla sin desbordarse.
+  const getExerciseImageMaxHeight = useCallback(() => {
+    const width = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    // header (~60) + sub-header (~56) + padding inferior + margen de seguridad
+    const offset = width >= 1024 ? 170 : 185;
+    return Math.max(windowHeight - offset, 200);
+  }, [windowHeight]);
+
   // Efecto para escuchar cambios en el tamaño de la ventana
   useEffect(() => {
     const handleResize = () => {
@@ -234,7 +247,7 @@ const StudyContentPreviewPage: React.FC = () => {
 
   const handleMainScroll = useCallback((e: React.UIEvent<HTMLElement>) => {
     const scrollTop = e.currentTarget.scrollTop;
-    
+
     // Si está animando o es scroll programático, ignorar completamente
     if (isAnimatingRef.current || isProgrammaticScrollRef.current) {
       return;
@@ -433,18 +446,14 @@ const StudyContentPreviewPage: React.FC = () => {
   useEffect(() => {
     const checkStartButtonVisibility = () => {
       const container = mainContainerRef.current;
-      const bottomBar = bottomBarRef.current;
-      
-      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container && bottomBar) {
+
+      if (activeTab === 'interactive' && !exerciseStarted && startExerciseRef.current && container) {
         const startRect = startExerciseRef.current.getBoundingClientRect();
-        const bottomBarRect = bottomBar.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        
-        // El botón está visible si:
-        // 1. Su parte superior está por encima de donde empieza la barra inferior
-        // 2. Su parte inferior está dentro del área visible del contenedor
-        const isAboveBottomBar = startRect.bottom <= bottomBarRect.top + 10; // 10px de margen
-        const isInContainerView = startRect.top >= containerRect.top && startRect.top < bottomBarRect.top;
+
+        // El botón está visible si está dentro del área visible del contenedor.
+        const isAboveBottomBar = startRect.bottom <= containerRect.bottom + 10; // 10px de margen
+        const isInContainerView = startRect.top >= containerRect.top && startRect.top < containerRect.bottom;
         const isButtonVisible = isAboveBottomBar && isInContainerView;
         
         // También verificar si ya llegamos al fondo del scroll
@@ -483,16 +492,14 @@ const StudyContentPreviewPage: React.FC = () => {
   useEffect(() => {
     const checkDownloadButtonVisibility = () => {
       const container = mainContainerRef.current;
-      const bottomBar = bottomBarRef.current;
-      
-      if (activeTab === 'downloadable' && downloadButtonRef.current && container && bottomBar) {
+
+      if (activeTab === 'downloadable' && downloadButtonRef.current && container) {
         const downloadRect = downloadButtonRef.current.getBoundingClientRect();
-        const bottomBarRect = bottomBar.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
-        
-        // El botón está visible si está por encima de la barra inferior y dentro del contenedor
-        const isAboveBottomBar = downloadRect.bottom <= bottomBarRect.top + 10;
-        const isInContainerView = downloadRect.top >= containerRect.top && downloadRect.top < bottomBarRect.top;
+
+        // El botón está visible si está dentro del área visible del contenedor.
+        const isAboveBottomBar = downloadRect.bottom <= containerRect.bottom + 10;
+        const isInContainerView = downloadRect.top >= containerRect.top && downloadRect.top < containerRect.bottom;
         const isButtonVisible = isAboveBottomBar && isInContainerView;
         
         // También verificar si ya llegamos al fondo del scroll
@@ -599,6 +606,7 @@ const StudyContentPreviewPage: React.FC = () => {
     resetExerciseState();
     // El sidebar flota sobre el contenido: cerrarlo al elegir tema para ver el material.
     setSidebarOpen(false);
+    setShowTopicInfo(false);
   };
 
   // Funciones para ejercicio interactivo
@@ -1443,128 +1451,169 @@ const StudyContentPreviewPage: React.FC = () => {
 
         {/* Contenido principal */}
         <main ref={mainContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain" onScroll={handleMainScroll}>
-          {/* Header sticky con título y pestañas - más compacto */}
-          <div className={`sticky top-0 z-20 bg-white border-b border-gray-100 transition-all duration-300 ease-out ${isScrolled ? 'py-0.5' : ''}`}>
-            <div className={`w-full px-[clamp(0.75rem,3vw,2rem)] transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
-              {/* Breadcrumb - se oculta al hacer scroll */}
-              <div className={`flex items-center fluid-gap-1 fluid-text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 fluid-mb-1'}`}>
-                <span className="truncate max-w-[clamp(80px,15vw,none)]">{currentSession?.title}</span>
-                <ChevronRight className="fluid-icon-xs flex-shrink-0" />
-                <span className="text-gray-900 font-medium truncate">{currentTopic?.title}</span>
-              </div>
+          {/* Sub-header compacto: "Sesión · Título" + pestañas tipo pills */}
+          <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+            <div className="w-full px-[clamp(0.75rem,3vw,2rem)] py-2 flex flex-col gap-2">
+              {/* Línea 1: sesión · título del tema (+ descripción) y navegación */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {currentSession?.title && (
+                    <>
+                      <span className="text-xs text-gray-500 truncate flex-shrink-0 max-w-[clamp(60px,15vw,12rem)]">{currentSession.title}</span>
+                      <span className="text-gray-300 flex-shrink-0">·</span>
+                    </>
+                  )}
+                  <h1 className="font-semibold text-gray-900 text-sm sm:text-base truncate min-w-0">{currentTopic?.title}</h1>
+                  {currentTopic?.description && (
+                    <div className="relative flex-shrink-0">
+                      <button
+                        onClick={() => setShowTopicInfo((v) => !v)}
+                        className="flex items-center justify-center p-1 text-gray-400 hover:text-primary-600 hover:bg-gray-100 rounded-full transition-colors"
+                        title="Ver descripción del tema"
+                        aria-label="Ver descripción del tema"
+                      >
+                        <Info className="w-4 h-4" />
+                      </button>
+                      {showTopicInfo && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setShowTopicInfo(false)} />
+                          <div className="absolute left-0 top-full mt-1 z-40 w-[min(90vw,28rem)] bg-white border border-gray-200 rounded-lg shadow-xl p-3">
+                            <p className="text-sm text-gray-700 leading-relaxed">{currentTopic.description}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-              {/* Título del tema - más compacto */}
-              <h1 className={`font-bold text-gray-900 transition-all duration-300 ease-out ${isScrolled ? 'fluid-text-sm mb-0' : 'fluid-text-xl fluid-mb-1'}`}>{currentTopic?.title}</h1>
-              {/* Descripción - se oculta al hacer scroll */}
-              {currentTopic?.description && (
-                <p className={`text-gray-600 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'fluid-text-sm h-auto opacity-100 fluid-mb-2'}`}>{currentTopic.description}</p>
-              )}
-
-              {/* Tabs de contenido - más compactas */}
-              <div className={`border-b border-gray-200 transition-all duration-300 ease-out ${isScrolled ? 'mb-0 mt-0' : 'fluid-mb-3 fluid-mt-2'}`}>
-                <nav className={`flex overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${isScrolled ? 'fluid-gap-2' : 'fluid-gap-4'}`}>
+                {/* Pestañas de material como íconos (cambio con un clic) */}
+                <nav className="flex items-center gap-0.5 flex-shrink-0">
                   {currentTopic?.allow_reading !== false && (
                     <button
                       onClick={() => handleTabChange('reading')}
-                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
-                        activeTab === 'reading'
-                          ? 'border-primary-600 text-primary-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      title="Lectura"
+                      aria-label="Lectura"
+                      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                        activeTab === 'reading' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="flex items-center fluid-gap-1">
-                        <FileText className="fluid-icon-xs" />
-                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Lectura</span>
-                        {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
-                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
-                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                          </span>
-                        )}
-                      </div>
+                      <FileText className="w-5 h-5" />
+                      {currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full ring-2 ring-white" />
+                      )}
                     </button>
                   )}
                   {currentTopic?.allow_video !== false && (
                     <button
                       onClick={() => handleTabChange('video')}
-                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
-                        activeTab === 'video'
-                          ? 'border-primary-600 text-primary-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      title="Video"
+                      aria-label="Video"
+                      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                        activeTab === 'video' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="flex items-center fluid-gap-1">
-                        <Video className="fluid-icon-xs" />
-                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Video</span>
-                        {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
-                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
-                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                          </span>
-                        )}
-                      </div>
+                      <Video className="w-5 h-5" />
+                      {currentTopic?.video && completedContents.video.has(currentTopic.video.id) && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full ring-2 ring-white" />
+                      )}
                     </button>
                   )}
                   {currentTopic?.allow_interactive !== false && (
                     <button
                       onClick={() => handleTabChange('interactive')}
-                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
-                        activeTab === 'interactive'
-                          ? 'border-primary-600 text-primary-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      title="Ejercicio"
+                      aria-label="Ejercicio"
+                      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                        activeTab === 'interactive' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="flex items-center fluid-gap-1">
-                        <Gamepad2 className="fluid-icon-xs" />
-                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Ejercicio</span>
-                        {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
-                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
-                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                          </span>
-                        )}
-                      </div>
+                      <Gamepad2 className="w-5 h-5" />
+                      {currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full ring-2 ring-white" />
+                      )}
                     </button>
                   )}
                   {currentTopic?.allow_downloadable !== false && (
                     <button
                       onClick={() => handleTabChange('downloadable')}
-                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
-                        activeTab === 'downloadable'
-                          ? 'border-primary-600 text-primary-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      title="Recursos"
+                      aria-label="Recursos"
+                      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                        activeTab === 'downloadable' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="flex items-center fluid-gap-1">
-                        <Download className="fluid-icon-xs" />
-                        <span className={isScrolled ? 'hidden sm:inline' : ''}>Recursos</span>
-                        {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
-                          <span className="flex items-center justify-center fluid-icon-xs bg-green-500 rounded-full">
-                            <Check className="w-2 h-2 text-white" strokeWidth={3} />
-                          </span>
-                        )}
-                      </div>
+                      <Download className="w-5 h-5" />
+                      {currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) && (
+                        <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full ring-2 ring-white" />
+                      )}
                     </button>
                   )}
                   {currentTopic?.allow_scorm !== false && currentTopic?.scorm_package && (
                     <button
                       onClick={() => handleTabChange('scorm')}
-                      className={`fluid-text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${isScrolled ? 'pb-1' : 'fluid-py-2'} ${
-                        activeTab === 'scorm'
-                          ? 'border-primary-600 text-primary-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      title="SCORM"
+                      aria-label="SCORM"
+                      className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
+                        activeTab === 'scorm' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <div className="flex items-center fluid-gap-1">
-                        <Package className="fluid-icon-xs" />
-                        <span className={isScrolled ? 'hidden sm:inline' : ''}>SCORM</span>
-                      </div>
+                      <Package className="w-5 h-5" />
                     </button>
                   )}
                 </nav>
+
+                {/* Control del ejercicio (solo durante el ejercicio): Instrucciones */}
+                {activeTab === 'interactive' && exerciseStarted && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => setShowInstructionsModal(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-primary-700 hover:bg-primary-50 border border-primary-200 transition-colors"
+                      title="Ver título e instrucciones del ejercicio"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="hidden md:inline">Instrucciones</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Separador */}
+                <div className="h-6 w-px bg-gray-200 flex-shrink-0 hidden sm:block" />
+
+                {/* Navegación entre contenidos/temas (antes en la barra inferior) */}
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={goToPreviousContent}
+                    disabled={!hasPreviousContent()}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      hasPreviousContent()
+                        ? 'text-gray-700 hover:bg-gray-100 border border-gray-300'
+                        : 'text-gray-300 border border-gray-200 cursor-not-allowed'
+                    }`}
+                    title="Anterior"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden md:inline">Atrás</span>
+                  </button>
+                  <button
+                    onClick={goToNextContent}
+                    disabled={!hasNextContent()}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      hasNextContent()
+                        ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
+                        : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                    }`}
+                    title="Siguiente"
+                  >
+                    <span className="hidden md:inline">Siguiente</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Contenido según tab activa */}
-          <div className="w-full px-[clamp(0.75rem,3vw,2rem)] fluid-pb-16">
+          <div className="w-full px-[clamp(0.75rem,3vw,2rem)] pb-6">
             <div className="min-h-[300px]">
               {/* Video */}
               {activeTab === 'video' && (
@@ -1574,13 +1623,14 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Título del video */}
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - amplio pero limitado por la altura disponible
-                          para que el título y el video quepan en pantalla sin scroll.
-                          El alto se traduce a ancho con la relación 16:9 del video. */}
-                      <div
-                        className="w-full"
-                        style={{ maxWidth: `min(100%, 60rem, ${Math.max(getImageMaxHeight(), 220) * 16 / 9}px)` }}
-                      >
+                      {/* Video + descripción en dos columnas (descripción a la derecha en pantallas grandes) */}
+                      <div className="flex flex-col lg:flex-row lg:items-start fluid-gap-4">
+                        {/* Columna izquierda: video. Limitado por la altura disponible
+                            (alto útil * 16/9) para que título + video quepan sin scroll. */}
+                        <div
+                          className="w-full lg:flex-1 lg:min-w-0"
+                          style={{ maxWidth: `${Math.max(getImageMaxHeight(), 220) * 16 / 9}px` }}
+                        >
                         {isAzureUrl(currentTopic.video.video_url) ? (
                           // Contenedor para videos de Azure Blob/CDN
                           <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
@@ -1623,15 +1673,16 @@ const StudyContentPreviewPage: React.FC = () => {
                             </div>
                           </div>
                         )}
+                        </div>
+
+                        {/* Columna derecha: descripción del video */}
+                        {currentTopic.video.description && (
+                          <div
+                            className="w-full lg:w-[clamp(18rem,32%,26rem)] lg:flex-shrink-0 lg:max-h-[70vh] lg:overflow-y-auto reading-content prose prose-sm max-w-none fluid-text-sm prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-blockquote:text-gray-600 prose-blockquote:border-gray-300"
+                            dangerouslySetInnerHTML={{ __html: sanitizeReadingHtml(currentTopic.video.description) }}
+                          />
+                        )}
                       </div>
-                      
-                      {/* Descripción del video - abajo */}
-                      {currentTopic.video.description && (
-                        <div 
-                          className="reading-content fluid-pt-2 prose prose-sm max-w-none fluid-text-sm prose-headings:text-gray-900 prose-headings:font-semibold prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-primary-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:marker:text-gray-400 prose-blockquote:text-gray-600 prose-blockquote:border-gray-300"
-                          dangerouslySetInnerHTML={{ __html: sanitizeReadingHtml(currentTopic.video.description) }}
-                        />
-                      )}
                       
                       {/* Estado de completado del video */}
                       <div className="fluid-mt-3 fluid-pt-3 border-t border-gray-200">
@@ -2038,40 +2089,8 @@ const StudyContentPreviewPage: React.FC = () => {
 
                           return (
                             <>
-                              {/* Header del ejercicio con progreso */}
-                              <div className="bg-white border border-gray-200 rounded-fluid-lg shadow-sm overflow-hidden flex-shrink-0">
-                                <div className="flex items-center justify-between fluid-px-4 fluid-py-2">
-                                  <div className="flex items-center fluid-gap-3 min-w-0 flex-1">
-                                    <div className="fluid-p-2 bg-primary-100 rounded-fluid-md flex-shrink-0">
-                                      <Gamepad2 className="fluid-icon-md text-primary-600" />
-                                    </div>
-                                    <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentTopic.interactive_exercise.title}</h3>
-                                  </div>
-                                  <div className="flex items-center fluid-gap-1 flex-shrink-0">
-                                    {/* Bot\u00f3n para abrir las instrucciones en un modal (libera espacio) */}
-                                    {currentTopic.interactive_exercise.description && (
-                                      <button
-                                        onClick={() => setShowInstructionsModal(true)}
-                                        className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 rounded-fluid-md bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 transition-colors fluid-text-sm font-medium"
-                                        title="Ver instrucciones del ejercicio"
-                                      >
-                                        <FileText className="fluid-icon-sm" />
-                                        <span className="hidden sm:inline">Instrucciones</span>
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={resetExerciseState}
-                                      className="fluid-p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-fluid-md transition-colors"
-                                      title="Salir del ejercicio"
-                                    >
-                                      <X className="fluid-icon-md" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Modal de instrucciones del ejercicio */}
-                              {showInstructionsModal && currentTopic.interactive_exercise.description && (
+                              {/* Modal: t\u00edtulo del ejercicio + sus instrucciones debajo */}
+                              {showInstructionsModal && (
                                 <div
                                   className="fixed inset-0 z-50 flex items-center justify-center fluid-p-4 bg-black/40"
                                   onClick={() => setShowInstructionsModal(false)}
@@ -2084,22 +2103,26 @@ const StudyContentPreviewPage: React.FC = () => {
                                   >
                                     <div className="flex items-center justify-between fluid-px-4 fluid-py-3 border-b border-gray-200 flex-shrink-0">
                                       <div className="flex items-center fluid-gap-2 min-w-0">
-                                        <FileText className="fluid-icon-sm text-primary-600 flex-shrink-0" />
-                                        <h3 className="font-semibold text-gray-900 fluid-text-base truncate">Instrucciones</h3>
+                                        <Gamepad2 className="fluid-icon-sm text-primary-600 flex-shrink-0" />
+                                        <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentTopic.interactive_exercise.title}</h3>
                                       </div>
                                       <button
                                         onClick={() => setShowInstructionsModal(false)}
                                         className="fluid-p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-fluid-md transition-colors flex-shrink-0"
-                                        aria-label="Cerrar instrucciones"
+                                        aria-label="Cerrar"
                                       >
                                         <X className="fluid-icon-sm" />
                                       </button>
                                     </div>
                                     <div className="fluid-p-4 overflow-y-auto">
-                                      <div
-                                        className="prose prose-sm max-w-none text-gray-800 reading-content fluid-text-sm"
-                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
-                                      />
+                                      {currentTopic.interactive_exercise.description ? (
+                                        <div
+                                          className="prose prose-sm max-w-none text-gray-800 reading-content fluid-text-sm"
+                                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
+                                        />
+                                      ) : (
+                                        <p className="text-sm text-gray-500">Este ejercicio no tiene instrucciones adicionales.</p>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -2107,7 +2130,7 @@ const StudyContentPreviewPage: React.FC = () => {
 
                               {/* Área de la imagen con acciones superpuestas */}
                               <div className="flex items-center justify-center">
-                                <div 
+                                <div
                                   ref={imageContainerRef}
                                   className="relative bg-white rounded-fluid-lg border border-gray-200"
                                 >
@@ -2119,8 +2142,8 @@ const StudyContentPreviewPage: React.FC = () => {
                                         alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
                                         className="block rounded-fluid-lg"
                                         style={{
-                                          maxHeight: `${getImageMaxHeight()}px`,
-                                          maxWidth: 'calc(100vw - 80px)',
+                                          maxHeight: `${getExerciseImageMaxHeight()}px`,
+                                          maxWidth: 'calc(100vw - 48px)',
                                           width: 'auto',
                                           height: 'auto',
                                         }}
@@ -2180,73 +2203,6 @@ const StudyContentPreviewPage: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Navegación de pasos - estilo profesional */}
-                              <div className="bg-white border border-gray-200 rounded-fluid-lg fluid-px-4 fluid-py-2 flex justify-between items-center shadow-sm flex-shrink-0">
-                                <button
-                                  onClick={() => setCurrentStepIndex(Math.max(0, currentStepIndex - 1))}
-                                  disabled={currentStepIndex === 0}
-                                  className={`fluid-px-3 fluid-py-1 fluid-text-xs font-medium rounded-fluid-md flex items-center fluid-gap-1 transition-colors ${
-                                    currentStepIndex === 0 
-                                      ? 'text-gray-300 cursor-not-allowed' 
-                                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                                  }`}
-                                >
-                                  <ChevronLeft className="fluid-icon-sm" />
-                                  <span className="hidden xs:inline">Paso anterior</span>
-                                  <span className="xs:hidden">Atrás</span>
-                                </button>
-                                
-                                {currentStepIndex < steps.length - 1 ? (
-                                  <button
-                                    onClick={() => {
-                                      if (!isStepDone) return;
-                                      // Forzar blur de cualquier input activo para guardar respuestas parciales
-                                      if (document.activeElement instanceof HTMLElement) {
-                                        document.activeElement.blur();
-                                      }
-                                      // Dar tiempo para que el blur y setState se procesen
-                                      setTimeout(() => {
-                                        setCurrentStepIndex(currentStepIndex + 1);
-                                      }, 50);
-                                    }}
-                                    disabled={!isStepDone}
-                                    className={`fluid-px-4 fluid-py-1 fluid-text-xs font-semibold rounded-fluid-md flex items-center fluid-gap-1 transition-colors shadow-sm ${
-                                      isStepDone
-                                        ? 'text-white bg-primary-600 hover:bg-primary-700'
-                                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                                    }`}
-                                  >
-                                    <span className="hidden xs:inline">Siguiente paso</span>
-                                    <span className="xs:hidden">Siguiente</span>
-                                    <ChevronRight className="fluid-icon-sm" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      if (!isStepDone) return;
-                                      // Forzar blur de cualquier input activo para guardar respuestas parciales
-                                      if (document.activeElement instanceof HTMLElement) {
-                                        document.activeElement.blur();
-                                      }
-                                      // Dar tiempo para que el blur y setState se procesen
-                                      setTimeout(() => {
-                                        // Pasar undefined para que use el estado actual de actionResponses
-                                        completeExercise();
-                                      }, 100);
-                                    }}
-                                    disabled={!isStepDone}
-                                    className={`fluid-px-4 fluid-py-1 fluid-text-xs font-semibold rounded-fluid-md flex items-center fluid-gap-1 transition-colors shadow-sm ${
-                                      isStepDone
-                                        ? 'text-white bg-green-600 hover:bg-green-700'
-                                        : 'text-gray-400 bg-gray-200 cursor-not-allowed'
-                                    }`}
-                                  >
-                                    <Check className="fluid-icon-sm" />
-                                    <span className="hidden xs:inline">Finalizar ejercicio</span>
-                                    <span className="xs:hidden">Finalizar</span>
-                                  </button>
-                                )}
-                              </div>
                             </>
                           );
                         })()}
@@ -2262,43 +2218,8 @@ const StudyContentPreviewPage: React.FC = () => {
               )}
             </div>
 
-            {/* Espaciado para la barra fija inferior */}
-            <div className="h-20" />
           </div>
         </main>
-      </div>
-
-      {/* Barra de navegación fija inferior */}
-      <div ref={bottomBarRef} className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-        <div className="w-full fluid-px-6 fluid-py-3">
-          <div className="flex items-center justify-between sm:justify-end fluid-gap-4">
-            <button
-              onClick={goToPreviousContent}
-              disabled={!hasPreviousContent()}
-              className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm rounded-fluid-md font-medium transition-colors ${
-                hasPreviousContent()
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300'
-                  : 'bg-gray-50 text-gray-300 border border-gray-200 cursor-not-allowed'
-              }`}
-            >
-              <ArrowLeft className="fluid-icon-sm" />
-              <span className="hidden xs:inline">Atrás</span>
-            </button>
-
-            <button
-              onClick={goToNextContent}
-              disabled={!hasNextContent()}
-              className={`flex items-center fluid-gap-2 fluid-px-4 fluid-py-2 fluid-text-sm rounded-fluid-md font-medium transition-colors ${
-                hasNextContent()
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm'
-                  : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-              }`}
-            >
-              <span className="hidden xs:inline">Siguiente</span>
-              <ChevronRight className="fluid-icon-sm" />
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Modal de error para ejercicio interactivo */}
