@@ -1288,14 +1288,6 @@ const StudyContentPreviewPage: React.FC = () => {
               <Menu className="w-4 h-4" />
               <span className="hidden sm:inline">Temario</span>
             </button>
-            <button
-              onClick={() => navigate(`/study-contents/${materialId}`)}
-              className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors text-sm font-medium flex-shrink-0"
-              title="Volver al material"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden md:inline">Volver</span>
-            </button>
             <div className="h-5 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
             <h1 className="font-semibold text-gray-900 truncate text-sm sm:text-base min-w-0">
               {material.title}
@@ -1329,22 +1321,34 @@ const StudyContentPreviewPage: React.FC = () => {
           `}
         >
           {/* Header del sidebar - fijo */}
-          <div className="fluid-p-4 border-b border-gray-200 bg-white flex-shrink-0 flex items-start justify-between fluid-gap-2">
-            <div className="min-w-0">
-              <div className="text-primary-600 fluid-mb-1">
-                <span className="fluid-text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
+          <div className="border-b border-gray-200 bg-white flex-shrink-0">
+            {/* Fila superior: volver al material + cerrar */}
+            <div className="flex items-center justify-between px-2 pt-2">
+              <button
+                onClick={() => navigate(`/study-contents/${materialId}`)}
+                className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors min-w-0"
+                title="Volver al material"
+              >
+                <ArrowLeft className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">Volver al material</span>
+              </button>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="flex-shrink-0 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Cerrar navegación"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Título de la sección */}
+            <div className="px-4 pb-3 pt-1">
+              <div className="text-primary-600 mb-0.5">
+                <span className="text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
               </div>
-              <p className="fluid-text-xs text-gray-500">
+              <p className="text-xs text-gray-500">
                 {material.sessions?.length || 0} sesiones · {getTotalTopics()} temas
               </p>
             </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="flex-shrink-0 fluid-p-1 -mr-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-fluid-md transition-colors"
-              aria-label="Cerrar navegación"
-            >
-              <X className="fluid-icon-sm" />
-            </button>
           </div>
 
           {/* Lista de sesiones y temas - scrolleable */}
