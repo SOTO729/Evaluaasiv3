@@ -324,6 +324,14 @@ const EDITOR_CONFIG = {
   DEFAULT_ZOOM: 1
 }
 
+// Ancho de referencia para escalar las medidas en px de los comentarios
+// (fuente, borde, radio, punta del bocadillo). Las cajas son porcentuales, así que
+// para que el comentario ocupe la MISMA fracción de la imagen aquí y en el
+// reproductor (StudyContentPreviewPage usa el mismo valor), ambos escalan por
+// (ancho mostrado de la imagen / este valor). El valor en sí se cancela entre
+// editor y reproductor: lo importante es que sea idéntico en ambos.
+const COMMENT_REFERENCE_WIDTH = 1400
+
 const StudyInteractiveExercisePage = () => {
   const { id: materialId, sessionId, topicId } = useParams<{ 
     id: string; 
@@ -333,6 +341,7 @@ const StudyInteractiveExercisePage = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const imageContainerRef = useRef<HTMLDivElement>(null)
+  const canvasImageRef = useRef<HTMLImageElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const replaceImageInputRef = useRef<HTMLInputElement>(null)
 
@@ -402,6 +411,18 @@ const StudyInteractiveExercisePage = () => {
   
   // Estado para descarga de imagen
   const [isDownloading, setIsDownloading] = useState(false)
+
+  // Ancho mostrado (layout, sin el transform de zoom) de la imagen del lienzo.
+  // Se usa para escalar las medidas en px de los comentarios igual que el
+  // reproductor, de modo que se vean idénticos.
+  const [renderedImageWidth, setRenderedImageWidth] = useState(0)
+  const editorScale = renderedImageWidth ? renderedImageWidth / COMMENT_REFERENCE_WIDTH : 1
+
+  useEffect(() => {
+    const updateWidth = () => setRenderedImageWidth(canvasImageRef.current?.clientWidth || 0)
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [])
   
   // Ref para el elemento de rubber band (evita re-renders)
   const rubberBandRef = useRef<HTMLDivElement>(null)
@@ -2529,10 +2550,12 @@ const StudyInteractiveExercisePage = () => {
                       }}
                     >
                       <img
+                        ref={canvasImageRef}
                         src={currentStep.image_url}
                         alt={`Paso ${currentStep.step_number}`}
                         className="w-full h-auto pointer-events-none rounded-fluid-lg"
                         draggable={false}
+                        onLoad={() => setRenderedImageWidth(canvasImageRef.current?.clientWidth || 0)}
                       />
 
                       {/* Rubber band optimizado con ref (manipulación directa del DOM) */}
@@ -2621,7 +2644,7 @@ const StudyInteractiveExercisePage = () => {
                         
                         if (showPointer) {
                           // Tamaño base del triángulo
-                          const triangleSize = 12
+                          const triangleSize = 12 * editorScale
                           
                           // Detectar esquinas (combinaciones de direcciones)
                           const isCornerTopLeft = isPointerTop && isPointerLeft
@@ -2772,9 +2795,9 @@ const StudyInteractiveExercisePage = () => {
                               height: `${action.height}%`,
                               zIndex: 5,
                               backgroundColor: bgColor,
-                              border: `2px solid ${borderColor}`,
-                              borderRadius: '12px',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                              border: `${2 * editorScale}px solid ${borderColor}`,
+                              borderRadius: `${12 * editorScale}px`,
+                              boxShadow: `0 ${2 * editorScale}px ${8 * editorScale}px rgba(0,0,0,0.15)`,
                             }}
                             onClick={(e) => e.stopPropagation()}
                             onMouseDown={(e) => handleActionMouseDown(e, action)}
@@ -2783,14 +2806,15 @@ const StudyInteractiveExercisePage = () => {
                             {/* Punta del bocadillo (estilo cómic) */}
                             {showPointer && <div style={pointerStyle} />}
                             
-                            <div 
-                              className="absolute inset-0 flex items-center justify-center p-2 overflow-hidden"
+                            <div
+                              className="absolute inset-0 flex items-center justify-center overflow-hidden"
                               style={{
                                 color: borderColor,
-                                fontSize: `${action.comment_font_size || 14}px`,
+                                fontSize: `${(action.comment_font_size || 14) * editorScale}px`,
                                 fontWeight: 500,
                                 textAlign: 'center',
                                 lineHeight: 1.3,
+                                padding: `${8 * editorScale}px`,
                               }}
                             >
                               <span className="truncate">{action.comment_text || action.label || 'Comentario'}</span>
