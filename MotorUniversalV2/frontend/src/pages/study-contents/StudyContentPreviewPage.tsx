@@ -1486,6 +1486,20 @@ const StudyContentPreviewPage: React.FC = () => {
                   )}
                 </div>
 
+                {/* Control del ejercicio (solo durante el ejercicio): Instrucciones — a la izquierda de los íconos */}
+                {activeTab === 'interactive' && exerciseStarted && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => setShowInstructionsModal(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-primary-700 hover:bg-primary-50 border border-primary-200 transition-colors"
+                      title="Ver título e instrucciones del ejercicio"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="hidden md:inline">Instrucciones</span>
+                    </button>
+                  </div>
+                )}
+
                 {/* Pestañas de material como íconos (cambio con un clic) */}
                 <nav className="flex items-center gap-0.5 flex-shrink-0">
                   {currentTopic?.allow_reading !== false && (
@@ -1561,20 +1575,6 @@ const StudyContentPreviewPage: React.FC = () => {
                     </button>
                   )}
                 </nav>
-
-                {/* Control del ejercicio (solo durante el ejercicio): Instrucciones */}
-                {activeTab === 'interactive' && exerciseStarted && (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => setShowInstructionsModal(true)}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium text-primary-700 hover:bg-primary-50 border border-primary-200 transition-colors"
-                      title="Ver título e instrucciones del ejercicio"
-                    >
-                      <FileText className="w-4 h-4" />
-                      <span className="hidden md:inline">Instrucciones</span>
-                    </button>
-                  </div>
-                )}
 
                 {/* Separador */}
                 <div className="h-6 w-px bg-gray-200 flex-shrink-0 hidden sm:block" />
