@@ -1579,7 +1579,7 @@ const StudyContentPreviewPage: React.FC = () => {
                           El alto se traduce a ancho con la relación 16:9 del video. */}
                       <div
                         className="w-full"
-                        style={{ maxWidth: `min(100%, 56rem, ${Math.max(getImageMaxHeight() - 40, 180) * 16 / 9}px)` }}
+                        style={{ maxWidth: `min(100%, 60rem, ${Math.max(getImageMaxHeight(), 220) * 16 / 9}px)` }}
                       >
                         {isAzureUrl(currentTopic.video.video_url) ? (
                           // Contenedor para videos de Azure Blob/CDN
