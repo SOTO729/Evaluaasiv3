@@ -76,6 +76,13 @@ const calculateSimilarity = (str1: string, str2: string): number => {
   return similarity;
 };
 
+// Ancho de referencia del lienzo del editor de ejercicios interactivos
+// (StudyInteractiveExercisePage usa maxWidth: 1400). El tamaño de fuente y demás
+// medidas en px de los comentarios se autoran sobre una imagen mostrada a ~1400px.
+// Para que el reproductor se vea IGUAL que el editor, escalamos esas medidas por
+// (ancho mostrado / 1400), ya que aquí la imagen suele mostrarse más pequeña.
+const EDITOR_CANVAS_WIDTH = 1400;
+
 const StudyContentPreviewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -2115,6 +2122,7 @@ const StudyContentPreviewPage: React.FC = () => {
                                               stepIndex={currentStepIndex}
                                               isStepCompleted={isStepDone}
                                               currentValue={actionResponses[`${action.step_id}_${action.id}`]}
+                                              scale={imageDimensions ? imageDimensions.width / EDITOR_CANVAS_WIDTH : 1}
                                               onButtonClick={handleActionClick}
                                               onTextSubmit={handleTextSubmit}
                                               onTextChange={handleTextChange}
@@ -2313,6 +2321,9 @@ interface ExerciseActionOverlayProps {
   stepIndex: number;
   isStepCompleted: boolean;
   currentValue: any;
+  /** Factor de escala (ancho mostrado / ancho del lienzo del editor) para que las
+   *  medidas en px (fuente, bordes, punta del bocadillo) se vean como en el editor. */
+  scale: number;
   onButtonClick: (action: StudyInteractiveExerciseAction, stepIndex: number) => void;
   onTextSubmit: (action: StudyInteractiveExerciseAction, stepIndex: number, value: string) => void;
   onTextChange?: (action: StudyInteractiveExerciseAction, stepIndex: number, value: string) => void;
@@ -2323,6 +2334,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
   stepIndex,
   isStepCompleted,
   currentValue,
+  scale,
   onButtonClick,
   onTextSubmit,
   onTextChange
@@ -2568,9 +2580,10 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     const showPointer = isPointerLeft || isPointerRight || isPointerTop || isPointerBottom
     
     if (showPointer) {
-      // Tamaño base del triángulo
-      const triangleSize = 12
-      
+      // Tamaño base del triángulo (escalado al tamaño mostrado de la imagen,
+      // igual que en el editor).
+      const triangleSize = 12 * scale
+
       // Detectar esquinas (combinaciones de direcciones)
       const isCornerTopLeft = isPointerTop && isPointerLeft
       const isCornerTopRight = isPointerTop && isPointerRight
@@ -2707,12 +2720,15 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
           pointerEvents: 'none', // Los comentarios no son interactivos
           zIndex: 5, // Debajo de botones y campos de texto
           backgroundColor: bgColor,
-          border: `2px solid ${textColor}40`,
-          borderRadius: '6px',
+          // Mismo estilo que el editor (borde sólido del color de texto, radio y
+          // sombra), escalado al tamaño mostrado de la imagen para verse igual.
+          border: `${2 * scale}px solid ${textColor}`,
+          borderRadius: `${12 * scale}px`,
+          boxShadow: `0 ${2 * scale}px ${8 * scale}px rgba(0,0,0,0.15)`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '4px 8px',
+          padding: `${8 * scale}px`,
           overflow: 'visible', // Permitir que la flecha salga del contenedor
         }}
       >
@@ -2721,7 +2737,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
         <span
           style={{
             color: textColor,
-            fontSize: `${fontSize}px`,
+            fontSize: `${fontSize * scale}px`,
             fontWeight: 500,
             textAlign: 'center',
             lineHeight: 1.3,
