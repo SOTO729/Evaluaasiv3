@@ -1279,10 +1279,13 @@ const StudyContentPreviewPage: React.FC = () => {
         <div className="w-full flex items-center justify-between fluid-px-4 fluid-header-height">
           <div className="flex items-center fluid-gap-3 flex-1 min-w-0">
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="fluid-p-2 hover:bg-gray-100 rounded-fluid-lg transition-colors lg:hidden flex-shrink-0"
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 rounded-fluid-lg transition-colors flex-shrink-0 font-medium fluid-text-sm"
+              aria-label="Abrir temario del curso"
+              title="Ver sesiones y temas"
             >
-              {sidebarOpen ? <X className="fluid-icon-sm" /> : <Menu className="fluid-icon-sm" />}
+              <Menu className="fluid-icon-sm" />
+              <span className="hidden sm:inline">Temario</span>
             </button>
             <button
               onClick={() => navigate(`/study-contents/${materialId}`)}
