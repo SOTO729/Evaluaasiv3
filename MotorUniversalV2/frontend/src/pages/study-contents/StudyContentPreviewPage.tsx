@@ -1276,45 +1276,41 @@ const StudyContentPreviewPage: React.FC = () => {
     <div className="bg-white flex flex-col h-full overflow-hidden">
       {/* Header minimalista - responsivo */}
       <header className="bg-white border-b border-gray-200 flex-shrink-0 z-40">
-        <div className="w-full flex items-center justify-between fluid-px-4 fluid-header-height">
-          <div className="flex items-center fluid-gap-3 flex-1 min-w-0">
+        <div className="w-full flex items-center justify-between gap-3 fluid-px-4 h-[clamp(3rem,2.75rem+0.6vw,3.75rem)]">
+          {/* Izquierda: navegación + título, todo alineado en una fila */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 rounded-fluid-lg transition-colors flex-shrink-0 font-medium fluid-text-sm"
+              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors text-sm font-medium flex-shrink-0"
               aria-label="Abrir temario del curso"
               title="Ver sesiones y temas"
             >
-              <Menu className="fluid-icon-sm" />
+              <Menu className="w-4 h-4" />
               <span className="hidden sm:inline">Temario</span>
             </button>
             <button
               onClick={() => navigate(`/study-contents/${materialId}`)}
-              className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors text-sm font-medium flex-shrink-0"
+              title="Volver al material"
             >
-              <ArrowLeft className="fluid-icon-sm" />
-              <span className="hidden sm:inline font-medium fluid-text-sm">Volver</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden md:inline">Volver</span>
             </button>
-            <div className="h-4 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
-            <h1 className="font-semibold text-gray-900 truncate fluid-text-base max-w-[clamp(100px,30vw,42rem)]">
+            <div className="h-5 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
+            <h1 className="font-semibold text-gray-900 truncate text-sm sm:text-base min-w-0">
               {material.title}
             </h1>
           </div>
-          
-          <div className="flex items-center fluid-gap-3 flex-shrink-0">
-            {/* Progreso del material - visible en tablet y desktop */}
-            <div className="hidden md:flex items-center fluid-gap-3">
-              <div className="w-[clamp(7rem,12vw,12rem)] h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary-600 rounded-full transition-all duration-500"
-                  style={{ width: `${progressStats.percentage}%` }}
-                />
-              </div>
-              <span className="fluid-text-sm font-medium text-primary-600">{progressStats.percentage}%</span>
+
+          {/* Derecha: progreso */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="hidden sm:block w-[clamp(5rem,10vw,10rem)] h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary-600 rounded-full transition-all duration-500"
+                style={{ width: `${progressStats.percentage}%` }}
+              />
             </div>
-            {/* Progreso compacto en móvil */}
-            <div className="flex md:hidden items-center">
-              <span className="fluid-text-xs font-medium text-primary-600 bg-primary-50 fluid-px-2 fluid-py-1 rounded-full">{progressStats.percentage}%</span>
-            </div>
+            <span className="text-sm font-semibold text-primary-600 tabular-nums">{progressStats.percentage}%</span>
           </div>
         </div>
       </header>
