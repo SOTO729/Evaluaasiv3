@@ -93,7 +93,9 @@ const StudyContentPreviewPage: React.FC = () => {
   const [currentSessionIndex, setCurrentSessionIndex] = useState(0);
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [activeTab, setActiveTab] = useState<'reading' | 'video' | 'downloadable' | 'interactive' | 'scorm'>('reading');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // El sidebar es un panel flotante (overlay) en todos los tamaños; arranca
+  // cerrado para dar el máximo espacio al material de estudio.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<Set<number>>(new Set([0]));
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -147,17 +149,17 @@ const StudyContentPreviewPage: React.FC = () => {
     // Más grande en móviles porque hay menos espacio vertical
     const width = typeof window !== 'undefined' ? window.innerWidth : 1024;
     
-    let offset = 450; // default para móvil pequeño - más espacio
+    let offset = 400; // default para móvil pequeño - más espacio
     if (width >= 1536) {
-      offset = 350; // 2xl
+      offset = 300; // 2xl
     } else if (width >= 1280) {
-      offset = 370; // xl
+      offset = 320; // xl
     } else if (width >= 1024) {
-      offset = 390; // lg
+      offset = 340; // lg
     } else if (width >= 768) {
-      offset = 410; // md
+      offset = 360; // md
     } else if (width >= 640) {
-      offset = 430; // sm
+      offset = 380; // sm
     }
     
     return Math.max(windowHeight - offset, 150); // mínimo 150px
@@ -595,10 +597,8 @@ const StudyContentPreviewPage: React.FC = () => {
     }
     // Reset estado del ejercicio interactivo al cambiar de tema
     resetExerciseState();
-    // En móvil, cerrar sidebar
-    if (window.innerWidth < 1024) {
-      setSidebarOpen(false);
-    }
+    // El sidebar flota sobre el contenido: cerrarlo al elegir tema para ver el material.
+    setSidebarOpen(false);
   };
 
   // Funciones para ejercicio interactivo
@@ -1318,25 +1318,34 @@ const StudyContentPreviewPage: React.FC = () => {
 
       <div className="flex flex-1 min-h-0">
         {/* Sidebar - Navegación del curso */}
-        <aside 
+        <aside
           className={`
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-0 lg:min-w-0'}
-            fixed lg:relative left-0 top-0 z-30 
-            w-[85vw] max-w-[320px] lg:w-[clamp(280px,22vw,380px)] lg:min-w-[280px]
-            bg-gray-50 border-r border-gray-200 
-            transform transition-all duration-300 ease-in-out
-            h-screen lg:h-auto lg:max-h-[calc(100vh-var(--header-height,60px))]
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            fixed left-0 top-0 z-50
+            w-[min(85vw,340px)]
+            bg-gray-50 border-r border-gray-200 shadow-2xl
+            transform transition-transform duration-300 ease-in-out
+            h-screen
             flex flex-col
           `}
         >
           {/* Header del sidebar - fijo */}
-          <div className="fluid-p-4 border-b border-gray-200 bg-white flex-shrink-0">
-            <div className="text-primary-600 fluid-mb-1">
-              <span className="fluid-text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
+          <div className="fluid-p-4 border-b border-gray-200 bg-white flex-shrink-0 flex items-start justify-between fluid-gap-2">
+            <div className="min-w-0">
+              <div className="text-primary-600 fluid-mb-1">
+                <span className="fluid-text-xs font-medium uppercase tracking-wide">Contenido de estudio</span>
+              </div>
+              <p className="fluid-text-xs text-gray-500">
+                {material.sessions?.length || 0} sesiones · {getTotalTopics()} temas
+              </p>
             </div>
-            <p className="fluid-text-xs text-gray-500">
-              {material.sessions?.length || 0} sesiones · {getTotalTopics()} temas
-            </p>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="flex-shrink-0 fluid-p-1 -mr-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-fluid-md transition-colors"
+              aria-label="Cerrar navegación"
+            >
+              <X className="fluid-icon-sm" />
+            </button>
           </div>
 
           {/* Lista de sesiones y temas - scrolleable */}
@@ -1421,10 +1430,10 @@ const StudyContentPreviewPage: React.FC = () => {
           </div>
         </aside>
 
-        {/* Overlay para móvil */}
+        {/* Fondo oscuro al abrir el sidebar flotante (todos los tamaños) */}
         {sidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/30 z-20 lg:hidden"
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -1433,7 +1442,7 @@ const StudyContentPreviewPage: React.FC = () => {
         <main ref={mainContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain" onScroll={handleMainScroll}>
           {/* Header sticky con título y pestañas - más compacto */}
           <div className={`sticky top-0 z-20 bg-white border-b border-gray-100 transition-all duration-300 ease-out ${isScrolled ? 'py-0.5' : ''}`}>
-            <div className={`w-full px-[clamp(1rem,4vw,3rem)] transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
+            <div className={`w-full px-[clamp(0.75rem,3vw,2rem)] transition-all duration-300 ease-out ${isScrolled ? 'pt-0.5 pb-0' : 'fluid-py-3 pb-0'}`}>
               {/* Breadcrumb - se oculta al hacer scroll */}
               <div className={`flex items-center fluid-gap-1 fluid-text-xs text-gray-500 transition-all duration-300 ease-out overflow-hidden ${isScrolled ? 'h-0 opacity-0 mb-0' : 'h-auto opacity-100 fluid-mb-1'}`}>
                 <span className="truncate max-w-[clamp(80px,15vw,none)]">{currentSession?.title}</span>
@@ -1552,7 +1561,7 @@ const StudyContentPreviewPage: React.FC = () => {
           </div>
 
           {/* Contenido según tab activa */}
-          <div className="w-full px-[clamp(1rem,4vw,3rem)] fluid-pb-16">
+          <div className="w-full px-[clamp(0.75rem,3vw,2rem)] fluid-pb-16">
             <div className="min-h-[300px]">
               {/* Video */}
               {activeTab === 'video' && (
@@ -1562,8 +1571,8 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Título del video */}
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - fluid pero más contenido que el resto */}
-                      <div className="w-full max-w-[clamp(20rem,50vw,48rem)]">
+                      {/* Video container - amplio para dar énfasis al material */}
+                      <div className="w-full max-w-[min(100%,64rem)]">
                         {isAzureUrl(currentTopic.video.video_url) ? (
                           // Contenedor para videos de Azure Blob/CDN
                           <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
