@@ -117,6 +117,8 @@ const StudyContentPreviewPage: React.FC = () => {
   const [stepCompleted, setStepCompleted] = useState<Record<string, boolean>>({});
   const [actionResponses, setActionResponses] = useState<Record<string, any>>({});
   const [exerciseCompleted, setExerciseCompleted] = useState(false);
+  // Modal de resultado: se muestra al terminar y se puede cerrar manteniendo la última imagen.
+  const [showResultModal, setShowResultModal] = useState(false);
   const [exerciseScore, setExerciseScore] = useState<{ score: number; maxScore: number; percentage: number } | null>(null);
   const [actionErrors, setActionErrors] = useState<Record<string, { message: string; attempts: number }>>({});
   const [showErrorModal, setShowErrorModal] = useState<{ message: string; actionKey: string } | null>(null);
@@ -616,6 +618,7 @@ const StudyContentPreviewPage: React.FC = () => {
     setStepCompleted({});
     setActionResponses({});
     setExerciseCompleted(false);
+    setShowResultModal(false);
     setExerciseScore(null);
     setActionErrors({});
     setShowErrorModal(null);
@@ -777,6 +780,7 @@ const StudyContentPreviewPage: React.FC = () => {
     const result = evaluateExercise(updatedResponses);
     setExerciseScore(result);
     setExerciseCompleted(true);
+    setShowResultModal(true);
     
     // Registrar el progreso siempre (el backend guardará la mejor calificación)
     if (currentTopic?.interactive_exercise?.id) {
@@ -806,6 +810,30 @@ const StudyContentPreviewPage: React.FC = () => {
       }
     }
   };
+
+  // Si el paso actual no tiene acciones que lo completen (botón/campo de texto), no
+  // hay forma de avanzar manualmente (ya no existe la barra de pasos): avanzamos solo,
+  // y si es el último paso finalizamos el ejercicio (evalúa y muestra el resultado).
+  useEffect(() => {
+    if (activeTab !== 'interactive' || !exerciseStarted || exerciseCompleted) return;
+    const steps = currentTopic?.interactive_exercise?.steps || [];
+    const step = steps[currentStepIndex];
+    if (!step) return;
+    const hasCompletableAction = (step.actions || []).some(
+      (a: StudyInteractiveExerciseAction) => a.action_type === 'button' || a.action_type === 'text_input'
+    );
+    if (hasCompletableAction) return; // el flujo normal (clic/respuesta) avanza o finaliza
+    const isLastStep = currentStepIndex >= steps.length - 1;
+    const timer = setTimeout(() => {
+      if (isLastStep) {
+        completeExercise();
+      } else {
+        setCurrentStepIndex((i) => i + 1);
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, exerciseStarted, exerciseCompleted, currentStepIndex, currentTopic]);
 
   const handleActionClick = (action: StudyInteractiveExerciseAction, stepIndex: number) => {
     const exerciseId = currentTopic?.interactive_exercise?.id;
@@ -1985,88 +2013,6 @@ const StudyContentPreviewPage: React.FC = () => {
                           </p>
                         )}
                       </article>
-                    ) : exerciseCompleted ? (
-                      // Vista de ejercicio completado con calificación
-                      <div className={`rounded-fluid-lg fluid-p-6 text-center ${
-                        exerciseScore && exerciseScore.percentage >= 100 
-                          ? 'bg-gradient-to-br from-green-50 to-emerald-50' 
-                          : 'bg-gradient-to-br from-amber-50 to-orange-50'
-                      }`}>
-                        {/* Círculo con calificación */}
-                        <div className="relative inline-flex items-center justify-center fluid-mb-4">
-                          <svg className="w-[clamp(5rem,10vw,6rem)] h-[clamp(5rem,10vw,6rem)] transform -rotate-90">
-                            <circle
-                              cx="50%"
-                              cy="50%"
-                              r="42%"
-                              stroke="currentColor"
-                              strokeWidth="5"
-                              fill="none"
-                              className="text-gray-200"
-                            />
-                            <circle
-                              cx="50%"
-                              cy="50%"
-                              r="42%"
-                              stroke="currentColor"
-                              strokeWidth="5"
-                              fill="none"
-                              strokeDasharray={`${(exerciseScore?.percentage || 0) * 2.64} 264`}
-                              className={exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-500' : 'text-amber-500'}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className={`fluid-text-xl font-bold ${
-                              exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'
-                            }`}>
-                              {exerciseScore?.percentage || 0}%
-                            </span>
-                            <span className="fluid-text-xs text-gray-500">
-                              {exerciseScore?.score || 0}/{exerciseScore?.maxScore || 0}
-                            </span>
-                          </div>
-                        </div>
-
-                        <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-1">
-                          {exerciseScore && exerciseScore.percentage >= 100 
-                            ? '¡Excelente trabajo!' 
-                            : 'Sigue practicando'}
-                        </h2>
-                        <p className="text-gray-600 fluid-text-sm fluid-mb-1">
-                          Has completado el ejercicio "{currentTopic.interactive_exercise.title}"
-                        </p>
-                        <p className={`fluid-text-xs fluid-mb-4 ${
-                          exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'
-                        }`}>
-                          {exerciseScore && exerciseScore.percentage >= 100 
-                            ? '¡Perfecto! Todas las respuestas correctas'
-                            : 'Necesitas 100% para completar este ejercicio'}
-                        </p>
-
-                        <div className="flex flex-col sm:flex-row justify-center fluid-gap-3">
-                          <button
-                            onClick={resetExerciseState}
-                            className="fluid-px-4 fluid-py-2 bg-white text-gray-700 fluid-text-sm rounded-fluid-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center justify-center fluid-gap-2 border border-gray-300"
-                          >
-                            <RotateCcw className="fluid-icon-sm" />
-                            Practicar de nuevo
-                          </button>
-                          {hasNextContent() && (
-                            <button
-                              onClick={goToNextContent}
-                              className={`fluid-px-4 fluid-py-2 text-white fluid-text-sm rounded-fluid-lg font-medium transition-colors inline-flex items-center justify-center fluid-gap-2 ${
-                                exerciseScore && exerciseScore.percentage >= 100 
-                                  ? 'bg-green-600 hover:bg-green-700' 
-                                  : 'bg-amber-500 hover:bg-amber-600'
-                              }`}
-                            >
-                              Continuar
-                              <ChevronRight className="fluid-icon-sm" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
                     ) : (
                       // Vista de ejecución del ejercicio - Pasos (diseño profesional)
                       <div 
@@ -2089,6 +2035,86 @@ const StudyContentPreviewPage: React.FC = () => {
 
                           return (
                             <>
+                              {/* Modal de resultado: la \u00faltima imagen permanece visible detr\u00e1s */}
+                              {showResultModal && (
+                                <div
+                                  className="fixed inset-0 z-50 flex items-center justify-center fluid-p-4 bg-black/50"
+                                  onClick={() => setShowResultModal(false)}
+                                  role="dialog"
+                                  aria-modal="true"
+                                >
+                                  <div
+                                    className="relative bg-white rounded-fluid-lg shadow-2xl w-full max-w-md overflow-hidden"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      onClick={() => setShowResultModal(false)}
+                                      aria-label="Cerrar"
+                                      className="absolute top-2 right-2 z-10 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                    <div
+                                      className={`fluid-p-6 text-center flex flex-col items-center ${
+                                        exerciseScore && exerciseScore.percentage >= 100
+                                          ? 'bg-gradient-to-br from-green-50 to-emerald-50'
+                                          : 'bg-gradient-to-br from-amber-50 to-orange-50'
+                                      }`}
+                                    >
+                                      {/* C\u00edrculo con calificaci\u00f3n */}
+                                      <div className="relative inline-flex items-center justify-center fluid-mb-4">
+                                        <svg className="w-[clamp(5rem,10vw,6rem)] h-[clamp(5rem,10vw,6rem)] transform -rotate-90">
+                                          <circle cx="50%" cy="50%" r="42%" stroke="currentColor" strokeWidth="5" fill="none" className="text-gray-200" />
+                                          <circle
+                                            cx="50%" cy="50%" r="42%" stroke="currentColor" strokeWidth="5" fill="none"
+                                            strokeDasharray={`${(exerciseScore?.percentage || 0) * 2.64} 264`}
+                                            className={exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-500' : 'text-amber-500'}
+                                            strokeLinecap="round"
+                                          />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                          <span className={`fluid-text-xl font-bold ${exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'}`}>
+                                            {exerciseScore?.percentage || 0}%
+                                          </span>
+                                          <span className="fluid-text-xs text-gray-500">
+                                            {exerciseScore?.score || 0}/{exerciseScore?.maxScore || 0}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      <h2 className="fluid-text-lg font-bold text-gray-900 fluid-mb-1">
+                                        {exerciseScore && exerciseScore.percentage >= 100 ? '\u00a1Excelente trabajo!' : 'Sigue practicando'}
+                                      </h2>
+                                      <p className="text-gray-600 fluid-text-sm fluid-mb-1">
+                                        Has completado el ejercicio "{currentTopic.interactive_exercise.title}"
+                                      </p>
+                                      <p className={`fluid-text-xs fluid-mb-4 ${exerciseScore && exerciseScore.percentage >= 100 ? 'text-green-600' : 'text-amber-600'}`}>
+                                        {exerciseScore && exerciseScore.percentage >= 100 ? '\u00a1Perfecto! Todas las respuestas correctas' : 'Necesitas 100% para completar este ejercicio'}
+                                      </p>
+
+                                      <div className="flex flex-col sm:flex-row justify-center fluid-gap-2 w-full">
+                                        <button
+                                          onClick={resetExerciseState}
+                                          className="fluid-px-4 fluid-py-2 bg-white text-gray-700 fluid-text-sm rounded-fluid-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center justify-center fluid-gap-2 border border-gray-300"
+                                        >
+                                          <RotateCcw className="fluid-icon-sm" />
+                                          Practicar de nuevo
+                                        </button>
+                                        {hasNextContent() && (
+                                          <button
+                                            onClick={goToNextContent}
+                                            className="fluid-px-4 fluid-py-2 bg-green-600 text-white fluid-text-sm rounded-fluid-lg font-medium hover:bg-green-700 transition-colors inline-flex items-center justify-center fluid-gap-2"
+                                          >
+                                            Continuar
+                                            <ChevronRight className="fluid-icon-sm" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Modal: t\u00edtulo del ejercicio + sus instrucciones debajo */}
                               {showInstructionsModal && (
                                 <div
