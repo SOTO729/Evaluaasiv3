@@ -1574,8 +1574,13 @@ const StudyContentPreviewPage: React.FC = () => {
                       {/* Título del video */}
                       <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-py-1 border-b border-gray-300">{currentTopic.video.title}</h2>
                       
-                      {/* Video container - amplio para dar énfasis al material */}
-                      <div className="w-full max-w-[min(100%,64rem)]">
+                      {/* Video container - amplio pero limitado por la altura disponible
+                          para que el título y el video quepan en pantalla sin scroll.
+                          El alto se traduce a ancho con la relación 16:9 del video. */}
+                      <div
+                        className="w-full"
+                        style={{ maxWidth: `min(100%, 56rem, ${Math.max(getImageMaxHeight() - 40, 180) * 16 / 9}px)` }}
+                      >
                         {isAzureUrl(currentTopic.video.video_url) ? (
                           // Contenedor para videos de Azure Blob/CDN
                           <div className="relative w-full bg-black rounded-fluid-lg overflow-hidden shadow-md">
