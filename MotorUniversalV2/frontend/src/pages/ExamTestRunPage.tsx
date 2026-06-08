@@ -62,6 +62,10 @@ const ExamTestRunPage: React.FC = () => {
   const [exerciseResponses, setExerciseResponses] = useState<Record<string, Record<string, any>>>({});
   const [stepCompleted, setStepCompleted] = useState<Record<string, boolean>>({});
   const imageContainerRef = useRef<HTMLDivElement>(null);
+  // Altura máxima de la imagen del ejercicio: espacio disponible desde donde empieza
+  // la imagen hasta justo encima del footer, para que se vea lo más grande posible
+  // sin salirse de la pantalla (se adapta al enunciado que va arriba).
+  const [exerciseImgMaxHeight, setExerciseImgMaxHeight] = useState<number | null>(null);
   
   // Estado para trackear preguntas de ordenamiento que han sido interactuadas
   const [orderingInteracted, setOrderingInteracted] = useState<Record<string, boolean>>({});
@@ -563,6 +567,30 @@ const ExamTestRunPage: React.FC = () => {
   }, [timeRemaining, examId, examSessionKey, exam?.duration_minutes, exam?.name, pauseOnDisconnect, answers, exerciseResponses, currentItemIndex, selectedItems, orderingInteracted, actionErrors, stepCompleted, currentStepIndex, flaggedQuestions, disconnectionCount]);
 
   const currentItem = selectedItems[currentItemIndex];
+
+  // Medir el espacio disponible para la imagen del ejercicio (desde donde empieza
+  // hasta encima del footer fijo) y capar su altura, para que se vea lo más grande
+  // posible sin salirse de la pantalla. Se recalcula al cambiar de ítem/paso, al
+  // mostrar/ocultar la nav y al redimensionar.
+  useEffect(() => {
+    if (currentItem?.type !== 'exercise') return;
+    const compute = () => {
+      const el = imageContainerRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top;
+      const footerReserve = window.innerWidth >= 1024 ? 110 : 80; // footer fijo + margen
+      const available = window.innerHeight - top - footerReserve;
+      setExerciseImgMaxHeight(Math.max(available, 220));
+    };
+    const raf = requestAnimationFrame(compute);
+    const t = setTimeout(compute, 200);
+    window.addEventListener('resize', compute);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+      window.removeEventListener('resize', compute);
+    };
+  }, [currentItemIndex, currentStepIndex, isNavHidden, currentItem]);
 
   const handleAnswerChange = (itemId: string | number, answer: any) => {
     setAnswers(prev => ({
@@ -1836,41 +1864,46 @@ const ExamTestRunPage: React.FC = () => {
     const isStepDone = stepCompleted[`${currentItem.exercise_id}_${currentStepIndex}`];
 
     return (
-      <div className="flex flex-col w-full items-center">
-        {/* Imagen con acciones superpuestas */}
-        <div 
+      <div className="flex justify-center w-full">
+        {/* Imagen con acciones superpuestas - tamaño limitado por la altura disponible
+            para verse lo más grande posible sin salirse de la pantalla. El contenedor
+            se ajusta al tamaño mostrado de la imagen para que las acciones (en %) alineen. */}
+        <div
           ref={imageContainerRef}
-          className="relative w-[85%] mx-auto rounded-fluid-lg"
+          className="relative rounded-fluid-lg"
         >
           {currentStep.image_url ? (
             <>
-              {/* Contenedor de imagen */}
-              <div className="relative w-full">
-                <img
-                  src={currentStep.image_url}
-                  alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                  className="w-full h-auto"
-                  draggable={false}
+              <img
+                src={currentStep.image_url}
+                alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
+                className="block rounded-fluid-lg"
+                style={{
+                  maxHeight: exerciseImgMaxHeight ? `${exerciseImgMaxHeight}px` : undefined,
+                  maxWidth: 'calc(100vw - 48px)',
+                  width: 'auto',
+                  height: 'auto',
+                }}
+                draggable={false}
+              />
+
+              {/* Acciones superpuestas sobre la imagen */}
+              {currentStep.actions?.map((action: any) => (
+                <ExerciseAction
+                  key={action.id}
+                  action={action}
+                  exerciseId={currentItem.exercise_id!}
+                  stepIndex={currentStepIndex}
+                  isStepCompleted={isStepDone}
+                  currentValue={exerciseResponses[currentItem.exercise_id!]?.[`${action.step_id}_${action.id}`]}
+                  onButtonClick={handleButtonClick}
+                  onWrongActionClick={handleWrongActionClick}
+                  onTextSubmit={handleTextboxSubmit}
                 />
-                
-                {/* Acciones superpuestas sobre la imagen */}
-                {currentStep.actions?.map((action: any) => (
-                  <ExerciseAction
-                    key={action.id}
-                    action={action}
-                    exerciseId={currentItem.exercise_id!}
-                    stepIndex={currentStepIndex}
-                    isStepCompleted={isStepDone}
-                    currentValue={exerciseResponses[currentItem.exercise_id!]?.[`${action.step_id}_${action.id}`]}
-                    onButtonClick={handleButtonClick}
-                    onWrongActionClick={handleWrongActionClick}
-                    onTextSubmit={handleTextboxSubmit}
-                  />
-                ))}
-              </div>
+              ))}
             </>
           ) : (
-            <div className="flex items-center justify-center h-48 bg-gray-200">
+            <div className="flex items-center justify-center h-48 w-72 bg-gray-200 rounded-fluid-lg">
               <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
@@ -2560,9 +2593,10 @@ const ExamTestRunPage: React.FC = () => {
           ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]' 
           : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
       }`}>
-        <div className="max-w-[1400px] mx-auto fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8">
-          <div className="bg-white rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200 overflow-hidden">
-            {/* Header del ítem - más simple */}
+        <div className={`max-w-[1400px] mx-auto fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 ${currentItem?.type === 'exercise' ? 'py-2' : 'fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
+          <div className={`bg-white overflow-hidden ${currentItem?.type === 'exercise' ? '' : 'rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200'}`}>
+            {/* Header del ítem - oculto para ejercicios (tarjeta compacta) */}
+            {currentItem?.type !== 'exercise' && (
             <div className="fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-3 lg:fluid-py-4 bg-gray-50 border-b border-gray-100">
               <div className="flex items-center justify-between fluid-gap-2">
                 <div className="flex items-center fluid-gap-1 sm:fluid-gap-2 flex-wrap">
@@ -2594,29 +2628,12 @@ const ExamTestRunPage: React.FC = () => {
                     )}
                   </span>
                 </div>
-              
-                {/* Indicador de estado - solo para ejercicios */}
-                {currentItem?.type === 'exercise' && (
-                  <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
-                    {/* Estado */}
-                    <span className={`inline-flex items-center fluid-px-2 fluid-py-1 fluid-text-2xs sm:fluid-text-xs font-medium rounded-fluid-sm ${
-                      isExerciseCompleted(currentItem)
-                        ? 'text-emerald-700 bg-emerald-100'
-                        : 'text-amber-700 bg-amber-100'
-                    }`}>
-                      {isExerciseCompleted(currentItem) ? (
-                        <><CheckCircle className="fluid-icon-2xs sm:fluid-icon-xs fluid-mr-1" /><span className="hidden sm:inline">Completado</span><span className="sm:hidden">OK</span></>
-                      ) : (
-                        <><span className="hidden sm:inline">Pendiente</span><span className="sm:hidden">...</span></>
-                      )}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
-          
+            )}
+
             {/* Contenido */}
-            <div className="fluid-p-3 sm:fluid-p-4 lg:fluid-p-6">
+            <div className={currentItem?.type === 'exercise' ? 'p-1.5 sm:p-2' : 'fluid-p-3 sm:fluid-p-4 lg:fluid-p-6'}>
               {currentItem?.type === 'question' ? (
                 <>
                   <div

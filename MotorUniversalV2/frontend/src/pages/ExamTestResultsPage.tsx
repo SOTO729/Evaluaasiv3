@@ -184,7 +184,7 @@ const ExamTestResultsPage: React.FC = () => {
   if (!evaluationResults) {
     console.error('❌ No se encontraron resultados de evaluación en el estado:', state);
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center overflow-x-hidden overscroll-contain">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center overflow-x-clip">
         <div className="text-center fluid-p-8 max-w-md">
           <AlertCircle className="fluid-icon-xl text-yellow-500 mx-auto fluid-mb-4" />
           <h2 className="fluid-text-xl font-bold text-gray-900 fluid-mb-2">Error al cargar resultados</h2>
@@ -564,7 +564,7 @@ const ExamTestResultsPage: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-x-hidden overscroll-contain ${!canViewAnswers ? '' : ''}`}>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-x-clip">
       {/* Header con gradiente y bordes suaves */}
       <div className="max-w-7xl mx-auto fluid-px-6 fluid-pt-6">
         <div className={`bg-gradient-to-r ${getScoreBgColor(summary.percentage)} text-white rounded-fluid-xl shadow-xl`}>
