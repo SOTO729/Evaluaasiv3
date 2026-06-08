@@ -135,7 +135,7 @@ const StudyContentPreviewPage: React.FC = () => {
   const [showScrollHint, setShowScrollHint] = useState(false);
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
   const [showDownloadScrollHint, setShowDownloadScrollHint] = useState(false);
-  const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
   const readingMarkedCompleteRef = useRef(false);
   const isProgrammaticScrollRef = useRef(false);  // Para ignorar scroll programático
   
@@ -149,17 +149,17 @@ const StudyContentPreviewPage: React.FC = () => {
     // Más grande en móviles porque hay menos espacio vertical
     const width = typeof window !== 'undefined' ? window.innerWidth : 1024;
     
-    let offset = 400; // default para móvil pequeño - más espacio
+    let offset = 350; // default para móvil pequeño - más espacio
     if (width >= 1536) {
-      offset = 300; // 2xl
+      offset = 250; // 2xl
     } else if (width >= 1280) {
-      offset = 320; // xl
+      offset = 270; // xl
     } else if (width >= 1024) {
-      offset = 340; // lg
+      offset = 290; // lg
     } else if (width >= 768) {
-      offset = 360; // md
+      offset = 310; // md
     } else if (width >= 640) {
-      offset = 380; // sm
+      offset = 330; // sm
     }
     
     return Math.max(windowHeight - offset, 150); // mínimo 150px
@@ -2047,37 +2047,61 @@ const StudyContentPreviewPage: React.FC = () => {
                                     </div>
                                     <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentTopic.interactive_exercise.title}</h3>
                                   </div>
-                                  <button
-                                    onClick={resetExerciseState}
-                                    className="fluid-p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-fluid-md transition-colors flex-shrink-0"
-                                    title="Salir del ejercicio"
-                                  >
-                                    <X className="fluid-icon-md" />
-                                  </button>
+                                  <div className="flex items-center fluid-gap-1 flex-shrink-0">
+                                    {/* Bot\u00f3n para abrir las instrucciones en un modal (libera espacio) */}
+                                    {currentTopic.interactive_exercise.description && (
+                                      <button
+                                        onClick={() => setShowInstructionsModal(true)}
+                                        className="inline-flex items-center fluid-gap-1.5 fluid-px-3 fluid-py-1.5 rounded-fluid-md bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 transition-colors fluid-text-sm font-medium"
+                                        title="Ver instrucciones del ejercicio"
+                                      >
+                                        <FileText className="fluid-icon-sm" />
+                                        <span className="hidden sm:inline">Instrucciones</span>
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={resetExerciseState}
+                                      className="fluid-p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-fluid-md transition-colors"
+                                      title="Salir del ejercicio"
+                                    >
+                                      <X className="fluid-icon-md" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
 
-                              {/* Instrucciones del ejercicio - colapsables */}
-                              {currentTopic.interactive_exercise.description && (
-                                <div className="bg-primary-50 border border-primary-200 rounded-fluid-lg overflow-hidden flex-shrink-0">
-                                  <button
-                                    onClick={() => setInstructionsExpanded(!instructionsExpanded)}
-                                    className="w-full flex items-center justify-between fluid-px-4 fluid-py-2 hover:bg-primary-100/50 transition-colors"
+                              {/* Modal de instrucciones del ejercicio */}
+                              {showInstructionsModal && currentTopic.interactive_exercise.description && (
+                                <div
+                                  className="fixed inset-0 z-50 flex items-center justify-center fluid-p-4 bg-black/40"
+                                  onClick={() => setShowInstructionsModal(false)}
+                                  role="dialog"
+                                  aria-modal="true"
+                                >
+                                  <div
+                                    className="bg-white rounded-fluid-lg shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <div className="flex items-center fluid-gap-2">
-                                      <FileText className="fluid-icon-sm text-primary-600" />
-                                      <span className="fluid-text-sm font-medium text-primary-800">Instrucciones</span>
+                                    <div className="flex items-center justify-between fluid-px-4 fluid-py-3 border-b border-gray-200 flex-shrink-0">
+                                      <div className="flex items-center fluid-gap-2 min-w-0">
+                                        <FileText className="fluid-icon-sm text-primary-600 flex-shrink-0" />
+                                        <h3 className="font-semibold text-gray-900 fluid-text-base truncate">Instrucciones</h3>
+                                      </div>
+                                      <button
+                                        onClick={() => setShowInstructionsModal(false)}
+                                        className="fluid-p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-fluid-md transition-colors flex-shrink-0"
+                                        aria-label="Cerrar instrucciones"
+                                      >
+                                        <X className="fluid-icon-sm" />
+                                      </button>
                                     </div>
-                                    <ChevronDown className={`fluid-icon-sm text-primary-600 transition-transform ${instructionsExpanded ? 'rotate-180' : ''}`} />
-                                  </button>
-                                  {instructionsExpanded && (
-                                    <div className="fluid-px-4 fluid-pb-4 border-t border-primary-200">
-                                      <div 
-                                        className="prose prose-sm max-w-none text-primary-900 reading-content fluid-pt-2 fluid-text-sm"
+                                    <div className="fluid-p-4 overflow-y-auto">
+                                      <div
+                                        className="prose prose-sm max-w-none text-gray-800 reading-content fluid-text-sm"
                                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentTopic.interactive_exercise.description.replace(/\u00a0/g, ' ')) }}
                                       />
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               )}
 
