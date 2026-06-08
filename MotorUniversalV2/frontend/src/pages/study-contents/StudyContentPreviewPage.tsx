@@ -1289,7 +1289,7 @@ const StudyContentPreviewPage: React.FC = () => {
               <span className="hidden sm:inline">Temario</span>
             </button>
             <div className="h-5 w-px bg-gray-200 hidden sm:block flex-shrink-0" />
-            <h1 className="font-semibold text-gray-900 truncate text-sm sm:text-base min-w-0">
+            <h1 className="font-semibold text-gray-900 truncate text-base sm:text-lg min-w-0">
               {material.title}
             </h1>
           </div>
