@@ -632,10 +632,38 @@ const ExamTestRunPage: React.FC = () => {
   // Verificar si todos los pasos del ejercicio actual están completados
   const isExerciseCompleted = (item: TestItem): boolean => {
     if (item.type !== 'exercise' || !item.steps) return true;
-    return item.steps.every((_step: any, index: number) => 
+    return item.steps.every((_step: any, index: number) =>
       stepCompleted[`${item.exercise_id}_${index}`]
     );
   };
+
+  // Si el paso actual del ejercicio no tiene una acción que lo complete (botón/campo),
+  // no hay forma de avanzar manualmente: lo marcamos como completado y avanzamos solo;
+  // si es el último paso, se da por completado el ejercicio (muestra el modal).
+  useEffect(() => {
+    if (currentItem?.type !== 'exercise') return;
+    const steps = currentItem.steps || [];
+    const step = steps[currentStepIndex];
+    const exId = currentItem.exercise_id;
+    if (!step || !exId) return;
+    if (stepCompleted[`${exId}_${currentStepIndex}`]) return; // ya completado
+    const hasCompletableAction = (step.actions || []).some(
+      (a: any) => a.action_type === 'button' || a.action_type === 'text_input'
+    );
+    if (hasCompletableAction) return; // el flujo normal (clic/respuesta) lo completa
+    const isLastStep = currentStepIndex >= steps.length - 1;
+    const timer = setTimeout(() => {
+      markStepCompleted(exId, currentStepIndex);
+      if (isLastStep) {
+        setShowExerciseCompleted(true);
+        setTimeout(() => setShowExerciseCompleted(false), 5000);
+      } else {
+        setCurrentStepIndex(currentStepIndex + 1);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentItem, currentStepIndex, stepCompleted]);
 
   // Manejar clic en un botón de acción (solo para acciones correctas)
   const handleButtonClick = (action: any, exerciseId: string, stepIndex: number) => {
