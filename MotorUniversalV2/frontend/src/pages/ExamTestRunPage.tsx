@@ -584,7 +584,7 @@ const ExamTestRunPage: React.FC = () => {
       const el = imageContainerRef.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top;
-      const footerReserve = window.innerWidth >= 1024 ? 100 : 70; // footer fijo + margen
+      const footerReserve = 24; // no hay barra inferior fija: solo un pequeño margen
       const availH = window.innerHeight - top - footerReserve;
       const availW = el.parentElement ? el.parentElement.clientWidth : window.innerWidth - 24;
       setExerciseImgBox({ w: Math.max(availW, 200), h: Math.max(availH, 220) });
@@ -1935,18 +1935,6 @@ const ExamTestRunPage: React.FC = () => {
               <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
-
-          {/* Botón flotante para ver el enunciado (no ocupa alto) */}
-          {hasPrompt && (
-            <button
-              onClick={() => setShowExercisePrompt(true)}
-              className="absolute top-2 left-2 z-30 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/90 backdrop-blur text-gray-700 hover:bg-white border border-gray-200 shadow-sm text-sm font-medium"
-              title="Ver enunciado del ejercicio"
-            >
-              <List className="w-4 h-4" />
-              <span className="hidden sm:inline">Enunciado</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -2501,8 +2489,20 @@ const ExamTestRunPage: React.FC = () => {
               >
                 <Flag className="fluid-icon-xs sm:fluid-icon-sm" />
               </button>
+
+              {/* Enunciado del ejercicio (abre modal, fuera de la imagen) */}
+              {currentItem?.type === 'exercise' && (currentItem?.title || currentItem?.description) && (
+                <button
+                  onClick={() => setShowExercisePrompt(true)}
+                  className="flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 rounded-fluid-md transition-colors"
+                  title="Ver enunciado del ejercicio"
+                >
+                  <List className="fluid-icon-xs sm:fluid-icon-sm" />
+                  <span className="hidden sm:inline">Enunciado</span>
+                </button>
+              )}
             </div>
-            
+
             {/* Derecha: Botones de navegación */}
             <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
               <button
@@ -2668,9 +2668,11 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Contenido principal - con transición suave cuando se oculta nav */}
-      <div className={`pb-[60px] sm:pb-[70px] lg:pb-[90px] min-h-screen transition-[padding] duration-300 ease-out ${
-        isNavHidden 
-          ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]' 
+      <div className={`min-h-screen transition-[padding] duration-300 ease-out ${
+        currentItem?.type === 'exercise' ? 'pb-2' : 'pb-[60px] sm:pb-[70px] lg:pb-[90px]'
+      } ${
+        isNavHidden
+          ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]'
           : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
       }`}>
         <div className={`mx-auto ${currentItem?.type === 'exercise' ? 'max-w-full px-1 sm:px-2 py-2' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
