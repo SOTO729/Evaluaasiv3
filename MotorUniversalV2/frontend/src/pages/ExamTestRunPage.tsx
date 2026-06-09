@@ -63,6 +63,7 @@ const ExamTestRunPage: React.FC = () => {
   const [stepCompleted, setStepCompleted] = useState<Record<string, boolean>>({});
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const exerciseAreaRef = useRef<HTMLDivElement>(null); // área completa (ancho estable) para medir
+  const exerciseRemindedRef = useRef<Set<string>>(new Set()); // ejercicios para los que ya se mostró el recordatorio
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
   // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
   // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
@@ -654,16 +655,36 @@ const ExamTestRunPage: React.FC = () => {
     const isLastStep = currentStepIndex >= steps.length - 1;
     const timer = setTimeout(() => {
       markStepCompleted(exId, currentStepIndex);
-      if (isLastStep) {
-        setShowExerciseCompleted(true);
-        setTimeout(() => setShowExerciseCompleted(false), 5000);
-      } else {
+      if (!isLastStep) {
         setCurrentStepIndex(currentStepIndex + 1);
       }
+      // Si es el último paso, el efecto de "ejercicio completado" muestra el recordatorio.
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItem, currentStepIndex, stepCompleted]);
+
+  // Cuando el ejercicio queda completado, tras unos segundos mostrar un recordatorio
+  // (modal dismissible) para avisar que ya puede pasar al siguiente reactivo. Se muestra
+  // una sola vez por ejercicio y se cancela si el usuario navega antes.
+  useEffect(() => {
+    if (currentItem?.type !== 'exercise') return;
+    const exId = currentItem.exercise_id;
+    if (!exId) return;
+    if (!isExerciseCompleted(currentItem)) return;
+    if (exerciseRemindedRef.current.has(exId)) return;
+    const timer = setTimeout(() => {
+      exerciseRemindedRef.current.add(exId);
+      setShowExerciseCompleted(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentItem, stepCompleted]);
+
+  // Cerrar el recordatorio al cambiar de ítem (por si quedó abierto).
+  useEffect(() => {
+    setShowExerciseCompleted(false);
+  }, [currentItemIndex]);
 
   // Manejar clic en un botón de acción (solo para acciones correctas)
   const handleButtonClick = (action: any, exerciseId: string, stepIndex: number) => {
@@ -680,15 +701,11 @@ const ExamTestRunPage: React.FC = () => {
     handleExerciseActionResponse(exerciseId, action.step_id, action.id, true);
     markStepCompleted(exerciseId, stepIndex);
     
-    // Avanzar al siguiente paso si hay más, o mostrar modal de completado
+    // Avanzar al siguiente paso si hay más. Al completar el último paso, el efecto de
+    // "ejercicio completado" se encarga de mostrar el recordatorio tras unos segundos.
     const currentExercise = currentItem;
     if (currentExercise?.steps && stepIndex < currentExercise.steps.length - 1) {
       setCurrentStepIndex(stepIndex + 1);
-    } else if (currentExercise?.steps && stepIndex === currentExercise.steps.length - 1) {
-      // Es el último paso, mostrar modal de completado
-      setShowExerciseCompleted(true);
-      // Auto-cerrar después de 5 segundos
-      setTimeout(() => setShowExerciseCompleted(false), 5000);
     }
   };
 
@@ -785,15 +802,11 @@ const ExamTestRunPage: React.FC = () => {
     handleExerciseActionResponse(exerciseId, action.step_id, action.id, value);
     markStepCompleted(exerciseId, stepIndex);
     
-    // Avanzar al siguiente paso si hay más, o mostrar modal de completado
+    // Avanzar al siguiente paso si hay más. Al completar el último paso, el efecto de
+    // "ejercicio completado" se encarga de mostrar el recordatorio tras unos segundos.
     const currentExercise = currentItem;
     if (currentExercise?.steps && stepIndex < currentExercise.steps.length - 1) {
       setCurrentStepIndex(stepIndex + 1);
-    } else if (currentExercise?.steps && stepIndex === currentExercise.steps.length - 1) {
-      // Es el último paso, mostrar modal de completado
-      setShowExerciseCompleted(true);
-      // Auto-cerrar después de 5 segundos
-      setTimeout(() => setShowExerciseCompleted(false), 5000);
     }
   };
 
@@ -2239,22 +2252,50 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de ejercicio completado - notificación tipo toast */}
+      {/* Modal de ejercicio completado - recordatorio (dismissible, estilo del sitio) */}
       {showExerciseCompleted && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center fluid-p-3 sm:fluid-p-4"
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-3 sm:fluid-p-4"
           onClick={() => setShowExerciseCompleted(false)}
         >
-          <div 
-            className="bg-emerald-600 text-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl fluid-px-4 sm:fluid-px-6 fluid-py-3 sm:fluid-py-4 flex items-center fluid-gap-2 sm:fluid-gap-3 animate-bounce-in"
+          <div
+            className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-sm w-full fluid-mx-3 sm:fluid-mx-4 flex flex-col animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center">
-              <CheckCircle className="fluid-icon-sm sm:fluid-icon" />
+            {/* Header */}
+            <div className="flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-4 sm:fluid-p-6 pb-3 sm:pb-4 border-b border-gray-100">
+              <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-emerald-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="fluid-icon-sm sm:fluid-icon text-emerald-600" />
+              </div>
+              <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900">Ejercicio completado</h3>
             </div>
-            <div>
-              <h3 className="font-semibold fluid-text-sm sm:fluid-text-base">¡Ejercicio completado!</h3>
-              <p className="fluid-text-xs sm:fluid-text-sm text-emerald-100">Has terminado todos los pasos</p>
+
+            {/* Contenido */}
+            <div className="fluid-p-4 sm:fluid-p-6 pt-3 sm:pt-4">
+              <p className="text-gray-600 fluid-text-sm">
+                {currentItemIndex < selectedItems.length - 1
+                  ? 'Completaste este ejercicio. Cuando quieras, puedes continuar al siguiente reactivo.'
+                  : 'Completaste este ejercicio. Cuando quieras, puedes entregar el examen.'}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="fluid-p-4 sm:fluid-p-6 pt-0 flex flex-col sm:flex-row sm:justify-end fluid-gap-2">
+              <button
+                onClick={() => setShowExerciseCompleted(false)}
+                className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-gray-700 hover:bg-gray-100 border border-gray-200 rounded-fluid-md transition-colors"
+              >
+                Entendido
+              </button>
+              {currentItemIndex < selectedItems.length - 1 && (
+                <button
+                  onClick={() => { setShowExerciseCompleted(false); handleNext(); }}
+                  className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-md transition-colors inline-flex items-center justify-center fluid-gap-1"
+                >
+                  Siguiente reactivo
+                  <ChevronRight className="fluid-icon-sm" />
+                </button>
+              )}
             </div>
           </div>
         </div>
