@@ -62,10 +62,12 @@ const ExamTestRunPage: React.FC = () => {
   const [exerciseResponses, setExerciseResponses] = useState<Record<string, Record<string, any>>>({});
   const [stepCompleted, setStepCompleted] = useState<Record<string, boolean>>({});
   const imageContainerRef = useRef<HTMLDivElement>(null);
-  // Altura máxima de la imagen del ejercicio: espacio disponible desde donde empieza
-  // la imagen hasta justo encima del footer, para que se vea lo más grande posible
-  // sin salirse de la pantalla (se adapta al enunciado que va arriba).
-  const [exerciseImgMaxHeight, setExerciseImgMaxHeight] = useState<number | null>(null);
+  // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
+  // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
+  // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
+  // (escalando hacia arriba si hace falta) sin salirse.
+  const [exerciseImgBox, setExerciseImgBox] = useState<{ w: number; h: number } | null>(null);
+  const [exerciseImgNatural, setExerciseImgNatural] = useState<{ w: number; h: number } | null>(null);
   
   // Estado para trackear preguntas de ordenamiento que han sido interactuadas
   const [orderingInteracted, setOrderingInteracted] = useState<Record<string, boolean>>({});
@@ -574,13 +576,15 @@ const ExamTestRunPage: React.FC = () => {
   // mostrar/ocultar la nav y al redimensionar.
   useEffect(() => {
     if (currentItem?.type !== 'exercise') return;
+    setExerciseImgNatural(null); // resetear proporción al cambiar de paso/ítem
     const compute = () => {
       const el = imageContainerRef.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top;
       const footerReserve = window.innerWidth >= 1024 ? 100 : 70; // footer fijo + margen
-      const available = window.innerHeight - top - footerReserve;
-      setExerciseImgMaxHeight(Math.max(available, 220));
+      const availH = window.innerHeight - top - footerReserve;
+      const availW = el.parentElement ? el.parentElement.clientWidth : window.innerWidth - 24;
+      setExerciseImgBox({ w: Math.max(availW, 200), h: Math.max(availH, 220) });
     };
     const raf = requestAnimationFrame(compute);
     const t = setTimeout(compute, 200);
@@ -1863,6 +1867,28 @@ const ExamTestRunPage: React.FC = () => {
     const currentStep = steps[currentStepIndex];
     const isStepDone = stepCompleted[`${currentItem.exercise_id}_${currentStepIndex}`];
 
+    // Tamaño que MEJOR llena la caja disponible conservando la proporción real de la
+    // imagen (permite escalar hacia arriba). Si aún no se conoce la proporción, se usa
+    // un ajuste por altura como respaldo.
+    let imgStyle: React.CSSProperties;
+    if (exerciseImgBox && exerciseImgNatural && exerciseImgNatural.w > 0 && exerciseImgNatural.h > 0) {
+      const scale = Math.min(
+        exerciseImgBox.w / exerciseImgNatural.w,
+        exerciseImgBox.h / exerciseImgNatural.h
+      );
+      imgStyle = {
+        width: `${Math.round(exerciseImgNatural.w * scale)}px`,
+        height: `${Math.round(exerciseImgNatural.h * scale)}px`,
+      };
+    } else {
+      imgStyle = {
+        maxHeight: exerciseImgBox ? `${exerciseImgBox.h}px` : undefined,
+        maxWidth: '100%',
+        width: 'auto',
+        height: 'auto',
+      };
+    }
+
     return (
       <div className="flex justify-center w-full">
         {/* Imagen con acciones superpuestas - tamaño limitado por la altura disponible
@@ -1878,12 +1904,8 @@ const ExamTestRunPage: React.FC = () => {
                 src={currentStep.image_url}
                 alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
                 className="block rounded-fluid-lg"
-                style={{
-                  maxHeight: exerciseImgMaxHeight ? `${exerciseImgMaxHeight}px` : undefined,
-                  maxWidth: 'calc(100vw - 24px)',
-                  width: 'auto',
-                  height: 'auto',
-                }}
+                style={imgStyle}
+                onLoad={(e) => setExerciseImgNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                 draggable={false}
               />
 
