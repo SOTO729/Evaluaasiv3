@@ -587,8 +587,8 @@ const ExamTestRunPage: React.FC = () => {
       const top = el.getBoundingClientRect().top;
       // La imagen va dentro de una tarjeta blanca con padding (p-2) y borde; hay que
       // descontar ese inset y un pequeño margen inferior (no hay barra inferior fija).
-      const cardInset = 20; // padding horizontal de la tarjeta + borde
-      const availH = window.innerHeight - top - 24; // margen + padding/borde inferior de la tarjeta
+      const cardInset = 12; // padding horizontal de la tarjeta + borde
+      const availH = window.innerHeight - top - 14; // margen + padding/borde inferior de la tarjeta
       const areaW = exerciseAreaRef.current ? exerciseAreaRef.current.clientWidth : window.innerWidth;
       const availW = areaW - cardInset;
       setExerciseImgBox({ w: Math.max(availW, 200), h: Math.max(availH, 220) });
@@ -1905,7 +1905,7 @@ const ExamTestRunPage: React.FC = () => {
             preguntas): fondo blanco, borde sutil, sombra, redondeado y un pequeño margen.
             Se ajusta al tamaño de la imagen; el contenedor interno la abraza para que las
             acciones (en %) alineen. */}
-        <div className="bg-white border border-gray-200 shadow-sm rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl p-2">
+        <div className="bg-white border border-gray-200 shadow-sm rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl p-1">
           <div
             ref={imageContainerRef}
             className="relative"
@@ -2682,7 +2682,7 @@ const ExamTestRunPage: React.FC = () => {
           ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]'
           : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
       }`}>
-        <div className={`mx-auto ${currentItem?.type === 'exercise' ? 'max-w-full px-0 py-1' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
+        <div className={`mx-auto ${currentItem?.type === 'exercise' ? 'max-w-full px-0 py-0' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
           <div className={currentItem?.type === 'exercise' ? '' : 'bg-white overflow-hidden rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200'}>
             {/* Header del ítem - oculto para ejercicios (tarjeta compacta) */}
             {currentItem?.type !== 'exercise' && (
