@@ -584,7 +584,7 @@ const ExamTestRunPage: React.FC = () => {
       const el = imageContainerRef.current;
       if (!el) return;
       const top = el.getBoundingClientRect().top;
-      const footerReserve = 24; // no hay barra inferior fija: solo un pequeño margen
+      const footerReserve = 12; // no hay barra inferior fija: solo un pequeño margen
       const availH = window.innerHeight - top - footerReserve;
       const availW = el.parentElement ? el.parentElement.clientWidth : window.innerWidth - 24;
       setExerciseImgBox({ w: Math.max(availW, 200), h: Math.max(availH, 220) });
@@ -2675,7 +2675,7 @@ const ExamTestRunPage: React.FC = () => {
           ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]'
           : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
       }`}>
-        <div className={`mx-auto ${currentItem?.type === 'exercise' ? 'max-w-full px-1 sm:px-2 py-2' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
+        <div className={`mx-auto ${currentItem?.type === 'exercise' ? 'max-w-full px-0 py-1' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
           <div className={`bg-white overflow-hidden ${currentItem?.type === 'exercise' ? '' : 'rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200'}`}>
             {/* Header del ítem - oculto para ejercicios (tarjeta compacta) */}
             {currentItem?.type !== 'exercise' && (
@@ -2715,7 +2715,7 @@ const ExamTestRunPage: React.FC = () => {
             )}
 
             {/* Contenido */}
-            <div className={currentItem?.type === 'exercise' ? 'p-1.5 sm:p-2' : 'fluid-p-3 sm:fluid-p-4 lg:fluid-p-6'}>
+            <div className={currentItem?.type === 'exercise' ? 'p-0' : 'fluid-p-3 sm:fluid-p-4 lg:fluid-p-6'}>
               {currentItem?.type === 'question' ? (
                 <>
                   <div
