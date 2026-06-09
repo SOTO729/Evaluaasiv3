@@ -1909,7 +1909,7 @@ const ExamTestRunPage: React.FC = () => {
               <img
                 src={currentStep.image_url}
                 alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                className="block rounded-fluid-lg"
+                className="block rounded-fluid-lg border border-gray-200 shadow-sm"
                 style={imgStyle}
                 onLoad={(e) => setExerciseImgNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                 draggable={false}
@@ -1953,7 +1953,7 @@ const ExamTestRunPage: React.FC = () => {
             <div className="flex items-center justify-between fluid-px-4 fluid-py-3 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center fluid-gap-2 min-w-0">
                 <List className="fluid-icon-sm text-primary-600 flex-shrink-0" />
-                <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentItem.title || 'Enunciado'}</h3>
+                <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentItem.title || 'Instrucciones del ejercicio'}</h3>
               </div>
               <button
                 onClick={() => setShowExercisePrompt(false)}
@@ -2495,10 +2495,10 @@ const ExamTestRunPage: React.FC = () => {
                 <button
                   onClick={() => setShowExercisePrompt(true)}
                   className="flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-primary-50 text-primary-700 hover:bg-primary-100 border border-primary-200 rounded-fluid-md transition-colors"
-                  title="Ver enunciado del ejercicio"
+                  title="Ver instrucciones del ejercicio"
                 >
                   <List className="fluid-icon-xs sm:fluid-icon-sm" />
-                  <span className="hidden sm:inline">Enunciado</span>
+                  <span className="hidden sm:inline">Instrucciones</span>
                 </button>
               )}
             </div>
