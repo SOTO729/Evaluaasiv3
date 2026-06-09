@@ -1909,7 +1909,7 @@ const ExamTestRunPage: React.FC = () => {
               <img
                 src={currentStep.image_url}
                 alt={currentStep.title || `Paso ${currentStepIndex + 1}`}
-                className="block rounded-fluid-lg border border-gray-200 shadow-sm"
+                className="block rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl border border-gray-200 shadow-sm"
                 style={imgStyle}
                 onLoad={(e) => setExerciseImgNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                 draggable={false}
