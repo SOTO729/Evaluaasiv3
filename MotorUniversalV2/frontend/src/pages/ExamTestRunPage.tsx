@@ -676,7 +676,7 @@ const ExamTestRunPage: React.FC = () => {
     const timer = setTimeout(() => {
       exerciseRemindedRef.current.add(exId);
       setShowExerciseCompleted(true);
-    }, 2500);
+    }, 15000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItem, stepCompleted]);
