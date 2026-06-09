@@ -68,6 +68,8 @@ const ExamTestRunPage: React.FC = () => {
   // (escalando hacia arriba si hace falta) sin salirse.
   const [exerciseImgBox, setExerciseImgBox] = useState<{ w: number; h: number } | null>(null);
   const [exerciseImgNatural, setExerciseImgNatural] = useState<{ w: number; h: number } | null>(null);
+  // Enunciado del ejercicio (titulo/descripcion) en modal, para no robarle alto a la imagen
+  const [showExercisePrompt, setShowExercisePrompt] = useState(false);
   
   // Estado para trackear preguntas de ordenamiento que han sido interactuadas
   const [orderingInteracted, setOrderingInteracted] = useState<Record<string, boolean>>({});
@@ -577,6 +579,7 @@ const ExamTestRunPage: React.FC = () => {
   useEffect(() => {
     if (currentItem?.type !== 'exercise') return;
     setExerciseImgNatural(null); // resetear proporción al cambiar de paso/ítem
+    setShowExercisePrompt(false);
     const compute = () => {
       const el = imageContainerRef.current;
       if (!el) return;
@@ -1889,11 +1892,14 @@ const ExamTestRunPage: React.FC = () => {
       };
     }
 
+    const hasPrompt = !!(currentItem.title || currentItem.description);
+
     return (
+      <>
       <div className="flex justify-center w-full">
-        {/* Imagen con acciones superpuestas - tamaño limitado por la altura disponible
-            para verse lo más grande posible sin salirse de la pantalla. El contenedor
-            se ajusta al tamaño mostrado de la imagen para que las acciones (en %) alineen. */}
+        {/* Imagen con acciones superpuestas - tamaño calculado para llenar la pantalla
+            sin salirse. El contenedor se ajusta al tamaño mostrado de la imagen para
+            que las acciones (en %) alineen. */}
         <div
           ref={imageContainerRef}
           className="relative rounded-fluid-lg"
@@ -1929,8 +1935,60 @@ const ExamTestRunPage: React.FC = () => {
               <Image className="w-12 h-12 text-gray-400" />
             </div>
           )}
+
+          {/* Botón flotante para ver el enunciado (no ocupa alto) */}
+          {hasPrompt && (
+            <button
+              onClick={() => setShowExercisePrompt(true)}
+              className="absolute top-2 left-2 z-30 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/90 backdrop-blur text-gray-700 hover:bg-white border border-gray-200 shadow-sm text-sm font-medium"
+              title="Ver enunciado del ejercicio"
+            >
+              <List className="w-4 h-4" />
+              <span className="hidden sm:inline">Enunciado</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Modal con el enunciado del ejercicio */}
+      {showExercisePrompt && hasPrompt && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center fluid-p-4 bg-black/50"
+          onClick={() => setShowExercisePrompt(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="bg-white rounded-fluid-lg shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between fluid-px-4 fluid-py-3 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center fluid-gap-2 min-w-0">
+                <List className="fluid-icon-sm text-primary-600 flex-shrink-0" />
+                <h3 className="font-semibold text-gray-900 fluid-text-base truncate">{currentItem.title || 'Enunciado'}</h3>
+              </div>
+              <button
+                onClick={() => setShowExercisePrompt(false)}
+                aria-label="Cerrar"
+                className="fluid-p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-fluid-md transition-colors flex-shrink-0"
+              >
+                <X className="fluid-icon-sm" />
+              </button>
+            </div>
+            <div className="fluid-p-4 overflow-y-auto">
+              {currentItem.description ? (
+                <div
+                  className="prose prose-sm max-w-none text-gray-800 break-words [&_img]:max-w-full"
+                  dangerouslySetInnerHTML={{ __html: currentItem.description }}
+                />
+              ) : (
+                <p className="text-sm text-gray-500">Sin descripción adicional.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      </>
     );
   };
 
@@ -2676,19 +2734,10 @@ const ExamTestRunPage: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <>
-                  {currentItem?.title && (
-                    <h2 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900 fluid-mb-2">{currentItem.title}</h2>
-                  )}
-                  {currentItem?.description && (
-                    <div
-                      className="prose prose-sm max-w-none fluid-mb-3 sm:fluid-mb-4 text-gray-600 overflow-hidden break-words [&_img]:max-w-full [&_pre]:overflow-x-auto [&_code]:break-all"
-                    dangerouslySetInnerHTML={{ __html: currentItem.description }}
-                  />
-                )}
-                {renderExercise()}
-              </>
-            )}
+                /* El enunciado (título/descripción) se muestra en un modal desde un botón
+                   flotante sobre la imagen, para que la imagen ocupe el máximo de pantalla. */
+                <>{renderExercise()}</>
+              )}
           </div>
         </div>
         </div>
