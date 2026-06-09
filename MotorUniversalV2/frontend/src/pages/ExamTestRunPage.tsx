@@ -648,7 +648,7 @@ const ExamTestRunPage: React.FC = () => {
     if (!step || !exId) return;
     if (stepCompleted[`${exId}_${currentStepIndex}`]) return; // ya completado
     const hasCompletableAction = (step.actions || []).some(
-      (a: any) => a.action_type === 'button' || a.action_type === 'text_input'
+      (a: any) => a.action_type === 'button' || a.action_type === 'text_input' || a.action_type === 'textbox'
     );
     if (hasCompletableAction) return; // el flujo normal (clic/respuesta) lo completa
     const isLastStep = currentStepIndex >= steps.length - 1;
