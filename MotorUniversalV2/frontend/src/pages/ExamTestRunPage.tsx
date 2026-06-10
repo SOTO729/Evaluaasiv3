@@ -2030,7 +2030,7 @@ const ExamTestRunPage: React.FC = () => {
 
   if (isLoading || loadingExercises) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex flex-col justify-center items-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex flex-col justify-center items-center">
         <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl fluid-p-6 sm:fluid-p-8 max-w-xs sm:max-w-md w-full fluid-mx-3 sm:fluid-mx-4">
           <LoadingSpinner message={loadingExercises ? 'Cargando ejercicios...' : 'Cargando examen...'} />
         </div>
@@ -2040,7 +2040,7 @@ const ExamTestRunPage: React.FC = () => {
 
   if (!exam) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex justify-center items-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex justify-center items-center">
         <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl fluid-p-6 sm:fluid-p-8 text-center fluid-mx-3 sm:fluid-mx-4">
           <AlertCircle className="fluid-icon-xl sm:fluid-icon-2xl mx-auto text-red-400 fluid-mb-3 sm:fluid-mb-4" />
           <p className="text-gray-600 font-medium fluid-text-sm sm:fluid-text-base">Examen no encontrado</p>
@@ -2051,7 +2051,7 @@ const ExamTestRunPage: React.FC = () => {
 
   if (selectedItems.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-blue-50 flex justify-center items-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex justify-center items-center">
         <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-xl fluid-p-6 sm:fluid-p-8 max-w-xs sm:max-w-md w-full fluid-mx-3 sm:fluid-mx-4">
           <LoadingSpinner />
           <p className="text-gray-600 text-center fluid-mt-3 sm:fluid-mt-4 fluid-text-sm sm:fluid-text-base">Preparando preguntas...</p>
@@ -2345,7 +2345,7 @@ const ExamTestRunPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary-600 hover:bg-primary-700'}`}
               >
                 Intentar de nuevo
               </button>
@@ -2417,7 +2417,7 @@ const ExamTestRunPage: React.FC = () => {
                 className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md sm:rounded-fluid-lg font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${
                   currentMode === 'simulator' 
                     ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600' 
-                    : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                    : 'bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700'
                 }`}
               >
                 {showSkippedModal.type === 'next_exercise' ? 'Continuar' : 'Ir al siguiente paso'}
@@ -2428,7 +2428,7 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Header minimalista - FIJO */}
-      <div className={`fixed top-0 left-0 right-0 z-40 bg-blue-600 transition-all duration-300 ease-out`}>
+      <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}>
         <div className="w-full fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-12 lg:h-14 flex items-center">
           <div className="flex items-center justify-between w-full">
             {/* Izquierda: Título */}
@@ -2483,7 +2483,13 @@ const ExamTestRunPage: React.FC = () => {
                   {user?.username || '---'}
                 </span>
               </div>
-              
+
+              {/* Reactivos respondidos / total */}
+              <div className="hidden sm:flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md bg-white/20 text-white fluid-text-xs sm:fluid-text-sm" title="Reactivos respondidos">
+                <CheckCircle className="fluid-icon-xs sm:fluid-icon-sm" />
+                <span className="font-medium">{getAnsweredCount()}/{selectedItems.length}</span>
+              </div>
+
               {/* Timer */}
               <div className={`flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md font-mono fluid-text-xs sm:fluid-text-sm transition-all ${
                 isTimeCritical 
@@ -2512,9 +2518,9 @@ const ExamTestRunPage: React.FC = () => {
         </div>
         
         {/* Barra de progreso sutil - basada en preguntas respondidas */}
-        <div className={`h-1 ${currentMode === 'simulator' ? 'bg-amber-600' : 'bg-blue-700'}`}>
+        <div className={`h-1 ${currentMode === 'simulator' ? 'bg-amber-600' : 'bg-primary-800'}`}>
           <div
-            className={`h-full transition-all duration-500 ease-out ${currentMode === 'simulator' ? 'bg-yellow-300' : 'bg-sky-300'}`}
+            className={`h-full transition-all duration-500 ease-out ${currentMode === 'simulator' ? 'bg-yellow-300' : 'bg-primary-300'}`}
             style={{ width: `${(getAnsweredCount() / selectedItems.length) * 100}%` }}
           />
         </div>
@@ -2534,7 +2540,7 @@ const ExamTestRunPage: React.FC = () => {
                 onClick={() => setShowNavPanel(!showNavPanel)}
                 className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[80px] sm:min-w-[100px] lg:min-w-[120px]"
               >
-                <span className="flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white rounded-full fluid-text-xs sm:fluid-text-sm font-bold bg-blue-600">
+                <span className={`flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white rounded-full fluid-text-xs sm:fluid-text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}>
                   {currentItemIndex + 1}
                 </span>
                 <span className="fluid-text-xs sm:fluid-text-sm text-gray-600">
@@ -2615,7 +2621,7 @@ const ExamTestRunPage: React.FC = () => {
       {/* Botón flotante para mostrar nav cuando está oculta */}
       <button
         onClick={() => setIsNavHidden(false)}
-        className={`fixed top-[48px] sm:top-[56px] lg:top-[64px] left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-b-lg shadow-md transition-all duration-300 ${
+        className={`fixed top-[48px] sm:top-[56px] lg:top-[64px] left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 px-3 py-1.5 ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'} text-white text-xs font-medium rounded-b-lg shadow-md transition-all duration-300 ${
           isNavHidden && !showNavPanel
             ? 'opacity-100 translate-y-0' 
             : 'opacity-0 -translate-y-2 pointer-events-none'
@@ -2681,7 +2687,7 @@ const ExamTestRunPage: React.FC = () => {
                         }}
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-fluid-md flex items-center justify-center fluid-text-xs sm:fluid-text-sm font-medium transition-all ${
                           isCurrent
-                            ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105')
+                            ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-primary-600 text-white ring-2 ring-primary-300 scale-105')
                             : isFlagged
                             ? 'bg-orange-500 text-white hover:bg-orange-600'
                             : isAnswered
@@ -2723,7 +2729,7 @@ const ExamTestRunPage: React.FC = () => {
             {/* Leyenda */}
             <div className="fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center fluid-gap-2 sm:fluid-gap-3 fluid-text-2xs sm:fluid-text-xs">
               <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
-                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-blue-600'}`}></div>
+                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}></div>
                 <span className="text-gray-600">Actual</span>
               </div>
               <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
@@ -2769,7 +2775,7 @@ const ExamTestRunPage: React.FC = () => {
                   {/* Tipo de pregunta/ejercicio */}
                   <span className={`inline-flex items-center fluid-px-2 sm:fluid-px-3 fluid-py-1 rounded-fluid-sm fluid-text-2xs sm:fluid-text-xs font-medium ${
                     currentItem?.type === 'question' 
-                      ? (currentMode === 'simulator' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700')
+                      ? (currentMode === 'simulator' ? 'bg-yellow-100 text-yellow-700' : 'bg-primary-100 text-primary-700')
                       : 'bg-purple-100 text-purple-700'
                   }`}>
                     {currentItem?.type === 'question' ? (
