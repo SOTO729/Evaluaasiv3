@@ -381,7 +381,7 @@ export const examService = {
     await api.put(`/exams/${examId}/progress`, data)
   },
 
-  getExamProgress: async (examId: number): Promise<{ progress: { attempt_id?: string; data: any; updated_at?: string } | null }> => {
+  getExamProgress: async (examId: number): Promise<{ progress: { attempt_id?: string; data: any; started_at?: string; updated_at?: string } | null; server_now?: string }> => {
     const response = await api.get(`/exams/${examId}/progress`)
     return response.data
   },

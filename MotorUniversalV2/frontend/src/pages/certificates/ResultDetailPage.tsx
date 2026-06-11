@@ -307,6 +307,36 @@ const ResultDetailPage = () => {
         </div>
       </div>
 
+      {/* Integridad del examen (auditoría de proctoring) - solo personal autorizado */}
+      {['admin', 'developer', 'gerente', 'soporte'].includes(user?.role || '') && (
+        <div className="bg-white rounded-fluid-xl border border-gray-200 shadow-sm fluid-p-4 sm:fluid-p-6">
+          <h3 className="flex items-center fluid-gap-2 font-semibold text-gray-900 fluid-text-base fluid-mb-3">
+            <AlertCircle className="fluid-icon-sm text-amber-500" /> Integridad del examen
+          </h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 fluid-gap-3">
+            <div className="bg-gray-50 rounded-fluid-lg fluid-p-3 sm:fluid-p-4">
+              <div className="fluid-text-2xs sm:fluid-text-xs text-gray-500 uppercase tracking-wide">Salidas de pantalla completa</div>
+              <div className={`font-bold fluid-text-lg ${(answersData.fullscreen_exits || 0) > 0 ? 'text-amber-600' : 'text-gray-800'}`}>
+                {answersData.fullscreen_exits ?? '—'}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-fluid-lg fluid-p-3 sm:fluid-p-4">
+              <div className="fluid-text-2xs sm:fluid-text-xs text-gray-500 uppercase tracking-wide">Desconexiones</div>
+              <div className={`font-bold fluid-text-lg ${(answersData.disconnection_count || 0) > 0 ? 'text-amber-600' : 'text-gray-800'}`}>
+                {answersData.disconnection_count ?? '—'}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-fluid-lg fluid-p-3 sm:fluid-p-4">
+              <div className="fluid-text-2xs sm:fluid-text-xs text-gray-500 uppercase tracking-wide">Duración registrada</div>
+              <div className="font-bold fluid-text-lg text-gray-800">{formatDuration(result.duration_seconds)}</div>
+            </div>
+          </div>
+          <p className="fluid-text-2xs text-gray-400 fluid-mt-3">
+            Indicadores de auditoría (visibles solo para personal autorizado). No bloquean el resultado. "—" indica intentos previos sin registro.
+          </p>
+        </div>
+      )}
+
       {/* Botón de descarga destacado */}
       <button
         onClick={downloadPDF}

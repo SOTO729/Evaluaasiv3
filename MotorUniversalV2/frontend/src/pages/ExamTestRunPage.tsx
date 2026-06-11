@@ -1027,10 +1027,28 @@ const ExamTestRunPage: React.FC = () => {
     if (blockedMobile) return;
     if (!examId || timeRemaining === null || selectedItems.length === 0 || !attemptIdRef.current) return;
     initialServerSaveRef.current = true;
+    const durationSec = exam?.duration_minutes ? exam.duration_minutes * 60 : null;
     examService.saveExamProgress(Number(examId), {
-      attempt_id: attemptIdRef.current,
+      attempt_id: attemptIdRef.current || undefined,
       data: { timeRemaining, savedAt: Date.now() },
-    }).catch(() => {});
+    })
+      .then(() => examService.getExamProgress(Number(examId)))
+      .then((res) => {
+        // Anclar el cronómetro al tiempo del servidor (anti-manipulación de reloj).
+        // Solo si NO se pausa por desconexión: el reloj de pared del servidor no
+        // contempla pausas, así que en ese modo conservamos el conteo del cliente.
+        if (pauseOnDisconnect) return;
+        const startedAt = res?.progress?.started_at;
+        const serverNow = res?.server_now;
+        if (startedAt && serverNow && durationSec) {
+          const elapsed = Math.max(0, Math.floor((new Date(serverNow).getTime() - new Date(startedAt).getTime()) / 1000));
+          const serverRemaining = Math.max(0, durationSec - elapsed);
+          deadlineRef.current = Date.now() + serverRemaining * 1000;
+          setTimeRemaining(serverRemaining);
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId, timeRemaining, selectedItems.length]);
 
   // Accesibilidad: atrapar el foco (Tab) dentro del modal superior abierto.
@@ -1243,7 +1261,8 @@ const ExamTestRunPage: React.FC = () => {
             exercises: results.exercises || [],
             summary: resultsWithBreakdown.summary || {},
             evaluation_breakdown: evaluationBreakdown,
-            fullscreen_exits: fsExitCountRef.current
+            fullscreen_exits: fsExitCountRef.current,
+            disconnection_count: disconnectionCount
           },
           questions_order: selectedItems.map(item => item.id.toString()),
           group_id: groupId,
@@ -1406,7 +1425,8 @@ const ExamTestRunPage: React.FC = () => {
             exercises: results.exercises || [],
             summary: resultsWithBreakdown.summary || {},
             evaluation_breakdown: evaluationBreakdown,
-            fullscreen_exits: fsExitCountRef.current
+            fullscreen_exits: fsExitCountRef.current,
+            disconnection_count: disconnectionCount
           },
           questions_order: selectedItems.map(item => item.id.toString()),
           group_id: groupId,
