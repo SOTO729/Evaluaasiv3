@@ -26,6 +26,15 @@ interface TestItem {
   steps?: any[];
 }
 
+// Detecta dispositivos móviles/tablet (incl. iPadOS que se reporta como Mac con touch).
+const isMobileDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const isMobileUA = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|BlackBerry|webOS|Mobile/i.test(ua);
+  const isIpadOs = /Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+  return isMobileUA || isIpadOs;
+};
+
 const ExamTestRunPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const location = useLocation();
@@ -42,6 +51,10 @@ const ExamTestRunPage: React.FC = () => {
   
   // Modo actual (por defecto 'exam' si no viene especificado)
   const currentMode = mode || 'exam';
+
+  // Restricción: los exámenes reales no se permiten en móvil/tablet (la web no puede
+  // garantizar integridad sin app/kiosko). El simulador sí se permite (es práctica).
+  const blockedMobile = currentMode === 'exam' && isMobileDevice();
   
   // Clave única para almacenar el estado del examen en localStorage
   const examSessionKey = `exam_session_${examId}_${currentMode}`;
@@ -390,6 +403,7 @@ const ExamTestRunPage: React.FC = () => {
   // Se calcula desde un deadline absoluto para evitar la deriva por throttling de
   // pestañas en segundo plano (el candidato no obtiene tiempo extra).
   useEffect(() => {
+    if (blockedMobile) return; // examen bloqueado en móvil: no correr el temporizador
     if (timeRemaining === null || timeRemaining <= 0 || isPaused) return;
 
     // Inicializar el deadline la primera vez que conocemos el tiempo restante.
@@ -415,7 +429,7 @@ const ExamTestRunPage: React.FC = () => {
 
   // Auto-submit cuando el tiempo se acaba
   useEffect(() => {
-    if (timeRemaining === 0 && !isSubmitting && !timeExpired) {
+    if (timeRemaining === 0 && !isSubmitting && !timeExpired && !blockedMobile) {
       setTimeExpired(true);
       // NOTA: la sesión de localStorage se limpia solo cuando el envío se confirma
       // (en el flujo de envío), para no perder el intento si el envío falla.
@@ -431,7 +445,7 @@ const ExamTestRunPage: React.FC = () => {
 
   // Auto-submit cuando se agotan las oportunidades de desconexión
   useEffect(() => {
-    if (disconnectionsExhausted && !isSubmitting && !timeExpired) {
+    if (disconnectionsExhausted && !isSubmitting && !timeExpired && !blockedMobile) {
       setTimeExpired(true);
       // NOTA: la sesión se limpia solo al confirmar el envío (ver flujo de envío).
       // Cerrar cualquier modal abierto
@@ -609,8 +623,9 @@ const ExamTestRunPage: React.FC = () => {
 
   // Guardar estado del examen en localStorage periódicamente
   useEffect(() => {
+    if (blockedMobile) return; // no guardar progreso de intentos bloqueados en móvil
     if (timeRemaining === null || !examId || selectedItems.length === 0) return;
-    
+
     const saveSession = () => {
       const sessionData = {
         timeRemaining,
@@ -1009,6 +1024,7 @@ const ExamTestRunPage: React.FC = () => {
   // started_at cerca del inicio real (el tiempo autoritativo se calcula desde ahí).
   useEffect(() => {
     if (initialServerSaveRef.current) return;
+    if (blockedMobile) return;
     if (!examId || timeRemaining === null || selectedItems.length === 0 || !attemptIdRef.current) return;
     initialServerSaveRef.current = true;
     examService.saveExamProgress(Number(examId), {
@@ -1064,7 +1080,7 @@ const ExamTestRunPage: React.FC = () => {
   const fsGateShownRef = useRef(false);
   useEffect(() => {
     if (fsGateShownRef.current) return;
-    if (currentMode !== 'exam' || !fsSupported) return;
+    if (currentMode !== 'exam' || !fsSupported || blockedMobile) return;
     if (timeRemaining === null || selectedItems.length === 0) return;
     fsGateShownRef.current = true;
     if (!document.fullscreenElement) setShowFullscreenGate(true);
@@ -2765,6 +2781,28 @@ const ExamTestRunPage: React.FC = () => {
                 {showSkippedModal.type === 'next_exercise' ? 'Continuar' : 'Ir al siguiente paso'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Restricción de móvil: el examen real solo en computadora */}
+      {blockedMobile && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full fluid-p-6 text-center">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto fluid-mb-3 rounded-full bg-amber-100 flex items-center justify-center">
+              <AlertCircle className="fluid-icon sm:fluid-icon-lg text-amber-600" />
+            </div>
+            <h2 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">Examen no disponible en móvil</h2>
+            <p className="fluid-text-sm text-gray-600 fluid-mb-4">
+              Por seguridad e integridad, este examen debe realizarse en una <strong>computadora</strong>
+              {' '}(no en celular ni tablet). Ábrelo desde un equipo de escritorio o laptop.
+            </p>
+            <button
+              onClick={() => navigate('/exams')}
+              className="w-full fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-md transition-colors"
+            >
+              Volver a mis exámenes
+            </button>
           </div>
         </div>
       )}
