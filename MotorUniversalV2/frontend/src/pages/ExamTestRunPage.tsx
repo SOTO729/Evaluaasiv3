@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, ChevronDown, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -64,6 +64,8 @@ const ExamTestRunPage: React.FC = () => {
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const exerciseAreaRef = useRef<HTMLDivElement>(null); // área completa (ancho estable) para medir
   const exerciseRemindedRef = useRef<Set<string>>(new Set()); // ejercicios para los que ya se mostró el recordatorio
+  const contentRef = useRef<HTMLDivElement>(null); // contenedor del reactivo (foco al navegar, a11y)
+  const [srAnnouncement, setSrAnnouncement] = useState(''); // anuncios para lector de pantalla (aria-live)
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
   // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
   // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
@@ -385,6 +387,7 @@ const ExamTestRunPage: React.FC = () => {
       if (timeRemaining <= minutes * 60 && timeRemaining > (minutes * 60) - 2 && !timeWarningsShown.has(minutes)) {
         setTimeWarningsShown(prev => new Set([...prev, minutes]));
         setShowTimeWarning({ minutes });
+        setSrAnnouncement(`Atención: queda${minutes === 1 ? '' : 'n'} ${minutes} minuto${minutes === 1 ? '' : 's'} de examen`);
         // Auto-cerrar después de 4 segundos
         setTimeout(() => setShowTimeWarning(null), 4000);
         break;
@@ -678,6 +681,7 @@ const ExamTestRunPage: React.FC = () => {
     if (exerciseRemindedRef.current.has(exId)) return;
     exerciseRemindedRef.current.add(exId);
     setShowExerciseCompleted(true);
+    setSrAnnouncement('Ejercicio completado. Puedes continuar al siguiente reactivo.');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItem, stepCompleted]);
 
@@ -886,6 +890,13 @@ const ExamTestRunPage: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItemIndex, selectedItems.length, showConfirmSubmit, showExitConfirm, showNavPanel, submitError, showExerciseCompleted, showErrorModal, showSkippedModal]);
+
+  // Accesibilidad: al cambiar de reactivo, mover el foco al contenido y anunciarlo.
+  useEffect(() => {
+    if (selectedItems.length === 0) return;
+    setSrAnnouncement(`Reactivo ${currentItemIndex + 1} de ${selectedItems.length}`);
+    contentRef.current?.focus({ preventScroll: true });
+  }, [currentItemIndex, selectedItems.length]);
 
   // Efecto para enviar el examen cuando el tiempo expira
   useEffect(() => {
@@ -1237,8 +1248,8 @@ const ExamTestRunPage: React.FC = () => {
     switch (currentItem.question_type) {
       case 'true_false':
         return (
-          <div className="flex flex-col fluid-gap-2 sm:fluid-gap-3 w-full">
-            <label className={`group flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-3 sm:fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
+          <div className="flex flex-col fluid-gap-2 sm:fluid-gap-3 w-full" role="radiogroup" aria-label="Selecciona Verdadero o Falso">
+            <label className={`group flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-3 sm:fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full focus-within:ring-2 focus-within:ring-primary-600 ${
               currentAnswer === true 
                 ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1249,7 +1260,7 @@ const ExamTestRunPage: React.FC = () => {
                 value="true"
                 checked={currentAnswer === true}
                 onChange={() => handleAnswerChange(currentItem.question_id!, true)}
-                className="hidden"
+                className="sr-only"
               />
               <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0 transition-all border-2 ${
                 currentAnswer === true 
@@ -1261,7 +1272,7 @@ const ExamTestRunPage: React.FC = () => {
                 Verdadero
               </span>
             </label>
-            <label className={`group flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-3 sm:fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full ${
+            <label className={`group flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-3 sm:fluid-p-4 border rounded-fluid-md cursor-pointer transition-all w-full focus-within:ring-2 focus-within:ring-primary-600 ${
               currentAnswer === false 
                 ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1272,7 +1283,7 @@ const ExamTestRunPage: React.FC = () => {
                 value="false"
                 checked={currentAnswer === false}
                 onChange={() => handleAnswerChange(currentItem.question_id!, false)}
-                className="hidden"
+                className="sr-only"
               />
               <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0 transition-all border-2 ${
                 currentAnswer === false 
@@ -1289,11 +1300,11 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'multiple_choice':
         return (
-          <div className="flex flex-col fluid-gap-2">
+          <div className="flex flex-col fluid-gap-2" role="radiogroup" aria-label="Opciones de respuesta (selecciona una)">
             {currentItem.options?.map((option: any, index: number) => (
               <label
                 key={option.id}
-                className={`group flex items-center fluid-p-2 sm:fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
+                className={`group flex items-center fluid-p-2 sm:fluid-p-3 border rounded-fluid-md cursor-pointer transition-all focus-within:ring-2 focus-within:ring-primary-600 ${
                   currentAnswer === option.id 
                     ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1312,7 +1323,7 @@ const ExamTestRunPage: React.FC = () => {
                   value={option.id}
                   checked={currentAnswer === option.id}
                   onChange={() => handleAnswerChange(currentItem.question_id!, option.id)}
-                  className="hidden"
+                  className="sr-only"
                 />
                 <div
                   className="fluid-ml-2 sm:fluid-ml-3 fluid-text-xs sm:fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
@@ -1325,7 +1336,7 @@ const ExamTestRunPage: React.FC = () => {
 
       case 'multiple_select':
         return (
-          <div className="flex flex-col fluid-gap-2">
+          <div className="flex flex-col fluid-gap-2" role="group" aria-label="Opciones de respuesta (selecciona todas las correctas)">
             <p className="fluid-text-2xs sm:fluid-text-xs text-gray-500 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2">
               <span className="w-4 h-4 rounded bg-primary-100 text-primary-600 flex items-center justify-center text-[10px]">✓</span>
               Selecciona todas las opciones correctas
@@ -1337,7 +1348,7 @@ const ExamTestRunPage: React.FC = () => {
               return (
                 <label
                   key={option.id}
-                  className={`group flex items-center fluid-p-2 sm:fluid-p-3 border rounded-fluid-md cursor-pointer transition-all ${
+                  className={`group flex items-center fluid-p-2 sm:fluid-p-3 border rounded-fluid-md cursor-pointer transition-all focus-within:ring-2 focus-within:ring-primary-600 ${
                     isChecked 
                       ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' 
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -1359,7 +1370,7 @@ const ExamTestRunPage: React.FC = () => {
                         : selectedOptions.filter((id: string) => id !== option.id);
                       handleAnswerChange(currentItem.question_id!, newSelected);
                     }}
-                    className="hidden"
+                    className="sr-only"
                   />
                   <div
                     className="fluid-ml-2 sm:fluid-ml-3 fluid-text-xs sm:fluid-text-sm text-gray-700 prose prose-sm max-w-none flex-1"
@@ -1425,16 +1436,27 @@ const ExamTestRunPage: React.FC = () => {
           document.addEventListener('mouseup', handleMouseUp);
         };
 
+        const moveOrder = (index: number, dir: -1 | 1) => {
+          const target = index + dir;
+          if (target < 0 || target >= orderAnswer.length) return;
+          const newOrder = [...orderAnswer];
+          [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+          handleAnswerChange(currentItem.question_id!, newOrder);
+          setOrderingInteracted(prev => ({ ...prev, [String(currentItem.question_id)]: true }));
+        };
+
         return (
-          <div className="flex flex-col fluid-gap-2">
+          <div className="flex flex-col fluid-gap-2" role="list" aria-label="Ordena los elementos; usa las flechas de cada fila para moverlo">
             <p className="fluid-text-2xs sm:fluid-text-xs text-gray-500 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2">
               <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-gray-400" />
-              Arrastra para ordenar correctamente
+              Arrastra para ordenar (o usa las flechas ▲▼ de cada fila)
             </p>
             {orderedOptions.map((option: any, index: number) => (
               <div
                 key={option.id}
                 data-order-index={index}
+                role="listitem"
+                aria-label={`Posición ${index + 1} de ${orderedOptions.length}`}
                 onMouseDown={(e) => handleMouseDown(e, index, option)}
                 style={{
                   transition: 'all 0.15s ease'
@@ -1465,6 +1487,29 @@ const ExamTestRunPage: React.FC = () => {
                   }`}
                   dangerouslySetInnerHTML={{ __html: option.answer_text }}
                 />
+                {/* Botones de teclado para reordenar (accesibilidad) */}
+                <div className="flex flex-col flex-shrink-0 fluid-ml-1">
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => moveOrder(index, -1)}
+                    disabled={index === 0}
+                    aria-label={`Subir a la posición ${index}`}
+                    className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                  >
+                    <ChevronUp className="fluid-icon-xs sm:fluid-icon-sm" />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => moveOrder(index, 1)}
+                    disabled={index === orderedOptions.length - 1}
+                    aria-label={`Bajar a la posición ${index + 2}`}
+                    className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                  >
+                    <ChevronDown className="fluid-icon-xs sm:fluid-icon-sm" />
+                  </button>
+                </div>
               </div>
             ))}
             
@@ -1652,7 +1697,7 @@ const ExamTestRunPage: React.FC = () => {
         };
 
         return (
-          <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4">
+          <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4" role="group" aria-label="Arrastra cada opción al espacio en blanco correspondiente">
             <p className="fluid-text-xs sm:fluid-text-sm text-gray-600 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2 bg-indigo-50 fluid-p-2 sm:fluid-p-3 rounded-fluid-md">
               <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-indigo-500" />
               <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
@@ -1788,7 +1833,7 @@ const ExamTestRunPage: React.FC = () => {
         ];
 
         return (
-          <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4">
+          <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4" role="group" aria-label="Arrastra cada elemento a la columna donde corresponde">
             <p className="fluid-text-xs sm:fluid-text-sm text-gray-600 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2 bg-indigo-50 fluid-p-2 sm:fluid-p-3 rounded-fluid-md">
               <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-indigo-500" />
               <span><strong>Arrastra</strong> cada elemento a la columna donde corresponde</span>
@@ -2462,6 +2507,9 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       )}
 
+      {/* Anuncios para lectores de pantalla (no visibles) */}
+      <div aria-live="polite" aria-atomic="true" role="status" className="sr-only">{srAnnouncement}</div>
+
       {/* Header minimalista - FIJO */}
       <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}>
         <div className="w-full fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-12 lg:h-14 flex items-center">
@@ -2733,6 +2781,8 @@ const ExamTestRunPage: React.FC = () => {
                           setCurrentStepIndex(0);
                           setShowNavPanel(false);
                         }}
+                        aria-current={isCurrent ? 'step' : undefined}
+                        aria-label={`Reactivo ${idx + 1}${isAnswered ? ', respondido' : ', sin responder'}${isFlagged ? ', marcado para revisar' : ''}`}
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-fluid-md flex items-center justify-center fluid-text-xs sm:fluid-text-sm font-medium transition-all ${
                           isCurrent
                             ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-primary-600 text-white ring-2 ring-primary-300 scale-105')
@@ -2765,6 +2815,8 @@ const ExamTestRunPage: React.FC = () => {
                             : 'bg-gray-300 text-gray-500 hover:bg-orange-400 hover:text-white'
                         }`}
                         title={isFlagged ? 'Quitar marca' : 'Marcar para revisar'}
+                        aria-label={isFlagged ? `Quitar marca del reactivo ${idx + 1}` : `Marcar reactivo ${idx + 1} para revisar`}
+                        aria-pressed={isFlagged}
                       >
                         <Flag className="fluid-icon-2xs sm:fluid-icon-xs" />
                       </button>
@@ -2805,7 +2857,7 @@ const ExamTestRunPage: React.FC = () => {
           ? 'pt-[48px] sm:pt-[56px] lg:pt-[68px]'
           : 'pt-[88px] sm:pt-[100px] lg:pt-[116px]'
       }`}>
-        <div className={`mx-auto ${currentItem?.type === 'exercise' ? 'max-w-full px-0 py-0' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
+        <div ref={contentRef} tabIndex={-1} className={`mx-auto outline-none ${currentItem?.type === 'exercise' ? 'max-w-full px-0 py-0' : 'max-w-[1400px] fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 fluid-py-2 sm:fluid-py-4 lg:fluid-py-8'}`}>
           <div className={currentItem?.type === 'exercise' ? '' : 'bg-white overflow-hidden rounded-fluid-md sm:rounded-fluid-lg lg:rounded-fluid-xl shadow-sm border border-gray-200'}>
             {/* Header del ítem - oculto para ejercicios (tarjeta compacta) */}
             {currentItem?.type !== 'exercise' && (
