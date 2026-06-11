@@ -3,8 +3,9 @@
  * Diseño similar a ExamCreatePage con sección para relacionar con examen
  * Incluye modo de creación: desde cero o copiar existente
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useUnsavedChanges, UnsavedChangesModal } from '../../components/ui/UnsavedChangesModal';
 import { useQuery } from '@tanstack/react-query';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
@@ -110,6 +111,19 @@ const StudyContentCreatePage = () => {
   
   // Estado para múltiples exámenes seleccionados
   const [selectedExams, setSelectedExams] = useState<ExamListItem[]>([]);
+
+  // Aviso de cambios sin guardar
+  const initialFormRef = useRef<string | null>(null);
+  const [pendingNav, setPendingNav] = useState<null | (() => void)>(null);
+  const isDirty = initialFormRef.current !== null &&
+    JSON.stringify({ formData, selectedExams }) !== initialFormRef.current;
+  useUnsavedChanges(isDirty);
+  const tryNavigate = (go: () => void) => { if (isDirty) setPendingNav(() => go); else go(); };
+  useEffect(() => {
+    if (loading || initialFormRef.current !== null) return;
+    const t = setTimeout(() => { initialFormRef.current = JSON.stringify({ formData, selectedExams }); }, 500);
+    return () => clearTimeout(t);
+  }, [loading, formData, selectedExams]);
   const [searchExam, setSearchExam] = useState('');
 
   // Cargar lista de materiales para copiar
@@ -459,10 +473,16 @@ const StudyContentCreatePage = () => {
       )}
 
       <div className="w-full fluid-px-6">
+        <UnsavedChangesModal
+          open={!!pendingNav}
+          onStay={() => setPendingNav(null)}
+          onLeave={() => { const go = pendingNav; setPendingNav(null); go?.(); }}
+        />
+
         {/* Header */}
         <div className="fluid-mb-6">
           <button
-            onClick={() => navigate('/study-contents')}
+            onClick={() => tryNavigate(() => navigate('/study-contents'))}
             className="flex items-center fluid-gap-2 text-gray-600 hover:text-gray-800 fluid-mb-4 transition-colors"
           >
             <ArrowLeft className="fluid-icon-sm" />
@@ -1149,7 +1169,7 @@ const StudyContentCreatePage = () => {
         <div className="flex justify-end fluid-gap-3">
           <button
             type="button"
-            onClick={() => navigate('/study-contents')}
+            onClick={() => tryNavigate(() => navigate('/study-contents'))}
             className="btn btn-secondary"
             disabled={saving}
           >

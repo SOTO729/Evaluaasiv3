@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useUnsavedChanges, UnsavedChangesModal } from '../../components/ui/UnsavedChangesModal';
 import {
   getMaterial,
   uploadDownloadable,
@@ -64,7 +65,18 @@ const DownloadableEditorPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // Aviso de cambios sin guardar
+  const initialFormRef = useRef<string | null>(null);
+  const [pendingNav, setPendingNav] = useState<null | (() => void)>(null);
+  const isDirty = initialFormRef.current !== null &&
+    (JSON.stringify(form) !== initialFormRef.current || selectedFiles.length > 0);
+  useUnsavedChanges(isDirty);
+  const tryNavigate = (go: () => void) => { if (isDirty) setPendingNav(() => go); else go(); };
+  useEffect(() => {
+    if (!loading && initialFormRef.current === null) initialFormRef.current = JSON.stringify(form);
+  }, [loading, form]);
+
   // Cargar datos
   useEffect(() => {
     const loadData = async () => {
@@ -236,13 +248,19 @@ const DownloadableEditorPage = () => {
         </div>
       )}
 
+      <UnsavedChangesModal
+        open={!!pendingNav}
+        onStay={() => setPendingNav(null)}
+        onLeave={() => { const go = pendingNav; setPendingNav(null); go?.(); }}
+      />
+
       {/* Header flotante (sin barra rectangular) */}
       <header className="sticky top-0 z-40 pointer-events-none">
         <div className="flex items-center gap-3 px-4 sm:px-6 pt-3 pb-2">
           {/* Izquierda: pastilla de navegación + identidad (toda clicable) */}
           <button
             type="button"
-            onClick={() => navigate(`/study-contents/${materialId}`)}
+            onClick={() => tryNavigate(() => navigate(`/study-contents/${materialId}`))}
             title="Volver al material"
             className="group pointer-events-auto flex items-center gap-2 rounded-2xl bg-white/90 backdrop-blur-md shadow-lg shadow-gray-900/5 ring-1 ring-gray-900/5 pl-1.5 pr-3.5 py-1.5 min-w-0 shrink-0 hover:ring-emerald-200 transition-all text-left"
           >
