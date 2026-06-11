@@ -3545,6 +3545,26 @@ def save_exam_result(exam_id):
         percentage = data.get('percentage', 0)
         status = data.get('status', 1)  # 1 = completado por defecto
         duration_seconds = data.get('duration_seconds', 0)
+
+        # Tiempo autoritativo desde el servidor: si existe un borrador con started_at,
+        # usamos el tiempo real transcurrido (no confiamos en el reloj del cliente).
+        try:
+            from app.models.exam_progress import ExamProgress as _EP
+            from datetime import datetime as _dt2
+            _prog = _EP.query.filter_by(user_id=str(user_id), exam_id=exam_id).first()
+            if _prog and _prog.started_at:
+                server_elapsed = int((_dt2.utcnow() - _prog.started_at).total_seconds())
+                if server_elapsed >= 0:
+                    max_dur = (exam.duration_minutes or 0) * 60
+                    if duration_seconds and abs(int(duration_seconds) - server_elapsed) > 120:
+                        print(f"⚠️ Discrepancia de tiempo (posible manipulación): "
+                              f"cliente={duration_seconds}s servidor={server_elapsed}s "
+                              f"user={user_id} exam={exam_id}")
+                    # Usar el tiempo del servidor (acotado a la duración + 2 min de gracia)
+                    duration_seconds = min(server_elapsed, max_dur + 120) if max_dur else server_elapsed
+        except Exception as _te:
+            print(f"⚠️ No se pudo calcular tiempo del servidor: {_te}")
+
         answers_data = data.get('answers_data')
         questions_order = data.get('questions_order')
         
@@ -3720,8 +3740,25 @@ def save_exam_result(exam_id):
         result.end_date = db.func.now()
         
         db.session.add(result)
-        db.session.commit()
-        
+        try:
+            db.session.commit()
+        except Exception as commit_err:
+            from sqlalchemy.exc import IntegrityError
+            db.session.rollback()
+            # Carrera de idempotencia: el índice único bloqueó un duplicado del mismo intento.
+            if isinstance(commit_err, IntegrityError) and attempt_id:
+                dup = Result.query.filter_by(
+                    user_id=str(user_id), exam_id=exam_id, client_attempt_id=str(attempt_id)
+                ).first()
+                if dup:
+                    print(f"♻️ Idempotencia por índice único: attempt_id={attempt_id} -> {dup.id}")
+                    return jsonify({
+                        'message': 'Resultado ya guardado (idempotente)',
+                        'result': dup.to_dict(),
+                        'is_approved': dup.result == 1,
+                    }), 200
+            raise
+
         # H3: protección contra race-condition. Después del commit, recontamos
         # y si excede el total permitido (porque hubo INSERTs concurrentes),
         # eliminamos este resultado y devolvemos 409. Esto cierra la ventana
@@ -3846,8 +3883,12 @@ def get_exam_progress(exam_id):
     """Devuelve el borrador de progreso del usuario para este examen (si existe)."""
     from app.models.exam_progress import ExamProgress
     user_id = get_jwt_identity()
+    from datetime import datetime as _dt
     p = ExamProgress.query.filter_by(user_id=str(user_id), exam_id=exam_id).first()
-    return jsonify({'progress': p.to_dict() if p else None}), 200
+    return jsonify({
+        'progress': p.to_dict() if p else None,
+        'server_now': _dt.utcnow().isoformat(),
+    }), 200
 
 
 @bp.route('/<int:exam_id>/progress', methods=['PUT'])
@@ -3863,15 +3904,18 @@ def save_exam_progress(exam_id):
     attempt_id = data.get('attempt_id')
     payload = data.get('data')
     try:
+        now = _dt.utcnow()
         p = ExamProgress.query.filter_by(user_id=str(user_id), exam_id=exam_id).first()
         if p:
             p.attempt_id = attempt_id
             p.data = payload
-            p.updated_at = _dt.utcnow()
+            p.updated_at = now
+            if p.started_at is None:
+                p.started_at = now  # anclar inicio si no estaba
         else:
             p = ExamProgress(
                 id=str(_uuid.uuid4()), user_id=str(user_id), exam_id=exam_id,
-                attempt_id=attempt_id, data=payload, updated_at=_dt.utcnow()
+                attempt_id=attempt_id, data=payload, started_at=now, updated_at=now
             )
             db.session.add(p)
         db.session.commit()

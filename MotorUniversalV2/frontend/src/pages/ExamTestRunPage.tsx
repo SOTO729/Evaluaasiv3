@@ -72,6 +72,8 @@ const ExamTestRunPage: React.FC = () => {
   const attemptIdRef = useRef<string | null>(null); // id de intento (idempotencia de envío + autosave servidor)
   const serverSaveCounterRef = useRef(0); // throttle del autosave al servidor (~cada 20s)
   const [serverRestoreChecked, setServerRestoreChecked] = useState(false); // ya se verificó el borrador del servidor
+  const initialServerSaveRef = useRef(false); // primer guardado al servidor (ancla started_at cerca del inicio real)
+  const [showRestoreBanner, setShowRestoreBanner] = useState(false); // aviso "intento restaurado"
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
   // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
   // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
@@ -331,6 +333,9 @@ const ExamTestRunPage: React.FC = () => {
           if (savedSelectedItems && savedSelectedItems.length > 0) {
             setSelectedItems(savedSelectedItems);
             setSessionRestored(true); // Marcar que ya se restauró para evitar cargar nuevos items
+            setShowRestoreBanner(true); // avisar al usuario que se recuperó su intento
+            setSrAnnouncement('Recuperamos tu intento en curso.');
+            setTimeout(() => setShowRestoreBanner(false), 6000);
           }
           if (savedOrderingInteracted) {
             setOrderingInteracted(savedOrderingInteracted);
@@ -993,6 +998,43 @@ const ExamTestRunPage: React.FC = () => {
     window.addEventListener('keydown', onEsc);
     return () => window.removeEventListener('keydown', onEsc);
   }, [submitError, showErrorModal, showSkippedModal, showStatusPanel, showNavPanel, showExitConfirm, showConfirmSubmit]);
+
+  // Primer guardado de progreso al servidor en cuanto arranca el examen, para anclar
+  // started_at cerca del inicio real (el tiempo autoritativo se calcula desde ahí).
+  useEffect(() => {
+    if (initialServerSaveRef.current) return;
+    if (!examId || timeRemaining === null || selectedItems.length === 0 || !attemptIdRef.current) return;
+    initialServerSaveRef.current = true;
+    examService.saveExamProgress(Number(examId), {
+      attempt_id: attemptIdRef.current,
+      data: { timeRemaining, savedAt: Date.now() },
+    }).catch(() => {});
+  }, [examId, timeRemaining, selectedItems.length]);
+
+  // Accesibilidad: atrapar el foco (Tab) dentro del modal superior abierto.
+  useEffect(() => {
+    const anyModalOpen = submitError || showErrorModal || showSkippedModal || showExitConfirm || showConfirmSubmit || showExerciseCompleted;
+    if (!anyModalOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const overlays = Array.from(document.querySelectorAll<HTMLElement>('.fixed.inset-0.flex'))
+        .filter((el) => el.offsetParent !== null);
+      const overlay = overlays[overlays.length - 1];
+      if (!overlay) return;
+      const focusables = Array.from(
+        overlay.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement;
+      if (!overlay.contains(active)) { e.preventDefault(); first.focus(); return; }
+      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [submitError, showErrorModal, showSkippedModal, showExitConfirm, showConfirmSubmit, showExerciseCompleted]);
 
   // Efecto para enviar el examen cuando el tiempo expira
   useEffect(() => {
@@ -2658,6 +2700,17 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Anuncios para lectores de pantalla (no visibles) */}
       <div aria-live="polite" aria-atomic="true" role="status" className="sr-only">{srAnnouncement}</div>
+
+      {/* Aviso visible: intento recuperado (local o servidor) */}
+      {showRestoreBanner && (
+        <div className="fixed top-[52px] sm:top-[60px] lg:top-[68px] left-1/2 -translate-x-1/2 z-[60] flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-emerald-600 text-white rounded-fluid-md shadow-lg fluid-text-xs sm:fluid-text-sm animate-in fade-in slide-in-from-top duration-300">
+          <CheckCircle className="fluid-icon-xs sm:fluid-icon-sm flex-shrink-0" />
+          <span>Recuperamos tu intento en curso</span>
+          <button onClick={() => setShowRestoreBanner(false)} aria-label="Cerrar aviso" className="ml-1 hover:opacity-80">
+            <X className="fluid-icon-xs" />
+          </button>
+        </div>
+      )}
 
       {/* Header minimalista - FIJO */}
       <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-600' : 'bg-primary-600'}`}>

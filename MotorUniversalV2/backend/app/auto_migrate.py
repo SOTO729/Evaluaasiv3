@@ -2057,6 +2057,64 @@ def check_and_create_exam_progress_table():
             db.session.rollback()
 
 
+def check_and_add_exam_progress_started_at():
+    """Agregar columna started_at a exam_progress (inicio anclado en servidor)"""
+    print("🔍 Verificando columna started_at en exam_progress...")
+    try:
+        inspector = inspect(db.engine)
+        if 'exam_progress' not in inspector.get_table_names():
+            print("  ⚠️  Tabla exam_progress no existe, saltando started_at")
+            return
+        existing = [c['name'] for c in inspector.get_columns('exam_progress')]
+        if 'started_at' not in existing:
+            db_type = get_db_type()
+            col_type = 'TIMESTAMP' if db_type == 'postgresql' else 'DATETIME'
+            print("  📝 Agregando columna started_at a exam_progress...")
+            db.session.execute(text(f"ALTER TABLE exam_progress ADD started_at {col_type} NULL"))
+            db.session.commit()
+            print("  ✓ Columna started_at agregada")
+        else:
+            print("  ✓ Columna started_at ya existe")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  started_at ya existe")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
+def check_and_add_result_attempt_unique_index():
+    """Índice único filtrado en results(user_id, exam_id, client_attempt_id) para
+    blindar la idempotencia ante envíos concurrentes (solo filas con attempt_id)."""
+    print("🔍 Verificando índice único de idempotencia en results...")
+    try:
+        inspector = inspect(db.engine)
+        index_names = [ix['name'] for ix in inspector.get_indexes('results')]
+        if 'uq_results_user_exam_attempt' in index_names:
+            print("  ✓ Índice único de idempotencia ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = ("CREATE UNIQUE INDEX uq_results_user_exam_attempt ON results "
+                   "(user_id, exam_id, client_attempt_id) WHERE client_attempt_id IS NOT NULL")
+        elif db_type == 'postgresql':
+            sql = ("CREATE UNIQUE INDEX uq_results_user_exam_attempt ON results "
+                   "(user_id, exam_id, client_attempt_id) WHERE client_attempt_id IS NOT NULL")
+        else:  # sqlite
+            sql = ("CREATE UNIQUE INDEX uq_results_user_exam_attempt ON results "
+                   "(user_id, exam_id, client_attempt_id) WHERE client_attempt_id IS NOT NULL")
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✓ Índice único de idempotencia creado")
+    except Exception as e:
+        msg = str(e).lower()
+        if 'already exists' in msg or 'duplicate' in msg or 'there is already' in msg:
+            print("  ⚠️  Índice ya existe")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
 def check_and_add_partner_config_subsistema():
     """Agregar columna config_subsistema_id a partners para mapeo a EvaluaasiConfig"""
     print("🔍 Verificando columna config_subsistema_id en partners...")

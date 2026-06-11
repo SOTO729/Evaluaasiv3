@@ -17,6 +17,7 @@ class ExamProgress(db.Model):
     exam_id = db.Column(db.Integer, nullable=False, index=True)
     attempt_id = db.Column(db.String(64), nullable=True)
     data = db.Column(db.JSON)  # answers, exerciseResponses, índice actual, etc.
+    started_at = db.Column(db.DateTime, nullable=True)  # inicio del intento (anclado en servidor)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (
@@ -27,5 +28,6 @@ class ExamProgress(db.Model):
         return {
             'attempt_id': self.attempt_id,
             'data': self.data,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
