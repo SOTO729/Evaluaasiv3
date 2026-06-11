@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -82,6 +82,8 @@ const ExamTestRunPage: React.FC = () => {
   
   // Estado para panel de navegación desplegable
   const [showNavPanel, setShowNavPanel] = useState(false);
+  // Estado para el cuadro de estado (tiempo + desconexiones) en el header
+  const [showStatusPanel, setShowStatusPanel] = useState(false);
   
   // Estado para marcar preguntas como pendientes (para volver después)
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<number>>(new Set());
@@ -2435,6 +2437,10 @@ const ExamTestRunPage: React.FC = () => {
             <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 min-w-0 flex-1">
               <div className="min-w-0 flex items-center fluid-gap-2 sm:fluid-gap-3">
                 <h1 className="fluid-text-base sm:fluid-text-lg lg:fluid-text-2xl font-bold text-white truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[280px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
+                {/* Badge Examen/Simulador (al lado derecho del titulo) */}
+                <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide bg-white/25 text-white flex-shrink-0">
+                  {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
+                </span>
                 {/* Indicador de pausa por desconexión */}
                 {isPaused && (
                   <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
@@ -2450,46 +2456,61 @@ const ExamTestRunPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Derecha: Timer, Desconexiones, Usuario y Salir */}
+            {/* Derecha: estado (tiempo + desconexiones) y usuario */}
             <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 flex-shrink-0">
-              {/* Indicador de oportunidades de desconexión */}
-              {currentMode === 'exam' && (
-                <div className={`flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md fluid-text-xs sm:fluid-text-sm ${
-                  disconnectionCount >= maxDisconnections 
-                    ? 'bg-red-500 text-white animate-pulse'
-                    : (maxDisconnections - disconnectionCount) === 1
+              {/* Cuadro combinado: tiempo + desconexiones; abre detalle */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowStatusPanel((v) => !v)}
+                  title="Tiempo y desconexiones"
+                  className={`flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md font-mono fluid-text-xs sm:fluid-text-sm transition-all ${
+                    isTimeCritical
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : isTimeWarning
                       ? 'bg-amber-400 text-amber-900'
-                      : 'bg-white/20 text-white'
-                }`} title={`Oportunidades de desconexión: ${Math.max(0, maxDisconnections - disconnectionCount)} de ${maxDisconnections}`}>
-                  <WifiOff className="fluid-icon-xs sm:fluid-icon-sm" />
-                  <span className="font-medium">{Math.max(0, maxDisconnections - disconnectionCount)}/{maxDisconnections}</span>
-                </div>
-              )}
+                      : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
+                >
+                  <Clock className="fluid-icon-xs sm:fluid-icon-sm" />
+                  <span className="font-medium">{String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}</span>
+                  {currentMode === 'exam' && (
+                    <span className="flex items-center fluid-gap-0.5 fluid-text-2xs sm:fluid-text-xs border-l border-white/40 pl-1 sm:pl-2">
+                      <WifiOff className="fluid-icon-xs" />
+                      {Math.max(0, maxDisconnections - disconnectionCount)}/{maxDisconnections}
+                    </span>
+                  )}
+                  <ChevronDown className={`fluid-icon-xs transition-transform ${showStatusPanel ? 'rotate-180' : ''}`} />
+                </button>
+                {showStatusPanel && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowStatusPanel(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 w-60 bg-white rounded-fluid-lg shadow-xl border border-gray-200 overflow-hidden text-gray-800">
+                      <div className="flex items-center justify-between fluid-px-3 fluid-py-2 border-b border-gray-100">
+                        <span className="flex items-center fluid-gap-2 fluid-text-sm text-gray-600"><Clock className="fluid-icon-sm text-gray-400" /> Tiempo restante</span>
+                        <span className={`font-mono font-semibold fluid-text-sm ${isTimeCritical ? 'text-red-600' : isTimeWarning ? 'text-amber-600' : 'text-gray-900'}`}>
+                          {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
+                        </span>
+                      </div>
+                      {currentMode === 'exam' && (
+                        <div className="flex items-center justify-between fluid-px-3 fluid-py-2">
+                          <span className="flex items-center fluid-gap-2 fluid-text-sm text-gray-600"><WifiOff className="fluid-icon-sm text-gray-400" /> Desconexiones</span>
+                          <span className="font-semibold fluid-text-sm text-gray-900">{Math.max(0, maxDisconnections - disconnectionCount)} de {maxDisconnections}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
 
-              {/* Username del usuario */}
-              <div className="hidden lg:flex items-center fluid-gap-2 fluid-text-xs lg:fluid-text-sm">
-                <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-white/20 flex items-center justify-center">
+              {/* Usuario (a la derecha) */}
+              <div className="flex items-center fluid-gap-2 fluid-text-xs lg:fluid-text-sm">
+                <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                   <User className="fluid-icon-xs lg:fluid-icon-sm text-white" />
                 </div>
-                <span className="text-white/90 font-medium">
+                <span className="hidden sm:inline text-white/90 font-medium truncate max-w-[120px] lg:max-w-[200px]">
                   {user?.username || '---'}
                 </span>
               </div>
-
-              {/* Timer */}
-              <div className={`flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md font-mono fluid-text-xs sm:fluid-text-sm transition-all ${
-                isTimeCritical 
-                  ? 'bg-red-500 text-white animate-pulse' 
-                  : isTimeWarning 
-                  ? 'bg-amber-400 text-amber-900' 
-                  : 'bg-white/20 text-white'
-              }`}>
-                <Clock className="fluid-icon-xs sm:fluid-icon-sm" />
-                <span className="font-medium">
-                  {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
-                </span>
-              </div>
-
             </div>
           </div>
         </div>
@@ -2521,10 +2542,6 @@ const ExamTestRunPage: React.FC = () => {
               >
                 <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
               </button>
-              {/* Badge Examen/Simulador (reubicado del header) */}
-              <span className={`hidden md:inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide flex-shrink-0 ${currentMode === 'simulator' ? 'bg-amber-100 text-amber-700' : 'bg-primary-100 text-primary-700'}`}>
-                {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
-              </span>
               <button
                 onClick={() => setShowNavPanel(!showNavPanel)}
                 className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[80px] sm:min-w-[100px] lg:min-w-[120px]"
