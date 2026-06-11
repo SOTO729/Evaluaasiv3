@@ -1491,7 +1491,7 @@ const StudyContentPreviewPage: React.FC = () => {
         <div aria-live="polite" aria-atomic="true" role="status" className="sr-only">{srAnnounce}</div>
 
         {/* Contenido principal */}
-        <main ref={mainContainerRef} tabIndex={-1} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain outline-none focus:outline-none" onScroll={handleMainScroll}>
+        <main ref={mainContainerRef} tabIndex={-1} role="tabpanel" id="study-tabpanel" aria-labelledby={`tab-${activeTab}`} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain outline-none focus:outline-none" onScroll={handleMainScroll}>
           {/* Sub-header compacto: "Sesión · Título" + pestañas tipo pills */}
           <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
             <div className="w-full px-[clamp(0.75rem,3vw,2rem)] py-2 flex flex-col gap-2">
@@ -1542,12 +1542,16 @@ const StudyContentPreviewPage: React.FC = () => {
                 )}
 
                 {/* Pestañas de material como íconos (cambio con un clic) */}
-                <nav className="flex items-center gap-0.5 flex-shrink-0">
+                <nav role="tablist" aria-label="Contenido del tema" className="flex items-center gap-0.5 flex-shrink-0">
                   {currentTopic?.allow_reading !== false && (
                     <button
                       onClick={() => handleTabChange('reading')}
+                      role="tab"
+                      id="tab-reading"
+                      aria-selected={activeTab === 'reading'}
+                      aria-controls="study-tabpanel"
                       title="Lectura"
-                      aria-label="Lectura"
+                      aria-label={`Lectura${currentTopic?.reading && completedContents.reading.has(currentTopic.reading.id) ? ', completado' : ''}`}
                       className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
                         activeTab === 'reading' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
@@ -1561,8 +1565,12 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_video !== false && (
                     <button
                       onClick={() => handleTabChange('video')}
+                      role="tab"
+                      id="tab-video"
+                      aria-selected={activeTab === 'video'}
+                      aria-controls="study-tabpanel"
                       title="Video"
-                      aria-label="Video"
+                      aria-label={`Video${currentTopic?.video && completedContents.video.has(currentTopic.video.id) ? ', completado' : ''}`}
                       className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
                         activeTab === 'video' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
@@ -1576,8 +1584,12 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_interactive !== false && (
                     <button
                       onClick={() => handleTabChange('interactive')}
+                      role="tab"
+                      id="tab-interactive"
+                      aria-selected={activeTab === 'interactive'}
+                      aria-controls="study-tabpanel"
                       title="Ejercicio"
-                      aria-label="Ejercicio"
+                      aria-label={`Ejercicio${currentTopic?.interactive_exercise && completedContents.interactive.has(currentTopic.interactive_exercise.id) ? ', completado' : ''}`}
                       className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
                         activeTab === 'interactive' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
@@ -1591,8 +1603,12 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_downloadable !== false && (
                     <button
                       onClick={() => handleTabChange('downloadable')}
+                      role="tab"
+                      id="tab-downloadable"
+                      aria-selected={activeTab === 'downloadable'}
+                      aria-controls="study-tabpanel"
                       title="Recursos"
-                      aria-label="Recursos"
+                      aria-label={`Recursos${currentTopic?.downloadable_exercise && completedContents.downloadable.has(currentTopic.downloadable_exercise.id) ? ', completado' : ''}`}
                       className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
                         activeTab === 'downloadable' ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100'
                       }`}
@@ -1606,6 +1622,10 @@ const StudyContentPreviewPage: React.FC = () => {
                   {currentTopic?.allow_scorm !== false && currentTopic?.scorm_package && (
                     <button
                       onClick={() => handleTabChange('scorm')}
+                      role="tab"
+                      id="tab-scorm"
+                      aria-selected={activeTab === 'scorm'}
+                      aria-controls="study-tabpanel"
                       title="SCORM"
                       aria-label="SCORM"
                       className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg transition-colors ${
