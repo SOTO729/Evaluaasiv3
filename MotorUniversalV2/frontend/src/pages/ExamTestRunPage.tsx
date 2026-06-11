@@ -666,20 +666,17 @@ const ExamTestRunPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItem, currentStepIndex, stepCompleted]);
 
-  // Cuando el ejercicio queda completado, tras unos segundos mostrar un recordatorio
-  // (modal dismissible) para avisar que ya puede pasar al siguiente reactivo. Se muestra
-  // una sola vez por ejercicio y se cancela si el usuario navega antes.
+  // Al terminar el ejercicio, avisar JUSTO al completarlo con un modal dismissible
+  // (le indica que lo termino y que puede continuar). Se muestra una sola vez por
+  // ejercicio; el modal persiste hasta que el usuario lo cierre o continue.
   useEffect(() => {
     if (currentItem?.type !== 'exercise') return;
     const exId = currentItem.exercise_id;
     if (!exId) return;
     if (!isExerciseCompleted(currentItem)) return;
     if (exerciseRemindedRef.current.has(exId)) return;
-    const timer = setTimeout(() => {
-      exerciseRemindedRef.current.add(exId);
-      setShowExerciseCompleted(true);
-    }, 15000);
-    return () => clearTimeout(timer);
+    exerciseRemindedRef.current.add(exId);
+    setShowExerciseCompleted(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentItem, stepCompleted]);
 
