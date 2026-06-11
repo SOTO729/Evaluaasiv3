@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { examService } from '../services/examService';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, CheckCircle, AlertCircle, GripVertical, Image, Clock, LogOut, X, User, Flag, List, ArrowDown, WifiOff, Maximize } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { clearExamSessionCache, useAuthStore } from '../store/authStore';
 
@@ -74,6 +74,12 @@ const ExamTestRunPage: React.FC = () => {
   const [serverRestoreChecked, setServerRestoreChecked] = useState(false); // ya se verificó el borrador del servidor
   const initialServerSaveRef = useRef(false); // primer guardado al servidor (ancla started_at cerca del inicio real)
   const [showRestoreBanner, setShowRestoreBanner] = useState(false); // aviso "intento restaurado"
+  // Anti-trampa: pantalla completa forzada (solo en modo examen, best-effort)
+  const [showFullscreenGate, setShowFullscreenGate] = useState(false); // overlay inicial para entrar a pantalla completa
+  const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false); // aviso al salir de pantalla completa
+  const fsActiveRef = useRef(false); // ya entramos a pantalla completa al menos una vez
+  const fsExitCountRef = useRef(0); // veces que salió de pantalla completa (auditoría)
+  const isFinishingRef = useRef(false); // entregando/saliendo: no molestar con el prompt
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
   // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
   // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
@@ -1036,6 +1042,65 @@ const ExamTestRunPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [submitError, showErrorModal, showSkippedModal, showExitConfirm, showConfirmSubmit, showExerciseCompleted]);
 
+  // ── Anti-trampa: pantalla completa forzada (solo examen, best-effort) ──
+  const fsSupported = typeof document !== 'undefined' && !!(document.documentElement && document.documentElement.requestFullscreen);
+  const enterFullscreen = () => {
+    try {
+      const el: any = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      if (req) { const p = req.call(el); if (p && p.catch) p.catch(() => {}); }
+    } catch { /* ignore */ }
+  };
+  const exitFullscreenSafe = () => {
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        const p = document.exitFullscreen();
+        if (p && (p as any).catch) (p as any).catch(() => {});
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Mostrar el gate inicial una vez (examen + soportado + no ya en pantalla completa).
+  const fsGateShownRef = useRef(false);
+  useEffect(() => {
+    if (fsGateShownRef.current) return;
+    if (currentMode !== 'exam' || !fsSupported) return;
+    if (timeRemaining === null || selectedItems.length === 0) return;
+    fsGateShownRef.current = true;
+    if (!document.fullscreenElement) setShowFullscreenGate(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMode, fsSupported, timeRemaining, selectedItems.length]);
+
+  // Vigilar salidas de pantalla completa durante el examen.
+  useEffect(() => {
+    if (currentMode !== 'exam' || !fsSupported) return;
+    const onFsChange = () => {
+      if (document.fullscreenElement) {
+        fsActiveRef.current = true;
+        setShowFullscreenPrompt(false);
+        setShowFullscreenGate(false);
+      } else if (fsActiveRef.current && !isFinishingRef.current && !timeExpired) {
+        fsExitCountRef.current += 1;
+        setShowFullscreenPrompt(true);
+        setSrAnnouncement('Saliste de pantalla completa. Vuelve a pantalla completa para continuar.');
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, [currentMode, fsSupported, timeExpired]);
+
+  // Salir de pantalla completa al desmontar (navegación / salida del examen).
+  useEffect(() => {
+    return () => {
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          const p = document.exitFullscreen();
+          if (p && (p as any).catch) (p as any).catch(() => {});
+        }
+      } catch { /* ignore */ }
+    };
+  }, []);
+
   // Efecto para enviar el examen cuando el tiempo expira
   useEffect(() => {
     if (timeExpired && !isSubmitting) {
@@ -1048,6 +1113,8 @@ const ExamTestRunPage: React.FC = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setSubmitError(null);
+    isFinishingRef.current = true;
+    exitFullscreenSafe();
 
     const elapsedTime = exam?.duration_minutes ? exam.duration_minutes * 60 : Math.floor((Date.now() - startTime) / 1000);
     
@@ -1159,7 +1226,8 @@ const ExamTestRunPage: React.FC = () => {
             questions: results.questions || [],
             exercises: results.exercises || [],
             summary: resultsWithBreakdown.summary || {},
-            evaluation_breakdown: evaluationBreakdown
+            evaluation_breakdown: evaluationBreakdown,
+            fullscreen_exits: fsExitCountRef.current
           },
           questions_order: selectedItems.map(item => item.id.toString()),
           group_id: groupId,
@@ -1207,6 +1275,8 @@ const ExamTestRunPage: React.FC = () => {
   const handleSubmit = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    isFinishingRef.current = true; // no avisar de pantalla completa al entregar
+    exitFullscreenSafe();
     
     const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
     
@@ -1319,7 +1389,8 @@ const ExamTestRunPage: React.FC = () => {
             questions: results.questions || [],
             exercises: results.exercises || [],
             summary: resultsWithBreakdown.summary || {},
-            evaluation_breakdown: evaluationBreakdown
+            evaluation_breakdown: evaluationBreakdown,
+            fullscreen_exits: fsExitCountRef.current
           },
           questions_order: selectedItems.map(item => item.id.toString()),
           group_id: groupId,
@@ -2709,6 +2780,51 @@ const ExamTestRunPage: React.FC = () => {
           <button onClick={() => setShowRestoreBanner(false)} aria-label="Cerrar aviso" className="ml-1 hover:opacity-80">
             <X className="fluid-icon-xs" />
           </button>
+        </div>
+      )}
+
+      {/* Anti-trampa: gate inicial para entrar a pantalla completa (solo examen) */}
+      {showFullscreenGate && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-gray-900/95 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full fluid-p-6 text-center">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto fluid-mb-3 rounded-full bg-primary-100 flex items-center justify-center">
+              <Maximize className="fluid-icon sm:fluid-icon-lg text-primary-600" />
+            </div>
+            <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">Examen en pantalla completa</h3>
+            <p className="fluid-text-sm text-gray-600 fluid-mb-4">
+              Para garantizar la integridad del examen, debe realizarse en pantalla completa.
+              Salir de pantalla completa quedará registrado.
+            </p>
+            <button
+              onClick={() => { enterFullscreen(); setShowFullscreenGate(false); }}
+              className="w-full fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-md transition-colors inline-flex items-center justify-center fluid-gap-2"
+            >
+              <Maximize className="fluid-icon-sm" />
+              Comenzar en pantalla completa
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Anti-trampa: aviso al salir de pantalla completa durante el examen */}
+      {showFullscreenPrompt && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-gray-900/95 fluid-p-4">
+          <div className="bg-white rounded-fluid-xl shadow-2xl max-w-md w-full fluid-p-6 text-center">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto fluid-mb-3 rounded-full bg-amber-100 flex items-center justify-center">
+              <AlertCircle className="fluid-icon sm:fluid-icon-lg text-amber-600" />
+            </div>
+            <h3 className="fluid-text-lg font-semibold text-gray-900 fluid-mb-2">Saliste de pantalla completa</h3>
+            <p className="fluid-text-sm text-gray-600 fluid-mb-4">
+              Debes permanecer en pantalla completa durante el examen. Esta acción quedó registrada.
+            </p>
+            <button
+              onClick={enterFullscreen}
+              className="w-full fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-md transition-colors inline-flex items-center justify-center fluid-gap-2"
+            >
+              <Maximize className="fluid-icon-sm" />
+              Volver a pantalla completa
+            </button>
+          </div>
         </div>
       )}
 
