@@ -55,7 +55,8 @@ const ExamTestRunPage: React.FC = () => {
 
   // Restricción: los exámenes reales no se permiten en móvil/tablet (la web no puede
   // garantizar integridad sin app/kiosko). El simulador sí se permite (es práctica).
-  const blockedMobile = currentMode === 'exam' && isMobileDevice();
+  // Homologado: examen y simulador se bloquean en móvil/tablet (la web no garantiza integridad sin app/kiosko).
+  const blockedMobile = isMobileDevice();
   
   // Clave única para almacenar el estado del examen en localStorage
   const examSessionKey = `exam_session_${examId}_${currentMode}`;
@@ -178,7 +179,7 @@ const ExamTestRunPage: React.FC = () => {
         lastOnlineTimeRef.current = Date.now();
       }
       // Contar desconexión por pérdida de red
-      if (currentMode === 'exam') {
+      if (currentMode === 'exam' || currentMode === 'simulator') {
         const newCount = disconnectionCountRef.current + 1;
         disconnectionCountRef.current = newCount;
         setDisconnectionCount(newCount);
@@ -1099,16 +1100,16 @@ const ExamTestRunPage: React.FC = () => {
   const fsGateShownRef = useRef(false);
   useEffect(() => {
     if (fsGateShownRef.current) return;
-    if (currentMode !== 'exam' || !fsSupported || blockedMobile) return;
+    if (!fsSupported || blockedMobile) return; // homologado: examen y simulador
     if (timeRemaining === null || selectedItems.length === 0) return;
     fsGateShownRef.current = true;
     if (!document.fullscreenElement) setShowFullscreenGate(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMode, fsSupported, timeRemaining, selectedItems.length]);
 
-  // Vigilar salidas de pantalla completa durante el examen.
+  // Vigilar salidas de pantalla completa durante el examen/simulador.
   useEffect(() => {
-    if (currentMode !== 'exam' || !fsSupported) return;
+    if (!fsSupported) return; // homologado: examen y simulador
     const onFsChange = () => {
       if (document.fullscreenElement) {
         fsActiveRef.current = true;
@@ -2929,7 +2930,7 @@ const ExamTestRunPage: React.FC = () => {
                 >
                   <Clock className="fluid-icon-xs sm:fluid-icon-sm" />
                   <span className="font-medium">{String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}</span>
-                  {currentMode === 'exam' && (
+                  {(currentMode === 'exam' || currentMode === 'simulator') && (
                     <span className="flex items-center fluid-gap-0.5 fluid-text-2xs sm:fluid-text-xs border-l border-white/40 pl-1 sm:pl-2">
                       <WifiOff className="fluid-icon-xs" />
                       {Math.max(0, maxDisconnections - disconnectionCount)}/{maxDisconnections}
@@ -2947,7 +2948,7 @@ const ExamTestRunPage: React.FC = () => {
                           {String(displayMinutes).padStart(2, '0')}:{String(displaySeconds).padStart(2, '0')}
                         </span>
                       </div>
-                      {currentMode === 'exam' && (
+                      {(currentMode === 'exam' || currentMode === 'simulator') && (
                         <div className="flex items-center justify-between fluid-px-3 fluid-py-2">
                           <span className="flex items-center fluid-gap-2 fluid-text-sm text-gray-600"><WifiOff className="fluid-icon-sm text-gray-400" /> Desconexiones</span>
                           <span className="font-semibold fluid-text-sm text-gray-900">{Math.max(0, maxDisconnections - disconnectionCount)} de {maxDisconnections}</span>
