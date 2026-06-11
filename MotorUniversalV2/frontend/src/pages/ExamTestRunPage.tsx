@@ -759,7 +759,6 @@ const ExamTestRunPage: React.FC = () => {
       } else {
         // Es el último paso, mostrar modal de completado
         setShowExerciseCompleted(true);
-        setTimeout(() => setShowExerciseCompleted(false), 5000);
       }
       return;
     }
@@ -791,7 +790,6 @@ const ExamTestRunPage: React.FC = () => {
       } else {
         // Es el último paso, mostrar modal de completado
         setShowExerciseCompleted(true);
-        setTimeout(() => setShowExerciseCompleted(false), 5000);
       }
     }
   };
@@ -2251,12 +2249,9 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de ejercicio completado - recordatorio (dismissible, estilo del sitio) */}
+      {/* Modal de ejercicio completado - NO dismissible: solo avanzar (evita confusión) */}
       {showExerciseCompleted && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-3 sm:fluid-p-4"
-          onClick={() => setShowExerciseCompleted(false)}
-        >
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-3 sm:fluid-p-4">
           <div
             className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-sm w-full fluid-mx-3 sm:fluid-mx-4 flex flex-col animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
@@ -2278,21 +2273,22 @@ const ExamTestRunPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Footer */}
-            <div className="fluid-p-4 sm:fluid-p-6 pt-0 flex flex-col sm:flex-row sm:justify-end fluid-gap-2">
-              <button
-                onClick={() => setShowExerciseCompleted(false)}
-                className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-gray-700 hover:bg-gray-100 border border-gray-200 rounded-fluid-md transition-colors"
-              >
-                Entendido
-              </button>
-              {currentItemIndex < selectedItems.length - 1 && (
+            {/* Footer - única salida: avanzar (o cerrar solo si es el último reactivo) */}
+            <div className="fluid-p-4 sm:fluid-p-6 pt-0 flex justify-end">
+              {currentItemIndex < selectedItems.length - 1 ? (
                 <button
                   onClick={() => { setShowExerciseCompleted(false); handleNext(); }}
                   className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-md transition-colors inline-flex items-center justify-center fluid-gap-1"
                 >
                   Siguiente reactivo
                   <ChevronRight className="fluid-icon-sm" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowExerciseCompleted(false)}
+                  className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-fluid-md transition-colors"
+                >
+                  Entendido
                 </button>
               )}
             </div>
@@ -2361,7 +2357,6 @@ const ExamTestRunPage: React.FC = () => {
             setShowSkippedModal(null);
             if (showSkippedModal.type === 'next_exercise') {
               setShowExerciseCompleted(true);
-              setTimeout(() => setShowExerciseCompleted(false), 5000);
             }
           }}
         >
@@ -2410,7 +2405,6 @@ const ExamTestRunPage: React.FC = () => {
                   setShowSkippedModal(null);
                   if (showSkippedModal.type === 'next_exercise') {
                     setShowExerciseCompleted(true);
-                    setTimeout(() => setShowExerciseCompleted(false), 5000);
                   }
                 }}
                 className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md sm:rounded-fluid-lg font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${
