@@ -339,13 +339,15 @@ const ExamTestRunPage: React.FC = () => {
   // Estado para envío de examen (declarado aquí para usarlo en auto-submit)
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeExpired, setTimeExpired] = useState(false);
+  // Error de envío: conserva la sesión y ofrece reintentar (no perder el intento)
+  const [submitError, setSubmitError] = useState<{ message: string; retry: () => void } | null>(null);
 
   // Auto-submit cuando el tiempo se acaba
   useEffect(() => {
     if (timeRemaining === 0 && !isSubmitting && !timeExpired) {
       setTimeExpired(true);
-      // Limpiar sesión guardada
-      localStorage.removeItem(examSessionKey);
+      // NOTA: la sesión de localStorage se limpia solo cuando el envío se confirma
+      // (en el flujo de envío), para no perder el intento si el envío falla.
       // Cerrar cualquier modal abierto
       setShowConfirmSubmit(false);
       setShowExitConfirm(false);
@@ -360,8 +362,7 @@ const ExamTestRunPage: React.FC = () => {
   useEffect(() => {
     if (disconnectionsExhausted && !isSubmitting && !timeExpired) {
       setTimeExpired(true);
-      // Limpiar sesión guardada
-      localStorage.removeItem(examSessionKey);
+      // NOTA: la sesión se limpia solo al confirmar el envío (ver flujo de envío).
       // Cerrar cualquier modal abierto
       setShowConfirmSubmit(false);
       setShowExitConfirm(false);
@@ -867,6 +868,25 @@ const ExamTestRunPage: React.FC = () => {
     }
   };
 
+  // Navegación por teclado: ← reactivo anterior, → siguiente (accesibilidad / rapidez).
+  // No interfiere si se escribe en un campo de texto ni si hay un modal abierto.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable) return;
+      if (showConfirmSubmit || showExitConfirm || showNavPanel || submitError || showExerciseCompleted || showErrorModal || showSkippedModal) return;
+      if (e.key === 'ArrowRight') {
+        if (currentItemIndex < selectedItems.length - 1) handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        if (currentItemIndex > 0) handlePrevious();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentItemIndex, selectedItems.length, showConfirmSubmit, showExitConfirm, showNavPanel, submitError, showExerciseCompleted, showErrorModal, showSkippedModal]);
+
   // Efecto para enviar el examen cuando el tiempo expira
   useEffect(() => {
     if (timeExpired && !isSubmitting) {
@@ -878,10 +898,8 @@ const ExamTestRunPage: React.FC = () => {
   const handleSubmitTimeExpired = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    
-    // Limpiar sesión guardada al terminar el examen
-    localStorage.removeItem(examSessionKey);
-    
+    setSubmitError(null);
+
     const elapsedTime = exam?.duration_minutes ? exam.duration_minutes * 60 : Math.floor((Date.now() - startTime) / 1000);
     
     try {
@@ -1002,8 +1020,13 @@ const ExamTestRunPage: React.FC = () => {
         console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
       } catch (saveError) {
         console.warn('⚠️ No se pudo guardar el resultado:', saveError);
+        throw saveError; // el guardado es obligatorio: tratar como fallo de envío
       }
-      
+
+      // Solo al confirmar el guardado limpiamos la sesión local
+      localStorage.removeItem(examSessionKey);
+      clearExamSessionCache();
+
       navigate(`/test-exams/${examId}/results`, {
         state: {
           evaluationResults: resultsWithBreakdown,
@@ -1020,19 +1043,11 @@ const ExamTestRunPage: React.FC = () => {
       });
     } catch (error: any) {
       console.error('❌ Error evaluating exam:', error);
-      navigate(`/test-exams/${examId}/results`, {
-        state: {
-          answers,
-          exerciseResponses,
-          items: selectedItems,
-          examName: exam?.name,
-          passingScore: exam?.passing_score,
-          elapsedTime,
-          questionCount,
-          exerciseCount,
-          timeExpired: !disconnectionsExhausted,
-          disconnectionsExhausted
-        }
+      // No perder el intento: conservar la sesión y ofrecer reintentar
+      setIsSubmitting(false);
+      setSubmitError({
+        message: 'No se pudieron enviar tus respuestas (revisa tu conexión). Tus respuestas siguen guardadas en este dispositivo; puedes reintentar.',
+        retry: () => handleSubmitTimeExpired(),
       });
     }
   };
@@ -1162,10 +1177,15 @@ const ExamTestRunPage: React.FC = () => {
         console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
       } catch (saveError) {
         console.warn('⚠️ No se pudo guardar el resultado:', saveError);
+        throw saveError; // el guardado es obligatorio: tratar como fallo de envío
       }
-      
+
+      // Solo al confirmar el guardado limpiamos la sesión local
+      localStorage.removeItem(examSessionKey);
+      clearExamSessionCache();
+
       console.log('✅ Navegando a resultados con:', { resultsWithBreakdown, itemsCount: selectedItems.length, elapsedTime });
-      
+
       navigate(`/test-exams/${examId}/results`, {
         state: {
           evaluationResults: resultsWithBreakdown,
@@ -1181,24 +1201,13 @@ const ExamTestRunPage: React.FC = () => {
     } catch (error: any) {
       console.error('❌ Error evaluating exam:', error);
       console.error('Error details:', error?.response?.data || error?.message);
-      // Si falla la evaluación, navegar con los datos crudos
-      navigate(`/test-exams/${examId}/results`, {
-        state: {
-          answers,
-          exerciseResponses,
-          items: selectedItems,
-          examName: exam?.name,
-          passingScore: exam?.passing_score,
-          elapsedTime,
-          questionCount,
-          exerciseCount
-        }
+      // No perder el intento: conservar la sesión local y ofrecer reintentar
+      setShowConfirmSubmit(false);
+      setSubmitError({
+        message: 'No se pudieron enviar tus respuestas (revisa tu conexión). Tus respuestas siguen guardadas en este dispositivo; puedes reintentar.',
+        retry: () => handleSubmit(),
       });
     } finally {
-      // Limpiar sesión guardada al terminar el examen
-      localStorage.removeItem(examSessionKey);
-      // Limpiar toda la cache de sesiones de examen
-      clearExamSessionCache();
       setIsSubmitting(false);
     }
   };
@@ -2249,6 +2258,39 @@ const ExamTestRunPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modal de error de envío - conserva la sesión y permite reintentar (no perder el intento) */}
+      {submitError && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[120] fluid-p-3 sm:fluid-p-4">
+          <div className="bg-white rounded-fluid-lg sm:rounded-fluid-xl shadow-2xl max-w-sm w-full fluid-mx-3 sm:fluid-mx-4 flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center fluid-gap-3 sm:fluid-gap-4 fluid-p-4 sm:fluid-p-6 pb-3 sm:pb-4 border-b border-gray-100">
+              <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="fluid-icon-sm sm:fluid-icon text-red-600" />
+              </div>
+              <h3 className="fluid-text-base sm:fluid-text-lg font-semibold text-gray-900">No se pudo enviar</h3>
+            </div>
+            <div className="fluid-p-4 sm:fluid-p-6 pt-3 sm:pt-4">
+              <p className="text-gray-600 fluid-text-sm">{submitError.message}</p>
+            </div>
+            <div className="fluid-p-4 sm:fluid-p-6 pt-0 flex flex-col sm:flex-row sm:justify-end fluid-gap-2">
+              <button
+                onClick={() => setSubmitError(null)}
+                disabled={isSubmitting}
+                className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-gray-700 hover:bg-gray-100 border border-gray-200 rounded-fluid-md transition-colors disabled:opacity-50"
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => { const r = submitError.retry; setSubmitError(null); r(); }}
+                disabled={isSubmitting}
+                className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-fluid-md transition-colors disabled:opacity-50 inline-flex items-center justify-center fluid-gap-1"
+              >
+                Reintentar envío
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de ejercicio completado - NO dismissible: solo avanzar (evita confusión) */}
       {showExerciseCompleted && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] fluid-p-3 sm:fluid-p-4">
@@ -2848,9 +2890,31 @@ const ExamTestRunPage: React.FC = () => {
                 Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> reactivos.
               </p>
               {getAnsweredCount() < selectedItems.length && (
-                <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 bg-amber-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-3 sm:fluid-mb-4">
+                <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 bg-amber-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-2">
                   {selectedItems.length - getAnsweredCount()} sin completar
                 </p>
+              )}
+              {flaggedQuestions.size > 0 && (
+                <p className="fluid-text-2xs sm:fluid-text-xs text-orange-600 bg-orange-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-3 sm:fluid-mb-4 ml-1">
+                  🚩 {flaggedQuestions.size} marcada{flaggedQuestions.size > 1 ? 's' : ''} para revisar
+                </p>
+              )}
+              {getAnsweredCount() < selectedItems.length && (
+                <button
+                  onClick={() => {
+                    const idx = selectedItems.findIndex(it => it.type === 'question'
+                      ? answers[String(it.question_id)] === undefined
+                      : !isExerciseCompleted(it));
+                    if (idx >= 0) {
+                      setShowConfirmSubmit(false);
+                      setCurrentItemIndex(idx);
+                      setCurrentStepIndex(0);
+                    }
+                  }}
+                  className="w-full fluid-px-3 fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-fluid-md transition-colors"
+                >
+                  Revisar sin responder
+                </button>
               )}
             </div>
 

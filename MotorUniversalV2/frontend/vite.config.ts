@@ -4,12 +4,17 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  // En el build de producción eliminamos console.log/console.debug (se conservan
+  // console.warn y console.error). En dev se mantienen para depuración.
+  esbuild: {
+    pure: mode === 'production' ? ['console.log', 'console.debug'] : [],
   },
   test: {
     globals: true,
@@ -43,4 +48,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
