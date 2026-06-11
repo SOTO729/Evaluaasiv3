@@ -2538,12 +2538,6 @@ const ExamTestRunPage: React.FC = () => {
                 <ChevronRight className={`fluid-icon-xs sm:fluid-icon-sm text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
               </button>
 
-              {/* Reactivos respondidos (reubicado del header) */}
-              <div className="hidden sm:flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 sm:fluid-py-2 rounded-fluid-md bg-gray-100 text-gray-600 fluid-text-xs sm:fluid-text-sm flex-shrink-0" title="Reactivos respondidos">
-                <CheckCircle className="fluid-icon-xs sm:fluid-icon-sm text-emerald-600" />
-                <span className="font-medium">{getAnsweredCount()}/{selectedItems.length}</span>
-              </div>
-
               {/* Botón de marcar pregunta (junto a navegación) */}
               <button
                 onClick={() => {
@@ -2645,11 +2639,18 @@ const ExamTestRunPage: React.FC = () => {
               : 'top-[86px] sm:top-[98px] lg:top-[110px]'
           }`}>
             <div className="fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 bg-gray-50 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 fluid-text-sm sm:fluid-text-base">Navegación del examen</h3>
-                <button 
+              <div className="flex items-center justify-between fluid-gap-2">
+                <div className="flex items-center fluid-gap-2 min-w-0">
+                  <h3 className="font-semibold text-gray-900 fluid-text-sm sm:fluid-text-base">Navegación del examen</h3>
+                  {/* Reactivos respondidos (reubicado aquí) */}
+                  <span className="inline-flex items-center fluid-gap-1 fluid-px-2 py-0.5 rounded-fluid-sm bg-white border border-gray-200 text-gray-600 fluid-text-2xs sm:fluid-text-xs font-medium flex-shrink-0" title="Reactivos respondidos">
+                    <CheckCircle className="fluid-icon-xs text-emerald-600" />
+                    {getAnsweredCount()}/{selectedItems.length}
+                  </span>
+                </div>
+                <button
                   onClick={() => setShowNavPanel(false)}
-                  className="text-gray-400 hover:text-gray-600 fluid-p-1"
+                  className="text-gray-400 hover:text-gray-600 fluid-p-1 flex-shrink-0"
                 >
                   ✕
                 </button>
