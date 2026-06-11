@@ -65,6 +65,8 @@ const ExamTestRunPage: React.FC = () => {
   const exerciseAreaRef = useRef<HTMLDivElement>(null); // área completa (ancho estable) para medir
   const exerciseRemindedRef = useRef<Set<string>>(new Set()); // ejercicios para los que ya se mostró el recordatorio
   const contentRef = useRef<HTMLDivElement>(null); // contenedor del reactivo (foco al navegar, a11y)
+  const deadlineRef = useRef<number | null>(null); // marca de tiempo absoluta de fin (temporizador anti-deriva)
+  const pausedAtRef = useRef<number | null>(null); // inicio de pausa (para desplazar el deadline al reanudar)
   const [srAnnouncement, setSrAnnouncement] = useState(''); // anuncios para lector de pantalla (aria-live)
   const [keyboardPicked, setKeyboardPicked] = useState<string | null>(null); // opción "tomada" por teclado (drag&drop / columnas)
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
@@ -322,20 +324,34 @@ const ExamTestRunPage: React.FC = () => {
     setTimeRemaining(exam.duration_minutes * 60);
   }, [exam, examSessionKey]);
 
-  // Actualizar tiempo restante cada segundo (solo si no está pausado)
+  // Al pausar/reanudar, desplazar el deadline para no descontar el tiempo en pausa.
+  useEffect(() => {
+    if (isPaused) {
+      pausedAtRef.current = Date.now();
+    } else if (pausedAtRef.current != null && deadlineRef.current != null) {
+      deadlineRef.current += Date.now() - pausedAtRef.current;
+      pausedAtRef.current = null;
+    }
+  }, [isPaused]);
+
+  // Actualizar tiempo restante cada segundo (solo si no está pausado).
+  // Se calcula desde un deadline absoluto para evitar la deriva por throttling de
+  // pestañas en segundo plano (el candidato no obtiene tiempo extra).
   useEffect(() => {
     if (timeRemaining === null || timeRemaining <= 0 || isPaused) return;
-    
+
+    // Inicializar el deadline la primera vez que conocemos el tiempo restante.
+    if (deadlineRef.current === null) {
+      deadlineRef.current = Date.now() + timeRemaining * 1000;
+    }
+
     const timer = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev === null || prev <= 0) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
+      if (deadlineRef.current === null) return;
+      const rem = Math.max(0, Math.round((deadlineRef.current - Date.now()) / 1000));
+      setTimeRemaining(rem);
+      if (rem <= 0) clearInterval(timer);
     }, 1000);
-    
+
     return () => clearInterval(timer);
   }, [timeRemaining, isPaused]);
 
@@ -900,6 +916,35 @@ const ExamTestRunPage: React.FC = () => {
     contentRef.current?.focus({ preventScroll: true });
   }, [currentItemIndex, selectedItems.length]);
 
+  // Si el envío falló (p. ej. sin conexión), reintentar automáticamente al reconectar.
+  useEffect(() => {
+    if (!submitError) return;
+    const onOnline = () => {
+      const retry = submitError.retry;
+      setSubmitError(null);
+      retry();
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [submitError]);
+
+  // Accesibilidad: cerrar con Esc el modal/panel superior que esté abierto.
+  // (El modal de "ejercicio completado" NO se cierra con Esc: solo avanzar.)
+  useEffect(() => {
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (submitError) setSubmitError(null);
+      else if (showErrorModal) setShowErrorModal(null);
+      else if (showSkippedModal) setShowSkippedModal(null);
+      else if (showStatusPanel) setShowStatusPanel(false);
+      else if (showNavPanel) setShowNavPanel(false);
+      else if (showExitConfirm) setShowExitConfirm(false);
+      else if (showConfirmSubmit) setShowConfirmSubmit(false);
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [submitError, showErrorModal, showSkippedModal, showStatusPanel, showNavPanel, showExitConfirm, showConfirmSubmit]);
+
   // Efecto para enviar el examen cuando el tiempo expira
   useEffect(() => {
     if (timeExpired && !isSubmitting) {
@@ -1059,7 +1104,7 @@ const ExamTestRunPage: React.FC = () => {
       // No perder el intento: conservar la sesión y ofrecer reintentar
       setIsSubmitting(false);
       setSubmitError({
-        message: 'No se pudieron enviar tus respuestas (revisa tu conexión). Tus respuestas siguen guardadas en este dispositivo; puedes reintentar.',
+        message: 'No se pudieron enviar tus respuestas (revisa tu conexión). Tus respuestas siguen guardadas en este dispositivo; se reintentará automáticamente al recuperar la conexión, o puedes reintentar ahora.',
         retry: () => handleSubmitTimeExpired(),
       });
     }
@@ -1217,7 +1262,7 @@ const ExamTestRunPage: React.FC = () => {
       // No perder el intento: conservar la sesión local y ofrecer reintentar
       setShowConfirmSubmit(false);
       setSubmitError({
-        message: 'No se pudieron enviar tus respuestas (revisa tu conexión). Tus respuestas siguen guardadas en este dispositivo; puedes reintentar.',
+        message: 'No se pudieron enviar tus respuestas (revisa tu conexión). Tus respuestas siguen guardadas en este dispositivo; se reintentará automáticamente al recuperar la conexión, o puedes reintentar ahora.',
         retry: () => handleSubmit(),
       });
     } finally {
@@ -2364,6 +2409,7 @@ const ExamTestRunPage: React.FC = () => {
             </div>
             <div className="fluid-p-4 sm:fluid-p-6 pt-0 flex flex-col sm:flex-row sm:justify-end fluid-gap-2">
               <button
+                autoFocus
                 onClick={() => setSubmitError(null)}
                 disabled={isSubmitting}
                 className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-gray-700 hover:bg-gray-100 border border-gray-200 rounded-fluid-md transition-colors disabled:opacity-50"
@@ -2557,7 +2603,7 @@ const ExamTestRunPage: React.FC = () => {
       <div aria-live="polite" aria-atomic="true" role="status" className="sr-only">{srAnnouncement}</div>
 
       {/* Header minimalista - FIJO */}
-      <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}>
+      <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-600' : 'bg-primary-600'}`}>
         <div className="w-full fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-12 lg:h-14 flex items-center">
           <div className="flex items-center justify-between w-full">
             {/* Izquierda: Título */}
@@ -3018,6 +3064,7 @@ const ExamTestRunPage: React.FC = () => {
 
             <div className="flex border-t border-gray-100">
               <button
+                autoFocus
                 onClick={() => setShowConfirmSubmit(false)}
                 disabled={isSubmitting}
                 className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 border-r border-gray-100"
