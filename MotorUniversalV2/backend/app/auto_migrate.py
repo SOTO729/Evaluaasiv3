@@ -1979,6 +1979,84 @@ def check_and_add_result_mode_column():
             db.session.rollback()
 
 
+def check_and_add_result_client_attempt_id():
+    """Agregar columna client_attempt_id a results (idempotencia de envío)"""
+    print("🔍 Verificando columna client_attempt_id en results...")
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('results')]
+        if 'client_attempt_id' not in existing_columns:
+            print("  📝 Agregando columna client_attempt_id a results...")
+            db.session.execute(text("ALTER TABLE results ADD client_attempt_id VARCHAR(64) NULL"))
+            db.session.commit()
+            print("  ✓ Columna client_attempt_id agregada a results")
+        else:
+            print("  ✓ Columna client_attempt_id ya existe en results")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna client_attempt_id ya existe en results")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
+def check_and_create_exam_progress_table():
+    """Crear tabla exam_progress (autosave de examen en servidor)"""
+    print("🔍 Verificando tabla exam_progress...")
+    try:
+        inspector = inspect(db.engine)
+        if 'exam_progress' in inspector.get_table_names():
+            print("  ✓ Tabla exam_progress ya existe")
+            return
+        db_type = get_db_type()
+        if db_type == 'mssql':
+            sql = """
+                CREATE TABLE exam_progress (
+                    id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) NOT NULL,
+                    exam_id INT NOT NULL,
+                    attempt_id VARCHAR(64) NULL,
+                    data NVARCHAR(MAX) NULL,
+                    updated_at DATETIME DEFAULT GETDATE(),
+                    CONSTRAINT uq_exam_progress_user_exam UNIQUE (user_id, exam_id)
+                )
+            """
+        elif db_type == 'postgresql':
+            sql = """
+                CREATE TABLE exam_progress (
+                    id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) NOT NULL,
+                    exam_id INTEGER NOT NULL,
+                    attempt_id VARCHAR(64),
+                    data JSONB,
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    CONSTRAINT uq_exam_progress_user_exam UNIQUE (user_id, exam_id)
+                )
+            """
+        else:  # sqlite
+            sql = """
+                CREATE TABLE exam_progress (
+                    id VARCHAR(36) PRIMARY KEY,
+                    user_id VARCHAR(36) NOT NULL,
+                    exam_id INTEGER NOT NULL,
+                    attempt_id VARCHAR(64),
+                    data TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE (user_id, exam_id)
+                )
+            """
+        db.session.execute(text(sql))
+        db.session.commit()
+        print("  ✓ Tabla exam_progress creada")
+    except Exception as e:
+        msg = str(e).lower()
+        if 'already exists' in msg or 'duplicate' in msg or 'there is already' in msg:
+            print("  ⚠️  Tabla exam_progress ya existe")
+        else:
+            print(f"  ❌ Error: {e}")
+            db.session.rollback()
+
+
 def check_and_add_partner_config_subsistema():
     """Agregar columna config_subsistema_id a partners para mapeo a EvaluaasiConfig"""
     print("🔍 Verificando columna config_subsistema_id en partners...")

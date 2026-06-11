@@ -355,6 +355,7 @@ export const examService = {
     questions_order?: string[];
     group_id?: number;
     group_exam_id?: number;
+    attempt_id?: string;
   }): Promise<{
     message: string;
     result: {
@@ -373,6 +374,20 @@ export const examService = {
   }> => {
     const response = await api.post(`/exams/${examId}/save-result`, data)
     return response.data
+  },
+
+  // Autosave de progreso en el servidor (borrador del intento en curso)
+  saveExamProgress: async (examId: number, data: { attempt_id?: string; data: any }): Promise<void> => {
+    await api.put(`/exams/${examId}/progress`, data)
+  },
+
+  getExamProgress: async (examId: number): Promise<{ progress: { attempt_id?: string; data: any; updated_at?: string } | null }> => {
+    const response = await api.get(`/exams/${examId}/progress`)
+    return response.data
+  },
+
+  deleteExamProgress: async (examId: number): Promise<void> => {
+    await api.delete(`/exams/${examId}/progress`)
   },
 
   // Obtener resultados del usuario para un examen

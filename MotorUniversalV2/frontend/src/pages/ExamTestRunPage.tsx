@@ -69,6 +69,9 @@ const ExamTestRunPage: React.FC = () => {
   const pausedAtRef = useRef<number | null>(null); // inicio de pausa (para desplazar el deadline al reanudar)
   const [srAnnouncement, setSrAnnouncement] = useState(''); // anuncios para lector de pantalla (aria-live)
   const [keyboardPicked, setKeyboardPicked] = useState<string | null>(null); // opción "tomada" por teclado (drag&drop / columnas)
+  const attemptIdRef = useRef<string | null>(null); // id de intento (idempotencia de envío + autosave servidor)
+  const serverSaveCounterRef = useRef(0); // throttle del autosave al servidor (~cada 20s)
+  const [serverRestoreChecked, setServerRestoreChecked] = useState(false); // ya se verificó el borrador del servidor
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
   // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
   // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
@@ -240,9 +243,47 @@ const ExamTestRunPage: React.FC = () => {
   const [sessionRestored, setSessionRestored] = useState(false);
 
   // Inicializar tiempo restante y restaurar estado cuando se carga el examen
+  // Id de intento estable (sobrevive recargas/reintentos; se limpia al entregar).
+  useEffect(() => {
+    if (!examId) return;
+    const key = `${examSessionKey}_attempt`;
+    let id = localStorage.getItem(key);
+    if (!id) {
+      const gen: string = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+        ? (crypto as any).randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      id = gen;
+      localStorage.setItem(key, gen);
+    }
+    attemptIdRef.current = id;
+  }, [examId, examSessionKey]);
+
+  // Si NO hay sesión local (p. ej. cambio/pérdida de dispositivo), intentar recuperar
+  // el borrador guardado en el servidor antes de restaurar.
+  useEffect(() => {
+    if (!exam?.duration_minutes || !examId || serverRestoreChecked) return;
+    const local = localStorage.getItem(examSessionKey);
+    if (local) { setServerRestoreChecked(true); return; }
+    let cancelled = false;
+    examService.getExamProgress(Number(examId))
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.progress?.data) {
+          try { localStorage.setItem(examSessionKey, JSON.stringify(res.progress.data)); } catch {}
+          if (res.progress.attempt_id) {
+            try { localStorage.setItem(`${examSessionKey}_attempt`, res.progress.attempt_id); } catch {}
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setServerRestoreChecked(true); });
+    return () => { cancelled = true; };
+  }, [exam?.duration_minutes, examId, examSessionKey, serverRestoreChecked]);
+
   useEffect(() => {
     if (!exam?.duration_minutes) return;
-    
+    if (!serverRestoreChecked) return; // esperar la verificación del borrador del servidor
+
     // Intentar restaurar sesión existente
     const savedSession = localStorage.getItem(examSessionKey);
     
@@ -322,7 +363,7 @@ const ExamTestRunPage: React.FC = () => {
     
     // Si no hay sesión guardada o es inválida, usar tiempo completo
     setTimeRemaining(exam.duration_minutes * 60);
-  }, [exam, examSessionKey]);
+  }, [exam, examSessionKey, serverRestoreChecked]);
 
   // Al pausar/reanudar, desplazar el deadline para no descontar el tiempo en pausa.
   useEffect(() => {
@@ -581,8 +622,16 @@ const ExamTestRunPage: React.FC = () => {
         disconnectionCount
       };
       localStorage.setItem(examSessionKey, JSON.stringify(sessionData));
+      // Autosave al servidor cada ~20s (4 ciclos de 5s) para resistir pérdida de dispositivo.
+      serverSaveCounterRef.current += 1;
+      if (serverSaveCounterRef.current % 4 === 0) {
+        examService.saveExamProgress(Number(examId), {
+          attempt_id: attemptIdRef.current || undefined,
+          data: sessionData,
+        }).catch(() => {});
+      }
     };
-    
+
     // Guardar cada 5 segundos
     const saveInterval = setInterval(saveSession, 5000);
     
@@ -1072,7 +1121,8 @@ const ExamTestRunPage: React.FC = () => {
           },
           questions_order: selectedItems.map(item => item.id.toString()),
           group_id: groupId,
-          group_exam_id: groupExamId
+          group_exam_id: groupExamId,
+          attempt_id: attemptIdRef.current || undefined
         });
         savedResultId = saveResponse.result?.id;
         console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
@@ -1081,9 +1131,11 @@ const ExamTestRunPage: React.FC = () => {
         throw saveError; // el guardado es obligatorio: tratar como fallo de envío
       }
 
-      // Solo al confirmar el guardado limpiamos la sesión local
+      // Solo al confirmar el guardado limpiamos la sesión local (y el borrador del servidor)
       localStorage.removeItem(examSessionKey);
+      localStorage.removeItem(`${examSessionKey}_attempt`);
       clearExamSessionCache();
+      examService.deleteExamProgress(Number(examId)).catch(() => {});
 
       navigate(`/test-exams/${examId}/results`, {
         state: {
@@ -1229,7 +1281,8 @@ const ExamTestRunPage: React.FC = () => {
           },
           questions_order: selectedItems.map(item => item.id.toString()),
           group_id: groupId,
-          group_exam_id: groupExamId
+          group_exam_id: groupExamId,
+          attempt_id: attemptIdRef.current || undefined
         });
         savedResultId = saveResponse.result?.id;
         console.log('✅ Resultado guardado en la base de datos, ID:', savedResultId);
@@ -1238,9 +1291,11 @@ const ExamTestRunPage: React.FC = () => {
         throw saveError; // el guardado es obligatorio: tratar como fallo de envío
       }
 
-      // Solo al confirmar el guardado limpiamos la sesión local
+      // Solo al confirmar el guardado limpiamos la sesión local (y el borrador del servidor)
       localStorage.removeItem(examSessionKey);
+      localStorage.removeItem(`${examSessionKey}_attempt`);
       clearExamSessionCache();
+      examService.deleteExamProgress(Number(examId)).catch(() => {});
 
       console.log('✅ Navegando a resultados con:', { resultsWithBreakdown, itemsCount: selectedItems.length, elapsedTime });
 
@@ -2276,9 +2331,11 @@ const ExamTestRunPage: React.FC = () => {
                         group_exam_id: groupExamId
                       });
 
-                      // Limpiar sesión guardada
+                      // Limpiar sesión guardada (local y borrador del servidor)
                       localStorage.removeItem(examSessionKey);
+                      localStorage.removeItem(`${examSessionKey}_attempt`);
                       clearExamSessionCache();
+                      examService.deleteExamProgress(Number(examId)).catch(() => {});
                     } catch (err) {
                       console.error('Error al registrar abandono:', err);
                     } finally {

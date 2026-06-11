@@ -45,6 +45,10 @@ class Result(db.Model):
     # Datos del examen (JSON)
     answers_data = db.Column(db.JSON)  # Respuestas del usuario
     questions_order = db.Column(db.JSON)  # Orden de preguntas presentadas
+
+    # Idempotencia de envío: UUID generado por el cliente para el intento.
+    # Permite que un reintento (p. ej. tras fallo de red) no cree un resultado duplicado.
+    client_attempt_id = db.Column(db.String(64), nullable=True, index=True)
     
     # Certificado
     certificate_url = db.Column(db.String(500))  # URL del certificado en Azure Blob

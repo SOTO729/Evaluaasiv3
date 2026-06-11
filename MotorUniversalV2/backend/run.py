@@ -32,6 +32,8 @@ with app.app_context():
             check_and_add_assigned_state_column,
             check_and_add_user_soft_delete_columns,
             check_and_add_result_mode_column,
+            check_and_add_result_client_attempt_id,
+            check_and_create_exam_progress_table,
             check_and_add_partner_config_subsistema,
             check_and_recover_orphaned_curp_users,
             check_and_add_vm_session_ad_password,
@@ -66,6 +68,8 @@ with app.app_context():
         check_and_add_assigned_state_column()
         check_and_add_user_soft_delete_columns()
         check_and_add_result_mode_column()
+        check_and_add_result_client_attempt_id()
+        check_and_create_exam_progress_table()
         check_and_add_partner_config_subsistema()
         check_and_add_vm_session_ad_password()
         check_and_fix_vm_session_unique_slot()

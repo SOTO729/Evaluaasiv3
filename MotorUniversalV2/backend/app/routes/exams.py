@@ -3552,7 +3552,22 @@ def save_exam_result(exam_id):
         group_id = data.get('group_id')
         group_exam_id = data.get('group_exam_id')
         mode = data.get('mode', 'exam')  # 'exam' o 'simulator'
-        
+
+        # Idempotencia: si el cliente reenvía el mismo intento (mismo attempt_id),
+        # devolver el resultado ya guardado en vez de crear un duplicado.
+        attempt_id = data.get('attempt_id')
+        if attempt_id:
+            existing = Result.query.filter_by(
+                user_id=str(user_id), exam_id=exam_id, client_attempt_id=str(attempt_id)
+            ).first()
+            if existing:
+                print(f"♻️ Reintento idempotente: attempt_id={attempt_id} -> result {existing.id}")
+                return jsonify({
+                    'message': 'Resultado ya guardado (idempotente)',
+                    'result': existing.to_dict(),
+                    'is_approved': existing.result == 1,
+                }), 200
+
         # H2: si el cliente envió group_exam_id, validar membresía/asignación
         # ANTES de seguir (no confiar en valores del request body).
         if group_exam_id:
@@ -3685,7 +3700,8 @@ def save_exam_result(exam_id):
             result=result_value,
             duration_seconds=duration_seconds,
             answers_data=answers_data,
-            questions_order=questions_order
+            questions_order=questions_order,
+            client_attempt_id=str(attempt_id) if attempt_id else None
         )
         
         # Generar códigos de verificación únicos
@@ -3819,6 +3835,71 @@ def options_save_exam_result(exam_id):
     response = jsonify({'status': 'ok'})
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
+    return response
+
+
+# ── Autosave de examen en servidor (borrador de progreso) ──────────────────
+@bp.route('/<int:exam_id>/progress', methods=['GET'])
+@jwt_required()
+def get_exam_progress(exam_id):
+    """Devuelve el borrador de progreso del usuario para este examen (si existe)."""
+    from app.models.exam_progress import ExamProgress
+    user_id = get_jwt_identity()
+    p = ExamProgress.query.filter_by(user_id=str(user_id), exam_id=exam_id).first()
+    return jsonify({'progress': p.to_dict() if p else None}), 200
+
+
+@bp.route('/<int:exam_id>/progress', methods=['PUT'])
+@jwt_required()
+@rate_limit(limit=120, window=60, key_prefix='rl_exam_progress')
+def save_exam_progress(exam_id):
+    """Guarda/actualiza el borrador de progreso (uno por usuario+examen)."""
+    from app.models.exam_progress import ExamProgress
+    from datetime import datetime as _dt
+    import uuid as _uuid
+    user_id = get_jwt_identity()
+    data = request.get_json(silent=True) or {}
+    attempt_id = data.get('attempt_id')
+    payload = data.get('data')
+    try:
+        p = ExamProgress.query.filter_by(user_id=str(user_id), exam_id=exam_id).first()
+        if p:
+            p.attempt_id = attempt_id
+            p.data = payload
+            p.updated_at = _dt.utcnow()
+        else:
+            p = ExamProgress(
+                id=str(_uuid.uuid4()), user_id=str(user_id), exam_id=exam_id,
+                attempt_id=attempt_id, data=payload, updated_at=_dt.utcnow()
+            )
+            db.session.add(p)
+        db.session.commit()
+        return jsonify({'message': 'ok'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return _internal_error(e, 'save_exam_progress')
+
+
+@bp.route('/<int:exam_id>/progress', methods=['DELETE'])
+@jwt_required()
+def delete_exam_progress(exam_id):
+    """Elimina el borrador de progreso (al entregar el examen)."""
+    from app.models.exam_progress import ExamProgress
+    user_id = get_jwt_identity()
+    try:
+        ExamProgress.query.filter_by(user_id=str(user_id), exam_id=exam_id).delete()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return jsonify({'message': 'ok'}), 200
+
+
+@bp.route('/<int:exam_id>/progress', methods=['OPTIONS'])
+def options_exam_progress(exam_id):
+    response = jsonify({'status': 'ok'})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,DELETE,OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Authorization,Content-Type'
     return response
 
