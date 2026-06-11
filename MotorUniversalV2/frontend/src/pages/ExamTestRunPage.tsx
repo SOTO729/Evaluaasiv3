@@ -2503,14 +2503,14 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* Salir del examen (esquina superior derecha) */}
+              {/* Salir del examen (esquina superior derecha, solo icono) */}
               <button
                 onClick={() => setShowExitConfirm(true)}
                 title="Salir del examen"
-                className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors fluid-text-xs sm:fluid-text-sm font-medium flex-shrink-0"
+                aria-label="Salir del examen"
+                className="flex items-center justify-center fluid-px-2 fluid-py-1 sm:fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors flex-shrink-0"
               >
                 <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
-                <span className="hidden sm:inline">Salir</span>
               </button>
             </div>
           </div>
