@@ -2502,6 +2502,16 @@ const ExamTestRunPage: React.FC = () => {
                   {user?.username || '---'}
                 </span>
               </div>
+
+              {/* Salir del examen (esquina superior derecha) */}
+              <button
+                onClick={() => setShowExitConfirm(true)}
+                title="Salir del examen"
+                className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors fluid-text-xs sm:fluid-text-sm font-medium flex-shrink-0"
+              >
+                <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
+                <span className="hidden sm:inline">Salir</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2523,16 +2533,8 @@ const ExamTestRunPage: React.FC = () => {
       }`}>
         <div className="w-full fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-11 lg:h-12 flex items-center">
           <div className="flex items-center justify-between fluid-gap-1 sm:fluid-gap-2 w-full">
-            {/* Izquierda: salir + contexto + navegación de pregunta */}
+            {/* Izquierda: contexto + navegación de pregunta */}
             <div className="flex items-center fluid-gap-1 sm:fluid-gap-2 min-w-0">
-              {/* Salir del examen (reubicado del header, discreto) */}
-              <button
-                onClick={() => setShowExitConfirm(true)}
-                title="Salir del examen"
-                className="flex-shrink-0 flex items-center justify-center fluid-px-2 fluid-py-1 sm:fluid-py-2 h-[30px] sm:h-[34px] lg:h-[38px] rounded-fluid-md bg-gray-100 text-gray-400 hover:bg-red-500 hover:text-white transition-colors"
-              >
-                <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
-              </button>
               <button
                 onClick={() => setShowNavPanel(!showNavPanel)}
                 className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[80px] sm:min-w-[100px] lg:min-w-[120px]"
