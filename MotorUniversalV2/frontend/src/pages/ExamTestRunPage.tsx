@@ -1899,17 +1899,15 @@ const ExamTestRunPage: React.FC = () => {
             textParts.push(
               <span
                 key={blankId}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleBlankActivate(blankId)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlankActivate(blankId); } }}
-                aria-label={`Espacio ${match[1]}, ${assignedOption ? 'ocupado' : 'vacío'}`}
-                className={`inline-block min-w-[120px] fluid-mx-1 fluid-px-3 fluid-py-2 rounded-fluid-md border-2 border-dashed transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
-                  keyboardPicked ? 'ring-2 ring-indigo-400 ring-offset-1' : ''
-                } ${
+                role={assignedOption ? undefined : 'button'}
+                tabIndex={assignedOption ? undefined : 0}
+                onClick={assignedOption ? undefined : () => handleBlankActivate(blankId)}
+                onKeyDown={assignedOption ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlankActivate(blankId); } }}
+                aria-label={assignedOption ? undefined : `Espacio ${match[1]}, vacío`}
+                className={`inline-block min-w-[120px] fluid-mx-1 fluid-px-3 fluid-py-2 rounded-fluid-md border-2 border-dashed transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                   assignedOption
                     ? 'bg-indigo-100 border-indigo-400'
-                    : 'bg-gray-100 border-gray-300'
+                    : `cursor-pointer bg-gray-100 border-gray-300 ${keyboardPicked ? 'ring-2 ring-indigo-400 ring-offset-1' : ''}`
                 }`}
                 onDragOver={handleFillDragOver}
                 onDragLeave={handleFillDragLeave}
