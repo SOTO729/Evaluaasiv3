@@ -378,15 +378,16 @@ const StudyContentPreviewPage: React.FC = () => {
     }
   };
 
-  // Para YouTube/Vimeo, marcar como completado automáticamente al entrar a la pestaña de video
+  // YouTube se marca como completado al entrar a la pestaña (su iframe nativo no emite
+  // el evento "terminó"). Vimeo NO: se marca cuando el video termina (vía onEnded).
   useEffect(() => {
     if (activeTab === 'video' && currentTopic?.video) {
       const videoUrl = currentTopic.video.video_url;
       const isExternalVideo = videoUrl && !isAzureUrl(videoUrl);
+      const isYouTube = !!videoUrl && /youtube\.com|youtu\.be/i.test(videoUrl);
       const isNotCompleted = !completedContents.video.has(currentTopic.video.id);
-      
-      if (isExternalVideo && isNotCompleted) {
-        // Para YouTube/Vimeo - marcar como completado automáticamente al entrar
+
+      if (isExternalVideo && isYouTube && isNotCompleted) {
         setTimeout(() => {
           markContentCompleted('video', currentTopic.video!.id);
         }, 1000); // Delay breve para que el usuario vea el video cargando
@@ -1697,6 +1698,12 @@ const StudyContentPreviewPage: React.FC = () => {
                               <CustomVideoPlayer
                                 src={currentTopic.video.video_url}
                                 className="absolute inset-0 w-full h-full"
+                                onEnded={() => {
+                                  // Solo dispara para Vimeo (YouTube nativo no emite "terminó")
+                                  if (currentTopic.video && !completedContents.video.has(currentTopic.video.id)) {
+                                    markContentCompleted('video', currentTopic.video.id);
+                                  }
+                                }}
                               />
                             </div>
                           </div>

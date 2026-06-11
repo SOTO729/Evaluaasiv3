@@ -189,7 +189,7 @@ const StudyContentCandidatePage = () => {
   }
 
   return (
-    <div ref={mainContainerRef} className="min-h-screen bg-gray-50 overflow-x-hidden overscroll-contain">
+    <div ref={mainContainerRef} className="min-h-screen bg-gray-50 overflow-x-clip">
       {/* Barra de navegación superior */}
       <div className="bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-gray-200/80 shadow-sm sticky top-0 z-40  bg-opacity-95">
         <div className="fluid-container-2xl mx-auto fluid-px-6 fluid-py-4">
@@ -317,6 +317,8 @@ const StudyContentCandidatePage = () => {
                     {/* Header de sesión */}
                     <button
                       onClick={() => toggleSession(sessionIndex)}
+                      aria-expanded={expandedSessions.has(sessionIndex)}
+                      aria-controls={`session-panel-${sessionIndex}`}
                       className="w-full flex items-center justify-between fluid-p-6 hover:bg-gray-50 transition-colors text-left"
                     >
                       <div className="flex items-center fluid-gap-5">
@@ -343,7 +345,7 @@ const StudyContentCandidatePage = () => {
 
                     {/* Lista de temas */}
                     {expandedSessions.has(sessionIndex) && session.topics && (
-                      <div className="bg-gray-50 border-t border-gray-100">
+                      <div id={`session-panel-${sessionIndex}`} role="region" aria-label={`Temas de ${session.title}`} className="bg-gray-50 border-t border-gray-100">
                         {session.topics
                           .sort((a, b) => a.order - b.order)
                           .map((topic, topicIndex) => {
