@@ -2429,6 +2429,7 @@ const ExerciseActionOverlay: React.FC<ExerciseActionOverlayProps> = ({
     
     return (
       <button
+        tabIndex={-1}
         style={{
           ...baseStyle,
           opacity: 1,

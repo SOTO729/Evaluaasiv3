@@ -3450,6 +3450,7 @@ const ExerciseAction: React.FC<ExerciseActionProps> = ({
     
     return (
       <button
+        tabIndex={-1}
         style={buttonStyle}
         onClick={() => {
           setShowFeedback(true);
