@@ -1501,7 +1501,12 @@ const StudyContentDetailPage = () => {
               <div id={`session-${session.id}`} key={session.id} className={`border-b last:border-b-0 scroll-mt-24 ${expandedSessions.has(session.id) ? 'ring-2 ring-blue-500 ring-inset bg-blue-50/30' : ''}`}>
                 {/* Session Header */}
                 <div
-                  className={`flex items-center justify-between fluid-p-4 cursor-pointer transition-colors ${expandedSessions.has(session.id) ? 'bg-blue-100/50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expandedSessions.has(session.id)}
+                  aria-label={`Sesión: ${session.title}`}
+                  onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleSession(session.id); } }}
+                  className={`flex items-center justify-between fluid-p-4 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset ${expandedSessions.has(session.id) ? 'bg-blue-100/50 hover:bg-blue-100' : 'hover:bg-gray-50'}`}
                   onClick={() => toggleSession(session.id)}
                 >
                   <div className="flex items-center fluid-gap-3">
@@ -1583,7 +1588,12 @@ const StudyContentDetailPage = () => {
                           <div id={`topic-${topic.id}`} key={topic.id} className={`scroll-mt-24 ${expandedTopics.has(topic.id) ? 'ring-2 ring-slate-300 ring-inset bg-slate-50' : 'bg-white'}`}>
                             {/* Topic Header */}
                             <div
-                              className={`flex items-center justify-between fluid-p-3 pl-8 cursor-pointer transition-colors ${expandedTopics.has(topic.id) ? 'bg-slate-100 hover:bg-slate-200' : 'hover:bg-gray-50'}`}
+                              role="button"
+                              tabIndex={0}
+                              aria-expanded={expandedTopics.has(topic.id)}
+                              aria-label={`Tema: ${topic.title}`}
+                              onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggleTopic(topic.id); } }}
+                              className={`flex items-center justify-between fluid-p-3 pl-8 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-inset ${expandedTopics.has(topic.id) ? 'bg-slate-100 hover:bg-slate-200' : 'hover:bg-gray-50'}`}
                               onClick={() => toggleTopic(topic.id)}
                             >
                               <div className="flex items-center fluid-gap-3">
