@@ -2669,7 +2669,7 @@ const ExamTestRunPage: React.FC = () => {
               ) : (
                 <button
                   onClick={() => setShowExerciseCompleted(false)}
-                  className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-fluid-md transition-colors"
+                  className="fluid-px-4 fluid-py-2 fluid-text-sm font-medium text-white bg-emerald-700 hover:bg-emerald-800 rounded-fluid-md transition-colors"
                 >
                   Entendido
                 </button>
@@ -2713,7 +2713,7 @@ const ExamTestRunPage: React.FC = () => {
                 const remaining = additionalAttempts - usedAttempts + 1;
                 
                 return (
-                  <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 fluid-mb-2 sm:fluid-mb-3 text-center">
+                  <p className="fluid-text-2xs sm:fluid-text-xs text-amber-700 fluid-mb-2 sm:fluid-mb-3 text-center">
                     {remaining > 0 
                       ? `Te ${remaining === 1 ? 'queda' : 'quedan'} ${remaining} ${remaining === 1 ? 'oportunidad' : 'oportunidades'}`
                       : 'No te quedan más oportunidades'
@@ -2723,7 +2723,7 @@ const ExamTestRunPage: React.FC = () => {
               })()}
               <button
                 onClick={() => setShowErrorModal(null)}
-                className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${currentMode === 'simulator' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-primary-600 hover:bg-primary-700'}`}
+                className={`w-full fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 text-white rounded-fluid-md font-medium transition-colors fluid-text-xs sm:fluid-text-sm ${currentMode === 'simulator' ? 'bg-amber-700 hover:bg-amber-800' : 'bg-primary-600 hover:bg-primary-700'}`}
               >
                 Intentar de nuevo
               </button>
@@ -2830,7 +2830,7 @@ const ExamTestRunPage: React.FC = () => {
 
       {/* Aviso visible: intento recuperado (local o servidor) */}
       {showRestoreBanner && (
-        <div className="fixed top-[52px] sm:top-[60px] lg:top-[68px] left-1/2 -translate-x-1/2 z-[60] flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-emerald-600 text-white rounded-fluid-md shadow-lg fluid-text-xs sm:fluid-text-sm animate-in fade-in slide-in-from-top duration-300">
+        <div className="fixed top-[52px] sm:top-[60px] lg:top-[68px] left-1/2 -translate-x-1/2 z-[60] flex items-center fluid-gap-2 fluid-px-3 fluid-py-2 bg-emerald-700 text-white rounded-fluid-md shadow-lg fluid-text-xs sm:fluid-text-sm animate-in fade-in slide-in-from-top duration-300">
           <CheckCircle className="fluid-icon-xs sm:fluid-icon-sm flex-shrink-0" />
           <span>Recuperamos tu intento en curso</span>
           <button onClick={() => setShowRestoreBanner(false)} aria-label="Cerrar aviso" className="ml-1 hover:opacity-80">
@@ -2885,7 +2885,7 @@ const ExamTestRunPage: React.FC = () => {
       )}
 
       {/* Header minimalista - FIJO */}
-      <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-600' : 'bg-primary-600'}`}>
+      <div className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ease-out ${currentMode === 'simulator' ? 'bg-amber-700' : 'bg-primary-600'}`}>
         <div className="w-full fluid-px-3 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-12 lg:h-14 flex items-center">
           <div className="flex items-center justify-between w-full">
             {/* Izquierda: Título */}
@@ -2920,7 +2920,7 @@ const ExamTestRunPage: React.FC = () => {
                   title="Tiempo y desconexiones"
                   className={`flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md font-mono fluid-text-xs sm:fluid-text-sm transition-all ${
                     isTimeCritical
-                      ? 'bg-red-500 text-white animate-pulse'
+                      ? 'bg-red-600 text-white animate-pulse'
                       : isTimeWarning
                       ? 'bg-amber-400 text-amber-900'
                       : 'bg-white/20 text-white hover:bg-white/30'
@@ -2962,7 +2962,7 @@ const ExamTestRunPage: React.FC = () => {
                 <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                   <User className="fluid-icon-xs lg:fluid-icon-sm text-white" />
                 </div>
-                <span className="hidden sm:inline text-white/90 font-medium truncate max-w-[120px] lg:max-w-[200px]">
+                <span className="hidden sm:inline text-white font-medium truncate max-w-[120px] lg:max-w-[200px]">
                   {user?.username || '---'}
                 </span>
               </div>
@@ -2972,7 +2972,7 @@ const ExamTestRunPage: React.FC = () => {
                 onClick={() => setShowExitConfirm(true)}
                 title="Salir del examen"
                 aria-label="Salir del examen"
-                className="flex items-center justify-center fluid-px-2 fluid-py-1 sm:fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors flex-shrink-0"
+                className="flex items-center justify-center fluid-px-2 fluid-py-1 sm:fluid-py-2 text-white hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors flex-shrink-0"
               >
                 <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
               </button>
@@ -3003,7 +3003,7 @@ const ExamTestRunPage: React.FC = () => {
                 onClick={() => setShowNavPanel(!showNavPanel)}
                 className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[80px] sm:min-w-[100px] lg:min-w-[120px]"
               >
-                <span className={`flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white rounded-full fluid-text-xs sm:fluid-text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}>
+                <span className={`flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white rounded-full fluid-text-xs sm:fluid-text-sm font-bold ${currentMode === 'simulator' ? 'bg-amber-700' : 'bg-primary-600'}`}>
                   {currentItemIndex + 1}
                 </span>
                 <span className="fluid-text-xs sm:fluid-text-sm text-gray-600">
@@ -3062,7 +3062,7 @@ const ExamTestRunPage: React.FC = () => {
               {currentItemIndex === selectedItems.length - 1 ? (
                 <button
                   onClick={() => setShowConfirmSubmit(true)}
-                  className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors rounded-fluid-md"
+                  className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 fluid-text-xs sm:fluid-text-sm font-medium bg-emerald-700 hover:bg-emerald-800 text-white transition-colors rounded-fluid-md"
                 >
                   <span className="hidden sm:inline">Entregar</span>
                   <span className="sm:hidden">Enviar</span>
@@ -3084,7 +3084,7 @@ const ExamTestRunPage: React.FC = () => {
       {/* Botón flotante para mostrar nav cuando está oculta */}
       <button
         onClick={() => setIsNavHidden(false)}
-        className={`fixed top-[48px] sm:top-[56px] lg:top-[64px] left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 px-3 py-1.5 ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'} text-white text-xs font-medium rounded-b-lg shadow-md transition-all duration-300 ${
+        className={`fixed top-[48px] sm:top-[56px] lg:top-[64px] left-1/2 -translate-x-1/2 z-35 flex items-center gap-1 px-3 py-1.5 ${currentMode === 'simulator' ? 'bg-amber-700' : 'bg-primary-600'} text-white text-xs font-medium rounded-b-lg shadow-md transition-all duration-300 ${
           isNavHidden && !showNavPanel
             ? 'opacity-100 translate-y-0' 
             : 'opacity-0 -translate-y-2 pointer-events-none'
@@ -3159,7 +3159,7 @@ const ExamTestRunPage: React.FC = () => {
                         aria-label={`Reactivo ${idx + 1}${isAnswered ? ', respondido' : ', sin responder'}${isFlagged ? ', marcado para revisar' : ''}`}
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-fluid-md flex items-center justify-center fluid-text-xs sm:fluid-text-sm font-medium transition-all ${
                           isCurrent
-                            ? (currentMode === 'simulator' ? 'bg-amber-500 text-white ring-2 ring-amber-300 scale-105' : 'bg-primary-600 text-white ring-2 ring-primary-300 scale-105')
+                            ? (currentMode === 'simulator' ? 'bg-amber-700 text-white ring-2 ring-amber-300 scale-105' : 'bg-primary-600 text-white ring-2 ring-primary-300 scale-105')
                             : isFlagged
                             ? 'bg-orange-500 text-white hover:bg-orange-600'
                             : isAnswered
@@ -3203,7 +3203,7 @@ const ExamTestRunPage: React.FC = () => {
             {/* Leyenda */}
             <div className="fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap items-center justify-center fluid-gap-2 sm:fluid-gap-3 fluid-text-2xs sm:fluid-text-xs">
               <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
-                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-500' : 'bg-primary-600'}`}></div>
+                <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-fluid-sm ${currentMode === 'simulator' ? 'bg-amber-700' : 'bg-primary-600'}`}></div>
                 <span className="text-gray-600">Actual</span>
               </div>
               <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
@@ -3316,12 +3316,12 @@ const ExamTestRunPage: React.FC = () => {
                 Has completado <span className="font-semibold text-gray-900">{getAnsweredCount()}</span> de <span className="font-semibold text-gray-900">{selectedItems.length}</span> reactivos.
               </p>
               {getAnsweredCount() < selectedItems.length && (
-                <p className="fluid-text-2xs sm:fluid-text-xs text-amber-600 bg-amber-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-2">
+                <p className="fluid-text-2xs sm:fluid-text-xs text-amber-700 bg-amber-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-2">
                   {selectedItems.length - getAnsweredCount()} sin completar
                 </p>
               )}
               {flaggedQuestions.size > 0 && (
-                <p className="fluid-text-2xs sm:fluid-text-xs text-orange-600 bg-orange-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-3 sm:fluid-mb-4 ml-1">
+                <p className="fluid-text-2xs sm:fluid-text-xs text-orange-700 bg-orange-50 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-sm inline-block fluid-mb-3 sm:fluid-mb-4 ml-1">
                   🚩 {flaggedQuestions.size} marcada{flaggedQuestions.size > 1 ? 's' : ''} para revisar
                 </p>
               )}
@@ -3356,7 +3356,7 @@ const ExamTestRunPage: React.FC = () => {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                className="flex-1 fluid-px-3 sm:fluid-px-4 fluid-py-2 sm:fluid-py-3 fluid-text-xs sm:fluid-text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition-colors disabled:opacity-50 flex items-center justify-center"
               >
                 {isSubmitting ? (
                   <>
