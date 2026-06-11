@@ -2435,14 +2435,6 @@ const ExamTestRunPage: React.FC = () => {
             <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 min-w-0 flex-1">
               <div className="min-w-0 flex items-center fluid-gap-2 sm:fluid-gap-3">
                 <h1 className="fluid-text-base sm:fluid-text-lg lg:fluid-text-2xl font-bold text-white truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[280px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
-                {/* Badge Examen/Simulador en navbar */}
-                <span className={`hidden sm:inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide ${
-                  currentMode === 'simulator' 
-                    ? 'bg-yellow-300 text-yellow-900' 
-                    : 'bg-emerald-400 text-emerald-900'
-                }`}>
-                  {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
-                </span>
                 {/* Indicador de pausa por desconexión */}
                 {isPaused && (
                   <span className="inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide bg-amber-400 text-amber-900 animate-pulse">
@@ -2484,12 +2476,6 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* Reactivos respondidos / total */}
-              <div className="hidden sm:flex items-center fluid-gap-1 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md bg-white/20 text-white fluid-text-xs sm:fluid-text-sm" title="Reactivos respondidos">
-                <CheckCircle className="fluid-icon-xs sm:fluid-icon-sm" />
-                <span className="font-medium">{getAnsweredCount()}/{selectedItems.length}</span>
-              </div>
-
               {/* Timer */}
               <div className={`flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 rounded-fluid-md font-mono fluid-text-xs sm:fluid-text-sm transition-all ${
                 isTimeCritical 
@@ -2504,15 +2490,6 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
               </div>
 
-              {/* Botón Salir */}
-              <button
-                onClick={() => setShowExitConfirm(true)}
-                className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 fluid-py-1 sm:fluid-py-2 text-white/90 hover:text-white bg-white/10 hover:bg-red-500/80 rounded-fluid-md transition-colors fluid-text-xs sm:fluid-text-sm font-medium"
-                title="Salir del examen"
-              >
-                <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
-                <span className="hidden sm:inline">Salir</span>
-              </button>
             </div>
           </div>
         </div>
@@ -2534,8 +2511,20 @@ const ExamTestRunPage: React.FC = () => {
       }`}>
         <div className="w-full fluid-px-2 sm:fluid-px-4 lg:fluid-px-6 h-10 sm:h-11 lg:h-12 flex items-center">
           <div className="flex items-center justify-between fluid-gap-1 sm:fluid-gap-2 w-full">
-            {/* Izquierda: Navegación de pregunta + botón marcar */}
-            <div className="flex items-center fluid-gap-1 sm:fluid-gap-2">
+            {/* Izquierda: salir + contexto + navegación de pregunta */}
+            <div className="flex items-center fluid-gap-1 sm:fluid-gap-2 min-w-0">
+              {/* Salir del examen (reubicado del header, discreto) */}
+              <button
+                onClick={() => setShowExitConfirm(true)}
+                title="Salir del examen"
+                className="flex-shrink-0 flex items-center justify-center fluid-px-2 fluid-py-1 sm:fluid-py-2 h-[30px] sm:h-[34px] lg:h-[38px] rounded-fluid-md bg-gray-100 text-gray-400 hover:bg-red-500 hover:text-white transition-colors"
+              >
+                <LogOut className="fluid-icon-xs sm:fluid-icon-sm" />
+              </button>
+              {/* Badge Examen/Simulador (reubicado del header) */}
+              <span className={`hidden md:inline-flex items-center fluid-px-2 fluid-py-1 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide flex-shrink-0 ${currentMode === 'simulator' ? 'bg-amber-100 text-amber-700' : 'bg-primary-100 text-primary-700'}`}>
+                {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
+              </span>
               <button
                 onClick={() => setShowNavPanel(!showNavPanel)}
                 className="flex items-center fluid-gap-1 sm:fluid-gap-2 fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-gray-100 hover:bg-gray-200 rounded-fluid-md transition-all min-w-[80px] sm:min-w-[100px] lg:min-w-[120px]"
@@ -2548,6 +2537,12 @@ const ExamTestRunPage: React.FC = () => {
                 </span>
                 <ChevronRight className={`fluid-icon-xs sm:fluid-icon-sm text-gray-400 transition-transform ${showNavPanel ? 'rotate-90' : ''}`} />
               </button>
+
+              {/* Reactivos respondidos (reubicado del header) */}
+              <div className="hidden sm:flex items-center fluid-gap-1 fluid-px-2 fluid-py-1 sm:fluid-py-2 rounded-fluid-md bg-gray-100 text-gray-600 fluid-text-xs sm:fluid-text-sm flex-shrink-0" title="Reactivos respondidos">
+                <CheckCircle className="fluid-icon-xs sm:fluid-icon-sm text-emerald-600" />
+                <span className="font-medium">{getAnsweredCount()}/{selectedItems.length}</span>
+              </div>
 
               {/* Botón de marcar pregunta (junto a navegación) */}
               <button
