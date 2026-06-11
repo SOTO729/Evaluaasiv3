@@ -35,6 +35,23 @@ const isMobileDevice = (): boolean => {
   return isMobileUA || isIpadOs;
 };
 
+// Paleta fija del examen (Tailwind blue, validada WCAG AA). El examen NO usa la
+// personalización de color del plantel para evitar problemas de contraste: se
+// redefinen las variables --color-primary-* en el contenedor raíz del examen, de modo
+// que todos los `primary-*` (incluidos header/nav fijos, por herencia) usen esta paleta.
+const EXAM_FIXED_PALETTE = {
+  ['--color-primary-50' as any]: '#eff6ff',
+  ['--color-primary-100' as any]: '#dbeafe',
+  ['--color-primary-200' as any]: '#bfdbfe',
+  ['--color-primary-300' as any]: '#93c5fd',
+  ['--color-primary-400' as any]: '#60a5fa',
+  ['--color-primary-500' as any]: '#3b82f6',
+  ['--color-primary-600' as any]: '#2563eb',
+  ['--color-primary-700' as any]: '#1d4ed8',
+  ['--color-primary-800' as any]: '#1e40af',
+  ['--color-primary-900' as any]: '#1e3a8a',
+} as React.CSSProperties;
+
 const ExamTestRunPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const location = useLocation();
@@ -2411,7 +2428,7 @@ const ExamTestRunPage: React.FC = () => {
   const isTimeCritical = timeRemaining !== null && timeRemaining <= 30; // Últimos 30 segundos
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50" style={EXAM_FIXED_PALETTE}>
       {/* Modal de confirmación de salida */}
       {showExitConfirm && (
         <div className="fixed inset-0 bg-black/40  flex items-center justify-center z-50 fluid-p-3 sm:fluid-p-4">
