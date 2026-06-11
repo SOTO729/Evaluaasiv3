@@ -139,7 +139,7 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex overflow-x-hidden overscroll-contain">
+    <div className="min-h-screen flex overflow-x-clip">
       {/* Left Side - Form */}
       <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-10 bg-white">
         <div className="mx-auto w-full max-w-md sm:max-w-lg">

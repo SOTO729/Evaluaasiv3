@@ -343,6 +343,15 @@ const StudyContentPreviewPage: React.FC = () => {
   const currentSession = material?.sessions?.[currentSessionIndex];
   const currentTopic = currentSession?.topics?.[currentTopicIndex];
 
+  // A11y: anunciar el tema y mover el foco al contenido al cambiar de tema
+  const [srAnnounce, setSrAnnounce] = useState('');
+  useEffect(() => {
+    if (!currentTopic) return;
+    setSrAnnounce(`Tema: ${currentTopic.title || ''}`);
+    mainContainerRef.current?.focus?.({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSessionIndex, currentTopicIndex]);
+
   // Función para registrar progreso de contenido
   const markContentCompleted = async (
     contentType: 'reading' | 'video' | 'downloadable' | 'interactive',
@@ -1478,8 +1487,11 @@ const StudyContentPreviewPage: React.FC = () => {
           />
         )}
 
+        {/* Anuncios para lector de pantalla (no visibles) */}
+        <div aria-live="polite" aria-atomic="true" role="status" className="sr-only">{srAnnounce}</div>
+
         {/* Contenido principal */}
-        <main ref={mainContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain" onScroll={handleMainScroll}>
+        <main ref={mainContainerRef} tabIndex={-1} className="flex-1 overflow-y-auto overflow-x-hidden bg-white overscroll-contain outline-none focus:outline-none" onScroll={handleMainScroll}>
           {/* Sub-header compacto: "Sesión · Título" + pestañas tipo pills */}
           <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
             <div className="w-full px-[clamp(0.75rem,3vw,2rem)] py-2 flex flex-col gap-2">

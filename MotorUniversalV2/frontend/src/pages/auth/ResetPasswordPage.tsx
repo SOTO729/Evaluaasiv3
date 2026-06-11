@@ -82,7 +82,7 @@ const ResetPasswordPage = () => {
   }
 
   return (
-    <div className="min-h-screen flex overflow-x-hidden overscroll-contain">
+    <div className="min-h-screen flex overflow-x-clip">
       {/* Left Side - Form */}
       <div className="flex-1 flex flex-col justify-center fluid-px-8 bg-white">
         <div className="mx-auto w-full max-w-lg">
