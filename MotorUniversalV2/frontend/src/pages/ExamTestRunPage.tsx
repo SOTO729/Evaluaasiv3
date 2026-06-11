@@ -2428,8 +2428,8 @@ const ExamTestRunPage: React.FC = () => {
             <div className="flex items-center fluid-gap-2 sm:fluid-gap-3 min-w-0 flex-1">
               <div className="min-w-0 flex items-center fluid-gap-2 sm:fluid-gap-3">
                 <h1 className="fluid-text-base sm:fluid-text-lg lg:fluid-text-2xl font-bold text-white truncate max-w-[150px] xs:max-w-[200px] sm:max-w-[280px] lg:max-w-none drop-shadow-sm">{exam.name}</h1>
-                {/* Badge Examen/Simulador (al lado derecho del titulo) */}
-                <span className="inline-flex items-center fluid-px-2 py-0.5 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide bg-white/25 text-white flex-shrink-0">
+                {/* Badge Examen/Simulador (al lado derecho del titulo): verde examen, amarillo simulador */}
+                <span className={`inline-flex items-center fluid-px-2 py-0.5 rounded-fluid-sm fluid-text-2xs font-semibold uppercase tracking-wide flex-shrink-0 ${currentMode === 'simulator' ? 'bg-yellow-300 text-yellow-900' : 'bg-emerald-400 text-emerald-900'}`}>
                   {currentMode === 'simulator' ? 'Simulador' : 'Examen'}
                 </span>
                 {/* Indicador de pausa por desconexión */}
