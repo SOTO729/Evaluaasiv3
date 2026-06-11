@@ -66,6 +66,7 @@ const ExamTestRunPage: React.FC = () => {
   const exerciseRemindedRef = useRef<Set<string>>(new Set()); // ejercicios para los que ya se mostró el recordatorio
   const contentRef = useRef<HTMLDivElement>(null); // contenedor del reactivo (foco al navegar, a11y)
   const [srAnnouncement, setSrAnnouncement] = useState(''); // anuncios para lector de pantalla (aria-live)
+  const [keyboardPicked, setKeyboardPicked] = useState<string | null>(null); // opción "tomada" por teclado (drag&drop / columnas)
   // Caja disponible (ancho y alto) para la imagen del ejercicio: desde donde empieza
   // la imagen hasta encima del footer, y el ancho del contenedor. Junto con la
   // proporción real de la imagen, se calcula el tamaño que MEJOR llena la pantalla
@@ -895,6 +896,7 @@ const ExamTestRunPage: React.FC = () => {
   useEffect(() => {
     if (selectedItems.length === 0) return;
     setSrAnnouncement(`Reactivo ${currentItemIndex + 1} de ${selectedItems.length}`);
+    setKeyboardPicked(null); // limpiar selección "tomada" al cambiar de reactivo
     contentRef.current?.focus({ preventScroll: true });
   }, [currentItemIndex, selectedItems.length]);
 
@@ -1624,6 +1626,24 @@ const ExamTestRunPage: React.FC = () => {
             handleAnswerChange(currentItem.question_id!, newAnswer);
           }
         };
+
+        // --- Teclado (seleccionar-luego-colocar) ---
+        const assignFillOption = (optionId: string, blankId: string) => {
+          const newAnswer = { ...fillBlankAnswer };
+          Object.keys(newAnswer).forEach(key => { if (newAnswer[key] === optionId) delete newAnswer[key]; });
+          newAnswer[blankId] = optionId;
+          handleAnswerChange(currentItem.question_id!, newAnswer);
+        };
+        const handleBlankActivate = (blankId: string) => {
+          if (keyboardPicked) {
+            assignFillOption(keyboardPicked, blankId);
+            setKeyboardPicked(null);
+          } else if (fillBlankAnswer[blankId]) {
+            // sin opción tomada y el espacio está lleno: tomar la asignada para moverla
+            setKeyboardPicked(fillBlankAnswer[blankId]);
+            handleRemoveFromBlank(blankId);
+          }
+        };
         
         // Renderizar el texto con los blanks interactivos
         const renderTextWithBlanks = () => {
@@ -1650,9 +1670,16 @@ const ExamTestRunPage: React.FC = () => {
             textParts.push(
               <span
                 key={blankId}
-                className={`inline-block min-w-[120px] fluid-mx-1 fluid-px-3 fluid-py-2 rounded-fluid-md border-2 border-dashed transition-all ${
-                  assignedOption 
-                    ? 'bg-indigo-100 border-indigo-400 cursor-grab' 
+                role="button"
+                tabIndex={0}
+                onClick={() => handleBlankActivate(blankId)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBlankActivate(blankId); } }}
+                aria-label={`Espacio ${match[1]}, ${assignedOption ? 'ocupado' : 'vacío'}`}
+                className={`inline-block min-w-[120px] fluid-mx-1 fluid-px-3 fluid-py-2 rounded-fluid-md border-2 border-dashed transition-all cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                  keyboardPicked ? 'ring-2 ring-indigo-400 ring-offset-1' : ''
+                } ${
+                  assignedOption
+                    ? 'bg-indigo-100 border-indigo-400'
                     : 'bg-gray-100 border-gray-300'
                 }`}
                 onDragOver={handleFillDragOver}
@@ -1700,7 +1727,7 @@ const ExamTestRunPage: React.FC = () => {
           <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4" role="group" aria-label="Arrastra cada opción al espacio en blanco correspondiente">
             <p className="fluid-text-xs sm:fluid-text-sm text-gray-600 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2 bg-indigo-50 fluid-p-2 sm:fluid-p-3 rounded-fluid-md">
               <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-indigo-500" />
-              <span><strong>Arrastra</strong> cada opción al espacio en blanco correspondiente</span>
+              <span><strong>Arrastra</strong> cada opción al espacio en blanco (o selecciónala con Enter y activa el espacio)</span>
             </p>
             
             {/* Texto con blanks */}
@@ -1726,18 +1753,22 @@ const ExamTestRunPage: React.FC = () => {
               </p>
               <div className="flex flex-wrap fluid-gap-1 sm:fluid-gap-2">
                 {availableOptions.map((option: any) => (
-                  <div
+                  <button
                     key={option.id}
+                    type="button"
                     draggable
                     onDragStart={(e) => handleFillDragStart(e, option.id)}
                     onDragEnd={handleFillDragEnd}
-                    className="fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-xs sm:fluid-text-sm font-medium shadow-sm select-none"
+                    onClick={() => setKeyboardPicked(prev => prev === option.id ? null : option.id)}
+                    aria-pressed={keyboardPicked === option.id}
+                    aria-label={`Opción: ${String(option.answer_text || '').replace(/<[^>]*>/g, '')}. ${keyboardPicked === option.id ? 'Seleccionada; activa un espacio para colocarla' : 'Activar para seleccionar'}`}
+                    className={`fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-white border-2 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-xs sm:fluid-text-sm font-medium shadow-sm select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${keyboardPicked === option.id ? 'border-indigo-500 ring-2 ring-indigo-400 ring-offset-1' : 'border-gray-300'}`}
                   >
                     <span className="flex items-center fluid-gap-1 sm:fluid-gap-2">
                       <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-gray-400" />
                       {option.answer_text}
                     </span>
-                  </div>
+                  </button>
                 ))}
                 {availableOptions.length === 0 && (
                   <p className="text-green-600 fluid-text-xs sm:fluid-text-sm italic flex items-center fluid-gap-1">
@@ -1836,7 +1867,7 @@ const ExamTestRunPage: React.FC = () => {
           <div className="flex flex-col fluid-gap-3 sm:fluid-gap-4" role="group" aria-label="Arrastra cada elemento a la columna donde corresponde">
             <p className="fluid-text-xs sm:fluid-text-sm text-gray-600 fluid-mb-2 sm:fluid-mb-3 flex items-center fluid-gap-1 sm:fluid-gap-2 bg-indigo-50 fluid-p-2 sm:fluid-p-3 rounded-fluid-md">
               <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-indigo-500" />
-              <span><strong>Arrastra</strong> cada elemento a la columna donde corresponde</span>
+              <span><strong>Arrastra</strong> cada elemento a su columna (o selecciónalo con Enter y usa "Colocar aquí")</span>
             </p>
             
             {/* Elementos sin clasificar - Área de origen */}
@@ -1857,18 +1888,22 @@ const ExamTestRunPage: React.FC = () => {
               </p>
               <div className="flex flex-wrap fluid-gap-1 sm:fluid-gap-2">
                 {unclassifiedItems.map((option: any) => (
-                  <div
+                  <button
                     key={option.id}
+                    type="button"
                     draggable
                     onDragStart={(e) => handleColDragStart(e, option.id)}
                     onDragEnd={handleColDragEnd}
-                    className="fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-white border-2 border-gray-300 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-xs sm:fluid-text-sm font-medium shadow-sm select-none"
+                    onClick={() => setKeyboardPicked(prev => prev === option.id ? null : option.id)}
+                    aria-pressed={keyboardPicked === option.id}
+                    aria-label={`Elemento: ${String(option.answer_text || '').replace(/<[^>]*>/g, '')}. ${keyboardPicked === option.id ? 'Seleccionado; activa "Colocar aquí" en una columna' : 'Activar para seleccionar'}`}
+                    className={`fluid-px-2 sm:fluid-px-3 lg:fluid-px-4 fluid-py-1 sm:fluid-py-2 bg-white border-2 text-gray-800 rounded-fluid-md cursor-grab active:cursor-grabbing hover:bg-gray-50 hover:border-gray-400 transition-all fluid-text-xs sm:fluid-text-sm font-medium shadow-sm select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${keyboardPicked === option.id ? 'border-indigo-500 ring-2 ring-indigo-400 ring-offset-1' : 'border-gray-300'}`}
                   >
                     <span className="flex items-center fluid-gap-1 sm:fluid-gap-2">
                       <GripVertical className="fluid-icon-xs sm:fluid-icon-sm text-gray-400" />
                       {option.answer_text}
                     </span>
-                  </div>
+                  </button>
                 ))}
                 {unclassifiedItems.length === 0 && (
                   <p className="text-green-600 fluid-text-xs sm:fluid-text-sm italic flex items-center fluid-gap-1">
@@ -1927,13 +1962,24 @@ const ExamTestRunPage: React.FC = () => {
                               </span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleUnclassify(item.id); }}
-                                className="opacity-0 group-hover:opacity-100 fluid-p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-fluid-sm transition-all"
+                                aria-label={`Quitar ${String(item.answer_text || '').replace(/<[^>]*>/g, '')} de la columna`}
+                                className="opacity-0 group-hover:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 fluid-p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-fluid-sm transition-all"
                               >
                                 ✕
                               </button>
                             </div>
                           ))}
                         </div>
+                      )}
+                      {keyboardPicked && (
+                        <button
+                          type="button"
+                          onClick={() => { handleClassify(keyboardPicked, columnId); setKeyboardPicked(null); }}
+                          className="mt-2 w-full fluid-px-2 fluid-py-1 fluid-text-xs font-medium text-indigo-700 bg-white/70 border-2 border-dashed border-indigo-400 rounded-fluid-md hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                          aria-label={`Colocar la opción seleccionada en ${columnId.replace('columna_', 'Columna ').replace(/_/g, ' ')}`}
+                        >
+                          + Colocar aquí
+                        </button>
                       )}
                     </div>
                   </div>
