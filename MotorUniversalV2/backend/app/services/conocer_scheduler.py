@@ -88,12 +88,12 @@ def _send_weekly_solicitud(app):
                 WHERE eca.tramite_status = 'pendiente'
                   AND eca.assignment_number IS NOT NULL
                   AND (
-                      (cg.enable_tier_advanced_override = 1)
-                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
+                      (cg.enable_tier_advanced_override = :bool_true)
+                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = :bool_true)
                   )
                 ORDER BY cs.code, u.name
             """)
-            pending_rows = db.session.execute(pending_sql).fetchall()
+            pending_rows = db.session.execute(pending_sql, {'bool_true': True}).fetchall()
             
             if not pending_rows:
                 print("[SCHEDULER] No pending tramites, skipping")

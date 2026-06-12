@@ -1138,8 +1138,8 @@ class GroupExam(db.Model):
                         SELECT sc.id, sc.title, sc.description, sc.image_url
                         FROM study_contents sc
                         INNER JOIN study_material_exams sme ON sc.id = sme.study_material_id
-                        WHERE sme.exam_id = :exam_id AND sc.is_published = 1
-                    '''), {'exam_id': self.exam.id}).fetchall()
+                        WHERE sme.exam_id = :exam_id AND sc.is_published = :pub
+                    '''), {'exam_id': self.exam.id, 'pub': True}).fetchall()
                     
                     for m in linked_materials:
                         materials.append({

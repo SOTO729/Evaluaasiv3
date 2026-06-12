@@ -461,18 +461,10 @@ def create_group_exam_members_table():
         except Exception:
             db.session.rollback()
         
-        # Crear la tabla - sin FK a users por incompatibilidad de tipos
-        db.session.execute(text("""
-            CREATE TABLE group_exam_members (
-                id INT IDENTITY(1,1) PRIMARY KEY,
-                group_exam_id INT NOT NULL,
-                user_id VARCHAR(36) NOT NULL,
-                assigned_at DATETIME DEFAULT GETDATE() NOT NULL,
-                CONSTRAINT fk_gem_group_exam_v3 FOREIGN KEY (group_exam_id) 
-                    REFERENCES group_exams(id) ON DELETE CASCADE,
-                CONSTRAINT uq_gem_group_exam_user_v3 UNIQUE (group_exam_id, user_id)
-            )
-        """))
+        # Crear la tabla desde el modelo SQLAlchemy: DDL correcto en cualquier
+        # dialecto (MSSQL/PostgreSQL/SQLite). auto_migrate también la crea.
+        from app.models.partner import GroupExamMember
+        GroupExamMember.__table__.create(bind=db.engine, checkfirst=True)
         db.session.commit()
         
         return jsonify({

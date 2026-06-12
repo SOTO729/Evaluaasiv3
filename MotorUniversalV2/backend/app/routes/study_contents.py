@@ -82,31 +82,17 @@ def check_material_ownership(material_id):
 
 
 def ensure_study_material_exams_table():
-    """Asegurar que la tabla study_material_exams existe"""
+    """Asegurar que la tabla study_material_exams existe.
+    Usa la definición SQLAlchemy (models/study_content.py) para que el DDL
+    sea correcto en cualquier dialecto (MSSQL/PostgreSQL/SQLite)."""
     try:
-        # Verificar si la tabla existe
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
-            WHERE TABLE_NAME = 'study_material_exams'
-        """))
-        exists = result.scalar() > 0
-        
-        if not exists:
-            # Crear la tabla si no existe
-            db.session.execute(text("""
-                CREATE TABLE study_material_exams (
-                    study_material_id INT NOT NULL,
-                    exam_id INT NOT NULL,
-                    created_at DATETIME DEFAULT GETDATE(),
-                    PRIMARY KEY (study_material_id, exam_id),
-                    FOREIGN KEY (study_material_id) REFERENCES study_contents(id) ON DELETE CASCADE,
-                    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE
-                )
-            """))
-            db.session.commit()
-            print("✅ Tabla study_material_exams creada exitosamente")
-            return True
-        return False
+        from sqlalchemy import inspect as sa_inspect
+        from app.models.study_content import study_material_exams as sme_table
+        if sa_inspect(db.engine).has_table('study_material_exams'):
+            return False
+        sme_table.create(bind=db.engine, checkfirst=True)
+        print("✅ Tabla study_material_exams creada exitosamente")
+        return True
     except HTTPException:
         raise
     except Exception as e:
@@ -2694,65 +2680,13 @@ def upload_interactive_image():
 # ==========================================
 
 def ensure_student_progress_tables():
-    """Asegurar que las tablas de progreso existen"""
+    """Asegurar que las tablas de progreso existen.
+    Usa los modelos SQLAlchemy (models/student_progress.py) para que el DDL
+    sea correcto en cualquier dialecto (MSSQL/PostgreSQL/SQLite)."""
     try:
-        # Verificar si la tabla student_content_progress existe
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
-            WHERE TABLE_NAME = 'student_content_progress'
-        """))
-        exists = result.scalar() > 0
-        
-        if not exists:
-            # Crear la tabla student_content_progress (usando VARCHAR(36) para content_id para soportar UUIDs)
-            db.session.execute(text("""
-                CREATE TABLE student_content_progress (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    user_id VARCHAR(36) NOT NULL,
-                    content_type VARCHAR(50) NOT NULL,
-                    content_id VARCHAR(36) NOT NULL,
-                    topic_id INT NOT NULL,
-                    is_completed BIT DEFAULT 0 NOT NULL,
-                    score FLOAT NULL,
-                    completed_at DATETIME NULL,
-                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
-                    updated_at DATETIME DEFAULT GETDATE(),
-                    FOREIGN KEY (user_id) REFERENCES users(id),
-                    FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
-                    CONSTRAINT unique_user_content_progress UNIQUE (user_id, content_type, content_id)
-                )
-            """))
-            db.session.commit()
-            print("✅ Tabla student_content_progress creada exitosamente")
-        
-        # Verificar si la tabla student_topic_progress existe
-        result = db.session.execute(text("""
-            SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
-            WHERE TABLE_NAME = 'student_topic_progress'
-        """))
-        exists = result.scalar() > 0
-        
-        if not exists:
-            # Crear la tabla student_topic_progress (usando VARCHAR(36) como users.id)
-            db.session.execute(text("""
-                CREATE TABLE student_topic_progress (
-                    id INT IDENTITY(1,1) PRIMARY KEY,
-                    user_id VARCHAR(36) NOT NULL,
-                    topic_id INT NOT NULL,
-                    total_contents INT DEFAULT 0,
-                    completed_contents INT DEFAULT 0,
-                    progress_percentage FLOAT DEFAULT 0.0,
-                    is_completed BIT DEFAULT 0 NOT NULL,
-                    created_at DATETIME DEFAULT GETDATE() NOT NULL,
-                    updated_at DATETIME DEFAULT GETDATE(),
-                    FOREIGN KEY (user_id) REFERENCES users(id),
-                    FOREIGN KEY (topic_id) REFERENCES study_topics(id) ON DELETE CASCADE,
-                    CONSTRAINT unique_user_topic_progress UNIQUE (user_id, topic_id)
-                )
-            """))
-            db.session.commit()
-            print("✅ Tabla student_topic_progress creada exitosamente")
-        
+        from app.models.student_progress import StudentContentProgress, StudentTopicProgress
+        StudentContentProgress.__table__.create(bind=db.engine, checkfirst=True)
+        StudentTopicProgress.__table__.create(bind=db.engine, checkfirst=True)
         return True
     except HTTPException:
         raise

@@ -316,7 +316,7 @@ def check_exercises():
         
         # Verificar si la tabla exercises existe y tiene datos
         result = db.session.execute(text('''
-            SELECT TOP 10 
+            SELECT
                 e.id, e.topic_id, e.exercise_number, e.title,
                 t.name as topic_name, t.category_id,
                 c.name as category_name, c.exam_id,
@@ -325,6 +325,8 @@ def check_exercises():
             JOIN topics t ON e.topic_id = t.id
             JOIN categories c ON t.category_id = c.id
             JOIN exams ex ON c.exam_id = ex.id
+            ORDER BY e.id
+            OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY
         '''))
         rows = result.fetchall()
         
@@ -369,8 +371,8 @@ def check_exercises():
                  JOIN categories c ON t.category_id = c.id
                  WHERE c.exam_id = ex.id) as exercise_count
             FROM exams ex
-            WHERE ex.is_published = 1
-        '''))
+            WHERE ex.is_published = :pub
+        '''), {'pub': True})
         exams_with_counts = []
         for row in exams_result.fetchall():
             exams_with_counts.append({
@@ -599,11 +601,13 @@ def debug_exam_relations():
         
         # Obtener algunas relaciones de ejemplo
         sample_result = db.session.execute(text("""
-            SELECT TOP 10 sme.study_material_id, sc.title as material_title, 
+            SELECT sme.study_material_id, sc.title as material_title,
                    sme.exam_id, e.name as exam_name
             FROM study_material_exams sme
             JOIN study_contents sc ON sme.study_material_id = sc.id
             JOIN exams e ON sme.exam_id = e.id
+            ORDER BY sme.exam_id
+            OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY
         """))
         samples = [{'material_id': r[0], 'material_title': r[1], 'exam_id': r[2], 'exam_name': r[3]} for r in sample_result.fetchall()]
         
@@ -860,7 +864,8 @@ def recent_results():
     
     try:
         result = db.session.execute(text(
-            "SELECT TOP 5 id, score, result, created_at FROM results ORDER BY created_at DESC"
+            "SELECT id, score, result, created_at FROM results ORDER BY created_at DESC "
+            "OFFSET 0 ROWS FETCH FIRST 5 ROWS ONLY"
         ))
         
         rows = result.fetchall()

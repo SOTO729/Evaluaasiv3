@@ -544,7 +544,7 @@ def _find_office_badge_template(office_result):
         templates = BadgeTemplate.query.filter(
             BadgeTemplate.is_active == True,  # noqa: E712
             BadgeTemplate.tags.isnot(None),
-            BadgeTemplate.tags.like(f'%{tag}%'),
+            BadgeTemplate.tags.ilike(f'%{tag}%'),
         ).all()
         for tpl in templates:
             tag_list = [t.strip().lower() for t in (tpl.tags or '').split(',') if t.strip()]

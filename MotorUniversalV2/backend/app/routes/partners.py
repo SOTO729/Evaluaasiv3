@@ -3962,8 +3962,8 @@ def get_group_members(group_id):
         materials_result = db.session.execute(text("""
             SELECT gsm.id, gsm.assignment_type
             FROM group_study_materials gsm
-            WHERE gsm.group_id = :group_id AND gsm.is_active = 1
-        """), {'group_id': group_id})
+            WHERE gsm.group_id = :group_id AND gsm.is_active = :act
+        """), {'group_id': group_id, 'act': True})
 
         materials_for_all_ids = []
         group_material_ids = []
@@ -5473,8 +5473,10 @@ def get_partner_users(partner_id):
                 )
             )
         
-        pagination = query.paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
-        
+        # Orden explícito: sin ORDER BY el orden de paginación no es estable
+        # (en MSSQL coincidía por accidente; PostgreSQL no lo garantiza)
+        pagination = query.order_by(User.name, User.id).paginate(page=page, per_page=per_page, max_per_page=MAX_PER_PAGE_EXPORT, error_out=False)
+
         return jsonify({
             'partner_id': partner_id,
             'partner_name': partner.name,
@@ -9572,11 +9574,11 @@ def get_available_exams():
             # También contar materiales de la relación muchos a muchos
             try:
                 result = db.session.execute(text('''
-                    SELECT COUNT(DISTINCT sme.study_material_id) 
+                    SELECT COUNT(DISTINCT sme.study_material_id)
                     FROM study_material_exams sme
                     JOIN study_contents sc ON sme.study_material_id = sc.id
-                    WHERE sme.exam_id = :exam_id AND sc.is_published = 1
-                '''), {'exam_id': exam.id})
+                    WHERE sme.exam_id = :exam_id AND sc.is_published = :pub
+                '''), {'exam_id': exam.id, 'pub': True})
                 linked_count = result.scalar() or 0
                 # Tomar el máximo de ambos (evitar duplicados si están en ambos)
                 materials_count = max(materials_count, linked_count)
@@ -9587,11 +9589,11 @@ def get_available_exams():
             linked_material_ids = []
             try:
                 lm_result = db.session.execute(text('''
-                    SELECT DISTINCT sme.study_material_id 
+                    SELECT DISTINCT sme.study_material_id
                     FROM study_material_exams sme
                     JOIN study_contents sc ON sme.study_material_id = sc.id
-                    WHERE sme.exam_id = :exam_id AND sc.is_published = 1
-                '''), {'exam_id': exam.id})
+                    WHERE sme.exam_id = :exam_id AND sc.is_published = :pub
+                '''), {'exam_id': exam.id, 'pub': True})
                 linked_material_ids = [row[0] for row in lm_result.fetchall()]
                 
                 # También incluir materiales con relación legacy
@@ -15399,8 +15401,8 @@ def get_group_analytics(group_id):
                         SELECT sc.id, sc.title
                         FROM study_contents sc
                         INNER JOIN study_material_exams sme ON sc.id = sme.study_material_id
-                        WHERE sme.exam_id = :exam_id AND sc.is_published = 1
-                    '''), {'exam_id': ge.exam_id}).fetchall()
+                        WHERE sme.exam_id = :exam_id AND sc.is_published = :pub
+                    '''), {'exam_id': ge.exam_id, 'pub': True}).fetchall()
                     for row in linked:
                         if row[0] not in seen_material_ids:
                             seen_material_ids.add(row[0])
@@ -15843,7 +15845,8 @@ def get_ecm_assignments():
         params = {}
         where_parts = []
         if active_only:
-            where_parts.append("AND cs.is_active = 1")
+            where_parts.append("AND cs.is_active = :cs_active")
+            params['cs_active'] = True
         if search:
             where_parts.append("AND (LOWER(cs.code) LIKE :search_term OR LOWER(cs.name) LIKE :search_term)")
             params['search_term'] = f'%{search.lower()}%'
@@ -15986,8 +15989,8 @@ def get_ecm_assignments():
             })
 
         # Get available brands for filtering
-        brand_sql = text("SELECT id, name, logo_url FROM brands WHERE is_active = 1 ORDER BY display_order")
-        brand_rows = db.session.execute(brand_sql).fetchall()
+        brand_sql = text("SELECT id, name, logo_url FROM brands WHERE is_active = :act ORDER BY display_order")
+        brand_rows = db.session.execute(brand_sql, {'act': True}).fetchall()
         brands = [{'id': b.id, 'name': b.name, 'logo_url': b.logo_url} for b in brand_rows]
 
         return jsonify({
@@ -16053,7 +16056,7 @@ def get_all_ecm_assignments():
         sort_dir = request.args.get('sort_dir', 'desc')
         offset = (page - 1) * per_page
 
-        params = {'offset_val': offset, 'limit_val': per_page}
+        params = {'offset_val': offset, 'limit_val': per_page, 'bool_false': False}
         where_parts = []
 
         # Aislamiento por coordinador (mismo criterio que el detalle)
@@ -16141,7 +16144,7 @@ def get_all_ecm_assignments():
                 SELECT
                     u.id AS user_id,
                     CONCAT(u.name, ' ', u.first_surname,
-                           COALESCE(' ' + u.second_surname, '')) AS user_name,
+                           CASE WHEN u.second_surname IS NULL THEN '' ELSE CONCAT(' ', u.second_surname) END) AS user_name,
                     u.email AS user_email,
                     u.role AS user_role,
                     u.curp AS user_curp,
@@ -16157,10 +16160,10 @@ def get_all_ecm_assignments():
                     cg.code AS group_code,
                     c.id AS campus_id,
                     c.name AS campus_name,
-                    COALESCE(c.enable_tier_basic, 0) AS enable_tier_basic,
-                    COALESCE(c.enable_tier_standard, 0) AS enable_tier_standard,
-                    COALESCE(c.enable_tier_advanced, 0) AS enable_tier_advanced,
-                    COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
+                    COALESCE(c.enable_tier_basic, :bool_false) AS enable_tier_basic,
+                    COALESCE(c.enable_tier_standard, :bool_false) AS enable_tier_standard,
+                    COALESCE(c.enable_tier_advanced, :bool_false) AS enable_tier_advanced,
+                    COALESCE(c.enable_digital_badge, :bool_false) AS enable_digital_badge,
                     p.id AS partner_id,
                     p.name AS partner_name,
                     e.name AS exam_name,
@@ -16189,17 +16192,17 @@ def get_all_ecm_assignments():
                 SELECT
                     u.id,
                     CONCAT(u.name, ' ', u.first_surname,
-                           COALESCE(' ' + u.second_surname, '')),
+                           CASE WHEN u.second_surname IS NULL THEN '' ELSE CONCAT(' ', u.second_surname) END),
                     u.email, u.role, u.curp,
                     ge.id, ge.exam_id, ge.assigned_at,
                     ge.assignment_type,
                     ge.max_attempts, ge.time_limit_minutes, ge.passing_score,
                     cg.id, cg.name, cg.code,
                     c.id, c.name,
-                    COALESCE(c.enable_tier_basic, 0),
-                    COALESCE(c.enable_tier_standard, 0),
-                    COALESCE(c.enable_tier_advanced, 0),
-                    COALESCE(c.enable_digital_badge, 0),
+                    COALESCE(c.enable_tier_basic, :bool_false),
+                    COALESCE(c.enable_tier_standard, :bool_false),
+                    COALESCE(c.enable_tier_advanced, :bool_false),
+                    COALESCE(c.enable_digital_badge, :bool_false),
                     p.id, p.name,
                     e.name,
                     e.competency_standard_id,
@@ -16343,8 +16346,8 @@ def get_all_ecm_assignments():
             custom_mats = db.session.execute(text(
                 f"SELECT group_exam_id, study_material_id "
                 f"FROM group_exam_materials "
-                f"WHERE group_exam_id IN ({ge_ids_str}) AND is_included = 1"
-            )).fetchall()
+                f"WHERE group_exam_id IN ({ge_ids_str}) AND is_included = :inc"
+            ), {'inc': True}).fetchall()
             ge_material_map = {}
             for r in custom_mats:
                 ge_material_map.setdefault(r.group_exam_id, []).append(r.study_material_id)
@@ -16390,8 +16393,8 @@ def get_all_ecm_assignments():
                         f"FROM student_topic_progress "
                         f"WHERE user_id IN ({user_ids_str}) "
                         f"  AND topic_id IN ({topic_ids_str}) "
-                        f"  AND is_completed = 1"
-                    )).fetchall()
+                        f"  AND is_completed = :comp"
+                    ), {'comp': True}).fetchall()
                     completed_set = {(c.user_id, c.topic_id) for c in completions}
 
                 for row in data_rows:
@@ -16566,8 +16569,8 @@ def get_all_ecm_assignments():
         )
 
         brand_rows = db.session.execute(text(
-            "SELECT id, name, logo_url FROM brands WHERE is_active = 1 ORDER BY display_order"
-        )).fetchall()
+            "SELECT id, name, logo_url FROM brands WHERE is_active = :act ORDER BY display_order"
+        ), {'act': True}).fetchall()
         brands = [{'id': b.id, 'name': b.name, 'logo_url': b.logo_url} for b in brand_rows]
 
         return jsonify({
@@ -16673,7 +16676,7 @@ def get_ecm_assignment_detail(ecm_id):
             })
 
         # ── Dynamic WHERE clauses ──
-        params = {'ecm_id': ecm_id, 'offset_val': offset, 'limit_val': per_page}
+        params = {'ecm_id': ecm_id, 'offset_val': offset, 'limit_val': per_page, 'bool_false': False}
         where_parts = []
 
         # H6 (audit partners): aislamiento por GRUPO. Coordinators ven solo asignaciones
@@ -16750,7 +16753,7 @@ def get_ecm_assignment_detail(ecm_id):
                 SELECT
                     u.id AS user_id,
                     CONCAT(u.name, ' ', u.first_surname,
-                           COALESCE(' ' + u.second_surname, '')) AS user_name,
+                           CASE WHEN u.second_surname IS NULL THEN '' ELSE CONCAT(' ', u.second_surname) END) AS user_name,
                     u.email AS user_email,
                     u.role AS user_role,
                     u.curp AS user_curp,
@@ -16766,10 +16769,10 @@ def get_ecm_assignment_detail(ecm_id):
                     cg.code AS group_code,
                     c.id AS campus_id,
                     c.name AS campus_name,
-                    COALESCE(c.enable_tier_basic, 0) AS enable_tier_basic,
-                    COALESCE(c.enable_tier_standard, 0) AS enable_tier_standard,
-                    COALESCE(c.enable_tier_advanced, 0) AS enable_tier_advanced,
-                    COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
+                    COALESCE(c.enable_tier_basic, :bool_false) AS enable_tier_basic,
+                    COALESCE(c.enable_tier_standard, :bool_false) AS enable_tier_standard,
+                    COALESCE(c.enable_tier_advanced, :bool_false) AS enable_tier_advanced,
+                    COALESCE(c.enable_digital_badge, :bool_false) AS enable_digital_badge,
                     p.id AS partner_id,
                     p.name AS partner_name,
                     e.name AS exam_name,
@@ -16789,17 +16792,17 @@ def get_ecm_assignment_detail(ecm_id):
                 SELECT
                     u.id,
                     CONCAT(u.name, ' ', u.first_surname,
-                           COALESCE(' ' + u.second_surname, '')),
+                           CASE WHEN u.second_surname IS NULL THEN '' ELSE CONCAT(' ', u.second_surname) END),
                     u.email, u.role, u.curp,
                     ge.id, ge.exam_id, ge.assigned_at,
                     ge.assignment_type,
                     ge.max_attempts, ge.time_limit_minutes, ge.passing_score,
                     cg.id, cg.name, cg.code,
                     c.id, c.name,
-                    COALESCE(c.enable_tier_basic, 0),
-                    COALESCE(c.enable_tier_standard, 0),
-                    COALESCE(c.enable_tier_advanced, 0),
-                    COALESCE(c.enable_digital_badge, 0),
+                    COALESCE(c.enable_tier_basic, :bool_false),
+                    COALESCE(c.enable_tier_standard, :bool_false),
+                    COALESCE(c.enable_tier_advanced, :bool_false),
+                    COALESCE(c.enable_digital_badge, :bool_false),
                     p.id, p.name,
                     e.name,
                     cg.coordinator_id
@@ -16949,8 +16952,8 @@ def get_ecm_assignment_detail(ecm_id):
             custom_mats = db.session.execute(text(
                 f"SELECT group_exam_id, study_material_id "
                 f"FROM group_exam_materials "
-                f"WHERE group_exam_id IN ({ge_ids_str}) AND is_included = 1"
-            )).fetchall()
+                f"WHERE group_exam_id IN ({ge_ids_str}) AND is_included = :inc"
+            ), {'inc': True}).fetchall()
 
             ge_material_map = {}
             for r in custom_mats:
@@ -17009,8 +17012,8 @@ def get_ecm_assignment_detail(ecm_id):
                         f"FROM student_topic_progress "
                         f"WHERE user_id IN ({user_ids_str}) "
                         f"  AND topic_id IN ({topic_ids_str}) "
-                        f"  AND is_completed = 1"
-                    )).fetchall()
+                        f"  AND is_completed = :comp"
+                    ), {'comp': True}).fetchall()
                     completed_set = {(c.user_id, c.topic_id) for c in completions}
 
                 # 5) Assemble per (user_id, group_exam_id)
@@ -17253,7 +17256,7 @@ def export_ecm_assignments_excel(ecm_id):
         sort_dir = request.args.get('sort_dir', 'desc')
 
         # ── Dynamic WHERE ──
-        params = {'ecm_id': ecm_id}
+        params = {'ecm_id': ecm_id, 'bool_false': False}
         where_parts = []
 
         # H6 (audit partners): aislamiento por GRUPO en export ECM.
@@ -17324,7 +17327,7 @@ def export_ecm_assignments_excel(ecm_id):
                 SELECT
                     u.id AS user_id,
                     CONCAT(u.name, ' ', u.first_surname,
-                           COALESCE(' ' + u.second_surname, '')) AS user_name,
+                           CASE WHEN u.second_surname IS NULL THEN '' ELSE CONCAT(' ', u.second_surname) END) AS user_name,
                     u.email AS user_email,
                     u.role AS user_role,
                     u.curp AS user_curp,
@@ -17340,10 +17343,10 @@ def export_ecm_assignments_excel(ecm_id):
                     cg.code AS group_code,
                     c.id AS campus_id,
                     c.name AS campus_name,
-                    COALESCE(c.enable_tier_basic, 0) AS enable_tier_basic,
-                    COALESCE(c.enable_tier_standard, 0) AS enable_tier_standard,
-                    COALESCE(c.enable_tier_advanced, 0) AS enable_tier_advanced,
-                    COALESCE(c.enable_digital_badge, 0) AS enable_digital_badge,
+                    COALESCE(c.enable_tier_basic, :bool_false) AS enable_tier_basic,
+                    COALESCE(c.enable_tier_standard, :bool_false) AS enable_tier_standard,
+                    COALESCE(c.enable_tier_advanced, :bool_false) AS enable_tier_advanced,
+                    COALESCE(c.enable_digital_badge, :bool_false) AS enable_digital_badge,
                     p.id AS partner_id,
                     p.name AS partner_name,
                     e.name AS exam_name,
@@ -17363,17 +17366,17 @@ def export_ecm_assignments_excel(ecm_id):
                 SELECT
                     u.id,
                     CONCAT(u.name, ' ', u.first_surname,
-                           COALESCE(' ' + u.second_surname, '')),
+                           CASE WHEN u.second_surname IS NULL THEN '' ELSE CONCAT(' ', u.second_surname) END),
                     u.email, u.role, u.curp,
                     ge.id, ge.exam_id, ge.assigned_at,
                     ge.assignment_type,
                     ge.max_attempts, ge.time_limit_minutes, ge.passing_score,
                     cg.id, cg.name, cg.code,
                     c.id, c.name,
-                    COALESCE(c.enable_tier_basic, 0),
-                    COALESCE(c.enable_tier_standard, 0),
-                    COALESCE(c.enable_tier_advanced, 0),
-                    COALESCE(c.enable_digital_badge, 0),
+                    COALESCE(c.enable_tier_basic, :bool_false),
+                    COALESCE(c.enable_tier_standard, :bool_false),
+                    COALESCE(c.enable_tier_advanced, :bool_false),
+                    COALESCE(c.enable_digital_badge, :bool_false),
                     p.id, p.name,
                     e.name,
                     cg.coordinator_id
@@ -17735,8 +17738,8 @@ def get_candidate_assignment_detail(eca_id):
             # Custom materials for this group_exam
             custom_mats = db.session.execute(text(
                 "SELECT study_material_id FROM group_exam_materials "
-                "WHERE group_exam_id = :ge_id AND is_included = 1"
-            ), {'ge_id': group_exam.id}).fetchall()
+                "WHERE group_exam_id = :ge_id AND is_included = :inc"
+            ), {'ge_id': group_exam.id, 'inc': True}).fetchall()
             mat_ids = [r.study_material_id for r in custom_mats]
 
             # Fallback: linked materials from exam
@@ -17774,8 +17777,8 @@ def get_candidate_assignment_detail(eca_id):
                     topic_ids_str = ','.join(str(int(x)) for x in all_topic_ids)
                     completions = db.session.execute(text(
                         f"SELECT topic_id FROM student_topic_progress "
-                        f"WHERE user_id = :uid AND topic_id IN ({topic_ids_str}) AND is_completed = 1"
-                    ), {'uid': eca.user_id}).fetchall()
+                        f"WHERE user_id = :uid AND topic_id IN ({topic_ids_str}) AND is_completed = :comp"
+                    ), {'uid': eca.user_id, 'comp': True}).fetchall()
                     completed_topics = {c.topic_id for c in completions}
 
                 total_topics = 0
@@ -19014,7 +19017,7 @@ def get_conocer_tramites():
 
         if search:
             where_parts.append(
-                "AND (LOWER(u.name + ' ' + COALESCE(u.first_surname, '') + ' ' + COALESCE(u.second_surname, '')) LIKE :search "
+                "AND (LOWER(CONCAT(u.name, ' ', COALESCE(u.first_surname, ''), ' ', COALESCE(u.second_surname, ''))) LIKE :search "
                 "OR LOWER(u.email) LIKE :search OR LOWER(u.curp) LIKE :search)"
             )
             params['search'] = f'%{search.lower()}%'
@@ -19040,6 +19043,10 @@ def get_conocer_tramites():
             params['coord_filter_id'] = _coord_filter
 
         where_sql = '\n                '.join(where_parts)
+
+        # Portabilidad MSSQL/PostgreSQL: booleanos por bind param y función de longitud por dialecto
+        params['bool_true'] = True
+        len_fn = 'LEN' if db.engine.name == 'mssql' else 'LENGTH'
 
         cte_sql = f"""
             WITH conocer_candidates AS (
@@ -19075,17 +19082,17 @@ def get_conocer_tramites():
                 JOIN exams e ON e.id = r.exam_id
                 JOIN competency_standards cs ON cs.id = e.competency_standard_id
                 JOIN group_members gm ON gm.user_id = u.id AND gm.status = 'active'
-                JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = 1
+                JOIN candidate_groups cg ON cg.id = gm.group_id AND cg.is_active = :bool_true
                 LEFT JOIN campuses c ON c.id = cg.campus_id
                 LEFT JOIN partners p ON p.id = c.partner_id
                 LEFT JOIN ecm_candidate_assignments eca ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
                 WHERE r.status = 1
                   AND r.result = 1
                   AND u.curp IS NOT NULL
-                  AND LEN(u.curp) >= 10
+                  AND {len_fn}(u.curp) >= 10
                   AND (
-                      (cg.enable_tier_advanced_override = 1)
-                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
+                      (cg.enable_tier_advanced_override = :bool_true)
+                      OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = :bool_true)
                   )
                   AND EXISTS (
                       SELECT 1 FROM group_exams ge
@@ -19282,7 +19289,7 @@ def export_conocer_tramites_excel():
 
         if search:
             where_parts.append(
-                "AND (LOWER(u.name + ' ' + COALESCE(u.first_surname, '') + ' ' + COALESCE(u.second_surname, '')) LIKE :search "
+                "AND (LOWER(CONCAT(u.name, ' ', COALESCE(u.first_surname, ''), ' ', COALESCE(u.second_surname, ''))) LIKE :search "
                 "OR LOWER(u.curp) LIKE :search)"
             )
             params['search'] = f'%{search.lower()}%'
@@ -19310,6 +19317,33 @@ def export_conocer_tramites_excel():
 
         where_sql = '\n                '.join(where_parts)
 
+        # Portabilidad MSSQL/PostgreSQL: OUTER APPLY y TRY_CAST son T-SQL.
+        # En PostgreSQL: LEFT JOIN LATERAL ... LIMIT 1 y cast condicionado por regex.
+        if db.engine.name == 'mssql':
+            ecm_level_expr = "COALESCE(cs.level, TRY_CAST(kc.competency_level AS INT))"
+            ci_join = """OUTER APPLY (
+                SELECT TOP 1 c.state_name, c.country, c.id AS campus_id, p.id AS partner_id, cg.coordinator_id AS coordinator_id
+                FROM group_members gm
+                JOIN candidate_groups cg ON cg.id = gm.group_id
+                JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                WHERE gm.user_id = u.id AND gm.status = 'active'
+                ORDER BY cg.created_at DESC
+            ) ci"""
+        else:
+            ecm_level_expr = ("COALESCE(cs.level, CASE WHEN kc.competency_level ~ '^[0-9]+$' "
+                              "THEN CAST(kc.competency_level AS INT) END)")
+            ci_join = """LEFT JOIN LATERAL (
+                SELECT c.state_name, c.country, c.id AS campus_id, p.id AS partner_id, cg.coordinator_id AS coordinator_id
+                FROM group_members gm
+                JOIN candidate_groups cg ON cg.id = gm.group_id
+                JOIN campuses c ON c.id = cg.campus_id
+                LEFT JOIN partners p ON p.id = c.partner_id
+                WHERE gm.user_id = u.id AND gm.status = 'active'
+                ORDER BY cg.created_at DESC
+                LIMIT 1
+            ) ci ON TRUE"""
+
         sql = text(f"""
             SELECT
                 u.curp,
@@ -19319,7 +19353,7 @@ def export_conocer_tramites_excel():
                 u.gender,
                 COALESCE(cs.code, kc.standard_code) AS ecm_code,
                 COALESCE(cs.name, kc.standard_name) AS ecm_name,
-                COALESCE(cs.level, TRY_CAST(kc.competency_level AS INT)) AS ecm_level,
+                {ecm_level_expr} AS ecm_level,
                 kc.issue_date AS cert_date,
                 kc.certificate_number AS folio,
                 eca.assignment_number,
@@ -19331,15 +19365,7 @@ def export_conocer_tramites_excel():
             LEFT JOIN campuses uc ON uc.id = u.campus_id
             LEFT JOIN ecm_candidate_assignments eca
                 ON eca.user_id = u.id AND eca.competency_standard_id = cs.id
-            OUTER APPLY (
-                SELECT TOP 1 c.state_name, c.country, c.id AS campus_id, p.id AS partner_id, cg.coordinator_id AS coordinator_id
-                FROM group_members gm
-                JOIN candidate_groups cg ON cg.id = gm.group_id
-                JOIN campuses c ON c.id = cg.campus_id
-                LEFT JOIN partners p ON p.id = c.partner_id
-                WHERE gm.user_id = u.id AND gm.status = 'active'
-                ORDER BY cg.created_at DESC
-            ) ci
+            {ci_join}
             WHERE kc.status = 'active'
                 {where_sql}
             ORDER BY u.name, u.first_surname, u.second_surname
@@ -19601,13 +19627,14 @@ def send_conocer_solicitud():
             WHERE eca.tramite_status = 'pendiente'
               AND eca.assignment_number IS NOT NULL
               AND (
-                  (cg.enable_tier_advanced_override = 1)
-                  OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = 1)
+                  (cg.enable_tier_advanced_override = :bool_true)
+                  OR (cg.enable_tier_advanced_override IS NULL AND c.enable_tier_advanced = :bool_true)
               )
               {_coord_where}
             ORDER BY cs.code, u.name
         """)
         _send_params = {'coord_filter_id': _coord_filter_id} if _coord_filter_id else {}
+        _send_params['bool_true'] = True
         pending_rows = db.session.execute(pending_sql, _send_params).fetchall()
 
         if not pending_rows:
