@@ -254,7 +254,7 @@ src/
 2. **NUNCA usar `--yaml` en `az containerapp update`** — borra todas las variables de entorno
 3. **Frontend requiere builds separados** para DEV y PROD — `--mode dev` vs `--mode production`
 4. **SIEMPRE verificar la API URL bakeada** con grep antes de deployar frontend
-5. **SWA deploy usa `--env default`** — no usar `--env production`
+5. **SWA deploy usa `--env production`** — desde junio 2026 Azure rechaza el nombre `default` ("The environment name 'default' is invalid"). `--env production` apunta al slot principal de la SWA que corresponda al **deployment token** usado (token DEV → dev.evaluaasi.com, token PROD → app.evaluaasi.com); el token es lo que separa DEV de PROD, no el flag
 6. **Deploy siempre a DEV primero**, probar, luego PROD
 
 ### Deploy Backend
@@ -298,7 +298,7 @@ npx vite build --mode dev --emptyOutDir
 grep -o 'evaluaasi-motorv2-api[^"]*\.io/api' dist/assets/index-*.js | sort -u
 npx @azure/static-web-apps-cli deploy dist \
   --deployment-token "48095856cbbc3ce22b369395053701d6beabc05fb3b154f1040b2411de45c9fb01-678b9cba-bd31-4f93-a4a4-e13b8c127405010082401755e210" \
-  --env default
+  --env production
 
 # --- PROD ---
 npx vite build --mode production --emptyOutDir
@@ -306,7 +306,7 @@ npx vite build --mode production --emptyOutDir
 grep -o 'evaluaasi-motorv2-api[^"]*\.io/api' dist/assets/index-*.js | sort -u
 npx @azure/static-web-apps-cli deploy dist \
   --deployment-token "33c2e6e0d0322fad0add224319545ce1dfa963782d21e37986e4079985b7c84006-c720933c-1760-4077-a094-2434c3620a6a010271907fbe5410" \
-  --env default
+  --env production
 ```
 
 ### Scripts de Deploy Automatizados
