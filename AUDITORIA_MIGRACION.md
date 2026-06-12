@@ -105,9 +105,24 @@ mssql-only o eliminar.
 
 | Ubicación | Query | Corrección |
 |---|---|---|
-| `app/services/curp_queue_worker.py:177` | `SELECT TOP (:lim) id FROM curp_verification_queue` | `LIMIT :lim` — **código de producción, prioritario** |
-| `app/routes/partners.py:19335` | `SELECT TOP 1 c.state_name, ...` | `LIMIT 1` |
-| `app/routes/debug.py:319, 602, 863` | `SELECT TOP 10/5` | `LIMIT` (prioridad baja) |
+| ~~`app/services/curp_queue_worker.py:177`~~ | `SELECT TOP (:lim)` | **FALSO POSITIVO**: ya es dialecto-aware (`if _is_mssql() else` con LIMIT) |
+| `app/routes/partners.py:19335` | `SELECT TOP 1` dentro de `OUTER APPLY` | ✅ Corregido: rama por dialecto (ver abajo) |
+| `app/routes/debug.py:319, 602, 863` | `SELECT TOP 10/5` | ✅ Corregido: `OFFSET 0 ROWS FETCH FIRST n ROWS ONLY` |
+
+### Hallazgos ADICIONALES detectados durante la ejecución (Fase 1)
+
+La ejecución del barrido encontró 4 patrones T-SQL que la auditoría inicial no inventarió
+(todos corregidos en el commit de Fase 1):
+
+| Patrón | Ubicaciones | Corrección aplicada |
+|---|---|---|
+| `COALESCE(col_booleana, 0)` — en PG truena por tipos | 24 líneas en partners.py (16161-16164, 16200-16203, 16770-16773, 16800-16803, 17344-17347, 17374-17377) | `COALESCE(col, :bool_false)` con param `False` |
+| `OUTER APPLY (SELECT TOP 1 ...)` — T-SQL puro | partners.py export RENAPO (~19340) | Rama dialecto: `LEFT JOIN LATERAL ... LIMIT 1 ... ON TRUE` en PG |
+| `TRY_CAST(x AS INT)` | partners.py:19327 | Rama dialecto: `CASE WHEN x ~ '^[0-9]+$' THEN CAST(...) END` en PG |
+| `LEN(x)` | partners.py:19086 | f-string `{len_fn}`: `LEN` en mssql, `LENGTH` en PG |
+
+Lección para la Fase 4 (validación): el muestreo de queries durante el soak debe
+vigilar especialmente partners.py — concentra todo el SQL crudo no trivial.
 
 No existen en el código: `ISNULL`, `IIF`, `MERGE`, `DATEADD`, `DATEDIFF`, `CONVERT`,
 `NOLOCK`, `#temp`, `@@IDENTITY`, `SCOPE_IDENTITY`, `OUTPUT INSERTED`, hints de tabla,
