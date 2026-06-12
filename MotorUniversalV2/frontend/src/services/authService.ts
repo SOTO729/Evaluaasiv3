@@ -46,6 +46,15 @@ export const authService = {
     return response.data
   },
 
+  /**
+   * Marca el recorrido de bienvenida (onboarding) del candidato como completado.
+   * Se persiste en backend porque el logout limpia localStorage.
+   */
+  completeOnboarding: async (): Promise<{ onboarding_completed: boolean }> => {
+    const response = await api.post<{ onboarding_completed: boolean }>('/auth/complete-onboarding')
+    return response.data
+  },
+
   changePassword: async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
     const response = await api.post<{ message: string }>('/auth/change-password', {
       current_password: currentPassword,

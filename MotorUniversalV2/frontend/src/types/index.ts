@@ -24,6 +24,7 @@ export interface User {
   subsystem_id?: number
   partner_id?: number
   is_system_direct?: boolean
+  onboarding_completed?: boolean
   can_manage_groups?: boolean
   can_bulk_create_candidates?: boolean
   can_view_reports?: boolean

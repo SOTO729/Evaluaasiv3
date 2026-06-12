@@ -146,6 +146,11 @@ class User(db.Model):
     last_login = db.Column(db.DateTime)
     last_seen = db.Column(db.DateTime)
 
+    # Onboarding del candidato: momento en que completó (o saltó) el recorrido
+    # de bienvenida que se muestra en el primer inicio de sesión. NULL = aún no
+    # lo ha visto. Persistido en backend porque el logout limpia localStorage.
+    onboarding_completed_at = db.Column(db.DateTime, nullable=True)
+
     # Soft delete (auditoría / preservación de evidencia financiera y de certificación).
     # Cuando is_deleted=True, el usuario se considera eliminado: PII anonimizada,
     # excluido de listados/stats/exports pero conserva referencias en payments,
@@ -328,6 +333,7 @@ class User(db.Model):
             'requires_curp_validation': requires_curp_validation,
             'partner_id': partner_id,
             'is_system_direct': is_system_direct,
+            'onboarding_completed': bool(self.onboarding_completed_at),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             # Opciones de documentos habilitados

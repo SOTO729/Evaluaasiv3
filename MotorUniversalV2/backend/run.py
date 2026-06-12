@@ -42,6 +42,7 @@ with app.app_context():
             check_and_fix_vm_session_unique_slot,
             check_and_create_scorm_tables,
             check_and_add_curp_giveup_column,
+            check_and_add_onboarding_completed_column,
             check_and_add_conocer_solicitud_email_columns,
             check_and_create_study_export_requests_table,
             check_and_add_pending_billing_column,
@@ -80,6 +81,7 @@ with app.app_context():
         check_and_create_scorm_tables()
         check_and_recover_orphaned_curp_users()
         check_and_add_curp_giveup_column()
+        check_and_add_onboarding_completed_column()
         check_and_add_conocer_solicitud_email_columns()
         check_and_create_study_export_requests_table()
         check_and_add_pending_billing_column()

@@ -8,6 +8,7 @@ import { supportChatService } from '../../services/supportChatService'
 import { checkVmAccess } from '../../services/vmSessionsService'
 import ExamInProgressWidget from '../ExamInProgressWidget'
 import CurpRequiredModal from '../auth/CurpRequiredModal'
+import CandidateOnboarding from '../candidate/CandidateOnboarding'
 
 interface LayoutProps {
   children?: ReactNode;
@@ -1711,6 +1712,9 @@ const Layout = ({ children }: LayoutProps) => {
 
       {/* Aviso/modal de validación CURP para candidatos con CURP no verificada */}
       <CurpRequiredModal />
+
+      {/* Recorrido de bienvenida del candidato (primer inicio de sesión) */}
+      <CandidateOnboarding />
 
       {/* Widget de examen en curso - solo mostrar si no estamos en una página de examen */}
       {!location.pathname.includes('/run') && !location.pathname.includes('/results') && (

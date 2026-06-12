@@ -764,6 +764,36 @@ def logout():
     return jsonify({'message': 'Logout exitoso'}), 200
 
 
+@bp.route('/complete-onboarding', methods=['POST'])
+@jwt_required()
+def complete_onboarding():
+    """
+    Marcar el recorrido de bienvenida (onboarding) como completado.
+    ---
+    tags:
+      - Authentication
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Onboarding marcado como completado
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Usuario no encontrado'}), 404
+
+    # Idempotente: solo registra la primera vez para conservar la fecha original.
+    if not user.onboarding_completed_at:
+        user.onboarding_completed_at = datetime.utcnow()
+        db.session.commit()
+
+    return jsonify({
+        'message': 'Onboarding completado',
+        'onboarding_completed': True,
+    }), 200
+
+
 @bp.route('/me', methods=['GET'])
 @jwt_required()
 def get_current_user():

@@ -1908,6 +1908,36 @@ def check_and_add_curp_giveup_column():
             pass
 
 
+def check_and_add_onboarding_completed_column():
+    """Agregar columna onboarding_completed_at a users.
+
+    Marca el momento en que el candidato completó (o saltó) el recorrido de
+    bienvenida que se muestra en el primer inicio de sesión. NULL = aún no lo
+    ha visto. Se persiste en backend porque el logout limpia localStorage.
+    """
+    print("🔍 Verificando columna onboarding_completed_at en users...")
+    db_type = get_db_type()
+    try:
+        inspector = inspect(db.engine)
+        existing_columns = [col['name'] for col in inspector.get_columns('users')]
+        if 'onboarding_completed_at' in existing_columns:
+            print("  ✓ Columna onboarding_completed_at ya existe")
+            return
+        col_def = 'DATETIME NULL' if db_type == 'mssql' else 'TIMESTAMP NULL'
+        db.session.execute(text(f"ALTER TABLE users ADD onboarding_completed_at {col_def}"))
+        db.session.commit()
+        print("  ✓ Columna onboarding_completed_at agregada")
+    except Exception as e:
+        if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+            print("  ⚠️  Columna onboarding_completed_at ya existe")
+        else:
+            print(f"  ❌ Error en check_and_add_onboarding_completed_column: {e}")
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+
 def check_and_add_conocer_solicitud_email_columns():
     """Agregar columnas de snapshot del correo a conocer_solicitud_logs.
 
