@@ -9617,6 +9617,9 @@ def get_available_exams():
                     count = row[1] or 0
                     if q_type == 'simulator':
                         simulator_questions = count
+                    elif q_type == 'hidden':
+                        # Reactivos ocultos por el editor: no disponibles para asignación
+                        pass
                     else:
                         exam_questions = count
             except HTTPException:
@@ -9645,6 +9648,9 @@ def get_available_exams():
                     count = row[1] or 0
                     if e_type == 'simulator':
                         simulator_exercises = count
+                    elif e_type == 'hidden':
+                        # Ejercicios ocultos por el editor: no disponibles para asignación
+                        pass
                     else:
                         exam_exercises = count
             except HTTPException:

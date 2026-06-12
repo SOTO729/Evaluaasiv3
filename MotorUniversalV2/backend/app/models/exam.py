@@ -108,9 +108,12 @@ class Exam(db.Model):
         
         exam_questions = 0
         simulator_questions = 0
+        hidden_questions = 0
         for qtype, cnt in q_counts:
             if qtype == 'simulator':
                 simulator_questions = cnt
+            elif qtype == 'hidden':
+                hidden_questions = cnt
             else:
                 exam_questions += cnt
         
@@ -126,17 +129,22 @@ class Exam(db.Model):
         
         exam_exercises = 0
         simulator_exercises = 0
+        hidden_exercises = 0
         for etype, cnt in e_counts:
             if etype == 'simulator':
                 simulator_exercises = cnt
+            elif etype == 'hidden':
+                hidden_exercises = cnt
             else:
                 exam_exercises += cnt
-        
+
         return {
             'exam_questions_count': exam_questions,
             'simulator_questions_count': simulator_questions,
+            'hidden_questions_count': hidden_questions,
             'exam_exercises_count': exam_exercises,
             'simulator_exercises_count': simulator_exercises,
+            'hidden_exercises_count': hidden_exercises,
             'has_exam_content': (exam_questions + exam_exercises) > 0,
             'has_simulator_content': (simulator_questions + simulator_exercises) > 0
         }

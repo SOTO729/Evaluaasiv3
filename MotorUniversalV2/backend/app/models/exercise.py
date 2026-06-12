@@ -23,7 +23,7 @@ class Exercise(db.Model):
     exercise_number = db.Column(db.Integer, nullable=False)
     title = db.Column(db.String(500))
     description = db.Column(db.Text)
-    type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator
+    type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator, hidden
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     percentage = db.Column(db.Float, default=0)  # DEPRECATED: Ya no se usa para evaluación
     
@@ -47,7 +47,7 @@ class Exercise(db.Model):
             'exercise_number': self.exercise_number,
             'title': self.title or '',
             'exercise_text': self.description or '',  # Mapear description a exercise_text para compatibilidad
-            'type': self.type or 'exam',  # exam o simulator
+            'type': self.type or 'exam',  # exam, simulator u hidden
             'is_complete': not self.is_active if self.is_active is not None else False,  # Invertir is_active a is_complete
             'total_steps': self.steps.count() if self.steps else 0,
             'created_by': self.created_by,

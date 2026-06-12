@@ -36,7 +36,7 @@ class Question(db.Model):
     image_url = db.Column(db.String(500))  # URL de imagen en Azure Blob
     points = db.Column(db.Integer, default=1)  # Puntos que vale la pregunta
     difficulty = db.Column(db.String(20), default='medium')  # easy, medium, hard
-    type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator
+    type = db.Column(db.String(20), default='exam', nullable=False, index=True)  # exam, simulator, hidden
     percentage = db.Column(db.Float, default=0)  # DEPRECATED: Ya no se usa para evaluación
     
     # Auditoría
@@ -70,7 +70,7 @@ class Question(db.Model):
             'image_url': transform_to_cdn_url(self.image_url) if self.image_url else None,
             'points': self.points,
             'difficulty': self.difficulty,
-            'type': self.type or 'exam',  # exam o simulator
+            'type': self.type or 'exam',  # exam, simulator u hidden
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
         

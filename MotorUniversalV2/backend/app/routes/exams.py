@@ -126,6 +126,12 @@ def _verify_topic_access(topic_id, edit=False):
     return t, user, None
 
 
+def _can_view_hidden_items(user):
+    """Solo quienes pueden editar exámenes (admin/developer/editor/editor_invitado)
+    pueden ver reactivos ocultos. Para el resto, un reactivo oculto no existe."""
+    return bool(user and user.has_permission('exams:update'))
+
+
 def _verify_question_access(question_id, edit=False):
     q = Question.query.get(question_id)
     if not q:
@@ -133,6 +139,9 @@ def _verify_question_access(question_id, edit=False):
     _, user, err = _verify_topic_access(q.topic_id, edit=edit)
     if err:
         return None, user, err
+    if q.type == 'hidden' and not _can_view_hidden_items(user):
+        # Enmascarar como 404 para no filtrar la existencia
+        return None, user, (jsonify({'error': 'Pregunta no encontrada'}), 404)
     return q, user, None
 
 
@@ -153,6 +162,9 @@ def _verify_exercise_access(exercise_id, edit=False):
     _, user, err = _verify_topic_access(ex.topic_id, edit=edit)
     if err:
         return None, user, err
+    if ex.type == 'hidden' and not _can_view_hidden_items(user):
+        # Enmascarar como 404 para no filtrar la existencia
+        return None, user, (jsonify({'error': 'Ejercicio no encontrado'}), 404)
     return ex, user, None
 
 
@@ -728,10 +740,23 @@ def get_exam(exam_id):
     exam, _user, err = _verify_exam_access(exam_id, edit=False)
     if err:
         return err
-    
+
     include_details = request.args.get('include_details', 'false').lower() == 'true'
-    
-    return jsonify(exam.to_dict(include_details=include_details)), 200
+
+    data = exam.to_dict(include_details=include_details)
+
+    # Los reactivos ocultos solo existen para los editores: quienes no pueden
+    # editar exámenes (candidatos, coordinadores, responsables, auxiliares)
+    # no deben recibirlos en el payload.
+    if include_details and not _can_view_hidden_items(_user):
+        for category in data.get('categories', []):
+            for topic in category.get('topics', []):
+                if 'questions' in topic:
+                    topic['questions'] = [q for q in topic['questions'] if q.get('type') != 'hidden']
+                if 'exercises' in topic:
+                    topic['exercises'] = [e for e in topic['exercises'] if e.get('type') != 'hidden']
+
+    return jsonify(data), 200
 
 
 @bp.route('/<int:exam_id>', methods=['PUT'])
@@ -1271,10 +1296,14 @@ def get_questions(topic_id):
     # Ordenar preguntas por question_number para que las nuevas aparezcan al final
     questions = topic.questions.order_by(Question.question_number).all()
     include_correct = request.args.get('include_correct', 'false').lower() == 'true'
-    
+
     # Solo mostrar respuestas correctas a editores/admins
     if user and user.role not in ('admin', 'developer', 'editor', 'editor_invitado'):
         include_correct = False
+
+    # Los reactivos ocultos solo son visibles para editores
+    if not _can_view_hidden_items(user):
+        questions = [q for q in questions if q.type != 'hidden']
     
     return jsonify({
         'questions': [q.to_dict(include_correct=include_correct) for q in questions]
@@ -1352,7 +1381,9 @@ def update_question(question_id):
     if 'difficulty' in data:
         question.difficulty = data['difficulty']
     if 'type' in data:
-        question.type = data['type']  # exam o simulator
+        if data['type'] not in ('exam', 'simulator', 'hidden'):
+            return jsonify({'error': 'Tipo inválido. Valores permitidos: exam, simulator, hidden'}), 400
+        question.type = data['type']  # exam, simulator u hidden (oculto: no disponible para asignar/tomar)
     if 'percentage' in data:
         question.percentage = data['percentage']  # Porcentaje del tema
     
@@ -1551,9 +1582,13 @@ def get_topic_exercises(topic_id):
     topic, _user, err = _verify_topic_access(topic_id, edit=False)
     if err:
         return err
-    
+
     exercises = Exercise.query.filter_by(topic_id=topic_id).order_by(Exercise.exercise_number).all()
-    
+
+    # Los ejercicios ocultos solo son visibles para editores
+    if not _can_view_hidden_items(_user):
+        exercises = [ex for ex in exercises if ex.type != 'hidden']
+
     return jsonify({
         'exercises': [ex.to_dict() for ex in exercises],
         'total': len(exercises)
@@ -1640,7 +1675,9 @@ def update_exercise(exercise_id):
     if 'is_complete' in data:
         exercise.is_active = not data['is_complete']  # Invertir: is_complete=True -> is_active=False
     if 'type' in data:
-        exercise.type = data['type']  # exam o simulator
+        if data['type'] not in ('exam', 'simulator', 'hidden'):
+            return jsonify({'error': 'Tipo inválido. Valores permitidos: exam, simulator, hidden'}), 400
+        exercise.type = data['type']  # exam, simulator u hidden (oculto: no disponible para asignar/tomar)
     if 'percentage' in data:
         exercise.percentage = data['percentage']  # Porcentaje del tema
     
@@ -2380,15 +2417,30 @@ def validate_exam(exam_id):
                 for topic in topics:
                     questions = Question.query.filter_by(topic_id=topic.id).all()
                     exercises = Exercise.query.filter_by(topic_id=topic.id).all()
-                    
+
+                    # Los reactivos ocultos no se entregan a candidatos: se excluyen
+                    # de la validación (pueden ser borradores incompletos) y no
+                    # cuentan como contenido del tema.
+                    hidden_count = sum(1 for q in questions if q.type == 'hidden') + \
+                                   sum(1 for e in exercises if e.type == 'hidden')
+                    questions = [q for q in questions if q.type != 'hidden']
+                    exercises = [e for e in exercises if e.type != 'hidden']
+
                     if not questions and not exercises:
                         errors.append({
                             'type': 'topic',
-                            'message': f'El tema "{topic.name}" no tiene preguntas ni ejercicios',
+                            'message': f'El tema "{topic.name}" no tiene preguntas ni ejercicios' + (' visibles (solo ocultos)' if hidden_count else ''),
                             'details': f'Agrega al menos una pregunta o ejercicio al tema "{topic.name}" en la categoría "{category.name}"'
                         })
                         continue
-                    
+
+                    if hidden_count:
+                        warnings.append({
+                            'type': 'topic',
+                            'message': f'El tema "{topic.name}" tiene {hidden_count} reactivo(s) oculto(s)',
+                            'details': 'Los reactivos ocultos no se incluyen en exámenes ni simuladores mientras permanezcan ocultos'
+                        })
+
                     # 6. Verificar preguntas
                     for question in questions:
                         answers = Answer.query.filter_by(question_id=question.id).all()

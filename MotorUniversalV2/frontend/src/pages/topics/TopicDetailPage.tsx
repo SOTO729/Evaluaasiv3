@@ -220,7 +220,7 @@ const TopicDetailPage = () => {
   })
 
   const updateExerciseMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { exercise_text?: string; is_complete?: boolean; type?: 'exam' | 'simulator' } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { exercise_text?: string; is_complete?: boolean; type?: 'exam' | 'simulator' | 'hidden' } }) =>
       examService.updateExercise(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['exercises', topicId] })
@@ -660,19 +660,22 @@ const TopicDetailPage = () => {
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   e.stopPropagation()
-                                  updateQuestionMutation.mutate({ 
-                                    id: question.id, 
-                                    data: { type: e.target.value as 'exam' | 'simulator' } 
+                                  updateQuestionMutation.mutate({
+                                    id: question.id,
+                                    data: { type: e.target.value as 'exam' | 'simulator' | 'hidden' }
                                   })
                                 }}
                                 className={`fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
-                                  question.type === 'simulator' 
-                                    ? 'bg-amber-100 text-amber-700 border-amber-300' 
-                                    : 'bg-teal-100 text-teal-700 border-teal-300'
+                                  question.type === 'simulator'
+                                    ? 'bg-amber-100 text-amber-700 border-amber-300'
+                                    : question.type === 'hidden'
+                                      ? 'bg-gray-200 text-gray-600 border-gray-400'
+                                      : 'bg-teal-100 text-teal-700 border-teal-300'
                                 }`}
                               >
                                 <option value="exam">📝 Examen</option>
                                 <option value="simulator">🎮 Simulador</option>
+                                <option value="hidden">🚫 Oculta</option>
                               </select>
                             </td>
                             <td className="fluid-px-6 fluid-py-4">
@@ -836,19 +839,22 @@ const TopicDetailPage = () => {
                               onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
                                 e.stopPropagation()
-                                updateExerciseMutation.mutate({ 
-                                  id: exercise.id, 
-                                  data: { type: e.target.value as 'exam' | 'simulator' } 
+                                updateExerciseMutation.mutate({
+                                  id: exercise.id,
+                                  data: { type: e.target.value as 'exam' | 'simulator' | 'hidden' }
                                 })
                               }}
                               className={`fluid-px-3 fluid-py-1 rounded-fluid-lg fluid-text-xs font-semibold border cursor-pointer focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all duration-200 ${
-                                exercise.type === 'simulator' 
-                                  ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' 
-                                  : 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200'
+                                exercise.type === 'simulator'
+                                  ? 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200'
+                                  : exercise.type === 'hidden'
+                                    ? 'bg-gray-200 text-gray-600 border-gray-400 hover:bg-gray-300'
+                                    : 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200'
                               }`}
                           >
                             <option value="exam">📝 Examen</option>
                             <option value="simulator">🎮 Simulador</option>
+                            <option value="hidden">🚫 Oculto</option>
                           </select>
                         </td>
                         <td className="fluid-px-6 fluid-py-4 whitespace-nowrap text-center">

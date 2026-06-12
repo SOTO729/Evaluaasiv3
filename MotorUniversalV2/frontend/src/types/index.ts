@@ -125,7 +125,7 @@ export interface Question {
   image_url?: string
   points: number
   difficulty: 'easy' | 'medium' | 'hard'
-  type?: 'exam' | 'simulator'
+  type?: 'exam' | 'simulator' | 'hidden'
   percentage?: number
   created_at: string
   answers?: Answer[]
@@ -141,7 +141,7 @@ export interface Answer {
 }
 
 export interface Exercise {
-    type?: 'exam' | 'simulator'
+    type?: 'exam' | 'simulator' | 'hidden'
     percentage?: number
   id: string
   topic_id: number
