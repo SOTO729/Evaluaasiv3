@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { badgeService } from '../../services/badgeService'
 import { getStandards, type CompetencyStandard } from '../../services/standardsService'
+import BadgeShowcase from '../../components/badge/BadgeShowcase'
 
 /* ═══════════════ tipos ═══════════════ */
 interface FormState {
@@ -313,6 +314,35 @@ export default function BadgeTemplateFormPage() {
           )}
         </div>
       </div>
+
+      {/* ── Vista previa en vivo (estilo página pública de verificación) ── */}
+      <section className="bg-white rounded-fluid-2xl border-2 border-gray-200 fluid-p-6 shadow-sm fluid-mb-6">
+        <div className="flex items-center fluid-gap-3 fluid-mb-4">
+          <div className="fluid-p-2 bg-emerald-50 rounded-fluid-lg">
+            <Eye className="fluid-icon-sm text-emerald-600" />
+          </div>
+          <div>
+            <h2 className="fluid-text-lg font-semibold text-gray-900">Vista previa</h2>
+            <p className="fluid-text-xs text-gray-500">Así se verá la insignia en su página pública de verificación</p>
+          </div>
+        </div>
+        <div className="rounded-fluid-xl border border-gray-100 bg-gradient-to-b from-emerald-50/40 to-white fluid-p-6">
+          <BadgeShowcase
+            name={form.name}
+            imageUrl={imagePreview}
+            issuerName="Grupo Eduit"
+            earnerName="Nombre del candidato"
+            skills={form.skills}
+            description={form.description}
+            criteriaNarrative={form.criteria_narrative}
+            criteriaUrl={form.criteria_url}
+            ecmCode={selectedStandard?.code}
+            noExpiry={!form.expiry_months}
+            expiresDate={form.expiry_months ? `${form.expiry_months} meses desde la emisión` : null}
+            verified
+          />
+        </div>
+      </section>
 
       {/* ── Error alert ── */}
       {errors.submit && (

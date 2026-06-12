@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap, FileText, RefreshCw, Mail, X, Award, ExternalLink, Code, Copy, Check } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, User, Calendar, BookOpen, Shield, Zap, FileText, RefreshCw, Mail, X, Award, ExternalLink, Code, Copy, Check, Linkedin, Link2 } from 'lucide-react'
+import BadgeShowcase from '../../components/badge/BadgeShowcase'
 
 interface VerificationData {
   valid: boolean
@@ -57,6 +58,25 @@ const VerifyPage = () => {
   const [reverifyPhase, setReverifyPhase] = useState<'verifying' | 'done'>('verifying')
   const [jsonModal, setJsonModal] = useState<{ json: string; loading: boolean; error: string | null } | null>(null)
   const [jsonCopied, setJsonCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : ''
+
+  const handleShareLinkedIn = () => {
+    window.open(
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`,
+      '_blank',
+      'noopener,width=600,height=600'
+    )
+  }
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 1800)
+    } catch { /* ignore */ }
+  }
 
   // Fetch + show OB3 credential JSON inline (modal)
   const handleViewCredentialJson = async () => {
@@ -172,7 +192,7 @@ const VerifyPage = () => {
   // Documento válido
   return (
     <div className={`min-h-screen py-8 px-4 ${isBadge ? 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-100' : 'bg-gradient-to-br from-green-50 to-emerald-100'}`}>
-      <div className={`mx-auto ${isBadge ? 'max-w-3xl' : 'max-w-2xl'}`}>
+      <div className={`mx-auto ${isBadge ? 'max-w-5xl' : 'max-w-2xl'}`}>
         {/* Header */}
         <div className="text-center mb-8">
           {/* Logo: Eduit para insignias, marca del ECM o Evaluaasi para certificados */}
@@ -231,124 +251,42 @@ const VerifyPage = () => {
             {/* ═══ BADGE LAYOUT ═══ */}
             {isBadge && data.badge && (
               <>
-                {/* Nombre de la insignia */}
-                <div className="text-center">
-                  <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1">Insignia Digital</p>
-                  <h3 className="text-xl font-bold text-gray-900 break-words">{data.badge.name}</h3>
-                </div>
-
-                {/* Imagen de la plantilla – justo debajo del título, centrada y grande */}
-                {data.badge.template_image_url && (
-                  <div className="flex justify-center py-4">
-                    <div className="relative group">
-                      <div className="absolute -inset-4 bg-gradient-to-br from-emerald-200 via-green-100 to-teal-200 rounded-3xl opacity-60 blur-lg" />
-                      <img
-                        src={data.badge.template_image_url}
-                        alt={data.badge.name}
-                        className="relative h-72 w-auto rounded-2xl object-contain shadow-xl ring-2 ring-white"
-                      />
-                      <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg ring-3 ring-white">
-                        <CheckCircle className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Grid 2 cols: Titular + Emisor */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 bg-blue-50 rounded-xl p-4">
-                    <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <User className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-500">Titular</p>
-                      <p className="font-semibold text-gray-900 truncate">{data.candidate?.full_name}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 bg-purple-50 rounded-xl p-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                      {data.badge.issuer_logo_url ? (
-                        <img src={data.badge.issuer_logo_url} alt={data.badge.issuer_name} className="w-full h-full object-contain p-0.5" />
-                      ) : (
-                        <Shield className="w-5 h-5 text-purple-600" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-500">Emitida por</p>
-                      <p className="font-semibold text-gray-900 truncate">{data.badge.issuer_name}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Grid 2 cols: Fechas */}
-                <div className="grid grid-cols-2 gap-4">
-                  {data.badge.issued_date && (
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-xs text-gray-500">Fecha de Emisión</p>
-                      <p className="font-semibold text-gray-900 text-sm mt-0.5">{data.badge.issued_date}</p>
-                    </div>
-                  )}
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500">Fecha de Caducidad</p>
-                    {data.badge.expires_date ? (
-                      <p className={`font-semibold text-sm mt-0.5 ${data.status === 'expired' ? 'text-red-600' : 'text-gray-900'}`}>
-                        {data.badge.expires_date}
-                      </p>
-                    ) : (
-                      <p className="font-semibold text-green-700 text-sm mt-0.5">Sin caducidad</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Aptitudes */}
-                {data.badge.skills && (
-                  <div className="bg-emerald-50/70 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5 font-medium">
-                      <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                      Aptitudes
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {data.badge.skills.split(',').map(s => s.trim()).filter(Boolean).map((skill, i) => (
-                        <span key={i} className="inline-flex items-center px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Descripción de la insignia */}
-                {data.badge.description && (
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5 font-medium">
-                      <BookOpen className="w-3.5 h-3.5 text-gray-600" />
-                      Descripción
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed">{data.badge.description}</p>
-                  </div>
-                )}
-
-                {/* Criterios de obtención */}
-                {data.badge.criteria_narrative && (
-                  <div className="bg-indigo-50 rounded-xl p-4">
-                    <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5 font-medium">
-                      <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
-                      Criterios de Obtención
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed">{data.badge.criteria_narrative}</p>
-                    {data.badge.criteria_url && (
-                      <a
-                        href={data.badge.criteria_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium hover:bg-indigo-200 transition-colors"
+                {/* Showcase estilo Credly (híbrido con identidad Evaluaasi) */}
+                <BadgeShowcase
+                  name={data.badge.name}
+                  imageUrl={data.badge.template_image_url || data.badge.image_url}
+                  issuerName={data.badge.issuer_name}
+                  issuerLogoUrl={data.badge.issuer_logo_url}
+                  earnerName={data.candidate?.full_name}
+                  issuedDate={data.badge.issued_date}
+                  expiresDate={data.badge.expires_date}
+                  noExpiry={!data.badge.expires_date}
+                  expired={data.status === 'expired'}
+                  description={data.badge.description}
+                  criteriaNarrative={data.badge.criteria_narrative}
+                  criteriaUrl={data.badge.criteria_url}
+                  skills={data.badge.skills}
+                  ecmCode={data.badge.ecm_code}
+                  verified
+                  actions={
+                    <div className="flex flex-col gap-2 w-full max-w-[240px] mx-auto">
+                      <button
+                        onClick={handleShareLinkedIn}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#0A66C2] hover:bg-[#004182] text-white rounded-lg text-sm font-medium transition-colors"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        Ver criterios completos
-                      </a>
-                    )}
-                  </div>
-                )}
+                        <Linkedin className="w-4 h-4" />
+                        Compartir en LinkedIn
+                      </button>
+                      <button
+                        onClick={handleCopyLink}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                      >
+                        {linkCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4" />}
+                        {linkCopied ? 'Enlace copiado' : 'Copiar enlace'}
+                      </button>
+                    </div>
+                  }
+                />
 
                 {/* OB3 credential link */}
                 {data.badge.credential_url && (
