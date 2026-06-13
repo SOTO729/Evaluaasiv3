@@ -148,13 +148,100 @@ class Exam(db.Model):
             'has_exam_content': (exam_questions + exam_exercises) > 0,
             'has_simulator_content': (simulator_questions + simulator_exercises) > 0
         }
-    
-    def to_dict(self, include_details=False):
-        """Convertir a diccionario"""
+
+    @classmethod
+    def bulk_counts(cls, exam_ids):
+        """Calcula EN LOTE (queries agregadas con GROUP BY exam_id) las cuentas de
+        preguntas/ejercicios/temas por examen. Evita el N+1 de llamar
+        get_total_questions/get_total_exercises/get_mode_counts/total_topics una vez
+        por examen en un listado. Devuelve {exam_id: {dict con las mismas claves que
+        usa to_dict}}. 3 queries totales sin importar cuántos exámenes."""
+        from app.models.question import Question
+        from app.models.exercise import Exercise
         from app.models.topic import Topic
         from app.models.category import Category
-        # Obtener las categorías como lista (lazy='dynamic' devuelve una query)
-        categories_list = self.categories.all()
+        res = {eid: {
+            'total_questions': 0, 'total_exercises': 0, 'total_topics': 0,
+            'exam_questions_count': 0, 'simulator_questions_count': 0, 'hidden_questions_count': 0,
+            'exam_exercises_count': 0, 'simulator_exercises_count': 0, 'hidden_exercises_count': 0,
+        } for eid in exam_ids}
+        if not exam_ids:
+            return res
+        q_rows = db.session.query(
+            Category.exam_id, Question.type, db.func.count(Question.id)
+        ).join(Topic, Question.topic_id == Topic.id).join(
+            Category, Topic.category_id == Category.id
+        ).filter(Category.exam_id.in_(exam_ids)).group_by(Category.exam_id, Question.type).all()
+        for exam_id, qtype, cnt in q_rows:
+            r = res[exam_id]
+            r['total_questions'] += cnt
+            if qtype == 'simulator':
+                r['simulator_questions_count'] = cnt
+            elif qtype == 'hidden':
+                r['hidden_questions_count'] = cnt
+            else:
+                r['exam_questions_count'] += cnt
+        e_rows = db.session.query(
+            Category.exam_id, Exercise.type, db.func.count(Exercise.id)
+        ).join(Topic, Exercise.topic_id == Topic.id).join(
+            Category, Topic.category_id == Category.id
+        ).filter(Category.exam_id.in_(exam_ids)).group_by(Category.exam_id, Exercise.type).all()
+        for exam_id, etype, cnt in e_rows:
+            r = res[exam_id]
+            r['total_exercises'] += cnt
+            if etype == 'simulator':
+                r['simulator_exercises_count'] = cnt
+            elif etype == 'hidden':
+                r['hidden_exercises_count'] = cnt
+            else:
+                r['exam_exercises_count'] += cnt
+        t_rows = db.session.query(
+            Category.exam_id, db.func.count(Topic.id)
+        ).join(Category, Topic.category_id == Category.id).filter(
+            Category.exam_id.in_(exam_ids)
+        ).group_by(Category.exam_id).all()
+        for exam_id, cnt in t_rows:
+            res[exam_id]['total_topics'] = cnt
+        for r in res.values():
+            r['has_exam_content'] = (r['exam_questions_count'] + r['exam_exercises_count']) > 0
+            r['has_simulator_content'] = (r['simulator_questions_count'] + r['simulator_exercises_count']) > 0
+        return res
+
+    @classmethod
+    def build_list_ctx(cls, exams):
+        """Pre-carga en lote (counts + categorías + materiales vinculados) todo lo que
+        to_dict necesita para serializar un LISTADO de exámenes sin N+1. El resultado
+        se pasa como to_dict(ctx=...). Para `competency_standard`, el endpoint debe usar
+        joinedload. Total: ~5 queries para toda la página, en vez de ~8 por examen."""
+        from app.models.category import Category
+        from app.models.study_content import StudyMaterial, study_material_exams
+        ids = [e.id for e in exams]
+        ctx = {'counts': cls.bulk_counts(ids), 'categories': {eid: [] for eid in ids},
+               'materials': {eid: [] for eid in ids}}
+        if not ids:
+            return ctx
+        for c in Category.query.filter(Category.exam_id.in_(ids)).order_by(Category.order).all():
+            ctx['categories'].setdefault(c.exam_id, []).append(c)
+        rows = db.session.query(study_material_exams.c.exam_id, StudyMaterial).join(
+            StudyMaterial, StudyMaterial.id == study_material_exams.c.study_material_id
+        ).filter(study_material_exams.c.exam_id.in_(ids)).all()
+        for exam_id, material in rows:
+            ctx['materials'].setdefault(exam_id, []).append(material)
+        return ctx
+
+    def to_dict(self, include_details=False, ctx=None):
+        """Convertir a diccionario.
+
+        ctx (opcional): contexto pre-cargado por build_list_ctx para serializar listados
+        sin N+1. Si es None, se calcula todo individualmente (comportamiento original,
+        usado por los endpoints de detalle)."""
+        from app.models.topic import Topic
+        from app.models.category import Category
+        # Categorías: del contexto batch si viene, si no query individual (lazy='dynamic')
+        if ctx is not None:
+            categories_list = ctx['categories'].get(self.id, [])
+        else:
+            categories_list = self.categories.all()
         
         data = {
             'id': self.id,
@@ -186,18 +273,31 @@ class Exam(db.Model):
             'direct_sale_description': getattr(self, 'direct_sale_description', None),
             'info_sheet_url': getattr(self, 'info_sheet_url', None),
             'is_free_sample': bool(getattr(self, 'is_free_sample', False)),
-            'total_questions': self.get_total_questions(),
-            'total_exercises': self.get_total_exercises(),
             'total_categories': len(categories_list),
-            'total_topics': db.session.query(db.func.count(Topic.id)).join(Category, Topic.category_id == Category.id).filter(Category.exam_id == self.id).scalar() or 0,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'categories': [{'id': cat.id, 'name': cat.name, 'percentage': cat.percentage} for cat in categories_list]  # Siempre incluir resumen de categorías
         }
-        
-        # Agregar conteos por modo (exam/simulator)
-        mode_counts = self.get_mode_counts()
-        data.update(mode_counts)
+
+        # Cuentas (totales + por modo): del contexto batch si viene, si no individual
+        if ctx is not None:
+            c = ctx['counts'].get(self.id, {})
+            data['total_questions'] = c.get('total_questions', 0)
+            data['total_exercises'] = c.get('total_exercises', 0)
+            data['total_topics'] = c.get('total_topics', 0)
+            data['exam_questions_count'] = c.get('exam_questions_count', 0)
+            data['simulator_questions_count'] = c.get('simulator_questions_count', 0)
+            data['hidden_questions_count'] = c.get('hidden_questions_count', 0)
+            data['exam_exercises_count'] = c.get('exam_exercises_count', 0)
+            data['simulator_exercises_count'] = c.get('simulator_exercises_count', 0)
+            data['hidden_exercises_count'] = c.get('hidden_exercises_count', 0)
+            data['has_exam_content'] = c.get('has_exam_content', False)
+            data['has_simulator_content'] = c.get('has_simulator_content', False)
+        else:
+            data['total_questions'] = self.get_total_questions()
+            data['total_exercises'] = self.get_total_exercises()
+            data['total_topics'] = db.session.query(db.func.count(Topic.id)).join(Category, Topic.category_id == Category.id).filter(Category.exam_id == self.id).scalar() or 0
+            data.update(self.get_mode_counts())
         
         # Incluir info del estándar de competencia si existe
         if self.competency_standard:
@@ -207,18 +307,20 @@ class Exam(db.Model):
                 'name': self.competency_standard.name
             }
         
-        # Incluir materiales de estudio vinculados
+        # Incluir materiales de estudio vinculados (del contexto batch si viene)
         try:
-            if hasattr(self, 'linked_study_materials'):
-                linked_materials = []
-                for material in self.linked_study_materials:
-                    linked_materials.append({
-                        'id': material.id,
-                        'title': material.title,
-                        'description': material.description,
-                        'image_url': transform_to_cdn_url(material.image_url) if material.image_url else None
-                    })
-                data['linked_study_materials'] = linked_materials
+            if ctx is not None:
+                materials_iter = ctx['materials'].get(self.id, [])
+            elif hasattr(self, 'linked_study_materials'):
+                materials_iter = self.linked_study_materials
+            else:
+                materials_iter = []
+            data['linked_study_materials'] = [{
+                'id': material.id,
+                'title': material.title,
+                'description': material.description,
+                'image_url': transform_to_cdn_url(material.image_url) if material.image_url else None
+            } for material in materials_iter]
         except Exception:
             # La tabla puede no existir aún
             data['linked_study_materials'] = []

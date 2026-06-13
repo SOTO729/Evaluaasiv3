@@ -363,6 +363,10 @@ def get_exams():
         editor_invitado_ids = db.session.query(User.id).filter(User.role == 'editor_invitado').subquery()
         query = query.filter(~Exam.created_by.in_(editor_invitado_ids))
     
+    # Eager-load del estándar de competencia para evitar N+1 al serializar el listado
+    from sqlalchemy.orm import joinedload
+    query = query.options(joinedload(Exam.competency_standard))
+
     # Ordenar: publicados primero, luego por fecha de actualización (más recientes primero)
     # Esto asegura que al publicar un examen de la página 2+, aparezca en la primera página
     pagination = query.order_by(
@@ -373,9 +377,13 @@ def get_exams():
         per_page=per_page,
         error_out=False
     )
-    
+
+    # Pre-cargar en lote cuentas/categorías/materiales (evita N+1: ~5 queries para
+    # toda la página en vez de ~8 por examen) y serializar con ese contexto.
+    ctx = Exam.build_list_ctx(pagination.items)
+
     return jsonify({
-        'exams': [exam.to_dict() for exam in pagination.items],
+        'exams': [exam.to_dict(ctx=ctx) for exam in pagination.items],
         'total': pagination.total,
         'pages': pagination.pages,
         'current_page': pagination.page
