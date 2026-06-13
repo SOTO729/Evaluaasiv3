@@ -146,13 +146,32 @@ GENERIC_FOREIGN_CURPS = {FOREIGN_CURP_MALE, FOREIGN_CURP_FEMALE}
 _identity_cache = {}
 
 def _table_has_identity(table_name):
-    """Detecta si una tabla MSSQL tiene columna IDENTITY en id."""
+    """Detecta si el motor auto-genera la columna `id` (IDENTITY en MSSQL,
+    secuencia serial/identity en PostgreSQL). Si True, se usa el ORM normal y
+    el DB asigna el id; si False, _make_record calcula el id explícitamente.
+
+    Portabilidad: COLUMNPROPERTY/OBJECT_ID son exclusivos de T-SQL. En
+    PostgreSQL se consulta pg_get_serial_sequence (no-null ⇒ la columna tiene
+    DEFAULT nextval, es decir, auto-genera). En SQLite el ORM también
+    auto-genera. Sin esta rama, en PG la excepción caía a False y _make_record
+    insertaba ids/columnas crudas saltándose los defaults del modelo."""
     if table_name not in _identity_cache:
+        dialect = db.engine.dialect.name
         try:
-            result = db.session.execute(
-                db.text(f"SELECT COLUMNPROPERTY(OBJECT_ID('{table_name}'), 'id', 'IsIdentity')")
-            ).scalar()
-            _identity_cache[table_name] = (result == 1)
+            if dialect == 'postgresql':
+                seq = db.session.execute(
+                    db.text("SELECT pg_get_serial_sequence(:t, 'id')"),
+                    {'t': table_name}
+                ).scalar()
+                _identity_cache[table_name] = (seq is not None)
+            elif dialect == 'mssql':
+                result = db.session.execute(
+                    db.text(f"SELECT COLUMNPROPERTY(OBJECT_ID('{table_name}'), 'id', 'IsIdentity')")
+                ).scalar()
+                _identity_cache[table_name] = (result == 1)
+            else:
+                # SQLite u otros: el ORM auto-genera el id de PKs Integer
+                _identity_cache[table_name] = True
         except Exception:
             _identity_cache[table_name] = False
     return _identity_cache[table_name]

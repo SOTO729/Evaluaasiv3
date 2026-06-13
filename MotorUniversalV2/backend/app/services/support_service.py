@@ -22,13 +22,26 @@ from app.models.partner import Campus, Partner, PartnerStatePresence
 _identity_cache = {}
 
 def _table_has_identity(table_name):
-    """Detecta si una tabla MSSQL tiene columna IDENTITY en id."""
+    """Detecta si el motor auto-genera la columna `id` (IDENTITY en MSSQL,
+    secuencia en PostgreSQL). Portabilidad: COLUMNPROPERTY/OBJECT_ID son de
+    T-SQL; en PG se consulta pg_get_serial_sequence. Ver nota en
+    routes/partners.py _table_has_identity."""
     if table_name not in _identity_cache:
+        dialect = db.engine.dialect.name
         try:
-            result = db.session.execute(
-                db.text(f"SELECT COLUMNPROPERTY(OBJECT_ID('{table_name}'), 'id', 'IsIdentity')")
-            ).scalar()
-            _identity_cache[table_name] = (result == 1)
+            if dialect == 'postgresql':
+                seq = db.session.execute(
+                    db.text("SELECT pg_get_serial_sequence(:t, 'id')"),
+                    {'t': table_name}
+                ).scalar()
+                _identity_cache[table_name] = (seq is not None)
+            elif dialect == 'mssql':
+                result = db.session.execute(
+                    db.text(f"SELECT COLUMNPROPERTY(OBJECT_ID('{table_name}'), 'id', 'IsIdentity')")
+                ).scalar()
+                _identity_cache[table_name] = (result == 1)
+            else:
+                _identity_cache[table_name] = True
         except Exception:
             _identity_cache[table_name] = False
     return _identity_cache[table_name]
