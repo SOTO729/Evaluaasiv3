@@ -15951,9 +15951,9 @@ def get_ecm_assignments():
             ) cost_stats ON cost_stats.ecm_id = cs.id
             LEFT JOIN (
                 SELECT r.competency_standard_id AS ecm_id,
-                       ROUND(AVG(CAST(r.score AS FLOAT)), 1) AS avg_score,
-                       ROUND(100.0 * SUM(CASE WHEN r.result = 1 THEN 1 ELSE 0 END)
-                             / NULLIF(COUNT(*), 0), 1) AS pass_rate
+                       ROUND(CAST(AVG(CAST(r.score AS FLOAT)) AS DECIMAL(18,6)), 1) AS avg_score,
+                       ROUND(CAST(100.0 * SUM(CASE WHEN r.result = 1 THEN 1 ELSE 0 END)
+                             / NULLIF(COUNT(*), 0) AS DECIMAL(18,6)), 1) AS pass_rate
                 FROM results r
                 WHERE r.competency_standard_id IS NOT NULL AND r.status = 1
                 {_result_stats_extra}
@@ -16301,8 +16301,8 @@ def get_all_ecm_assignments():
                 COUNT(DISTINCT a.user_id) AS unique_users,
                 SUM(CAST(COALESCE(co.total_cost, 0) AS FLOAT)
                     / NULLIF(mc.member_count, 0)) AS total_cost,
-                ROUND(AVG(CASE WHEN lr.result_status_raw = 1
-                          THEN CAST(lr.score AS FLOAT) END), 1) AS avg_score,
+                ROUND(CAST(AVG(CASE WHEN lr.result_status_raw = 1
+                          THEN CAST(lr.score AS FLOAT) END) AS DECIMAL(18,6)), 1) AS avg_score,
                 SUM(CASE WHEN lr.result_status_raw = 1
                     THEN 1 ELSE 0 END) AS completed_count,
                 SUM(CASE WHEN lr.result_status_raw IS NULL
@@ -16905,8 +16905,8 @@ def get_ecm_assignment_detail(ecm_id):
                 COUNT(DISTINCT a.user_id) AS unique_users,
                 SUM(CAST(COALESCE(co.total_cost, 0) AS FLOAT)
                     / NULLIF(mc.member_count, 0)) AS total_cost,
-                ROUND(AVG(CASE WHEN lr.result_status_raw = 1
-                          THEN CAST(lr.score AS FLOAT) END), 1) AS avg_score,
+                ROUND(CAST(AVG(CASE WHEN lr.result_status_raw = 1
+                          THEN CAST(lr.score AS FLOAT) END) AS DECIMAL(18,6)), 1) AS avg_score,
                 SUM(CASE WHEN lr.result_status_raw = 1
                     THEN 1 ELSE 0 END) AS completed_count,
                 SUM(CASE WHEN lr.result_status_raw IS NULL
