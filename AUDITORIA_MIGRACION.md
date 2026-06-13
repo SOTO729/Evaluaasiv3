@@ -120,9 +120,30 @@ La ejecución del barrido encontró 4 patrones T-SQL que la auditoría inicial n
 | `OUTER APPLY (SELECT TOP 1 ...)` — T-SQL puro | partners.py export RENAPO (~19340) | Rama dialecto: `LEFT JOIN LATERAL ... LIMIT 1 ... ON TRUE` en PG |
 | `TRY_CAST(x AS INT)` | partners.py:19327 | Rama dialecto: `CASE WHEN x ~ '^[0-9]+$' THEN CAST(...) END` en PG |
 | `LEN(x)` | partners.py:19086 | f-string `{len_fn}`: `LEN` en mssql, `LENGTH` en PG |
+| `ROUND(<float>, n)` — PG no tiene round(double, int) | partners.py 15954-15955, 16304, 16908 | `ROUND(CAST(x AS DECIMAL(18,6)), n)` portable |
+
+### Hallazgo CRÍTICO detectado en la Fase 4 (suite de integración)
+
+`_table_has_identity()` usaba `COLUMNPROPERTY(OBJECT_ID(...), 'id', 'IsIdentity')`
+— **introspección exclusiva de T-SQL**. En PG lanzaba excepción → `except` →
+`False` para TODAS las tablas → `_make_record()` creía que ninguna tabla
+auto-genera id y hacía `INSERT` con id explícito y columnas crudas, **saltándose
+los defaults de Python del modelo** → `IntegrityError` 409 en CADA creación de
+partner, campus, grupo, vm_session y chat (causa de los ~480 ERROR de la suite).
+
+| Ubicación | Corrección |
+|---|---|
+| `app/routes/partners.py:148` | Dialecto-aware: en PG `pg_get_serial_sequence(t,'id') IS NOT NULL` |
+| `app/services/support_service.py:24` (copia duplicada) | Misma corrección |
+
+Por qué se escapó al inventario inicial: el grep de DDL/booleanos no cubría
+funciones de introspección de catálogo. **Lección**: las rutas de creación de
+entidades (`_make_record`) son tan críticas como las queries de lectura, y el
+patrón "detectar capacidad del motor con función nativa" debe revisarse aparte.
 
 Lección para la Fase 4 (validación): el muestreo de queries durante el soak debe
-vigilar especialmente partners.py — concentra todo el SQL crudo no trivial.
+vigilar especialmente partners.py — concentra todo el SQL crudo no trivial. Y la
+suite de integración es indispensable: este bug NO aparecía en el smoke de lectura.
 
 No existen en el código: `ISNULL`, `IIF`, `MERGE`, `DATEADD`, `DATEDIFF`, `CONVERT`,
 `NOLOCK`, `#temp`, `@@IDENTITY`, `SCOPE_IDENTITY`, `OUTPUT INSERTED`, hints de tabla,
