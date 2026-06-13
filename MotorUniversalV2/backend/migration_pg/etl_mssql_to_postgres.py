@@ -116,16 +116,24 @@ with tgt_engine.connect() as conn:
                 fill_defaults[col.name] = col.default.arg
         fills = 0
 
+        # Columnas JSON: un None de Python se serializa como JSON 'null' (texto)
+        # en vez de SQL NULL. Forzar SQL NULL con sqlalchemy.null().
+        from sqlalchemy import JSON as SA_JSON, null as sa_null
+        json_cols = [c.name for c in t.columns if isinstance(c.type, SA_JSON)]
+
         trans = conn.begin()
         try:
             for i in range(0, total, CHUNK):
                 chunk = [dict(r) for r in rows[i:i + CHUNK]]
-                if fill_defaults:
+                if fill_defaults or json_cols:
                     for r in chunk:
                         for k, v in fill_defaults.items():
                             if r.get(k) is None:
                                 r[k] = v
                                 fills += 1
+                        for k in json_cols:
+                            if r.get(k) is None:
+                                r[k] = sa_null()
                 conn.execute(t.insert(), chunk)
             trans.commit()
         except Exception:

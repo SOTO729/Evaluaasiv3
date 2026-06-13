@@ -31,8 +31,13 @@ os.environ['FLASK_ENV'] = 'development'
 from app import create_app, db  # noqa: E402
 from sqlalchemy import (  # noqa: E402
     create_engine, select, func, inspect as sa_inspect,
-    Integer, Float, Numeric, DateTime, Date, Boolean,
+    Integer, Float, Numeric, DateTime, Date, Boolean, JSON as SA_JSON,
 )
+
+# --tables results,conocer_certificates → validar solo esas
+ONLY_TABLES = None
+if '--tables' in sys.argv:
+    ONLY_TABLES = set(sys.argv[sys.argv.index('--tables') + 1].split(','))
 
 app = create_app('development')
 with app.app_context():
@@ -44,6 +49,8 @@ tgt = create_engine(TARGET, pool_pre_ping=True)
 src_names = set(sa_inspect(src).get_table_names())
 tgt_names = set(sa_inspect(tgt).get_table_names())
 plan = [t for t in sorted_tables if t.name in src_names and t.name in tgt_names]
+if ONLY_TABLES:
+    plan = [t for t in plan if t.name in ONLY_TABLES]
 
 failures = []
 results = []
@@ -92,8 +99,10 @@ for t in plan:
                     b = tc.execute(select(func.min(col), func.max(col))).first()
                     if tuple(map(norm, a)) != tuple(map(norm, b)):
                         issues.append(f'min/max({col.name}): {a} vs {b}')
-                # NULLs por columna (omitir las que el ETL rellena por drift)
-                if col.name not in fill_defaults:
+                # NULLs por columna (omitir las que el ETL rellena por drift y
+                # las JSON: SQL NULL y JSON null son equivalentes para la app,
+                # el muestreo campo a campo las compara por valor deserializado)
+                if col.name not in fill_defaults and not isinstance(col.type, SA_JSON):
                     a = sc.execute(select(func.count()).select_from(t).where(col.is_(None))).scalar()
                     b = tc.execute(select(func.count()).select_from(t).where(col.is_(None))).scalar()
                     if a != b:
