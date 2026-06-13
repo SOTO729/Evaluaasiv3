@@ -80,23 +80,69 @@ if TRUNCATE:
     print('  OK')
 
 # ── Carga ─────────────────────────────────────────────────────────────────────
+# El esquema tiene ciclos de FK (users → campuses → partners → users), así que
+# sorted_tables no garantiza un orden válido. Desactivamos la validación de FKs
+# en la SESIÓN de carga con session_replication_role=replica (los datos vienen
+# de una BD consistente; la validación real la hace validate_migration.py).
 report = []
 t0 = time.time()
-for t in plan:
-    start = time.time()
-    with src_engine.connect() as sconn:
-        rows = sconn.execute(select(t)).mappings().all()
-    total = len(rows)
-    if total == 0:
-        report.append((t.name, 0, 0.0))
-        continue
-    with tgt_engine.begin() as conn:
-        for i in range(0, total, CHUNK):
-            chunk = [dict(r) for r in rows[i:i + CHUNK]]
-            conn.execute(t.insert(), chunk)
-    dt = time.time() - start
-    report.append((t.name, total, dt))
-    print(f'  {t.name}: {total} filas en {dt:.1f}s')
+with tgt_engine.connect() as conn:
+    try:
+        conn.execute(text('SET session_replication_role = replica'))
+        conn.commit()
+        print('FK enforcement desactivado en la sesión (session_replication_role=replica)')
+    except Exception as e:
+        print(f'ERROR: no se pudo desactivar FK enforcement: {e}')
+        print('Opción: habilitarlo a nivel servidor temporalmente con')
+        print('  az postgres flexible-server parameter set --resource-group evaluaasi-motorv2-rg \\')
+        print('    --server-name evaluaasi-motorv2-pg --name session_replication_role --value replica')
+        sys.exit(3)
+
+    for t in plan:
+        start = time.time()
+        with src_engine.connect() as sconn:
+            rows = sconn.execute(select(t)).mappings().all()
+        total = len(rows)
+        if total == 0:
+            report.append((t.name, 0, 0.0))
+            continue
+
+        # Drift de esquema: columnas que en MSSQL traen NULL (se agregaron
+        # nullables vía auto_migrate) pero el modelo declara NOT NULL con
+        # default escalar → rellenar con el default del modelo.
+        fill_defaults = {}
+        for col in t.columns:
+            if not col.nullable and col.default is not None and getattr(col.default, 'is_scalar', False):
+                fill_defaults[col.name] = col.default.arg
+        fills = 0
+
+        trans = conn.begin()
+        try:
+            for i in range(0, total, CHUNK):
+                chunk = [dict(r) for r in rows[i:i + CHUNK]]
+                if fill_defaults:
+                    for r in chunk:
+                        for k, v in fill_defaults.items():
+                            if r.get(k) is None:
+                                r[k] = v
+                                fills += 1
+                conn.execute(t.insert(), chunk)
+            trans.commit()
+        except Exception:
+            trans.rollback()
+            raise
+        dt = time.time() - start
+        report.append((t.name, total, dt))
+        extra = f' ({fills} NULLs rellenados con default del modelo)' if fills else ''
+        print(f'  {t.name}: {total} filas en {dt:.1f}s{extra}')
+
+    try:
+        conn.execute(text('SET session_replication_role = DEFAULT'))
+        conn.commit()
+    except Exception:
+        # Azure puede negar el reset explícito; es inofensivo: el parámetro es
+        # de sesión y muere al cerrar la conexión.
+        conn.rollback()
 
 # ── setval de secuencias (PKs Integer autoincrement) ─────────────────────────
 print('\nAjustando secuencias (setval)...')

@@ -64,6 +64,13 @@ def norm(v):
 
 for t in plan:
     issues = []
+    # Misma regla que el ETL: en columnas NOT NULL con default escalar, un NULL
+    # en el origen equivale al default en el destino (drift de auto_migrate).
+    fill_defaults = {
+        col.name: col.default.arg
+        for col in t.columns
+        if not col.nullable and col.default is not None and getattr(col.default, 'is_scalar', False)
+    }
     with src.connect() as sc, tgt.connect() as tc:
         n_src = sc.execute(select(func.count()).select_from(t)).scalar()
         n_tgt = tc.execute(select(func.count()).select_from(t)).scalar()
@@ -85,11 +92,12 @@ for t in plan:
                     b = tc.execute(select(func.min(col), func.max(col))).first()
                     if tuple(map(norm, a)) != tuple(map(norm, b)):
                         issues.append(f'min/max({col.name}): {a} vs {b}')
-                # NULLs por columna
-                a = sc.execute(select(func.count()).select_from(t).where(col.is_(None))).scalar()
-                b = tc.execute(select(func.count()).select_from(t).where(col.is_(None))).scalar()
-                if a != b:
-                    issues.append(f'nulls({col.name}): {a} vs {b}')
+                # NULLs por columna (omitir las que el ETL rellena por drift)
+                if col.name not in fill_defaults:
+                    a = sc.execute(select(func.count()).select_from(t).where(col.is_(None))).scalar()
+                    b = tc.execute(select(func.count()).select_from(t).where(col.is_(None))).scalar()
+                    if a != b:
+                        issues.append(f'nulls({col.name}): {a} vs {b}')
             except Exception as e:
                 issues.append(f'error comparando {col.name}: {e}')
 
@@ -106,7 +114,10 @@ for t in plan:
                         issues.append(f'fila {pk_val} no existe en destino')
                         continue
                     for k in ra.keys():
-                        if norm(ra[k]) != norm(rb[k]):
+                        va = ra[k]
+                        if va is None and k in fill_defaults:
+                            va = fill_defaults[k]
+                        if norm(va) != norm(rb[k]):
                             issues.append(f'fila {pk_val} campo {k}: {ra[k]!r} vs {rb[k]!r}')
             except Exception as e:
                 issues.append(f'error en muestreo: {e}')
