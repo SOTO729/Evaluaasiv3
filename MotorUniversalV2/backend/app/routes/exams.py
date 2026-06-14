@@ -406,6 +406,37 @@ def get_exams():
     }), 200
 
 
+@bp.route('/maintenance/migrate-base64-images', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def migrate_base64_images():
+    """Mantenimiento (idempotente): migra imágenes de examen guardadas como base64 en
+    la columna image_url a Blob Storage, dejando solo la URL. Reduce el payload del
+    listado y el tamaño de la BD. Reutilizable en el corte de PROD."""
+    exams = Exam.query.filter(Exam.image_url.like('data:%')).all()
+    migrated, failed, details = 0, 0, []
+    for e in exams:
+        before = len(e.image_url or '')
+        new_url = _exam_image_to_blob(e.image_url)
+        if new_url and new_url != e.image_url and not new_url.startswith('data:'):
+            e.image_url = new_url
+            migrated += 1
+            details.append({'exam_id': e.id, 'base64_bytes': before, 'url': new_url})
+        else:
+            failed += 1
+            details.append({'exam_id': e.id, 'status': 'failed_upload'})
+    if migrated:
+        db.session.commit()
+    return jsonify({
+        'total_base64': len(exams), 'migrated': migrated, 'failed': failed, 'details': details
+    }), 200
+
+
+@bp.route('/maintenance/migrate-base64-images', methods=['OPTIONS'])
+def options_migrate_base64_images():
+    return jsonify({'status': 'ok'}), 200
+
+
 @bp.route('', methods=['POST'])
 @jwt_required()
 @require_permission('exams:create')
