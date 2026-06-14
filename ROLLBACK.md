@@ -38,6 +38,10 @@ como red de seguridad.
 
 **Revertir PROD a MSSQL** (si algo falla en el soak):
 ```bash
+# 0. El API viejo quedó en scale-to-zero (min 0): re-escalarlo a min 1
+az containerapp update --name evaluaasi-motorv2-api \
+  --resource-group evaluaasi-motorv2-rg --min-replicas 1 --max-replicas 3 -o none
+
 # 1. Reactivar el ingress del API viejo (sigue apuntando a MSSQL, intacto)
 az containerapp ingress enable --name evaluaasi-motorv2-api \
   --resource-group evaluaasi-motorv2-rg --type external --target-port 8000 --transport auto
