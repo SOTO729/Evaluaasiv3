@@ -30,12 +30,33 @@ Notas:
 | Password | (la de siempre, ver CLAUDE.md) | en Key Vault / gestor del equipo (generada en el aprovisionamiento) |
 | Extra | — | requiere `?sslmode=require`; servidor en **Central US** (B1ms) |
 
-## PROD (cuando llegue el corte)
+## PROD — CORTADO (vigente desde el corte)
 
-PROD NO se ha tocado. El corte de PROD requerirá:
-1. Ventana de mantenimiento (congelar escrituras).
-2. `evaluaasi` (PROD) → nueva BD `evaluaasi` en el mismo Flexible Server
-   (o servidor dedicado, decidir SKU según observación de DEV).
-3. ETL `--truncate` + validación 100% PASS (mismos scripts de `migration_pg/`).
-4. Flip de `DATABASE_URL` en `evaluaasi-motorv2-api` (+ imagen ya portable).
-5. Smoke. Reversa simétrica a la de DEV.
+PROD ya corre en **PostgreSQL (Central US)**. La app vieja en South Central US
+(`evaluaasi-motorv2-api`, MSSQL) quedó **congelada con el ingress deshabilitado**
+como red de seguridad.
+
+**Revertir PROD a MSSQL** (si algo falla en el soak):
+```bash
+# 1. Reactivar el ingress del API viejo (sigue apuntando a MSSQL, intacto)
+az containerapp ingress enable --name evaluaasi-motorv2-api \
+  --resource-group evaluaasi-motorv2-rg --type external --target-port 8000 --transport auto
+
+# 2. Revertir el frontend PROD a la URL vieja del API y redeployar
+#    .env.production → VITE_API_URL=https://evaluaasi-motorv2-api.purpleocean-384694c4.southcentralus.azurecontainerapps.io/api
+cd MotorUniversalV2/frontend && npx vite build --mode production --emptyOutDir
+npx @azure/static-web-apps-cli deploy dist --deployment-token <TOKEN_PROD> --env production
+```
+Las escrituras hechas en PG durante la ventana PG se perderían al revertir (el MSSQL
+quedó congelado en el momento del corte). El ETL solo LEYÓ del MSSQL.
+
+**Infra PROD nueva:**
+- API: `evaluaasi-motorv2-api-cus` (Central US, environment `evaluaasi-api-env-cus`)
+- URL: `evaluaasi-motorv2-api-cus.victoriouscliff-108125b9.centralus.azurecontainerapps.io`
+- BD: PG `evaluaasi-motorv2-pg` / base `evaluaasi` (Central US)
+- Frontend: SWA `thankful-stone` (app.evaluaasi.com), apunta a la URL nueva.
+
+## Limpieza pendiente (tras soak de PROD)
+- Borrar apps viejos de South Central US: `evaluaasi-motorv2-api` y `evaluaasi-motorv2-api-dev`.
+- Quitar reglas de firewall temporales del PG: `dev-machine`, `dev-machine-2`.
+- Deprecar el SQL Server MSSQL cuando DEV y PROD estén validados en PG.
