@@ -289,6 +289,22 @@ def exercises_ping():
 # el código del cuerpo era una "dead reference" peligrosa de mantener).
 
 
+def _exam_image_to_blob(image_url):
+    """Si image_url es un data URI base64, lo sube a Blob Storage y devuelve la URL
+    resultante; si ya es una URL (o vacío), lo devuelve tal cual. Evita persistir
+    imágenes base64 pesadas en la columna image_url (inflaban el payload del listado
+    y el tamaño de la BD). Mismo patrón que los pasos de ejercicio."""
+    if image_url and isinstance(image_url, str) and image_url.startswith('data:'):
+        try:
+            from app.utils.azure_storage import azure_storage
+            blob_url = azure_storage.upload_base64_image(image_url, folder='exam-images')
+            if blob_url:
+                return blob_url
+        except Exception as e:
+            print(f"⚠️ No se pudo subir imagen de examen a blob: {e}")
+    return image_url
+
+
 @bp.route('', methods=['GET'])
 @jwt_required()
 @rate_limit_exams(limit=50, window=60)
@@ -504,7 +520,7 @@ def create_exam():
             duration_minutes=data.get('duration_minutes'),
             passing_score=data.get('passing_score', 70),
             pause_on_disconnect=data.get('pause_on_disconnect', True),
-            image_url=data.get('image_url'),
+            image_url=_exam_image_to_blob(data.get('image_url')),
             competency_standard_id=data.get('competency_standard_id'),
             created_by=user_id
         )
@@ -842,6 +858,11 @@ def update_exam(exam_id):
     for field in updatable_fields:
         if field in data:
             setattr(exam, field, data[field])
+
+    # Si llegó una imagen nueva en base64, subirla a Blob Storage en vez de
+    # persistir el data URI pesado en la BD.
+    if 'image_url' in data:
+        exam.image_url = _exam_image_to_blob(exam.image_url)
 
     # direct_price_mxn solo lo puede modificar admin/developer (regla locked):
     # admin+editor pueden marcar/desmarcar como público, pero solo admin fija el precio.
