@@ -124,9 +124,12 @@ class AzureStorageService:
             blob_client.upload_blob(
                 file,
                 overwrite=True,
-                content_settings=ContentSettings(content_type=content_type)
+                content_settings=ContentSettings(
+                    content_type=content_type,
+                    cache_control='public, max-age=2592000'
+                )
             )
-            
+
             # Retornar URL
             return blob_client.url
         
@@ -583,15 +586,47 @@ class AzureStorageService:
             blob_client.upload_blob(
                 image_bytes,
                 overwrite=True,
-                content_settings=ContentSettings(content_type=content_type)
+                content_settings=ContentSettings(
+                    content_type=content_type,
+                    # Cache-Control para que el CDN (Front Door) cachee la imagen en el
+                    # edge. Los nombres son UUID inmutables, así que TTL largo es seguro.
+                    cache_control='public, max-age=2592000'
+                )
             )
-            
+
             print(f"Imagen subida exitosamente: {blob_client.url}")
             return blob_client.url
-        
+
         except Exception as e:
             print(f"Error uploading base64 image to Azure: {str(e)}")
             return None
+
+    def set_cache_headers_on_existing(self, max_age=2592000):
+        """Recorre los blobs del container y pone Cache-Control en las IMÁGENES que aún
+        no lo tengan, para que el CDN (Front Door) las cachee en el edge. Idempotente:
+        salta las que ya tienen cache_control y las que no son imágenes. Preserva el
+        content_type. Devuelve dict con conteos."""
+        if not self.blob_service_client:
+            return {'updated': 0, 'skipped': 0, 'errors': 0, 'note': 'storage no configurado'}
+        container = self.blob_service_client.get_container_client(self.container_name)
+        cc = f'public, max-age={max_age}'
+        updated = skipped = errors = 0
+        for blob in container.list_blobs():
+            cs = blob.content_settings or None
+            ct = (cs.content_type if cs else '') or ''
+            existing = (cs.cache_control if cs else '') or ''
+            if not ct.startswith('image/') or existing:
+                skipped += 1
+                continue
+            try:
+                container.get_blob_client(blob.name).set_http_headers(
+                    ContentSettings(content_type=ct, cache_control=cc)
+                )
+                updated += 1
+            except Exception as e:
+                errors += 1
+                print(f"⚠️ Cache-Control fallo en {blob.name}: {e}")
+        return {'updated': updated, 'skipped': skipped, 'errors': errors}
 
     def generate_video_upload_sas(self, filename):
         """

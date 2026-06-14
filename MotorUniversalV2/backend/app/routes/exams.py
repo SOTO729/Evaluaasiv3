@@ -437,6 +437,23 @@ def options_migrate_base64_images():
     return jsonify({'status': 'ok'}), 200
 
 
+@bp.route('/maintenance/set-image-cache-headers', methods=['POST'])
+@jwt_required()
+@require_permission('exams:update')
+def set_image_cache_headers():
+    """Mantenimiento (idempotente): pone Cache-Control en las imágenes existentes del
+    Storage para que el CDN (Front Door) las cachee en el edge. Resuelve el delay de
+    carga de imágenes. Beneficia DEV y PROD (storage/CDN compartidos)."""
+    from app.utils.azure_storage import azure_storage
+    result = azure_storage.set_cache_headers_on_existing()
+    return jsonify(result), 200
+
+
+@bp.route('/maintenance/set-image-cache-headers', methods=['OPTIONS'])
+def options_set_image_cache_headers():
+    return jsonify({'status': 'ok'}), 200
+
+
 @bp.route('', methods=['POST'])
 @jwt_required()
 @require_permission('exams:create')
